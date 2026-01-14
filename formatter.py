@@ -342,9 +342,9 @@ class ForecastFormatter:
 
         windows = split_windows
 
-        # Assign objects to windows based on their peak time
+        # Build lookup of all scored objects
+        all_objects = []
         for score in scores:
-            obj_vis = None
             for obj in (
                 forecast.planets
                 + forecast.dsos
@@ -352,20 +352,19 @@ class ForecastFormatter:
                 + [forecast.milky_way]
             ):
                 if score.object_name in obj.object_name:
-                    obj_vis = obj
+                    all_objects.append(
+                        {"name": score.object_name, "obj": obj, "score": score}
+                    )
                     break
 
-            if obj_vis and obj_vis.max_altitude_time:
-                peak_time = obj_vis.max_altitude_time
-                if peak_time.tzinfo is None:
-                    peak_time = peak_time.replace(tzinfo=timezone.utc)
-
-                for window in windows:
-                    if window["start"] <= peak_time <= window["end"]:
-                        window["objects"].append(
-                            {"name": score.object_name, "obj": obj_vis, "score": score}
-                        )
-                        break
+        # Assign ALL visible objects to each window (object visible if above horizon during window)
+        for window in windows:
+            for item in all_objects:
+                obj = item["obj"]
+                # Check if object is visible during this window (has altitude data and peaks tonight)
+                if obj.max_altitude_time and obj.max_altitude and obj.max_altitude > 30:
+                    # Object is visible tonight - add to this window
+                    window["objects"].append(item.copy())
 
         # Apply balanced selection per window: 50% DSOs, 25% planets, 25% comets
         for window in windows:
