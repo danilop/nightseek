@@ -156,6 +156,7 @@ class VisibilityAnalyzer:
                 night_info,
             )
             visibility.object_name = f"{dso.name} ({dso.common_name})"
+            visibility.magnitude = dso.magnitude
             dso_visibility.append(visibility)
 
         # Analyze comets (use pre-computed skyfield objects and coarse sampling)
@@ -174,7 +175,8 @@ class VisibilityAnalyzer:
                     night_info,
                     coarse=True,
                 )
-                # Add interstellar marker if applicable
+                # Add magnitude and interstellar marker
+                visibility.magnitude = comet.magnitude_g
                 if comet.is_interstellar:
                     visibility.object_name = f"{comet.designation} ⭐"
                 comet_visibility.append(visibility)

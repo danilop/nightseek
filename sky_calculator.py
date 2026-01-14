@@ -42,6 +42,7 @@ class ObjectVisibility:
     above_75_end: Optional[datetime]
     moon_separation: Optional[float]  # degrees
     moon_warning: bool  # True if moon interferes
+    magnitude: Optional[float] = None  # Visual magnitude if known
 
 
 class SkyCalculator:
