@@ -351,7 +351,7 @@ class ForecastFormatter:
         self.console.print(desc)
 
     def _print_weekly_forecast(self, forecasts: List[NightForecast], max_objects: int):
-        """Print forecast organized by object type."""
+        """Print forecast with all objects grouped by night."""
         num_days = len(forecasts)
         if num_days == 1:
             title = "TONIGHT'S TARGETS"
@@ -363,24 +363,9 @@ class ForecastFormatter:
         self.console.print(f"[bold cyan]{title}[/bold cyan]")
         self.console.print()
 
-        # Combined planets and comets section
-        self._print_solar_system_forecast(forecasts, max_objects)
-
-        # Deep Sky Objects
-        self._print_dso_forecast(forecasts, max_objects)
-
-        # Milky Way
-        self._print_milky_way_forecast(forecasts)
-
-    def _print_solar_system_forecast(
-        self, forecasts: List[NightForecast], max_objects: int
-    ):
-        """Print combined planets and comets forecast, ranked by visibility."""
-        self.console.print("[bold yellow]Planets & Comets[/bold yellow]")
-
         has_weather = any(f.weather is not None for f in forecasts)
 
-        # Known planet magnitudes (approximate, varies with distance)
+        # Planet magnitudes
         planet_mags = {
             "Mercury": 0.0,
             "Venus": -4.0,
@@ -391,178 +376,112 @@ class ForecastFormatter:
             "Neptune": 7.8,
         }
 
-        # Collect all objects with scores
-        objects = []
-
-        # Planets
+        # Score each night for ranking
+        night_scores = []
         for forecast in forecasts:
+            score = 100 - forecast.night_info.moon_illumination
+            if has_weather and forecast.weather:
+                score -= forecast.weather.avg_cloud_cover * 0.7
+            night_scores.append((forecast, score))
+
+        # Sort nights by score (best first)
+        night_scores.sort(key=lambda x: x[1], reverse=True)
+        best_night_date = night_scores[0][0].night_info.date.strftime("%Y-%m-%d")
+
+        # Show each night
+        for forecast, night_score in night_scores:
+            date_str = forecast.night_info.date.strftime("%a, %b %d")
+            is_best = forecast.night_info.date.strftime("%Y-%m-%d") == best_night_date
+
+            # Build header
+            if is_best and len(forecasts) > 1:
+                header = (
+                    f"[bold yellow]★ {date_str}[/bold yellow] [dim]Best Night[/dim]"
+                )
+            else:
+                header = f"[bold]{date_str}[/bold]"
+
+            # Conditions
+            moon_pct = forecast.night_info.moon_illumination
+            conditions = f"Moon {moon_pct:.0f}%"
+            if has_weather and forecast.weather:
+                clouds = forecast.weather.avg_cloud_cover
+                if clouds < 20:
+                    conditions += " • Clear"
+                elif clouds < 50:
+                    conditions += " • Partly cloudy"
+                else:
+                    conditions += " • Cloudy"
+
+            self.console.print(f"{header}")
+            self.console.print(f"[dim]{conditions}[/dim]")
+
+            # Collect all objects for this night
+            objects = []
+
+            # Planets (bonus - always interesting targets, easy to find)
             for planet in forecast.planets:
                 if planet.is_visible and planet.max_altitude >= 30:
-                    score = planet.max_altitude
+                    score = planet.max_altitude + 15  # Bonus for planets
                     if has_weather and forecast.weather:
                         score -= forecast.weather.avg_cloud_cover * 0.3
-                    mag = planet_mags.get(planet.object_name, None)
                     objects.append(
-                        (planet.object_name, "planet", score, forecast, planet, mag)
+                        (
+                            "🪐",
+                            planet.object_name,
+                            planet,
+                            score,
+                            planet_mags.get(planet.object_name),
+                        )
                     )
 
-        # Comets
-        for forecast in forecasts:
+            # Comets
             for comet in forecast.comets:
                 if comet.is_visible and comet.max_altitude >= 30:
                     score = comet.max_altitude
                     if has_weather and forecast.weather:
                         score -= forecast.weather.avg_cloud_cover * 0.3
                     objects.append(
-                        (
-                            comet.object_name,
-                            "comet",
-                            score,
-                            forecast,
-                            comet,
-                            comet.magnitude,
-                        )
+                        ("☄️", comet.object_name, comet, score, comet.magnitude)
                     )
 
-        if not objects:
-            self.console.print("[dim]No planets or comets visible above 30°[/dim]")
-            self.console.print()
-            return
-
-        # Keep best score per object
-        best_objects = {}
-        for name, obj_type, score, forecast, obj, mag in objects:
-            if name not in best_objects or score > best_objects[name][2]:
-                best_objects[name] = (name, obj_type, score, forecast, obj, mag)
-
-        # Sort by score and take top N
-        sorted_objects = sorted(best_objects.values(), key=lambda x: x[2], reverse=True)
-
-        for name, obj_type, score, forecast, obj, mag in sorted_objects[:max_objects]:
-            date_str = forecast.night_info.date.strftime("%b %d")
-            time_str = self.tz.format_time(obj.max_altitude_time)
-            quality = self._get_quality_color(obj.max_altitude)
-
-            # Type indicator
-            type_str = "☄️" if obj_type == "comet" else "🪐"
-
-            # Magnitude string
-            mag_str = f" (mag {mag:.1f})" if mag is not None else ""
-
-            # Weather info
-            weather_str = ""
-            if has_weather and forecast.weather:
-                clouds = forecast.weather.avg_cloud_cover
-                if clouds >= 50:
-                    weather_str = " [dim]Cloudy[/dim]"
-
-            # Interstellar marker
-            marker = " [bold yellow]INTERSTELLAR![/bold yellow]" if "⭐" in name else ""
-
-            self.console.print(
-                f"  {type_str} {name}{mag_str}: {date_str}, {quality}, "
-                f"peaks {obj.max_altitude:.0f}° at {time_str}{weather_str}{marker}"
-            )
-
-        self.console.print()
-
-    def _print_dso_forecast(self, forecasts: List[NightForecast], max_objects: int):
-        """Print deep sky object forecast grouped by date."""
-        self.console.print("[bold magenta]Deep Sky Objects[/bold magenta]")
-
-        # Check if we have weather data
-        has_weather = any(f.weather is not None for f in forecasts)
-
-        # Group DSOs by their best night (weather-aware)
-        nights_with_dsos = {}
-
-        for forecast in forecasts:
+            # DSOs (slight bonus - main astrophotography targets)
             for dso in forecast.dsos:
                 if dso.is_visible and dso.max_altitude >= 45:
-                    # Score based on altitude and weather
-                    score = dso.max_altitude
+                    score = dso.max_altitude + 5  # Bonus for DSOs
                     if has_weather and forecast.weather:
-                        cloud_penalty = forecast.weather.avg_cloud_cover * 0.5
-                        moon_penalty = 20 if dso.moon_warning else 0
-                        score = score - cloud_penalty - moon_penalty
+                        score -= forecast.weather.avg_cloud_cover * 0.5
+                    if dso.moon_warning:
+                        score -= 20
+                    objects.append(("🌌", dso.object_name, dso, score, dso.magnitude))
 
-                    # Track best night for this DSO
-                    date_key = forecast.night_info.date.strftime("%Y-%m-%d")
-                    if date_key not in nights_with_dsos:
-                        nights_with_dsos[date_key] = {
-                            "forecast": forecast,
-                            "objects": [],
-                        }
+            # Sort by score and take top N
+            objects.sort(key=lambda x: x[3], reverse=True)
 
-                    nights_with_dsos[date_key]["objects"].append(
-                        {"name": dso.object_name, "dso": dso, "score": score}
+            if not objects:
+                self.console.print("  [dim]No objects visible above threshold[/dim]")
+            else:
+                for icon, name, obj, score, mag in objects[:max_objects]:
+                    quality = self._get_quality_color(obj.max_altitude)
+                    time_str = self.tz.format_time(obj.max_altitude_time)
+                    mag_str = f" [dim](mag {mag:.1f})[/dim]" if mag is not None else ""
+
+                    # Warnings
+                    warning = ""
+                    if hasattr(obj, "moon_warning") and obj.moon_warning:
+                        warning = " [dim](moon)[/dim]"
+                    if "⭐" in name:
+                        warning += " [bold yellow]INTERSTELLAR![/bold yellow]"
+
+                    self.console.print(
+                        f"  {icon} {name}{mag_str}: {quality}, "
+                        f"{obj.max_altitude:.0f}° at {time_str}{warning}"
                     )
 
-        if not nights_with_dsos:
-            self.console.print("[dim]No DSOs visible above 45°[/dim]")
-            self.console.print()
-            return
-
-        # Print DSOs grouped by night, showing best nights first
-        sorted_nights = sorted(
-            nights_with_dsos.items(),
-            key=lambda x: sum(obj["score"] for obj in x[1]["objects"][:max_objects]),
-            reverse=True,
-        )
-
-        # Limit to top 5 nights to avoid repetition
-        nights_to_show = min(5, len(sorted_nights))
-        if len(sorted_nights) > nights_to_show:
-            self.console.print(
-                f"[dim]Showing best {nights_to_show} of {len(sorted_nights)} nights[/dim]"
-            )
             self.console.print()
 
-        for date_key, night_info in sorted_nights[:nights_to_show]:
-            forecast = night_info["forecast"]
-            date_str = forecast.night_info.date.strftime("%b %d")
-
-            # Format night header with weather
-            weather_desc = ""
-            if has_weather and forecast.weather:
-                if forecast.weather.clear_windows:
-                    window_strs = [
-                        f"{self.tz.format_time(w.start)}-{self.tz.format_time(w.end)}"
-                        for w in forecast.weather.clear_windows[:2]
-                    ]
-                    weather_desc = f" - Clear: {', '.join(window_strs)}"
-                elif forecast.weather.avg_cloud_cover < 60:
-                    weather_desc = " - Partly cloudy"
-                else:
-                    weather_desc = " - Cloudy"
-
-            self.console.print(f"[bold]{date_str}{weather_desc}[/bold]")
-
-            # Show top N objects for this night
-            sorted_objs = sorted(
-                night_info["objects"], key=lambda x: x["score"], reverse=True
-            )[:max_objects]
-            for obj_info in sorted_objs:
-                dso = obj_info["dso"]
-                quality = self._get_quality_color(dso.max_altitude)
-
-                # Magnitude string
-                mag_str = f" (mag {dso.magnitude:.1f})" if dso.magnitude else ""
-
-                notes = []
-                if dso.moon_warning:
-                    notes.append("[dim](moon)[/dim]")
-
-                note_str = " " + " ".join(notes) if notes else ""
-                self.console.print(
-                    f"  • {obj_info['name']}{mag_str}: {quality}, "
-                    f"peak {dso.max_altitude:.0f}° at {self.tz.format_time(dso.max_altitude_time)}"
-                    f"{note_str}"
-                )
-
-            self.console.print()
-
-        self.console.print()
+        # Milky Way (separate - needs special dark sky conditions)
+        self._print_milky_way_forecast(forecasts)
 
     def _print_milky_way_forecast(self, forecasts: List[NightForecast]):
         """Print Milky Way visibility forecast."""
