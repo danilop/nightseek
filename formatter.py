@@ -367,7 +367,7 @@ class ForecastFormatter:
         self._print_planet_forecast(forecasts)
 
         # Comets
-        self._print_comet_forecast(forecasts)
+        self._print_comet_forecast(forecasts, max_objects)
 
         # Deep Sky Objects
         self._print_dso_forecast(forecasts, max_objects)
@@ -426,60 +426,63 @@ class ForecastFormatter:
 
         self.console.print()
 
-    def _print_comet_forecast(self, forecasts: List[NightForecast]):
-        """Print comet visibility forecast."""
-        # Check if any comets are visible
-        all_comets = set()
+    def _print_comet_forecast(self, forecasts: List[NightForecast], max_objects: int):
+        """Print comet visibility forecast, limited to top N by visibility score."""
+        # Build list of comets with their best viewing score
+        comet_scores = {}
+        has_weather = any(f.weather is not None for f in forecasts)
+
         for forecast in forecasts:
             for comet in forecast.comets:
                 if comet.is_visible and comet.max_altitude >= 30:
-                    all_comets.add(comet.object_name)
+                    # Score based on altitude and weather
+                    score = comet.max_altitude
+                    if has_weather and forecast.weather:
+                        cloud_penalty = forecast.weather.avg_cloud_cover * 0.3
+                        score = score - cloud_penalty
 
-        if not all_comets:
-            # No output if no comets visible
+                    if (
+                        comet.object_name not in comet_scores
+                        or score > comet_scores[comet.object_name][0]
+                    ):
+                        comet_scores[comet.object_name] = (score, forecast, comet)
+
+        if not comet_scores:
             return
 
         self.console.print("[bold green]Comets ☄️[/bold green]")
 
-        # Check if we have weather data
-        has_weather = any(f.weather is not None for f in forecasts)
+        # Sort by score and take top N
+        sorted_comets = sorted(
+            comet_scores.items(), key=lambda x: x[1][0], reverse=True
+        )
+        for comet_name, (score, best_night, comet_obj) in sorted_comets[:max_objects]:
+            date_str = best_night.night_info.date.strftime("%b %d")
+            time_str = self.tz.format_time(comet_obj.max_altitude_time)
+            quality = self._get_quality_color(comet_obj.max_altitude)
 
-        # For each comet, show best viewing opportunity
-        for comet_name in sorted(all_comets):
-            best_night = None
-            best_score = -1
-
-            for forecast in forecasts:
-                for comet in forecast.comets:
-                    if comet.object_name == comet_name:
-                        # Score based on altitude and weather
-                        score = comet.max_altitude
-                        if has_weather and forecast.weather:
-                            cloud_penalty = forecast.weather.avg_cloud_cover * 0.3
-                            score = score - cloud_penalty
-
-                        if score > best_score:
-                            best_score = score
-                            best_night = forecast
-
-            if best_night:
-                comet_obj = next(
-                    c for c in best_night.comets if c.object_name == comet_name
-                )
-                date_str = best_night.night_info.date.strftime("%b %d")
-                time_str = self.tz.format_time(comet_obj.max_altitude_time)
-                quality = self._get_quality_color(comet_obj.max_altitude)
-
-                # Add special marker for interstellar objects
-                if "⭐" in comet_name:
-                    marker = " [bold yellow](INTERSTELLAR!)[/bold yellow]"
+            # Weather info
+            weather_info = ""
+            if has_weather and best_night.weather:
+                clouds = best_night.weather.avg_cloud_cover
+                if clouds < 20:
+                    weather_info = " (Clear)"
+                elif clouds < 50:
+                    weather_info = " (Partly cloudy)"
                 else:
-                    marker = ""
+                    weather_info = " (Cloudy)"
 
-                self.console.print(
-                    f"  • {comet_name}: Best on {date_str}, {quality}, "
-                    f"peaks {comet_obj.max_altitude:.0f}° at {time_str}{marker}"
-                )
+            # Interstellar marker
+            marker = (
+                " [bold yellow](INTERSTELLAR!)[/bold yellow]"
+                if "⭐" in comet_name
+                else ""
+            )
+
+            self.console.print(
+                f"  • {comet_name}: Best on {date_str}, {quality}, "
+                f"peaks {comet_obj.max_altitude:.0f}° at {time_str}{weather_info}{marker}"
+            )
 
         self.console.print()
 
