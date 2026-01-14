@@ -238,7 +238,7 @@ class VisibilityAnalyzer:
 
         # Score planets
         for planet in forecast.planets:
-            if planet.is_visible and planet.max_altitude >= 45:
+            if planet.is_visible and planet.max_altitude >= 30:
                 # Base score for planets
                 base_score = 100
 
@@ -263,7 +263,7 @@ class VisibilityAnalyzer:
 
         # Score DSOs
         for dso in forecast.dsos:
-            if dso.is_visible and dso.max_altitude >= 45:
+            if dso.is_visible and dso.max_altitude >= 30:
                 # Base score for DSOs
                 base_score = 80
 

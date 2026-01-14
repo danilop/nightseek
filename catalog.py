@@ -43,31 +43,49 @@ DSO_CATALOG = [
     CelestialObject("M82", "Cigar Galaxy", "dso", 9.928, 69.680, 8.4, 2),
     CelestialObject("M101", "Pinwheel Galaxy", "dso", 14.054, 54.349, 7.9, 2),
     CelestialObject("M104", "Sombrero Galaxy", "dso", 12.666, -11.623, 8.0, 2),
-    # Nebulae - High Priority (excellent for imaging)
+    CelestialObject("M65", "Leo Triplet Galaxy", "dso", 11.309, 13.093, 9.3, 3),
+    CelestialObject("M66", "Leo Triplet Galaxy", "dso", 11.334, 12.993, 8.9, 3),
+    CelestialObject("NGC253", "Sculptor Galaxy", "dso", 0.792, -25.288, 7.1, 2),
+    CelestialObject("NGC4565", "Needle Galaxy", "dso", 12.602, 25.988, 9.6, 3),
+    # Nebulae - Emission/Reflection - High Priority
     CelestialObject("M42", "Orion Nebula", "dso", 5.588, -5.391, 4.0, 1),
     CelestialObject("M8", "Lagoon Nebula", "dso", 18.062, -24.380, 6.0, 1),
     CelestialObject("M16", "Eagle Nebula", "dso", 18.312, -13.763, 6.4, 2),
     CelestialObject("M17", "Omega Nebula", "dso", 18.344, -16.178, 6.0, 2),
     CelestialObject("M20", "Trifid Nebula", "dso", 18.036, -23.033, 6.3, 2),
+    CelestialObject("M78", "Reflection Nebula in Orion", "dso", 5.779, 0.048, 8.3, 3),
+    CelestialObject("NGC7000", "North America Nebula", "dso", 20.975, 44.533, 4.0, 2),
+    CelestialObject("IC5070", "Pelican Nebula", "dso", 20.837, 44.367, 8.0, 2),
+    CelestialObject("IC1396", "Elephant's Trunk Nebula", "dso", 21.653, 57.500, 3.5, 2),
+    CelestialObject("NGC2237", "Rosette Nebula", "dso", 6.535, 4.950, 9.0, 2),
+    CelestialObject("IC1805", "Heart Nebula", "dso", 2.543, 61.467, 6.5, 2),
+    CelestialObject("IC1848", "Soul Nebula", "dso", 2.893, 60.433, 6.5, 2),
+    CelestialObject("NGC6960", "Western Veil Nebula", "dso", 20.756, 30.717, 7.0, 2),
+    CelestialObject("NGC6992", "Eastern Veil Nebula", "dso", 20.937, 31.717, 7.0, 2),
+    CelestialObject("NGC6888", "Crescent Nebula", "dso", 20.200, 38.350, 7.4, 3),
+    CelestialObject("IC434", "Horsehead Nebula", "dso", 5.678, -2.458, 7.3, 2),
+    CelestialObject("NGC2024", "Flame Nebula", "dso", 5.679, -1.912, 7.2, 2),
+    CelestialObject("NGC1499", "California Nebula", "dso", 4.050, 36.617, 5.0, 2),
+    CelestialObject("Sh2-129", "Flying Bat Nebula", "dso", 21.183, 59.983, 7.5, 3),
+    # Planetary Nebulae
     CelestialObject("M27", "Dumbbell Nebula", "dso", 19.992, 22.721, 7.5, 2),
     CelestialObject("M57", "Ring Nebula", "dso", 18.888, 33.029, 8.8, 2),
     CelestialObject("NGC7293", "Helix Nebula", "dso", 22.495, -20.838, 7.6, 2),
-    CelestialObject("NGC7000", "North America Nebula", "dso", 20.975, 44.533, 4.0, 2),
-    CelestialObject("IC1396", "Elephant's Trunk Nebula", "dso", 21.653, 57.500, 3.5, 3),
-    # Star Clusters - Good for imaging
+    CelestialObject("M97", "Owl Nebula", "dso", 11.247, 55.017, 9.9, 3),
+    CelestialObject("NGC6826", "Blinking Planetary", "dso", 19.744, 50.526, 8.8, 3),
+    # Star Clusters
     CelestialObject("M13", "Hercules Cluster", "dso", 16.694, 36.460, 5.8, 2),
     CelestialObject("M44", "Beehive Cluster", "dso", 8.667, 19.983, 3.7, 3),
     CelestialObject("M45", "Pleiades", "dso", 3.790, 24.117, 1.6, 1),
     CelestialObject("M7", "Ptolemy Cluster", "dso", 17.895, -34.793, 3.3, 3),
-    # Other notable objects
-    CelestialObject("M1", "Crab Nebula", "dso", 5.576, 22.015, 8.4, 3),
+    CelestialObject("M1", "Crab Nebula", "dso", 5.576, 22.015, 8.4, 2),
     CelestialObject("M11", "Wild Duck Cluster", "dso", 18.854, -6.267, 6.3, 3),
     CelestialObject("M35", "Open Cluster in Gemini", "dso", 6.150, 24.333, 5.3, 3),
-    CelestialObject("M65", "Leo Triplet Galaxy", "dso", 11.309, 13.093, 9.3, 3),
-    CelestialObject("M66", "Leo Triplet Galaxy", "dso", 11.334, 12.993, 8.9, 3),
     CelestialObject(
-        "NGC869", "Double Cluster (h Persei)", "dso", 2.323, 57.139, 4.3, 3
+        "NGC869", "Double Cluster (h Persei)", "dso", 2.323, 57.139, 4.3, 2
     ),
+    CelestialObject("M22", "Sagittarius Cluster", "dso", 18.607, -23.905, 5.1, 3),
+    CelestialObject("M92", "Globular in Hercules", "dso", 17.285, 43.137, 6.4, 3),
 ]
 
 
