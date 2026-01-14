@@ -455,13 +455,43 @@ class ForecastFormatter:
                         score -= 20
                     objects.append(("🌌", dso.object_name, dso, score, dso.magnitude))
 
-            # Sort by score and take top N
-            objects.sort(key=lambda x: x[3], reverse=True)
+            # Sort by score and take balanced mix: 25% comets, 25% planets, 50% DSOs
+            comets = sorted(
+                [o for o in objects if o[0] == "☄️"], key=lambda x: x[3], reverse=True
+            )
+            planets = sorted(
+                [o for o in objects if o[0] == "🪐"], key=lambda x: x[3], reverse=True
+            )
+            dsos = sorted(
+                [o for o in objects if o[0] == "🌌"], key=lambda x: x[3], reverse=True
+            )
 
-            if not objects:
+            # Allocate slots: 50% DSOs, 25% planets, 25% comets
+            n_dsos = max(1, max_objects // 2)
+            n_planets = max(1, max_objects // 4)
+            n_comets = max_objects - n_dsos - n_planets
+
+            # Take top from each category, fill remaining with best available
+            selected = dsos[:n_dsos] + planets[:n_planets] + comets[:n_comets]
+
+            # If any category is short, fill from others
+            remaining = max_objects - len(selected)
+            if remaining > 0:
+                all_sorted = sorted(objects, key=lambda x: x[3], reverse=True)
+                for obj in all_sorted:
+                    if obj not in selected:
+                        selected.append(obj)
+                        remaining -= 1
+                        if remaining == 0:
+                            break
+
+            # Sort final selection by score
+            selected.sort(key=lambda x: x[3], reverse=True)
+
+            if not selected:
                 self.console.print("  [dim]No objects visible above threshold[/dim]")
             else:
-                for icon, name, obj, score, mag in objects[:max_objects]:
+                for icon, name, obj, score, mag in selected[:max_objects]:
                     quality = self._get_quality_color(obj.max_altitude)
                     time_str = self.tz.format_time(obj.max_altitude_time)
                     mag_str = f" [dim](mag {mag:.1f})[/dim]" if mag is not None else ""
