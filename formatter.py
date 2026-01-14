@@ -233,40 +233,117 @@ class ForecastFormatter:
         self.console.print()
 
     def _group_by_time_windows(self, forecast, scores, max_objects: int):
-        """Group objects by their observation time windows.
+        """Group objects by weather-based time windows.
 
-        Returns list of time window info dicts, with balanced selection per window.
+        Windows are grouped by weather conditions (clear/partly/cloudy),
+        split if longer than 2 hours, with balanced selection per window.
         """
+        from datetime import datetime, timedelta, timezone
+        from typing import Any
+
         if (
             not forecast.night_info.astronomical_dusk
             or not forecast.night_info.astronomical_dawn
         ):
             return []
 
-        # Define time windows (in UTC, will convert to local for display)
-        dusk = forecast.night_info.astronomical_dusk
-        dawn = forecast.night_info.astronomical_dawn
+        dusk: datetime = forecast.night_info.astronomical_dusk
+        dawn: datetime = forecast.night_info.astronomical_dawn
 
-        # Handle night spanning midnight
         if dawn <= dusk:
-            from datetime import timedelta
-
             dawn = dawn + timedelta(days=1)
 
-        # Create 3-hour windows
-        from datetime import timedelta
+        # Build weather-based windows
+        windows: list[dict[str, Any]] = []
 
-        windows = []
-        current = dusk
+        if forecast.weather and forecast.weather.hourly_data:
+            # Get weather category for each hour
+            def get_weather_cat(clouds: float) -> str:
+                if clouds < 30:
+                    return "clear"
+                elif clouds < 60:
+                    return "partly"
+                return "cloudy"
 
-        while current < dawn:
-            window_end = min(current + timedelta(hours=3), dawn)
-            windows.append({"start": current, "end": window_end, "objects": []})
-            current = window_end
+            # Sort hours within our night window
+            dusk_naive = dusk.replace(tzinfo=None) if dusk.tzinfo else dusk
+            dawn_naive = dawn.replace(tzinfo=None) if dawn.tzinfo else dawn
 
-        # Assign ALL matching objects to windows based on their peak time
+            night_hours = sorted(
+                [
+                    (h, c)
+                    for h, c in forecast.weather.hourly_data.items()
+                    if dusk_naive <= h <= dawn_naive
+                ]
+            )
+
+            if night_hours:
+                # Group consecutive hours with same weather
+                current_start = night_hours[0][0]
+                current_cat = get_weather_cat(night_hours[0][1])
+                current_clouds = [night_hours[0][1]]
+
+                for i in range(1, len(night_hours)):
+                    hour, clouds = night_hours[i]
+                    cat = get_weather_cat(clouds)
+
+                    if cat != current_cat:
+                        # Save current window
+                        windows.append(
+                            {
+                                "start": current_start.replace(tzinfo=timezone.utc),
+                                "end": hour.replace(tzinfo=timezone.utc),
+                                "avg_clouds": sum(current_clouds) / len(current_clouds),
+                                "objects": [],
+                            }
+                        )
+                        current_start = hour
+                        current_cat = cat
+                        current_clouds = [clouds]
+                    else:
+                        current_clouds.append(clouds)
+
+                # Add final window
+                windows.append(
+                    {
+                        "start": current_start.replace(tzinfo=timezone.utc),
+                        "end": dawn_naive.replace(tzinfo=timezone.utc),
+                        "avg_clouds": sum(current_clouds) / len(current_clouds),
+                        "objects": [],
+                    }
+                )
+
+        # Fallback: single window if no weather data
+        if not windows:
+            windows = [{"start": dusk, "end": dawn, "avg_clouds": None, "objects": []}]
+
+        # Split windows longer than 2 hours
+        split_windows: list[dict[str, Any]] = []
+        for w in windows:
+            w_start: datetime = w["start"]
+            w_end: datetime = w["end"]
+            duration = (w_end - w_start).total_seconds() / 3600
+            if duration > 2:
+                # Split into 2-hour chunks
+                current = w_start
+                while current < w_end:
+                    chunk_end = min(current + timedelta(hours=2), w_end)
+                    split_windows.append(
+                        {
+                            "start": current,
+                            "end": chunk_end,
+                            "avg_clouds": w["avg_clouds"],
+                            "objects": [],
+                        }
+                    )
+                    current = chunk_end
+            else:
+                split_windows.append(w)
+
+        windows = split_windows
+
+        # Assign objects to windows based on their peak time
         for score in scores:
-            # Find the object
             obj_vis = None
             for obj in (
                 forecast.planets
@@ -280,46 +357,15 @@ class ForecastFormatter:
 
             if obj_vis and obj_vis.max_altitude_time:
                 peak_time = obj_vis.max_altitude_time
-                # Ensure peak_time is timezone-aware for comparison
-                from datetime import timezone
-
                 if peak_time.tzinfo is None:
                     peak_time = peak_time.replace(tzinfo=timezone.utc)
 
-                # Find which window this peak falls into
                 for window in windows:
                     if window["start"] <= peak_time <= window["end"]:
                         window["objects"].append(
                             {"name": score.object_name, "obj": obj_vis, "score": score}
                         )
                         break
-
-        # Calculate weather for each window
-        if forecast.weather and forecast.weather.hourly_data:
-            for window in windows:
-                clouds_in_window = []
-                # Convert window boundaries to naive for comparison with hourly_data keys
-                window_start_naive = (
-                    window["start"].replace(tzinfo=None)
-                    if window["start"].tzinfo
-                    else window["start"]
-                )
-                window_end_naive = (
-                    window["end"].replace(tzinfo=None)
-                    if window["end"].tzinfo
-                    else window["end"]
-                )
-                for hour, clouds in forecast.weather.hourly_data.items():
-                    if window_start_naive <= hour <= window_end_naive:
-                        clouds_in_window.append(clouds)
-
-                if clouds_in_window:
-                    window["avg_clouds"] = sum(clouds_in_window) / len(clouds_in_window)
-                else:
-                    window["avg_clouds"] = None
-        else:
-            for window in windows:
-                window["avg_clouds"] = None
 
         # Apply balanced selection per window: 50% DSOs, 25% planets, 25% comets
         for window in windows:
