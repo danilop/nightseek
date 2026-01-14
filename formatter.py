@@ -47,7 +47,7 @@ class ForecastFormatter:
         self._print_moon_summary(forecasts, best_dark_nights)
 
         # Tonight's highlights (first night only)
-        self._print_tonight_highlights(forecasts[0])
+        self._print_tonight_highlights(forecasts[0], max_objects)
 
         # Weekly forecast by object type
         self._print_weekly_forecast(forecasts, max_objects)
@@ -162,7 +162,7 @@ class ForecastFormatter:
                 )
             self.console.print()
 
-    def _print_tonight_highlights(self, forecast: NightForecast):
+    def _print_tonight_highlights(self, forecast: NightForecast, max_objects: int):
         """Print tonight's highlights grouped by time windows."""
         from analyzer import VisibilityAnalyzer
 
@@ -198,7 +198,6 @@ class ForecastFormatter:
             )
         ]
 
-        max_objects = 8
         n_dsos = max(1, max_objects // 2)
         n_planets = max(1, max_objects // 4)
         n_comets = max_objects - n_dsos - n_planets
