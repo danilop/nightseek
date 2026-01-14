@@ -224,7 +224,7 @@ class ForecastFormatter:
         self.console.print()
 
         # Group objects by time windows
-        time_windows = self._group_by_time_windows(forecast, scores)
+        time_windows = self._group_by_time_windows(forecast, scores, max_objects)
 
         # Print each time window
         for window_info in time_windows:
@@ -232,10 +232,10 @@ class ForecastFormatter:
 
         self.console.print()
 
-    def _group_by_time_windows(self, forecast, scores):
+    def _group_by_time_windows(self, forecast, scores, max_objects: int):
         """Group objects by their observation time windows.
 
-        Returns list of time window info dicts.
+        Returns list of time window info dicts, with balanced selection per window.
         """
         if (
             not forecast.night_info.astronomical_dusk
@@ -264,7 +264,7 @@ class ForecastFormatter:
             windows.append({"start": current, "end": window_end, "objects": []})
             current = window_end
 
-        # Assign objects to windows based on their peak time
+        # Assign ALL matching objects to windows based on their peak time
         for score in scores:
             # Find the object
             obj_vis = None
@@ -320,6 +320,54 @@ class ForecastFormatter:
         else:
             for window in windows:
                 window["avg_clouds"] = None
+
+        # Apply balanced selection per window: 50% DSOs, 25% planets, 25% comets
+        for window in windows:
+            if len(window["objects"]) <= max_objects:
+                continue
+
+            objs = window["objects"]
+            planets = [
+                o
+                for o in objs
+                if any(p.object_name == o["name"] for p in forecast.planets)
+            ]
+            comets = [
+                o
+                for o in objs
+                if any(
+                    c.object_name == o["name"] or o["name"] in c.object_name
+                    for c in forecast.comets
+                )
+            ]
+            dsos = [
+                o
+                for o in objs
+                if any(
+                    d.object_name == o["name"] or o["name"] in d.object_name
+                    for d in forecast.dsos
+                )
+            ]
+
+            n_dsos = max(1, max_objects // 2)
+            n_planets = max(1, max_objects // 4)
+            n_comets = max_objects - n_dsos - n_planets
+
+            selected = dsos[:n_dsos] + planets[:n_planets] + comets[:n_comets]
+
+            # Fill remaining from best available
+            remaining = max_objects - len(selected)
+            if remaining > 0:
+                for o in sorted(objs, key=lambda x: x["score"].score, reverse=True):
+                    if o not in selected:
+                        selected.append(o)
+                        remaining -= 1
+                        if remaining == 0:
+                            break
+
+            window["objects"] = sorted(
+                selected, key=lambda x: x["score"].score, reverse=True
+            )
 
         # Filter out empty windows
         return [w for w in windows if w["objects"]]
