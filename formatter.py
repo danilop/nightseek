@@ -168,12 +168,55 @@ class ForecastFormatter:
 
         # Create temporary analyzer to rank objects
         analyzer = VisibilityAnalyzer(0, 0)  # Coordinates don't matter for ranking
-        scores = analyzer.rank_objects_for_night(forecast)
+        all_scores = analyzer.rank_objects_for_night(forecast)
 
-        if not scores:
+        if not all_scores:
             self.console.print("[yellow]No objects above 45° tonight[/yellow]")
             self.console.print()
             return
+
+        # Balance selection: 50% DSOs, 25% planets, 25% comets
+        planets = [
+            s
+            for s in all_scores
+            if any(p.object_name == s.object_name for p in forecast.planets)
+        ]
+        comets = [
+            s
+            for s in all_scores
+            if any(
+                c.object_name == s.object_name or s.object_name in c.object_name
+                for c in forecast.comets
+            )
+        ]
+        dsos = [
+            s
+            for s in all_scores
+            if any(
+                d.object_name == s.object_name or s.object_name in d.object_name
+                for d in forecast.dsos
+            )
+        ]
+
+        max_objects = 8
+        n_dsos = max(1, max_objects // 2)
+        n_planets = max(1, max_objects // 4)
+        n_comets = max_objects - n_dsos - n_planets
+
+        scores = dsos[:n_dsos] + planets[:n_planets] + comets[:n_comets]
+
+        # Fill remaining slots if any category is short
+        remaining = max_objects - len(scores)
+        if remaining > 0:
+            for s in all_scores:
+                if s not in scores:
+                    scores.append(s)
+                    remaining -= 1
+                    if remaining == 0:
+                        break
+
+        # Sort by score
+        scores.sort(key=lambda x: x.score, reverse=True)
 
         self.console.print("[bold cyan]TONIGHT'S OBSERVATION PLAN[/bold cyan]")
         date_str = forecast.night_info.date.strftime("%A, %B %d")
@@ -182,7 +225,7 @@ class ForecastFormatter:
         self.console.print()
 
         # Group objects by time windows
-        time_windows = self._group_by_time_windows(forecast, scores[:8])
+        time_windows = self._group_by_time_windows(forecast, scores)
 
         # Print each time window
         for window_info in time_windows:
