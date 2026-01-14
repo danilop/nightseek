@@ -330,6 +330,17 @@ class ForecastFormatter:
         start_str = self.tz.format_time(window_info["start"])
         end_str = self.tz.format_time(window_info["end"])
 
+        # Planet magnitudes
+        planet_mags = {
+            "Mercury": 0.0,
+            "Venus": -4.0,
+            "Mars": 0.5,
+            "Jupiter": -2.5,
+            "Saturn": 0.5,
+            "Uranus": 5.7,
+            "Neptune": 7.8,
+        }
+
         # Format weather info
         weather_str = ""
         weather_color = "white"
@@ -357,8 +368,19 @@ class ForecastFormatter:
         # Print objects in this window
         for obj_info in window_info["objects"]:
             obj = obj_info["obj"]
+            name = obj_info["name"]
+
+            # Get magnitude
+            mag = None
+            if hasattr(obj, "magnitude") and obj.magnitude is not None:
+                mag = obj.magnitude
+            elif name in planet_mags:
+                mag = planet_mags[name]
+
+            mag_str = f" (mag {mag:.1f})" if mag is not None else ""
+
             self.console.print(
-                f"  • {obj_info['name']} - {obj_info['score'].reason} "
+                f"  • {name}{mag_str} - {obj_info['score'].reason} "
                 f"(peak {obj.max_altitude:.0f}° at {self.tz.format_time(obj.max_altitude_time)})"
             )
 
