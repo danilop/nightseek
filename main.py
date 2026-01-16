@@ -4,14 +4,11 @@ from datetime import datetime
 from typing import Optional
 
 import typer
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.console import Console
+from rich.status import Status
 
-from analyzer import VisibilityAnalyzer
-from config import Config
-from formatter import ForecastFormatter
-from weather import WeatherForecast
-from timezone_utils import TimezoneConverter
-
+# Show banner immediately on import (before heavy imports)
+console = Console()
 
 app = typer.Typer(help="Plan your astronomy observations based on object visibility.")
 
@@ -59,52 +56,83 @@ def forecast(
     Analyzes celestial object visibility for the next N nights,
     considering altitude thresholds and moon interference.
     """
-    # Handle setup mode
+    # Show welcome message FIRST (before any heavy loading)
+    console.print()
+    console.print(
+        "[bold cyan]NightSeek[/bold cyan] [italic]- Astronomy Observation Planner[/italic]"
+    )
+    console.print()
+
+    # Handle setup mode (lazy import config only when needed)
+    from config import Config
+
     if setup:
         Config._interactive_setup()
         return
 
-    # Load configuration
+    # Load configuration (lightweight)
     config = Config.load(
         latitude=latitude, longitude=longitude, days=days, max_objects=max_objects
     )
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        # Initialize analyzer
-        progress.add_task("Loading celestial data and filtering comets...", total=None)
+    # Initialize analyzer with status updates (heavy loading happens here)
+    with Status(
+        "[bold blue]Loading ephemeris data...[/bold blue] [italic](cached locally)[/italic]",
+        console=console,
+        spinner="dots",
+    ) as status:
+        # Lazy import heavy modules
+        from analyzer import VisibilityAnalyzer
+
         analyzer = VisibilityAnalyzer(
             config.latitude, config.longitude, comet_mag=comet_mag or 12.0
         )
+        num_comets = len(analyzer.comets)
+        status.update(
+            f"[green]Loaded {num_comets} comets[/green] [italic](updates daily)[/italic]"
+        )
 
-        # Fetch weather forecast (only if ≤16 days)
-        weather_forecast = None
-        if config.forecast_days <= WeatherForecast.MAX_FORECAST_DAYS:
-            progress.add_task("Fetching weather forecast...", total=None)
+    # Fetch weather forecast (only if ≤16 days)
+    weather_forecast = None
+    from weather import WeatherForecast
+
+    if config.forecast_days <= WeatherForecast.MAX_FORECAST_DAYS:
+        with Status(
+            "[bold blue]Fetching weather forecast...[/bold blue]",
+            console=console,
+            spinner="dots",
+        ) as status:
             weather_forecast = WeatherForecast(config.latitude, config.longitude)
             weather_forecast.fetch_forecast(config.forecast_days)
+            status.update("[green]Weather data received[/green]")
 
-        # Analyze forecast
-        progress.add_task(
-            f"Calculating visibility for {config.forecast_days} night(s)...", total=None
-        )
+    # Analyze forecast
+    with Status(
+        f"[bold blue]Calculating visibility for {config.forecast_days} night(s)...[/bold blue]",
+        console=console,
+        spinner="dots",
+    ) as status:
         start_date = datetime.now()
         forecasts = analyzer.analyze_forecast(
             start_date,
             config.forecast_days,
             weather_forecast,
         )
+        num_dsos = len(analyzer.catalog.get_all_dsos())
+        status.update(
+            f"[green]Analyzed {num_dsos} DSOs, {num_comets} comets, 7 planets[/green]"
+        )
+
+    console.print()
 
     # Get best dark nights
     best_dark_nights = analyzer.get_best_dark_nights(forecasts)
 
-    # Create timezone converter
-    tz_converter = TimezoneConverter(config.latitude, config.longitude)
+    # Create timezone converter and formatter (lazy imports)
+    from timezone_utils import TimezoneConverter
+    from formatter import ForecastFormatter
 
-    # Format and display
+    tz_converter = TimezoneConverter(config.latitude, config.longitude)
     formatter = ForecastFormatter(tz_converter)
     formatter.format_forecast(
         forecasts,

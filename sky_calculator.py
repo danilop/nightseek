@@ -43,6 +43,7 @@ class ObjectVisibility:
     moon_separation: Optional[float]  # degrees
     moon_warning: bool  # True if moon interferes
     magnitude: Optional[float] = None  # Visual magnitude if known
+    is_interstellar: bool = False  # True for interstellar objects (e.g., 2I/Borisov)
 
 
 class SkyCalculator:

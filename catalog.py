@@ -192,14 +192,30 @@ class Catalog:
 
             comets = []
             for idx, row in bright.iterrows():
-                # Parse designation and name
-                designation = row["designation"]
-                # Extract name from designation (after parentheses if present)
-                name_parts = designation.split("(")
-                if len(name_parts) > 1:
-                    name = name_parts[1].rstrip(")")
+                # Parse designation and name from various MPC formats:
+                # - "C/2023 A3 (Tsuchinshan-ATLAS)" → code="C/2023 A3", name="Tsuchinshan-ATLAS"
+                # - "186P/Garradd" → code="186P", name="Garradd"
+                # - "C/2023 A3" → code="C/2023 A3", name="C/2023 A3" (no common name)
+                full_designation = row["designation"]
+
+                # Check for name in parentheses first (e.g., "C/2023 A3 (Name)")
+                if "(" in full_designation and ")" in full_designation:
+                    paren_start = full_designation.index("(")
+                    code = full_designation[:paren_start].strip()
+                    name = full_designation[
+                        paren_start + 1 : full_designation.rindex(")")
+                    ]
+                # Check for periodic comet format (e.g., "186P/Garradd")
+                elif "/" in full_designation:
+                    parts = full_designation.split("/", 1)
+                    code = parts[0]  # e.g., "186P"
+                    name = parts[1] if len(parts) > 1 else full_designation
                 else:
-                    name = designation
+                    code = full_designation
+                    name = full_designation
+
+                # Use code as designation for display purposes
+                designation = code
 
                 # Check if interstellar (eccentricity > 1.0 = hyperbolic orbit)
                 # The row has 'e' field for eccentricity

@@ -30,6 +30,7 @@ package = true
 
 [dependency-groups]
 dev = [
+    "pytest>=8.0.0",
     "ruff>=0.8.0",
     "ty>=0.0.11",
     "vulture>=2.13",

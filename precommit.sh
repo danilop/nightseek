@@ -18,6 +18,10 @@ uv run ty check .
 
 # Run vulture for dead code detection
 echo "→ Running vulture..."
-uv run vulture *.py --min-confidence 80
+uv run vulture *.py --min-confidence 80 --exclude test_*.py
+
+# Run pytest
+echo "→ Running pytest..."
+uv run pytest test_nightseek.py -q
 
 echo "✓ All checks passed!"

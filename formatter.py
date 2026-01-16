@@ -14,6 +14,17 @@ from weather import WeatherForecast
 class ForecastFormatter:
     """Format forecast data for terminal display."""
 
+    # Planet magnitudes (approximate visual magnitudes)
+    PLANET_MAGNITUDES = {
+        "Mercury": 0.0,
+        "Venus": -4.0,
+        "Mars": 0.5,
+        "Jupiter": -2.5,
+        "Saturn": 0.5,
+        "Uranus": 5.7,
+        "Neptune": 7.8,
+    }
+
     def __init__(self, tz_converter):
         """Initialize the formatter.
 
@@ -22,6 +33,22 @@ class ForecastFormatter:
         """
         self.console = Console()
         self.tz = tz_converter
+
+    @staticmethod
+    def _get_weather_category(clouds: float) -> tuple[str, str, str]:
+        """Get weather category, description, and color based on cloud cover.
+
+        Args:
+            clouds: Cloud cover percentage (0-100)
+
+        Returns:
+            Tuple of (category, description, color)
+        """
+        if clouds < 30:
+            return "clear", "Clear", "green"
+        elif clouds < 60:
+            return "partly", f"Partly cloudy ({clouds:.0f}%)", "yellow"
+        return "cloudy", f"Cloudy ({clouds:.0f}%)", "red"
 
     def format_forecast(
         self,
@@ -65,9 +92,9 @@ class ForecastFormatter:
 
         header = Text()
         header.append("Sky Observation Forecast\n", style="bold cyan")
-        header.append(f"Period: {start} - {end}\n", style="white")
-        header.append(f"Location: {latitude:.4f}°, {longitude:.4f}°\n", style="dim")
-        header.append(f"Times: {self.tz.get_display_info()}\n", style="dim")
+        header.append(f"Period: {start} - {end}\n")
+        header.append(f"Location: {latitude:.4f}°, {longitude:.4f}°\n", style="italic")
+        header.append(f"Times: {self.tz.get_display_info()}\n", style="italic")
 
         self.console.print(Panel(header, border_style="cyan"))
         self.console.print()
@@ -84,21 +111,22 @@ class ForecastFormatter:
         else:
             self.console.print("[bold cyan]MOON PHASE & DARK SKY WINDOWS[/bold cyan]")
         self.console.print(
-            "[dim]Dark sky window = astronomical night (sun >18° below horizon)[/dim]"
+            "[italic]Dark sky window = astronomical night (sun >18° below horizon)[/italic]"
         )
         self.console.print()
 
         # Build table with conditional weather columns
+        # Note: No hardcoded colors - let terminal theme determine text color
         table = Table(show_header=True, header_style="bold")
-        table.add_column("Date", style="white", width=11)
-        table.add_column("Dark Sky Window", style="dim", width=17)
-        table.add_column("Moon Phase", style="white", width=18)
+        table.add_column("Date", width=11)
+        table.add_column("Dark Sky Window", width=17)
+        table.add_column("Moon Phase", width=18)
         table.add_column("Moon %", justify="right", width=6)
 
         if has_weather:
             table.add_column("Clouds", justify="right", width=9)
 
-        table.add_column("Observing Quality", style="white", width=23)
+        table.add_column("Observing Quality", width=23)
 
         for i, forecast in enumerate(forecasts):
             date_str = forecast.night_info.date.strftime("%a, %b %d")
@@ -153,12 +181,12 @@ class ForecastFormatter:
             if has_weather:
                 self.console.print(
                     f"[green]★ Top nights for dark sky observing:[/green] {', '.join(best_dates)} "
-                    "[dim](darkest skies with clearest weather)[/dim]"
+                    "[italic](darkest skies with clearest weather)[/italic]"
                 )
             else:
                 self.console.print(
                     f"[green]★ Darkest nights for observing:[/green] {', '.join(best_dates)} "
-                    "[dim](lowest moon interference)[/dim]"
+                    "[italic](lowest moon interference)[/italic]"
                 )
             self.console.print()
 
@@ -220,7 +248,9 @@ class ForecastFormatter:
         self.console.print("[bold cyan]TONIGHT'S OBSERVATION PLAN[/bold cyan]")
         date_str = forecast.night_info.date.strftime("%A, %B %d")
         moon_pct = f"{forecast.night_info.moon_illumination:.0f}%"
-        self.console.print(f"[dim]{date_str} • Moon: {moon_pct} illuminated[/dim]")
+        self.console.print(
+            f"[italic]{date_str} • Moon: {moon_pct} illuminated[/italic]"
+        )
         self.console.print()
 
         # Group objects by time windows
@@ -257,14 +287,6 @@ class ForecastFormatter:
         windows: list[dict[str, Any]] = []
 
         if forecast.weather and forecast.weather.hourly_data:
-            # Get weather category for each hour
-            def get_weather_cat(clouds: float) -> str:
-                if clouds < 30:
-                    return "clear"
-                elif clouds < 60:
-                    return "partly"
-                return "cloudy"
-
             # Sort hours within our night window
             dusk_naive = dusk.replace(tzinfo=None) if dusk.tzinfo else dusk
             dawn_naive = dawn.replace(tzinfo=None) if dawn.tzinfo else dawn
@@ -280,12 +302,12 @@ class ForecastFormatter:
             if night_hours:
                 # Group consecutive hours with same weather
                 current_start = night_hours[0][0]
-                current_cat = get_weather_cat(night_hours[0][1])
+                current_cat = self._get_weather_category(night_hours[0][1])[0]
                 current_clouds = [night_hours[0][1]]
 
                 for i in range(1, len(night_hours)):
                     hour, clouds = night_hours[i]
-                    cat = get_weather_cat(clouds)
+                    cat = self._get_weather_category(clouds)[0]
 
                     if cat != current_cat:
                         # Save current window
@@ -367,27 +389,46 @@ class ForecastFormatter:
                     window["objects"].append(item.copy())
 
         # Apply balanced selection per window: 50% DSOs, 25% planets, 25% comets
+        # Interstellar objects always shown at top, don't count against limit
         for window in windows:
-            if len(window["objects"]) <= max_objects:
-                continue
-
             objs = window["objects"]
-            planets = [
-                o
-                for o in objs
-                if any(p.object_name == o["name"] for p in forecast.planets)
-            ]
-            comets = [
+
+            # Extract interstellar objects (always shown, don't count against limit)
+            interstellar = [
                 o
                 for o in objs
                 if any(
                     c.object_name == o["name"] or o["name"] in c.object_name
                     for c in forecast.comets
+                    if c.is_interstellar
+                )
+            ]
+            regular_objs = [o for o in objs if o not in interstellar]
+
+            if len(regular_objs) <= max_objects:
+                # Sort and prepend interstellar
+                window["objects"] = sorted(
+                    interstellar, key=lambda x: x["score"].score, reverse=True
+                ) + sorted(regular_objs, key=lambda x: x["score"].score, reverse=True)
+                continue
+
+            planets = [
+                o
+                for o in regular_objs
+                if any(p.object_name == o["name"] for p in forecast.planets)
+            ]
+            comets = [
+                o
+                for o in regular_objs
+                if any(
+                    c.object_name == o["name"] or o["name"] in c.object_name
+                    for c in forecast.comets
+                    if not c.is_interstellar
                 )
             ]
             dsos = [
                 o
-                for o in objs
+                for o in regular_objs
                 if any(
                     d.object_name == o["name"] or o["name"] in d.object_name
                     for d in forecast.dsos
@@ -403,16 +444,19 @@ class ForecastFormatter:
             # Fill remaining from best available
             remaining = max_objects - len(selected)
             if remaining > 0:
-                for o in sorted(objs, key=lambda x: x["score"].score, reverse=True):
+                for o in sorted(
+                    regular_objs, key=lambda x: x["score"].score, reverse=True
+                ):
                     if o not in selected:
                         selected.append(o)
                         remaining -= 1
                         if remaining == 0:
                             break
 
+            # Prepend interstellar objects (always at top)
             window["objects"] = sorted(
-                selected, key=lambda x: x["score"].score, reverse=True
-            )
+                interstellar, key=lambda x: x["score"].score, reverse=True
+            ) + sorted(selected, key=lambda x: x["score"].score, reverse=True)
 
         # Filter out empty windows
         return [w for w in windows if w["objects"]]
@@ -422,40 +466,22 @@ class ForecastFormatter:
         start_str = self.tz.format_time(window_info["start"])
         end_str = self.tz.format_time(window_info["end"])
 
-        # Planet magnitudes
-        planet_mags = {
-            "Mercury": 0.0,
-            "Venus": -4.0,
-            "Mars": 0.5,
-            "Jupiter": -2.5,
-            "Saturn": 0.5,
-            "Uranus": 5.7,
-            "Neptune": 7.8,
-        }
-
         # Format weather info
         weather_str = ""
-        weather_color = "white"
+        weather_color = ""
         if window_info["avg_clouds"] is not None:
-            clouds = window_info["avg_clouds"]
-            if clouds < 30:
-                weather_str = "Clear"
-                weather_color = "green"
-            elif clouds < 60:
-                weather_str = f"Partly cloudy ({clouds:.0f}%)"
-                weather_color = "yellow"
-            else:
-                weather_str = f"Cloudy ({clouds:.0f}%)"
-                weather_color = "red"
+            _, weather_str, weather_color = self._get_weather_category(
+                window_info["avg_clouds"]
+            )
 
         # Print window header
         if weather_str:
             self.console.print(
-                f"[bold white]{start_str} - {end_str}[/bold white] "
+                f"[bold]{start_str} - {end_str}[/bold] "
                 f"[{weather_color}]{weather_str}[/{weather_color}]"
             )
         else:
-            self.console.print(f"[bold white]{start_str} - {end_str}[/bold white]")
+            self.console.print(f"[bold]{start_str} - {end_str}[/bold]")
 
         # Print objects in this window
         for obj_info in window_info["objects"]:
@@ -466,8 +492,8 @@ class ForecastFormatter:
             mag = None
             if hasattr(obj, "magnitude") and obj.magnitude is not None:
                 mag = obj.magnitude
-            elif name in planet_mags:
-                mag = planet_mags[name]
+            elif name in self.PLANET_MAGNITUDES:
+                mag = self.PLANET_MAGNITUDES[name]
 
             mag_str = f" (mag {mag:.1f})" if mag is not None else ""
 
@@ -492,18 +518,18 @@ class ForecastFormatter:
 
         # Build description
         desc = Text()
-        desc.append(f"• {score.object_name}", style="bold white")
+        desc.append(f"• {score.object_name}", style="bold")
         desc.append(f" - {score.reason}", style="green")
         desc.append(
             f"\n  Peak: {obj_vis.max_altitude:.0f}° at {self.tz.format_time(obj_vis.max_altitude_time)}",
-            style="dim",
+            style="italic",
         )
 
         # Add visibility windows
         if obj_vis.above_60_start and obj_vis.above_60_end:
             start = self.tz.format_time(obj_vis.above_60_start)
             end = self.tz.format_time(obj_vis.above_60_end)
-            desc.append(f"\n  Above 60°: {start} - {end}", style="dim")
+            desc.append(f"\n  Above 60°: {start} - {end}", style="italic")
 
         self.console.print(desc)
 
@@ -521,17 +547,6 @@ class ForecastFormatter:
         self.console.print()
 
         has_weather = any(f.weather is not None for f in forecasts)
-
-        # Planet magnitudes
-        planet_mags = {
-            "Mercury": 0.0,
-            "Venus": -4.0,
-            "Mars": 0.5,
-            "Jupiter": -2.5,
-            "Saturn": 0.5,
-            "Uranus": 5.7,
-            "Neptune": 7.8,
-        }
 
         # Score each night for ranking
         night_scores = []
@@ -552,9 +567,7 @@ class ForecastFormatter:
 
             # Build header
             if is_best and len(forecasts) > 1:
-                header = (
-                    f"[bold yellow]★ {date_str}[/bold yellow] [dim]Best Night[/dim]"
-                )
+                header = f"[bold yellow]★ {date_str}[/bold yellow] [italic]Best Night[/italic]"
             else:
                 header = f"[bold]{date_str}[/bold]"
 
@@ -571,7 +584,7 @@ class ForecastFormatter:
                     conditions += " • Cloudy"
 
             self.console.print(f"{header}")
-            self.console.print(f"[dim]{conditions}[/dim]")
+            self.console.print(f"[italic]{conditions}[/italic]")
 
             # Collect all objects for this night
             objects = []
@@ -588,18 +601,20 @@ class ForecastFormatter:
                             planet.object_name,
                             planet,
                             score,
-                            planet_mags.get(planet.object_name),
+                            self.PLANET_MAGNITUDES.get(planet.object_name),
                         )
                     )
 
-            # Comets
+            # Comets (use ✨ for interstellar, ☄️ for regular)
             for comet in forecast.comets:
                 if comet.is_visible and comet.max_altitude >= 30:
                     score = comet.max_altitude
                     if has_weather and forecast.weather:
                         score -= forecast.weather.avg_cloud_cover * 0.3
+                    # Use sparkles emoji for interstellar objects
+                    icon = "✨" if comet.is_interstellar else "☄️"
                     objects.append(
-                        ("☄️", comet.object_name, comet, score, comet.magnitude)
+                        (icon, comet.object_name, comet, score, comet.magnitude)
                     )
 
             # DSOs (slight bonus - main astrophotography targets)
@@ -612,15 +627,27 @@ class ForecastFormatter:
                         score -= 20
                     objects.append(("🌌", dso.object_name, dso, score, dso.magnitude))
 
+            # Extract interstellar objects first (always shown, don't count against limit)
+            interstellar = sorted(
+                [o for o in objects if o[0] == "✨"], key=lambda x: x[3], reverse=True
+            )
+            regular_objects = [o for o in objects if o[0] != "✨"]
+
             # Sort by score and take balanced mix: 25% comets, 25% planets, 50% DSOs
             comets = sorted(
-                [o for o in objects if o[0] == "☄️"], key=lambda x: x[3], reverse=True
+                [o for o in regular_objects if o[0] == "☄️"],
+                key=lambda x: x[3],
+                reverse=True,
             )
             planets = sorted(
-                [o for o in objects if o[0] == "🪐"], key=lambda x: x[3], reverse=True
+                [o for o in regular_objects if o[0] == "🪐"],
+                key=lambda x: x[3],
+                reverse=True,
             )
             dsos = sorted(
-                [o for o in objects if o[0] == "🌌"], key=lambda x: x[3], reverse=True
+                [o for o in regular_objects if o[0] == "🌌"],
+                key=lambda x: x[3],
+                reverse=True,
             )
 
             # Allocate slots: 50% DSOs, 25% planets, 25% comets
@@ -634,7 +661,7 @@ class ForecastFormatter:
             # If any category is short, fill from others
             remaining = max_objects - len(selected)
             if remaining > 0:
-                all_sorted = sorted(objects, key=lambda x: x[3], reverse=True)
+                all_sorted = sorted(regular_objects, key=lambda x: x[3], reverse=True)
                 for obj in all_sorted:
                     if obj not in selected:
                         selected.append(obj)
@@ -645,20 +672,26 @@ class ForecastFormatter:
             # Sort final selection by score
             selected.sort(key=lambda x: x[3], reverse=True)
 
+            # Prepend interstellar objects (always shown at top, don't count against limit)
+            selected = interstellar + selected
+
             if not selected:
-                self.console.print("  [dim]No objects visible above threshold[/dim]")
+                self.console.print(
+                    "  [italic]No objects visible above threshold[/italic]"
+                )
             else:
-                for icon, name, obj, score, mag in selected[:max_objects]:
+                # Note: interstellar objects are prepended and don't count against max_objects
+                for icon, name, obj, score, mag in selected:
                     quality = self._get_quality_color(obj.max_altitude)
                     time_str = self.tz.format_time(obj.max_altitude_time)
-                    mag_str = f" [dim](mag {mag:.1f})[/dim]" if mag is not None else ""
+                    mag_str = (
+                        f" [italic](mag {mag:.1f})[/italic]" if mag is not None else ""
+                    )
 
                     # Warnings
                     warning = ""
                     if hasattr(obj, "moon_warning") and obj.moon_warning:
-                        warning = " [dim](moon)[/dim]"
-                    if "⭐" in name:
-                        warning += " [bold yellow]INTERSTELLAR![/bold yellow]"
+                        warning = " [italic](moon)[/italic]"
 
                     self.console.print(
                         f"  {icon} {name}{mag_str}: {quality}, "
@@ -711,12 +744,16 @@ class ForecastFormatter:
             # Add weather info if available
             weather_info = ""
             if has_weather and best_night.weather:
-                if best_night.weather.avg_cloud_cover < 30:
-                    weather_info = " (Clear skies)"
-                elif best_night.weather.avg_cloud_cover < 60:
-                    weather_info = " (Partly cloudy)"
-                else:
-                    weather_info = " (Cloudy)"
+                cat, desc, _ = self._get_weather_category(
+                    best_night.weather.avg_cloud_cover
+                )
+                # Use simpler descriptions for Milky Way
+                simple_desc = {
+                    "clear": "Clear skies",
+                    "partly": "Partly cloudy",
+                    "cloudy": "Cloudy",
+                }
+                weather_info = f" ({simple_desc[cat]})"
 
             self.console.print(
                 f"  • Best viewing: {date_str}, "
@@ -724,7 +761,7 @@ class ForecastFormatter:
             )
         else:
             self.console.print(
-                "[dim]Not ideally visible this week (moon interference or low altitude)[/dim]"
+                "[italic]Not ideally visible this week (moon interference or low altitude)[/italic]"
             )
 
         self.console.print()

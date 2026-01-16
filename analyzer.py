@@ -155,7 +155,8 @@ class VisibilityAnalyzer:
                 "dso",
                 night_info,
             )
-            visibility.object_name = f"{dso.name} ({dso.common_name})"
+            # Name-first format (consistent with comets): "Pinwheel Galaxy (M101)"
+            visibility.object_name = f"{dso.common_name} ({dso.name})"
             visibility.magnitude = dso.magnitude
             dso_visibility.append(visibility)
 
@@ -175,10 +176,17 @@ class VisibilityAnalyzer:
                     night_info,
                     coarse=True,
                 )
-                # Add magnitude and interstellar marker
+                # Add magnitude and set name format (name-first style)
                 visibility.magnitude = comet.magnitude_g
                 if comet.is_interstellar:
-                    visibility.object_name = f"{comet.designation} ⭐"
+                    # Interstellar objects: "Interstellar Name (Designation)"
+                    visibility.object_name = (
+                        f"Interstellar {comet.name} ({comet.designation})"
+                    )
+                    visibility.is_interstellar = True
+                else:
+                    # Regular comets: "Comet Name (Designation)"
+                    visibility.object_name = f"Comet {comet.name} ({comet.designation})"
                 comet_visibility.append(visibility)
             except Exception:
                 # Skip comets that fail to compute (rare edge cases)
@@ -300,7 +308,7 @@ class VisibilityAnalyzer:
                 base_score = 120
 
                 # Extra bonus for interstellar objects!
-                if "⭐" in comet.object_name:
+                if comet.is_interstellar:
                     base_score = 150
 
                 # Altitude bonus (max +50)
@@ -317,7 +325,7 @@ class VisibilityAnalyzer:
                     reason = self._get_quality_description(comet.max_altitude)
                     if comet.moon_warning:
                         reason += " (moon interference)"
-                    if "⭐" in comet.object_name:
+                    if comet.is_interstellar:
                         reason += " - INTERSTELLAR!"
 
                     scores.append(
