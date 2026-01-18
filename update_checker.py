@@ -1,4 +1,7 @@
-"""Auto-update checker for nightseek CLI."""
+"""Auto-update checker for nightseek CLI.
+
+Automatically checks for updates once per day and installs them.
+"""
 
 import json
 import subprocess
