@@ -25,6 +25,19 @@ PLANET_APPARENT_DIAMETERS = {
     "Neptune": {"min": 2.2, "max": 2.4, "type": "outer"},
 }
 
+# Dwarf planet and asteroid physical diameters (km)
+SMALL_BODY_DIAMETERS = {
+    "Pluto": 2376,
+    "Ceres": 939,
+    "Eris": 2326,
+    "Makemake": 1430,
+    "Haumea": 1632,
+    "Vesta": 525,
+    "Pallas": 512,
+    "Juno": 233,
+    "Hygiea": 434,
+}
+
 
 def calculate_planet_apparent_diameter(distance_au: float, planet_name: str) -> float:
     """Calculate apparent diameter of a planet given its distance.
@@ -57,6 +70,25 @@ def calculate_planet_apparent_diameter(distance_au: float, planet_name: str) -> 
     # 1 AU = 149,597,870.7 km
     # Angular diameter in radians = physical_diameter / distance
     # Convert to arcseconds: radians * 206265
+    distance_km = distance_au * 149597870.7
+    angular_diameter_rad = diameter_km / distance_km
+    return angular_diameter_rad * 206265
+
+
+def calculate_small_body_apparent_diameter(distance_au: float, body_name: str) -> float:
+    """Calculate apparent diameter of a dwarf planet or asteroid.
+
+    Args:
+        distance_au: Distance from Earth in AU
+        body_name: Name of the body
+
+    Returns:
+        Apparent diameter in arcseconds, or 0.0 if unknown
+    """
+    if body_name not in SMALL_BODY_DIAMETERS:
+        return 0.0
+
+    diameter_km = SMALL_BODY_DIAMETERS[body_name]
     distance_km = distance_au * 149597870.7
     angular_diameter_rad = diameter_km / distance_km
     return angular_diameter_rad * 206265

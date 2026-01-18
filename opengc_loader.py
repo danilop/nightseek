@@ -139,6 +139,13 @@ COMMON_NAMES = {
     "NGC 6397": "NGC 6397 Cluster",
     "NGC 362": "NGC 362 Cluster",
     "NGC 6752": "NGC 6752 Cluster",
+    # Messier objects without other common names
+    "NGC 650": "Little Dumbbell Nebula",  # M76
+    "NGC 1960": "Pinwheel Cluster",  # M36
+    "NGC 1912": "Starfish Cluster",  # M38
+    "NGC 2099": "Salt and Pepper Cluster",  # M37
+    "NGC 3556": "Surfboard Galaxy",  # M108
+    "NGC 4736": "Cat's Eye Galaxy",  # M94
 }
 
 # Messier objects NOT in NGC/IC catalog (need to be added manually)

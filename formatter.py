@@ -779,15 +779,13 @@ class ForecastFormatter:
                         (d - d_min) / (d_max - d_min) * 100 if d_max > d_min else 50
                     )
                     if size_quality > 70:
-                        diameter_str = f' [green]{d:.1f}"[/green] (range: {d_min:.1f}"-{d_max:.1f}")'
+                        diameter_str = f' [green]• size {d:.1f}" (near max, {d_min:.1f}"-{d_max:.1f}")[/green]'
                     elif size_quality > 40:
-                        diameter_str = f' {d:.1f}" (range: {d_min:.1f}"-{d_max:.1f}")'
+                        diameter_str = f' • size {d:.1f}" (range {d_min:.1f}"-{d_max:.1f}")'
                     else:
-                        diameter_str = (
-                            f' [dim]{d:.1f}"[/dim] (range: {d_min:.1f}"-{d_max:.1f}")'
-                        )
+                        diameter_str = f' [dim]• size {d:.1f}" (small, range {d_min:.1f}"-{d_max:.1f}")[/dim]'
                 else:
-                    diameter_str = f' {d:.1f}"'
+                    diameter_str = f' • size {d:.1f}"'
 
             # Build altitude description
             if win_info.get("visible"):
@@ -805,10 +803,10 @@ class ForecastFormatter:
             else:
                 alt_desc = f"peak {vis.max_altitude:.0f}°"
 
-            # Format: Name (mag) [diameter] - ★★★★☆ 142pts - altitude info
+            # Format: Name (mag) [diameter] - altitude info
             # Why: reason
             self.console.print(
-                f"  • {scored.object_name}{mag_str}{diameter_str} - {stars} {scored.total_score:.0f}pts - {alt_desc}"
+                f"  • {scored.object_name}{mag_str}{diameter_str} - {alt_desc}"
             )
             self.console.print(f"    [italic]Why: {scored.reason}[/italic]")
 
