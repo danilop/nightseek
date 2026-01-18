@@ -198,6 +198,26 @@ nightseek --setup
 nightseek --help
 ```
 
+## Auto-Updates
+
+NightSeek automatically keeps itself up-to-date:
+
+- **Automatic checks**: Once per day (24-hour cache)
+- **Non-intrusive**: Your forecast displays immediately, update happens after
+- **Transparent**: Shows a message when updating
+- **Zero configuration**: Works automatically, no action needed
+
+**What you'll see:**
+```
+[your forecast output]
+...
+
+ℹ️  Update available. Installing latest version...
+✓ Updated successfully. Changes apply on next run.
+```
+
+Updates are installed using `uv tool install --force --reinstall` and apply the next time you run `nightseek`.
+
 ## Output Format
 
 The forecast includes:
