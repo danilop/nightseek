@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Optional
+import math
 
 from catalog import Catalog
 from sky_calculator import (
@@ -20,6 +21,7 @@ from scoring import (
     select_best_objects,
     ScoredObject,
 )
+from events import METEOR_SHOWERS_2026, MeteorShower
 
 
 @dataclass
@@ -54,6 +56,9 @@ class NightForecast:
     conjunctions: List[Conjunction] = field(
         default_factory=list
     )  # Close approaches between objects
+    meteor_showers: List["MeteorShower"] = field(
+        default_factory=list
+    )  # Active meteor showers
 
 
 @dataclass
@@ -119,7 +124,6 @@ class VisibilityAnalyzer:
 
         The apparent magnitude is calculated from absolute magnitude and current distances.
         """
-        import math
 
         # Load comets with a generous absolute magnitude filter
         all_comets = self.catalog.load_bright_comets(
@@ -502,6 +506,9 @@ class VisibilityAnalyzer:
             planet_visibility, comet_visibility, night_info
         )
 
+        # Detect meteor showers
+        meteor_showers = self._detect_meteor_showers(night_info, moon_visibility)
+
         return NightForecast(
             night_info=night_info,
             planets=planet_visibility,
@@ -513,6 +520,7 @@ class VisibilityAnalyzer:
             moon=moon_visibility,
             weather=weather,
             conjunctions=conjunctions,
+            meteor_showers=meteor_showers,
         )
 
     def rank_objects_for_night(
@@ -688,6 +696,105 @@ class VisibilityAnalyzer:
             return "Good"
         else:
             return "Fair"
+
+    def _detect_meteor_showers(
+        self, night_info: NightInfo, moon: ObjectVisibility
+    ) -> List[MeteorShower]:
+        """Detect active meteor showers for the given night.
+
+        Args:
+            night_info: Night information
+            moon: Moon visibility information
+
+        Returns:
+            List of active meteor showers with calculated properties
+        """
+        active_showers = []
+        date = night_info.date
+
+        for shower in METEOR_SHOWERS_2026:
+            # Check if shower is active on this date
+            # Handle year-crossing showers (e.g., Quadrantids)
+            start_date = datetime(date.year, shower.start_month, shower.start_day)
+            end_date = datetime(date.year, shower.end_month, shower.end_day)
+            peak_date = datetime(date.year, shower.peak_month, shower.peak_day)
+
+            # Adjust for year-crossing showers
+            if shower.start_month > shower.end_month:
+                if date.month >= shower.start_month:
+                    end_date = datetime(date.year + 1, shower.end_month, shower.end_day)
+                else:
+                    start_date = datetime(
+                        date.year - 1, shower.start_month, shower.start_day
+                    )
+                    peak_date = datetime(
+                        date.year - 1, shower.peak_month, shower.peak_day
+                    )
+
+            if not (start_date <= date <= end_date):
+                continue
+
+            # Calculate days from peak
+            days_from_peak = abs((date - peak_date).days)
+
+            # Calculate radiant altitude at midnight
+            if night_info.astronomical_dusk and night_info.astronomical_dawn:
+                dusk = night_info.astronomical_dusk
+                dawn = night_info.astronomical_dawn
+                if dawn <= dusk:
+                    dawn = dawn + timedelta(days=1)
+                mid_night = dusk + (dawn - dusk) / 2
+
+                # Calculate radiant altitude
+                t_mid = self.calculator.ts.utc(
+                    mid_night.year,
+                    mid_night.month,
+                    mid_night.day,
+                    mid_night.hour,
+                    mid_night.minute,
+                )
+
+                # Create a star at radiant position
+                from skyfield.api import Star
+
+                radiant = Star(
+                    ra_hours=shower.radiant_ra_deg / 15.0,
+                    dec_degrees=shower.radiant_dec_deg,
+                )
+
+                observer = self.calculator.earth + self.calculator.location
+                alt = observer.at(t_mid).observe(radiant).apparent().altaz()[0].degrees
+
+                # Calculate moon separation
+                moon_pos = observer.at(t_mid).observe(self.calculator.moon)
+                radiant_pos = observer.at(t_mid).observe(radiant)
+                moon_sep = radiant_pos.separation_from(moon_pos).degrees
+
+                # Create shower copy with calculated values
+                shower_copy = MeteorShower(
+                    name=shower.name,
+                    code=shower.code,
+                    peak_month=shower.peak_month,
+                    peak_day=shower.peak_day,
+                    start_month=shower.start_month,
+                    start_day=shower.start_day,
+                    end_month=shower.end_month,
+                    end_day=shower.end_day,
+                    zhr=shower.zhr,
+                    radiant_ra_deg=shower.radiant_ra_deg,
+                    radiant_dec_deg=shower.radiant_dec_deg,
+                    velocity_kms=shower.velocity_kms,
+                    parent_object=shower.parent_object,
+                    is_active=True,
+                    days_from_peak=days_from_peak,
+                    radiant_altitude=alt,
+                    moon_illumination=night_info.moon_illumination,
+                    moon_separation_deg=moon_sep,
+                )
+
+                active_showers.append(shower_copy)
+
+        return active_showers
 
     def _detect_conjunctions(
         self,

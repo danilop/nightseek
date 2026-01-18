@@ -367,17 +367,27 @@ class ForecastFormatter:
                 )
                 self.console.print()
 
-    def _print_conjunctions(self, forecast: NightForecast):
-        """Print notable conjunctions for tonight."""
-        if not forecast.conjunctions:
-            return
+    def _print_celestial_events(self, forecast: NightForecast):
+        """Print celestial events (conjunctions, meteor showers)."""
+        has_events = False
 
-        notable = [c for c in forecast.conjunctions if c.is_notable]
-        if not notable:
+        # Check for conjunctions
+        notable_conjunctions = (
+            [c for c in forecast.conjunctions if c.is_notable]
+            if forecast.conjunctions
+            else []
+        )
+
+        # Check for meteor showers
+        active_showers = forecast.meteor_showers if forecast.meteor_showers else []
+
+        if not notable_conjunctions and not active_showers:
             return
 
         self.console.print("[bold magenta]CELESTIAL EVENTS[/bold magenta]")
-        for conj in notable[:3]:  # Show top 3 closest
+
+        # Print conjunctions
+        for conj in notable_conjunctions[:3]:  # Show top 3 closest
             if conj.separation_degrees < 2:
                 icon = "🌟"
                 color = "yellow"
@@ -385,7 +395,54 @@ class ForecastFormatter:
                 icon = "✨"
                 color = "cyan"
             self.console.print(f"  {icon} [{color}]{conj.description}[/{color}]")
-        self.console.print()
+            has_events = True
+
+        # Print meteor showers
+        for shower in active_showers:
+            # Only show if radiant gets above horizon
+            if shower.radiant_altitude and shower.radiant_altitude > 0:
+                # Determine moon interference level
+                moon_impact = ""
+                if shower.moon_illumination and shower.moon_separation_deg:
+                    moon_ill = shower.moon_illumination
+                    moon_sep = shower.moon_separation_deg
+
+                    # Moon interference: bright moon + close to radiant = bad
+                    if moon_ill > 70 and moon_sep < 60:
+                        moon_impact = " [red](moon interference)[/red]"
+                    elif moon_ill > 50 and moon_sep < 90:
+                        moon_impact = " [yellow](some moon interference)[/yellow]"
+                    elif moon_ill < 30:
+                        moon_impact = " [green](dark sky)[/green]"
+
+                # Peak status
+                if shower.days_from_peak is not None:
+                    if shower.days_from_peak == 0:
+                        peak_status = "[bold yellow]PEAK TONIGHT[/bold yellow]"
+                    elif shower.days_from_peak == 1:
+                        peak_status = "near peak"
+                    elif shower.days_from_peak <= 3:
+                        peak_status = f"{shower.days_from_peak}d from peak"
+                    else:
+                        peak_status = "active"
+                else:
+                    peak_status = "active"
+
+                # ZHR info
+                zhr_info = f"ZHR ~{shower.zhr}" if shower.zhr >= 20 else ""
+
+                self.console.print(f"  ☄️  {shower.name} ({peak_status}){moon_impact}")
+                if zhr_info:
+                    self.console.print(f"      {zhr_info}")
+                has_events = True
+
+        if has_events:
+            self.console.print()
+
+    def _print_conjunctions(self, forecast: NightForecast):
+        """Print notable conjunctions for tonight (deprecated - use _print_celestial_events)."""
+        # Keep for backward compatibility but redirect to new method
+        self._print_celestial_events(forecast)
 
     def _print_weather_extras(self, weather: NightWeather):
         """Print additional weather information (wind, visibility, humidity)."""
