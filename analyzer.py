@@ -1,12 +1,39 @@
 """Analyze visibility of celestial objects over multiple nights."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Optional
 
 from catalog import Catalog
-from sky_calculator import NightInfo, ObjectVisibility, SkyCalculator
+from sky_calculator import (
+    NightInfo,
+    ObjectVisibility,
+    SkyCalculator,
+    calculate_planet_apparent_diameter,
+    PLANET_APPARENT_DIAMETERS,
+)
 from weather import NightWeather, WeatherForecast
+from scoring import (
+    score_object,
+    select_best_objects,
+    ScoredObject,
+)
+
+
+@dataclass
+class Conjunction:
+    """A close approach between two celestial objects."""
+
+    object1_name: str
+    object2_name: str
+    separation_degrees: float  # Angular separation
+    time: datetime  # Time of closest approach
+    description: str  # Human-readable description
+
+    @property
+    def is_notable(self) -> bool:
+        """Check if this conjunction is notable (< 5 degrees)."""
+        return self.separation_degrees < 5.0
 
 
 @dataclass
@@ -17,14 +44,19 @@ class NightForecast:
     planets: List[ObjectVisibility]
     dsos: List[ObjectVisibility]
     comets: List[ObjectVisibility]  # Bright comets visible tonight
+    dwarf_planets: List[ObjectVisibility]  # Dwarf planets (Pluto, Ceres, etc.)
+    asteroids: List[ObjectVisibility]  # Bright asteroids
     milky_way: ObjectVisibility
     moon: ObjectVisibility
     weather: Optional[NightWeather]  # None if weather data unavailable
+    conjunctions: List[Conjunction] = field(
+        default_factory=list
+    )  # Close approaches between objects
 
 
 @dataclass
 class VisibilityScore:
-    """Score for ranking objects by viewing quality."""
+    """Score for ranking objects by viewing quality (legacy compatibility)."""
 
     object_name: str
     score: float
@@ -34,18 +66,29 @@ class VisibilityScore:
 class VisibilityAnalyzer:
     """Analyze celestial object visibility over multiple nights."""
 
-    def __init__(self, latitude: float, longitude: float, comet_mag: float = 12.0):
+    def __init__(
+        self,
+        latitude: float,
+        longitude: float,
+        comet_mag: float = 12.0,
+        dso_mag: float = 14.0,
+        verbose: bool = False,
+    ):
         """Initialize the analyzer.
 
         Args:
             latitude: Observer latitude in degrees
             longitude: Observer longitude in degrees
             comet_mag: Maximum comet magnitude to include (default: 12.0)
+            dso_mag: Maximum DSO magnitude to include (default: 14.0)
+            verbose: If True, print download/cache status messages
         """
         self.calculator = SkyCalculator(latitude, longitude)
-        self.catalog = Catalog()
+        self.catalog = Catalog(observer_latitude=latitude)
         self.latitude = latitude
         self.comet_mag = comet_mag
+        self.dso_mag = dso_mag
+        self.verbose = verbose
 
         # Planet names and objects
         self.planets = {
@@ -58,35 +101,79 @@ class VisibilityAnalyzer:
             "Neptune": self.calculator.neptune,
         }
 
-        # Load and pre-filter comets by declination (one-time cost)
+        # Load and pre-filter comets by declination (one-time cost, cached)
         self.comets = self._load_filtered_comets()
 
-    def _load_filtered_comets(self, min_useful_alt: float = 30.0):
-        """Load comets and filter by declination to remove those that can never reach useful altitude.
+        # Load dwarf planets and asteroids (cached)
+        self.dwarf_planets = self.catalog.load_dwarf_planets()
+        self.asteroids = self.catalog.load_bright_asteroids()
 
-        This pre-filtering reduces the number of comets that need full visibility calculations,
-        providing significant speedup for multi-night forecasts.
+    def _load_filtered_comets(self, min_useful_alt: float = 30.0):
+        """Load comets and filter by declination and apparent magnitude.
+
+        This pre-filtering removes comets that:
+        1. Can never reach useful altitude from this latitude
+        2. Are currently too faint (apparent magnitude > threshold)
+
+        The apparent magnitude is calculated from absolute magnitude and current distances.
         """
-        all_comets = self.catalog.load_bright_comets(max_magnitude=self.comet_mag)
+        import math
+
+        # Load comets with a generous absolute magnitude filter (we'll filter by apparent mag later)
+        all_comets = self.catalog.load_bright_comets(
+            max_magnitude=20.0,  # Very generous - we filter by apparent mag below
+            verbose=self.verbose,
+        )
         if not all_comets:
             return []
 
-        # Get reference time for declination check
-        t_ref = self.calculator.ts.utc(2026, 1, 1, 0)  # Any reference time works
+        # Use current date for magnitude calculation
+        from datetime import datetime
+
+        now = datetime.now()
+        t_ref = self.calculator.ts.utc(now.year, now.month, now.day, 0)
 
         filtered = []
         for comet in all_comets:
             try:
                 comet_obj = self.calculator.create_comet(comet.row)
+
+                # Get comet position from Earth
                 astrometric = self.calculator.earth.at(t_ref).observe(comet_obj)
-                ra, dec, dist = astrometric.radec()
+                ra, dec, earth_dist = astrometric.radec()
+
+                # Get comet position from Sun (for heliocentric distance)
+                sun_astrometric = self.calculator.sun.at(t_ref).observe(comet_obj)
+                _, _, sun_dist = sun_astrometric.radec()
+
+                # Calculate apparent magnitude using comet magnitude formula:
+                # m = g + 5*log10(Δ) + k*log10(r)
+                # where g = absolute mag, Δ = Earth distance (AU), r = Sun distance (AU)
+                # k = magnitude slope (typically 10, but use MPC value if available)
+                g = comet.magnitude_g
+                delta = earth_dist.au  # Distance from Earth in AU
+                r = sun_dist.au  # Distance from Sun in AU
+
+                # Get magnitude slope k from MPC data (default 10 if not available)
+                k = float(comet.row.get("magnitude_k", 10.0))
+
+                # Compute apparent magnitude
+                if delta > 0 and r > 0:
+                    apparent_mag = g + 5 * math.log10(delta) + k * math.log10(r)
+                else:
+                    apparent_mag = 99.0  # Invalid, skip
+
+                # Filter by apparent magnitude threshold
+                if apparent_mag > self.comet_mag:
+                    continue
 
                 # Max possible altitude = 90 - |latitude - declination|
                 max_possible_alt = 90 - abs(self.latitude - dec.degrees)
 
                 if max_possible_alt >= min_useful_alt:
-                    # Store pre-computed comet object for reuse
+                    # Store pre-computed comet object and apparent magnitude for reuse
                     comet.skyfield_obj = comet_obj
+                    comet.apparent_magnitude = apparent_mag  # Store for later use
                     filtered.append(comet)
             except Exception:
                 continue
@@ -143,21 +230,62 @@ class VisibilityAnalyzer:
                 "planet",
                 night_info,
             )
+            visibility.subtype = (
+                "inner" if planet_name in ("Mercury", "Venus") else "outer"
+            )
+
+            # Calculate apparent diameter at current distance
+            if visibility.is_visible and visibility.max_altitude_time:
+                try:
+                    t_peak = self.calculator.ts.utc(
+                        visibility.max_altitude_time.year,
+                        visibility.max_altitude_time.month,
+                        visibility.max_altitude_time.day,
+                        visibility.max_altitude_time.hour,
+                        visibility.max_altitude_time.minute,
+                    )
+                    earth = self.calculator.earth
+                    astrometric = earth.at(t_peak).observe(planet_obj)
+                    distance_au = astrometric.distance().au
+                    visibility.apparent_diameter_arcsec = (
+                        calculate_planet_apparent_diameter(distance_au, planet_name)
+                    )
+                    # Add min/max range from table
+                    if planet_name in PLANET_APPARENT_DIAMETERS:
+                        visibility.apparent_diameter_min = PLANET_APPARENT_DIAMETERS[
+                            planet_name
+                        ]["min"]
+                        visibility.apparent_diameter_max = PLANET_APPARENT_DIAMETERS[
+                            planet_name
+                        ]["max"]
+                except Exception:
+                    pass  # Skip if calculation fails
+
             planet_visibility.append(visibility)
 
-        # Analyze DSOs
+        # Analyze DSOs from OpenNGC
         dso_visibility = []
-        for dso in self.catalog.get_all_dsos():
+        for dso in self.catalog.get_all_dsos(
+            max_magnitude=self.dso_mag, verbose=self.verbose
+        ):
             star_obj = self.catalog.ra_dec_to_star(dso)
             visibility = self.calculator.calculate_object_visibility(
                 star_obj,
-                dso.common_name,
+                dso.common_name or dso.name,
                 "dso",
                 night_info,
             )
-            # Name-first format (consistent with comets): "Pinwheel Galaxy (M101)"
-            visibility.object_name = f"{dso.common_name} ({dso.name})"
+            # Format name: "Common Name (NGC xxx)" or just "NGC xxx"
+            if dso.common_name:
+                visibility.object_name = f"{dso.common_name} ({dso.name})"
+            else:
+                visibility.object_name = dso.name
             visibility.magnitude = dso.magnitude
+            visibility.subtype = dso.dso_subtype
+            visibility.angular_size_arcmin = dso.angular_size_arcmin
+            visibility.surface_brightness = dso.surface_brightness
+            visibility.ra_hours = dso.ra_hours
+            visibility.common_name = dso.common_name
             dso_visibility.append(visibility)
 
         # Analyze comets (use pre-computed skyfield objects and coarse sampling)
@@ -176,8 +304,14 @@ class VisibilityAnalyzer:
                     night_info,
                     coarse=True,
                 )
-                # Add magnitude and set name format (name-first style)
-                visibility.magnitude = comet.magnitude_g
+                # Use calculated apparent magnitude (computed in _load_filtered_comets)
+                # Fall back to absolute magnitude if apparent not available
+                visibility.magnitude = getattr(
+                    comet, "apparent_magnitude", comet.magnitude_g
+                )
+                visibility.subtype = (
+                    "interstellar" if comet.is_interstellar else "comet"
+                )
                 if comet.is_interstellar:
                     # Interstellar objects: "Interstellar Name (Designation)"
                     visibility.object_name = (
@@ -192,6 +326,63 @@ class VisibilityAnalyzer:
                 # Skip comets that fail to compute (rare edge cases)
                 continue
 
+        # Analyze dwarf planets
+        dwarf_planet_visibility = []
+        for dp in self.dwarf_planets:
+            try:
+                # Create skyfield object from MPC data
+                dp_obj = getattr(dp, "skyfield_obj", None)
+                if dp_obj is None and dp.row is not None:
+                    from skyfield.constants import GM_SUN_Pitjeva_2005_km3_s2 as GM_SUN
+                    from skyfield.data import mpc
+
+                    dp.skyfield_obj = self.calculator.sun + mpc.mpcorb_orbit(
+                        dp.row, self.calculator.ts, GM_SUN
+                    )
+                    dp_obj = dp.skyfield_obj
+
+                if dp_obj is not None:
+                    visibility = self.calculator.calculate_object_visibility(
+                        dp_obj,
+                        dp.name,
+                        "dwarf_planet",
+                        night_info,
+                        coarse=True,
+                    )
+                    visibility.magnitude = dp.magnitude_h
+                    visibility.subtype = "dwarf_planet"
+                    dwarf_planet_visibility.append(visibility)
+            except Exception:
+                continue
+
+        # Analyze asteroids
+        asteroid_visibility = []
+        for ast in self.asteroids:
+            try:
+                ast_obj = getattr(ast, "skyfield_obj", None)
+                if ast_obj is None and ast.row is not None:
+                    from skyfield.constants import GM_SUN_Pitjeva_2005_km3_s2 as GM_SUN
+                    from skyfield.data import mpc
+
+                    ast.skyfield_obj = self.calculator.sun + mpc.mpcorb_orbit(
+                        ast.row, self.calculator.ts, GM_SUN
+                    )
+                    ast_obj = ast.skyfield_obj
+
+                if ast_obj is not None:
+                    visibility = self.calculator.calculate_object_visibility(
+                        ast_obj,
+                        ast.name,
+                        "asteroid",
+                        night_info,
+                        coarse=True,
+                    )
+                    visibility.magnitude = ast.magnitude_h
+                    visibility.subtype = "asteroid"
+                    asteroid_visibility.append(visibility)
+            except Exception:
+                continue
+
         # Analyze Milky Way core
         milky_way_star = self.catalog.ra_dec_to_star(self.catalog.milky_way)
         milky_way_visibility = self.calculator.calculate_object_visibility(
@@ -200,6 +391,7 @@ class VisibilityAnalyzer:
             "milky_way",
             night_info,
         )
+        milky_way_visibility.subtype = "milky_way"
 
         # Analyze Moon
         moon_visibility = self.calculator.calculate_object_visibility(
@@ -218,156 +410,179 @@ class VisibilityAnalyzer:
                 night_info.astronomical_dawn,
             )
 
+        # Detect conjunctions
+        conjunctions = self._detect_conjunctions(
+            planet_visibility, comet_visibility, night_info
+        )
+
         return NightForecast(
             night_info=night_info,
             planets=planet_visibility,
             dsos=dso_visibility,
             comets=comet_visibility,
+            dwarf_planets=dwarf_planet_visibility,
+            asteroids=asteroid_visibility,
             milky_way=milky_way_visibility,
             moon=moon_visibility,
             weather=weather,
+            conjunctions=conjunctions,
         )
 
-    def rank_objects_for_night(self, forecast: NightForecast) -> List[VisibilityScore]:
-        """Rank objects by viewing quality for a specific night.
+    def rank_objects_for_night(
+        self,
+        forecast: NightForecast,
+        max_objects: int = 20,
+        min_score: float = 60.0,
+    ) -> List[ScoredObject]:
+        """Rank objects by viewing quality using professional scoring algorithm.
 
-        Scoring combines:
-        - Object priority/importance
-        - Peak altitude
-        - Moon interference
+        Uses merit-based scoring that considers:
+        - Imaging quality (altitude, moon, timing, weather)
+        - Object characteristics (surface brightness, magnitude, type suitability)
+        - Priority/rarity bonus (transient events, seasonal window)
+
+        Args:
+            forecast: Night forecast
+            max_objects: Maximum objects to return
+            min_score: Minimum score threshold
+
+        Returns:
+            List of ScoredObject instances, sorted by score (highest first)
+        """
+        all_scored = []
+
+        # Get observation window
+        window_start = forecast.night_info.astronomical_dusk
+        window_end = forecast.night_info.astronomical_dawn
+        if window_end <= window_start:
+            window_end = window_end + timedelta(days=1)
+
+        observation_date = forecast.night_info.date
+        moon_illumination = forecast.night_info.moon_illumination
+        cloud_cover = forecast.weather.avg_cloud_cover if forecast.weather else None
+
+        # Score planets
+        for planet in forecast.planets:
+            if planet.is_visible and planet.max_altitude >= 30:
+                scored = score_object(
+                    visibility=planet,
+                    category="planet",
+                    subtype=planet.subtype,
+                    moon_illumination=moon_illumination,
+                    observation_date=observation_date,
+                    window_start=window_start,
+                    window_end=window_end,
+                    cloud_cover=cloud_cover,
+                )
+                all_scored.append(scored)
+
+        # Score DSOs
+        for dso in forecast.dsos:
+            if dso.is_visible and dso.max_altitude >= 30:
+                scored = score_object(
+                    visibility=dso,
+                    category="dso",
+                    subtype=dso.subtype,
+                    moon_illumination=moon_illumination,
+                    observation_date=observation_date,
+                    window_start=window_start,
+                    window_end=window_end,
+                    cloud_cover=cloud_cover,
+                    ra_hours=dso.ra_hours,
+                    common_name=dso.common_name,
+                    surface_brightness=dso.surface_brightness,
+                    angular_size=dso.angular_size_arcmin,
+                )
+                all_scored.append(scored)
+
+        # Score comets
+        for comet in forecast.comets:
+            if comet.is_visible and comet.max_altitude >= 30:
+                scored = score_object(
+                    visibility=comet,
+                    category="comet",
+                    subtype=comet.subtype,
+                    moon_illumination=moon_illumination,
+                    observation_date=observation_date,
+                    window_start=window_start,
+                    window_end=window_end,
+                    cloud_cover=cloud_cover,
+                    is_interstellar=comet.is_interstellar,
+                )
+                all_scored.append(scored)
+
+        # Score dwarf planets
+        for dp in forecast.dwarf_planets:
+            if dp.is_visible and dp.max_altitude >= 30:
+                scored = score_object(
+                    visibility=dp,
+                    category="dwarf_planet",
+                    subtype="dwarf_planet",
+                    moon_illumination=moon_illumination,
+                    observation_date=observation_date,
+                    window_start=window_start,
+                    window_end=window_end,
+                    cloud_cover=cloud_cover,
+                )
+                all_scored.append(scored)
+
+        # Score asteroids
+        for ast in forecast.asteroids:
+            if ast.is_visible and ast.max_altitude >= 30:
+                scored = score_object(
+                    visibility=ast,
+                    category="asteroid",
+                    subtype="asteroid",
+                    moon_illumination=moon_illumination,
+                    observation_date=observation_date,
+                    window_start=window_start,
+                    window_end=window_end,
+                    cloud_cover=cloud_cover,
+                )
+                all_scored.append(scored)
+
+        # Score Milky Way
+        if forecast.milky_way.is_visible and forecast.milky_way.max_altitude >= 45:
+            scored = score_object(
+                visibility=forecast.milky_way,
+                category="milky_way",
+                subtype="milky_way",
+                moon_illumination=moon_illumination,
+                observation_date=observation_date,
+                window_start=window_start,
+                window_end=window_end,
+                cloud_cover=cloud_cover,
+            )
+            all_scored.append(scored)
+
+        # Select best objects using merit-based selection with soft caps
+        selected = select_best_objects(
+            all_scored,
+            max_objects=max_objects,
+            min_score=min_score,
+            ensure_category_representation=True,
+        )
+
+        return selected
+
+    def rank_objects_legacy(self, forecast: NightForecast) -> List[VisibilityScore]:
+        """Legacy ranking method for backwards compatibility.
 
         Args:
             forecast: Night forecast
 
         Returns:
-            List of VisibilityScore objects, sorted by score (highest first)
+            List of VisibilityScore objects
         """
-        scores = []
-
-        # Score planets
-        for planet in forecast.planets:
-            if planet.is_visible and planet.max_altitude >= 30:
-                # Base score for planets
-                base_score = 100
-
-                # Altitude bonus (max +50)
-                altitude_bonus = min(planet.max_altitude / 2, 50)
-
-                # Priority bonus (bright planets)
-                priority_bonus = 0
-                if planet.object_name in ["Jupiter", "Saturn", "Mars", "Venus"]:
-                    priority_bonus = 30
-
-                total_score = base_score + altitude_bonus + priority_bonus
-
-                reason = self._get_quality_description(planet.max_altitude)
-                scores.append(
-                    VisibilityScore(
-                        object_name=planet.object_name,
-                        score=total_score,
-                        reason=reason,
-                    )
-                )
-
-        # Score DSOs
-        for dso in forecast.dsos:
-            if dso.is_visible and dso.max_altitude >= 30:
-                # Base score for DSOs
-                base_score = 80
-
-                # Altitude bonus (max +50)
-                altitude_bonus = min(dso.max_altitude / 2, 50)
-
-                # Moon penalty
-                moon_penalty = 0
-                if dso.moon_warning:
-                    moon_penalty = 40
-
-                total_score = base_score + altitude_bonus - moon_penalty
-
-                # Only include if score is positive
-                if total_score > 0:
-                    reason = self._get_quality_description(dso.max_altitude)
-                    if dso.moon_warning:
-                        reason += " (moon interference)"
-
-                    scores.append(
-                        VisibilityScore(
-                            object_name=dso.object_name,
-                            score=total_score,
-                            reason=reason,
-                        )
-                    )
-
-        # Score comets (high priority - transient events!)
-        for comet in forecast.comets:
-            if (
-                comet.is_visible and comet.max_altitude >= 30
-            ):  # Lower threshold for comets
-                # High base score for comets (rare, transient)
-                base_score = 120
-
-                # Extra bonus for interstellar objects!
-                if comet.is_interstellar:
-                    base_score = 150
-
-                # Altitude bonus (max +50)
-                altitude_bonus = min(comet.max_altitude / 2, 50)
-
-                # Moon penalty (comets often faint)
-                moon_penalty = 0
-                if comet.moon_warning:
-                    moon_penalty = 30
-
-                total_score = base_score + altitude_bonus - moon_penalty
-
-                if total_score > 0:
-                    reason = self._get_quality_description(comet.max_altitude)
-                    if comet.moon_warning:
-                        reason += " (moon interference)"
-                    if comet.is_interstellar:
-                        reason += " - INTERSTELLAR!"
-
-                    scores.append(
-                        VisibilityScore(
-                            object_name=comet.object_name,
-                            score=total_score,
-                            reason=reason,
-                        )
-                    )
-
-        # Score Milky Way
-        if forecast.milky_way.is_visible and forecast.milky_way.max_altitude >= 45:
-            # Base score
-            base_score = 70
-
-            # Altitude bonus
-            altitude_bonus = min(forecast.milky_way.max_altitude / 2, 50)
-
-            # Moon penalty (Milky Way very sensitive to moonlight)
-            moon_penalty = 0
-            if forecast.night_info.moon_illumination > 30:
-                moon_penalty = 50
-
-            total_score = base_score + altitude_bonus - moon_penalty
-
-            if total_score > 0:
-                reason = self._get_quality_description(forecast.milky_way.max_altitude)
-                if forecast.night_info.moon_illumination > 30:
-                    reason += " (moon interference)"
-
-                scores.append(
-                    VisibilityScore(
-                        object_name="Milky Way Core",
-                        score=total_score,
-                        reason=reason,
-                    )
-                )
-
-        # Sort by score (highest first)
-        scores.sort(key=lambda x: x.score, reverse=True)
-
-        return scores
+        scored = self.rank_objects_for_night(forecast)
+        return [
+            VisibilityScore(
+                object_name=s.object_name,
+                score=s.total_score,
+                reason=s.reason,
+            )
+            for s in scored
+        ]
 
     def _get_quality_description(self, altitude: float) -> str:
         """Get quality description based on altitude.
@@ -386,6 +601,120 @@ class VisibilityAnalyzer:
             return "Good"
         else:
             return "Fair"
+
+    def _detect_conjunctions(
+        self,
+        planets: List[ObjectVisibility],
+        comets: List[ObjectVisibility],
+        night_info: NightInfo,
+    ) -> List[Conjunction]:
+        """Detect close approaches between bright objects.
+
+        Args:
+            planets: List of visible planets
+            comets: List of visible comets
+            night_info: Night information
+
+        Returns:
+            List of notable conjunctions
+        """
+        conjunctions = []
+
+        # Only consider visible objects
+        visible_planets = [p for p in planets if p.is_visible and p.max_altitude >= 15]
+
+        # Get a reference time (middle of the night)
+        if not night_info.astronomical_dusk or not night_info.astronomical_dawn:
+            return []
+
+        dusk = night_info.astronomical_dusk
+        dawn = night_info.astronomical_dawn
+        if dawn <= dusk:
+            dawn = dawn + timedelta(days=1)
+        mid_night = dusk + (dawn - dusk) / 2
+
+        t_mid = self.calculator.ts.utc(
+            mid_night.year,
+            mid_night.month,
+            mid_night.day,
+            mid_night.hour,
+            mid_night.minute,
+        )
+        earth = self.calculator.earth
+        observer = earth + self.calculator.location
+
+        # Check planet-planet conjunctions
+        for i, p1 in enumerate(visible_planets):
+            for p2 in visible_planets[i + 1 :]:
+                try:
+                    obj1 = self.planets.get(p1.object_name)
+                    obj2 = self.planets.get(p2.object_name)
+                    if obj1 is None or obj2 is None:
+                        continue
+
+                    pos1 = observer.at(t_mid).observe(obj1)
+                    pos2 = observer.at(t_mid).observe(obj2)
+                    sep = pos1.separation_from(pos2).degrees
+
+                    if sep < 10:  # Notable if within 10 degrees
+                        desc = (
+                            f"{p1.object_name} and {p2.object_name} within {sep:.1f}°"
+                        )
+                        if sep < 2:
+                            desc = f"Close conjunction: {p1.object_name} and {p2.object_name} only {sep:.1f}° apart!"
+                        elif sep < 5:
+                            desc = (
+                                f"{p1.object_name} near {p2.object_name} ({sep:.1f}°)"
+                            )
+
+                        conjunctions.append(
+                            Conjunction(
+                                object1_name=p1.object_name,
+                                object2_name=p2.object_name,
+                                separation_degrees=sep,
+                                time=mid_night,
+                                description=desc,
+                            )
+                        )
+                except Exception:
+                    continue
+
+        # Check planet-Moon conjunctions
+        moon = self.calculator.moon
+        for p in visible_planets:
+            try:
+                obj = self.planets.get(p.object_name)
+                if obj is None:
+                    continue
+
+                pos_planet = observer.at(t_mid).observe(obj)
+                pos_moon = observer.at(t_mid).observe(moon)
+                sep = pos_planet.separation_from(pos_moon).degrees
+
+                if sep < 10:
+                    if sep < 2:
+                        desc = f"Moon very close to {p.object_name} ({sep:.1f}°) - great photo opportunity!"
+                    elif sep < 5:
+                        desc = f"Moon near {p.object_name} ({sep:.1f}°)"
+                    else:
+                        desc = f"Moon and {p.object_name} within {sep:.1f}°"
+
+                    conjunctions.append(
+                        Conjunction(
+                            object1_name="Moon",
+                            object2_name=p.object_name,
+                            separation_degrees=sep,
+                            time=mid_night,
+                            description=desc,
+                        )
+                    )
+            except Exception:
+                continue
+
+        # Sort by separation (closest first)
+        conjunctions.sort(key=lambda c: c.separation_degrees)
+
+        return conjunctions
 
     def get_best_dark_nights(self, forecasts: List[NightForecast]) -> List[int]:
         """Identify the best nights for DSO imaging (darkest + clearest nights).

@@ -1,6 +1,6 @@
 # NightSeek
 
-A Python CLI tool for planning astronomy observations based on celestial object visibility. Generate forecasts showing when planets, deep sky objects, and other celestial targets are optimally positioned in the night sky.
+A Python CLI tool for planning astronomy observations based on celestial object visibility. Generate forecasts showing when planets, deep sky objects, comets, and other celestial targets are optimally positioned in the night sky.
 
 ## Quickstart
 
@@ -43,17 +43,32 @@ nightseek -n 10        # Show top 10 objects per night
 
 ## Features
 
-- **Weather-Integrated Forecasts**: Real-time cloud cover data from Open-Meteo API (up to 16 days)
-- **Smart Night Ranking**: Combines moon phase AND cloud cover for optimal observing nights
-- **Comet Tracking**: Automatic detection of bright comets (magnitude <12) from Minor Planet Center
-- **Interstellar Object Alerts**: Highlights rare interstellar comets (like 3I/ATLAS)
-- **7-Day Forecasts**: Plan your observations for up to 30 nights ahead
-- **Altitude Thresholds**: Identifies when objects reach 45°, 60°, and 75° altitude for optimal viewing
-- **Moon Phase Analysis**: Shows moon illumination and identifies best dark-sky nights for DSO imaging
-- **Moon Interference Warnings**: Alerts when bright moon affects deep sky object visibility
-- **Curated Object Catalog**: Notable Messier objects, planets, and the Milky Way core
-- **Tonight's Highlights**: Top 8 objects prioritized by viewing quality
-- **Graceful Degradation**: Works with or without weather data or comet data
+### Core Features
+- **~13,000 Deep Sky Objects**: Full OpenNGC catalog (NGC/IC objects) with intelligent filtering
+- **Professional Scoring**: Merit-based 200-point scoring algorithm for optimal target selection
+- **Weather-Integrated Forecasts**: Cloud cover, visibility, wind, humidity from Open-Meteo API
+- **Smart Night Ranking**: Combines moon phase AND weather conditions for optimal observing nights
+- **Airmass Calculations**: Scientifically accurate atmospheric extinction modeling
+
+### Object Tracking
+- **Planets**: All major planets with apparent diameter tracking (current size vs. yearly range)
+- **Comets**: Automatic detection from Minor Planet Center with apparent magnitude calculation
+- **Dwarf Planets**: Pluto, Ceres, Eris, Makemake, Haumea
+- **Asteroids**: Bright asteroids (Vesta, Pallas, Juno, Hygiea)
+- **Interstellar Objects**: Highlights rare visitors like 2I/Borisov
+
+### Observation Planning
+- **Conjunction Alerts**: Automatic detection of close approaches between planets/Moon
+- **5-Tier Weather Rating**: Excellent/Good/Fair/Poor/Bad with cloud percentage ranges
+- **Position Angle**: DSO orientation for composition planning
+- **Transit Times**: When objects cross the meridian (optimal viewing)
+- **Transparency Score**: Combined visibility and aerosol assessment
+
+### Quality of Life
+- **Tonight's Highlights**: Top objects prioritized by imaging quality score
+- **Time-Window Grouping**: Objects grouped by weather conditions, not fixed intervals
+- **Moon Interference Warnings**: Alerts when bright moon affects deep sky visibility
+- **Graceful Degradation**: Works with or without weather/comet data
 
 ## Development Setup
 
@@ -69,6 +84,9 @@ uv sync
 
 # Run from source
 uv run nightseek
+
+# Run tests
+uv run pytest
 ```
 
 ## Configuration
@@ -186,116 +204,213 @@ The forecast includes:
 1. **Observing Conditions**:
    - Dark sky window (astronomical night: sun >18° below horizon)
    - Moon phases and illumination percentage
-   - Cloud cover range (min-max) during astronomical night (if ≤16 days)
-   - Combined quality ratings
-2. **Best Observing Nights**: Optimal nights ranked by moon + cloud cover (or moon only if no weather data)
-3. **Tonight's Observation Plan**: Time-windowed targets with weather conditions for each 3-hour window
-4. **Forecast by Object Type**:
-   - **Planets**: Best viewing times throughout the period
-   - **Comets**: Currently visible comets (magnitude <12) with peak viewing times
-     - Special highlight for interstellar objects with ⭐ marker
-   - **Deep Sky Objects**: Top N objects (configurable, default 8) for the best 5 nights
-   - **Milky Way Core**: Best viewing opportunity (when moon <30%)
+   - Cloud cover range (min-max) during astronomical night
+   - Wind speed, visibility, humidity warnings when relevant
+   - Combined quality ratings (Excellent/Good/Fair/Poor)
+
+2. **Celestial Events**: Conjunction alerts when planets/Moon are close together
+
+3. **Best Observing Nights**: Optimal nights ranked by moon + weather conditions
+
+4. **Tonight's Observation Plan**:
+   - Time windows grouped by weather conditions (dynamic, not fixed intervals)
+   - Top objects with professional scores (0-200 scale)
+   - Score explanations ("Why: excellent altitude, dark sky, peak season")
+   - Planet apparent sizes with context (current vs. yearly range)
+
+5. **Multi-Night Forecast**:
+   - Best targets for each upcoming night
+   - Category icons for quick identification
+   - Quality ratings and peak times
+
+6. **Milky Way Core**: Best viewing opportunity (when moon <30%)
 
 ### Weather Integration
 
-- **Days 1-16**: Full weather integration with hourly cloud cover during astronomical night
-- **Days 17-30**: Astronomical data only (moon, object positions) - gracefully degrades without weather
+- **Days 1-16**: Full weather integration with:
+  - Hourly cloud cover during astronomical night
+  - Atmospheric visibility (transparency)
+  - Wind speed and gusts
+  - Humidity (dew risk warnings)
+  - Temperature
+- **Days 17-30**: Astronomical data only (moon, object positions)
 - **API**: Uses Open-Meteo (free, no API key required)
 
-### Quality Ratings
+### Scoring System
 
-#### Object Altitude (for Astrophotography)
-- **Excellent (overhead)**: Object reaches 75°+ altitude
-- **Very Good (high)**: Object reaches 60-74° altitude
-- **Good (clear)**: Object reaches 45-59° altitude
-- **Fair (low)**: Object reaches 30-44° altitude
+NightSeek uses a professional 200-point scoring algorithm:
 
-#### Observing Night Quality (with weather data)
-- **Excellent - Dark & Clear**: <20% combined score (moon + clouds)
-- **Good - Clear skies**: <35% combined score, low clouds
-- **Fair**: 35-55% combined score (moderate clouds or bright moon)
-- **Poor - Very cloudy**: >55% combined score (high clouds or bright moon + clouds)
+#### Imaging Quality (0-100 points)
+| Component | Points | Factors |
+|-----------|--------|---------|
+| Airmass/Altitude | 0-40 | Uses Pickering formula; lower airmass = better |
+| Moon Interference | 0-30 | Separation + illumination + object type sensitivity |
+| Peak Timing | 0-15 | Is object at peak during observation window? |
+| Weather | 0-15 | Cloud cover for this time slot |
+
+#### Object Characteristics (0-50 points)
+| Component | Points | Factors |
+|-----------|--------|---------|
+| Surface Brightness | 0-20 | Brighter surface = easier to image |
+| Magnitude | 0-15 | Apparent brightness |
+| Type Suitability | 0-15 | Match object type to conditions |
+
+#### Priority/Rarity (0-50 points)
+| Component | Points | Factors |
+|-----------|--------|---------|
+| Transient Events | 0-25 | Interstellar objects, bright comets |
+| Seasonal Window | 0-15 | Object opposite sun = peak season |
+| Popularity | 0-10 | Messier/famous objects bonus |
+
+#### Score Tiers
+| Score | Rating | Meaning |
+|-------|--------|---------|
+| 150+ | ★★★★★ | Prime target - don't miss |
+| 120-149 | ★★★★☆ | High-quality opportunity |
+| 90-119 | ★★★☆☆ | Worth imaging |
+| 60-89 | ★★☆☆☆ | Acceptable, not optimal |
+| <60 | ★☆☆☆☆ | Wait for better conditions |
+
+### Weather Quality Tiers
+
+| Cloud Cover | Rating | Color |
+|-------------|--------|-------|
+| 0-10% | Excellent | Green |
+| 10-25% | Good | Green |
+| 25-40% | Fair | Yellow |
+| 40-60% | Poor | Yellow |
+| 60%+ | Cloudy | Red |
+
+### Altitude/Airmass Quality
+
+| Airmass | Altitude | Rating |
+|---------|----------|--------|
+| ≤1.05 | ~90° | Excellent (overhead) |
+| ≤1.15 | ~75° | Very Good (high) |
+| ≤1.41 | ~45° | Good (clear) |
+| ≤2.0 | ~30° | Acceptable |
+| >2.0 | <30° | Poor (thick atmosphere) |
 
 ## Object Catalog
 
 ### Planets
-All major planets (Mercury through Neptune)
+All major planets (Mercury through Neptune) with:
+- Current apparent diameter in arcseconds
+- Yearly min/max range for context
+- Subtype classification (inner/outer)
 
 ### Comets
 - **Automatically loaded** from Minor Planet Center
-- Includes all comets brighter than magnitude 12 (telescope visibility)
-- **Interstellar objects** marked with ⭐ (eccentricity >1.0)
-- Examples of recent/current comets:
-  - 24P/Schaumasse (mag ~8, January 2026)
-  - C/2024 E1 (Wierzchos) (mag ~8, January 2026)
-  - 3I/ATLAS (mag ~15, interstellar - 3rd ever detected!)
-- Updates automatically with each run
-- Gracefully handles network failures
+- Includes all comets brighter than magnitude 12 (configurable)
+- **Apparent magnitude** calculated from distance (not absolute magnitude)
+- **Interstellar objects** marked with special highlight
+- Updates automatically with each run (24-hour cache)
 
-### Deep Sky Objects
-- **Galaxies**: M31 (Andromeda), M33, M51 (Whirlpool), M81, M82, M101, M104
-- **Nebulae**: M42 (Orion), M8 (Lagoon), M16 (Eagle), M17 (Omega), M20 (Trifid), M27 (Dumbbell), M57 (Ring), Helix, North America
-- **Clusters**: M13 (Hercules), M45 (Pleiades), M44 (Beehive), Double Cluster
-- **Special**: Milky Way Core
+### Deep Sky Objects (~13,000)
+Loaded from **OpenNGC** catalog with intelligent filtering:
+- **Galaxies**: NGC/IC galaxies, pairs, groups, clusters
+- **Nebulae**: Emission, reflection, planetary, supernova remnants
+- **Clusters**: Open clusters, globular clusters
+- **Position Angle**: Orientation for composition planning
+- **Surface Brightness**: For imaging difficulty assessment
+
+#### Notable Objects
+- Messier catalog (M1-M110) with priority bonus
+- Caldwell catalog objects
+- Famous named objects (Andromeda, Orion Nebula, etc.)
+
+### Dwarf Planets
+- Pluto, Ceres, Eris, Makemake, Haumea
+- Loaded from MPC orbital elements
+
+### Asteroids
+- Vesta, Pallas, Juno, Hygiea
+- Brightness-filtered from MPC data
+
+### Special Targets
+- **Milky Way Core**: Sagittarius A* region
+- **Conjunctions**: Automatically detected close approaches
 
 ## Technical Details
 
 ### Astronomical Calculations
 - Uses [Skyfield](https://rhodesmill.org/skyfield/) for precise ephemeris calculations
 - JPL DE421 ephemeris for planet positions
+- **Airmass**: Pickering (2002) formula for accurate atmospheric extinction
+- **Planet Sizes**: Calculated from distance using physical diameters
 - Astronomical twilight threshold (sun >18° below horizon)
 - 10-minute sampling resolution for altitude calculations
 
 ### Weather Forecasting
-- Uses [Open-Meteo API](https://open-meteo.com/) for hourly cloud cover forecasts
-- Automatically fetches weather for forecasts ≤16 days
-- Calculates average and maximum cloud cover during astronomical night
+- Uses [Open-Meteo API](https://open-meteo.com/) for comprehensive weather data:
+  - Cloud cover (hourly)
+  - Visibility (atmospheric transparency)
+  - Wind speed and gusts
+  - Relative humidity
+  - Temperature
+- **Transparency Score**: Combined visibility + cloud assessment
 - Combines moon illumination (30%) and cloud cover (70%) for quality scoring
 - No API key required, completely free
 
 ### Comet Tracking
 - Uses [Minor Planet Center](https://www.minorplanetcenter.net/) orbital elements database
-- Default: loads comets with magnitude <12 (telescope-visible), configurable via `--comet-mag`
-- Pre-filters by declination to skip comets that can't reach useful altitude from your location
-- Computes positions using Skyfield and MPC orbital elements
+- **Apparent magnitude** calculated using: `m = g + 5*log10(Δ) + k*log10(r)`
+  - g = absolute magnitude
+  - Δ = distance from Earth (AU)
+  - r = distance from Sun (AU)
+  - k = magnitude slope parameter
+- Pre-filters by declination to skip objects that can't reach useful altitude
 - Detects interstellar objects (eccentricity >1.0 = hyperbolic orbits)
-- Caches orbital elements locally (24-hour expiry) for faster startup
-- Requires pandas library for MPC data parsing
+- Caches orbital elements locally (24-hour expiry)
+
+### OpenNGC Integration
+- Full [OpenNGC](https://github.com/mattiaverga/OpenNGC) catalog (~13,000 objects)
+- Cached locally (7-day expiry)
+- Filtered by:
+  - Maximum magnitude (default: 14)
+  - Observer latitude (only objects that can reach useful altitude)
+  - Object type (excludes non-existent and duplicate entries)
+
+### Caching
+Unified caching system for all external data:
+- **Ephemeris**: Permanent (~17MB, downloaded once)
+- **OpenNGC**: 7-day expiry (~4MB)
+- **Comets**: 24-hour expiry
+- Cache location: Platform-specific cache directory
 
 ### Performance
 - First run downloads ~17MB ephemeris data (cached permanently)
+- OpenNGC catalog cached for 7 days
 - Comet orbital elements cached for 24 hours
 - Typical forecast times:
-  - 1-day forecast: ~10 seconds
-  - 7-day forecast: ~45 seconds
+  - 1-day forecast: ~10-15 seconds
+  - 7-day forecast: ~45-60 seconds
 - Use `--comet-mag 8` for faster results (fewer comets to track)
 
-### Altitude Thresholds
-The app reports three altitude tiers:
-- **45°**: Minimum for good city viewing (reduces light pollution effects)
-- **60°**: Optimal viewing angle
-- **75°**: Excellent viewing conditions
-
-### Moon Interference
-DSOs are flagged with moon warnings when:
-- Moon is >50% illuminated AND
-- Object is within 30° of the moon
+### Conjunction Detection
+Automatically detects when objects are close together:
+- Planet-planet conjunctions
+- Planet-Moon conjunctions
+- Threshold: Notable if <5°, highlighted if <2°
 
 ## Project Structure
 
 ```
 nightseek/
-├── main.py           # CLI entry point
-├── config.py         # Configuration management
-├── sky_calculator.py # Astronomical calculations
-├── catalog.py        # Celestial object catalog
-├── analyzer.py       # Visibility analysis engine
-├── weather.py        # Weather forecast integration (Open-Meteo)
-├── formatter.py      # Output formatting
-├── timezone_utils.py # Timezone conversion utilities
-├── pyproject.toml    # Project dependencies
-└── LICENSE           # MIT License
+├── main.py             # CLI entry point
+├── config.py           # Configuration management
+├── sky_calculator.py   # Astronomical calculations (airmass, planet sizes)
+├── catalog.py          # Celestial object catalog (planets, comets, asteroids)
+├── opengc_loader.py    # OpenNGC catalog integration
+├── analyzer.py         # Visibility analysis engine (conjunctions, scoring)
+├── scoring.py          # Professional merit-based scoring algorithm
+├── weather.py          # Weather forecast integration (Open-Meteo)
+├── formatter.py        # Output formatting
+├── timezone_utils.py   # Timezone conversion utilities
+├── cache_manager.py    # Unified caching for external data
+├── test_nightseek.py   # Test suite
+├── pyproject.toml      # Project dependencies
+└── LICENSE             # MIT License
 ```
 
 ## Requirements
@@ -304,11 +419,12 @@ nightseek/
 - Dependencies managed via uv (see `pyproject.toml`)
 - Key dependencies:
   - skyfield (astronomical calculations)
-  - pandas (comet orbital elements parsing)
+  - pandas (orbital elements parsing)
   - rich (terminal formatting)
   - typer (CLI framework)
   - requests (API calls)
   - timezonefinder (automatic timezone detection)
+  - platformdirs (cross-platform directories)
 
 ## License
 

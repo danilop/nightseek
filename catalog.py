@@ -1,10 +1,13 @@
 """Catalog of notable celestial objects for observation."""
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from skyfield.api import Star, Loader
 from skyfield.data import mpc
+
+from cache_manager import CacheManager
+from opengc_loader import OpenNGCLoader
 
 
 @dataclass
@@ -18,6 +21,11 @@ class CelestialObject:
     dec_degrees: float  # Declination in degrees (-90 to 90)
     magnitude: float
     priority: int  # 1=highest, 5=lowest
+    dso_subtype: str = ""  # For DSOs: galaxy, nebula, cluster, etc.
+    angular_size_arcmin: float = 1.0  # Angular size for surface brightness
+    surface_brightness: Optional[float] = None  # mag/arcsec²
+    position_angle: Optional[float] = None  # Orientation in degrees (0-180)
+    minor_axis_arcmin: Optional[float] = None  # Minor axis for elongation
 
 
 @dataclass
@@ -26,67 +34,47 @@ class Comet:
 
     designation: str  # e.g., "C/2023 A3" or "12P"
     name: str  # e.g., "Tsuchinshan-ATLAS" or "Pons-Brooks"
-    magnitude_g: float  # Absolute magnitude
+    magnitude_g: float  # Absolute magnitude (intrinsic brightness)
     is_interstellar: bool  # True if eccentricity > 1.0 (hyperbolic orbit)
     row: object  # pandas Series with all orbital elements for Skyfield
     skyfield_obj: object = None  # Pre-computed Skyfield object (set by analyzer)
+    apparent_magnitude: Optional[float] = (
+        None  # Current apparent magnitude (computed by analyzer)
+    )
 
 
-# Curated catalog of notable deep sky objects
-# Focus on objects that photograph well with smart telescopes
-DSO_CATALOG = [
-    # Galaxies - High Priority
-    CelestialObject("M31", "Andromeda Galaxy", "dso", 0.712, 41.269, 3.4, 1),
-    CelestialObject("M33", "Triangulum Galaxy", "dso", 1.564, 30.660, 5.7, 2),
-    CelestialObject("M51", "Whirlpool Galaxy", "dso", 13.498, 47.195, 8.4, 2),
-    CelestialObject("M81", "Bode's Galaxy", "dso", 9.927, 69.065, 6.9, 2),
-    CelestialObject("M82", "Cigar Galaxy", "dso", 9.928, 69.680, 8.4, 2),
-    CelestialObject("M101", "Pinwheel Galaxy", "dso", 14.054, 54.349, 7.9, 2),
-    CelestialObject("M104", "Sombrero Galaxy", "dso", 12.666, -11.623, 8.0, 2),
-    CelestialObject("M65", "Leo Triplet Galaxy", "dso", 11.309, 13.093, 9.3, 3),
-    CelestialObject("M66", "Leo Triplet Galaxy", "dso", 11.334, 12.993, 8.9, 3),
-    CelestialObject("NGC253", "Sculptor Galaxy", "dso", 0.792, -25.288, 7.1, 2),
-    CelestialObject("NGC4565", "Needle Galaxy", "dso", 12.602, 25.988, 9.6, 3),
-    # Nebulae - Emission/Reflection - High Priority
-    CelestialObject("M42", "Orion Nebula", "dso", 5.588, -5.391, 4.0, 1),
-    CelestialObject("M8", "Lagoon Nebula", "dso", 18.062, -24.380, 6.0, 1),
-    CelestialObject("M16", "Eagle Nebula", "dso", 18.312, -13.763, 6.4, 2),
-    CelestialObject("M17", "Omega Nebula", "dso", 18.344, -16.178, 6.0, 2),
-    CelestialObject("M20", "Trifid Nebula", "dso", 18.036, -23.033, 6.3, 2),
-    CelestialObject("M78", "Reflection Nebula in Orion", "dso", 5.779, 0.048, 8.3, 3),
-    CelestialObject("NGC7000", "North America Nebula", "dso", 20.975, 44.533, 4.0, 2),
-    CelestialObject("IC5070", "Pelican Nebula", "dso", 20.837, 44.367, 8.0, 2),
-    CelestialObject("IC1396", "Elephant's Trunk Nebula", "dso", 21.653, 57.500, 3.5, 2),
-    CelestialObject("NGC2237", "Rosette Nebula", "dso", 6.535, 4.950, 9.0, 2),
-    CelestialObject("IC1805", "Heart Nebula", "dso", 2.543, 61.467, 6.5, 2),
-    CelestialObject("IC1848", "Soul Nebula", "dso", 2.893, 60.433, 6.5, 2),
-    CelestialObject("NGC6960", "Western Veil Nebula", "dso", 20.756, 30.717, 7.0, 2),
-    CelestialObject("NGC6992", "Eastern Veil Nebula", "dso", 20.937, 31.717, 7.0, 2),
-    CelestialObject("NGC6888", "Crescent Nebula", "dso", 20.200, 38.350, 7.4, 3),
-    CelestialObject("IC434", "Horsehead Nebula", "dso", 5.678, -2.458, 7.3, 2),
-    CelestialObject("NGC2024", "Flame Nebula", "dso", 5.679, -1.912, 7.2, 2),
-    CelestialObject("NGC1499", "California Nebula", "dso", 4.050, 36.617, 5.0, 2),
-    CelestialObject("Sh2-129", "Flying Bat Nebula", "dso", 21.183, 59.983, 7.5, 3),
-    # Planetary Nebulae
-    CelestialObject("M27", "Dumbbell Nebula", "dso", 19.992, 22.721, 7.5, 2),
-    CelestialObject("M57", "Ring Nebula", "dso", 18.888, 33.029, 8.8, 2),
-    CelestialObject("NGC7293", "Helix Nebula", "dso", 22.495, -20.838, 7.6, 2),
-    CelestialObject("M97", "Owl Nebula", "dso", 11.247, 55.017, 9.9, 3),
-    CelestialObject("NGC6826", "Blinking Planetary", "dso", 19.744, 50.526, 8.8, 3),
-    # Star Clusters
-    CelestialObject("M13", "Hercules Cluster", "dso", 16.694, 36.460, 5.8, 2),
-    CelestialObject("M44", "Beehive Cluster", "dso", 8.667, 19.983, 3.7, 3),
-    CelestialObject("M45", "Pleiades", "dso", 3.790, 24.117, 1.6, 1),
-    CelestialObject("M7", "Ptolemy Cluster", "dso", 17.895, -34.793, 3.3, 3),
-    CelestialObject("M1", "Crab Nebula", "dso", 5.576, 22.015, 8.4, 2),
-    CelestialObject("M11", "Wild Duck Cluster", "dso", 18.854, -6.267, 6.3, 3),
-    CelestialObject("M35", "Open Cluster in Gemini", "dso", 6.150, 24.333, 5.3, 3),
-    CelestialObject(
-        "NGC869", "Double Cluster (h Persei)", "dso", 2.323, 57.139, 4.3, 2
-    ),
-    CelestialObject("M22", "Sagittarius Cluster", "dso", 18.607, -23.905, 5.1, 3),
-    CelestialObject("M92", "Globular in Hercules", "dso", 17.285, 43.137, 6.4, 3),
+@dataclass
+class MinorPlanet:
+    """A dwarf planet or asteroid with orbital elements."""
+
+    designation: str  # e.g., "Pluto", "Ceres", "4 Vesta"
+    name: str  # Display name
+    category: str  # "dwarf_planet" or "asteroid"
+    magnitude_h: float  # Absolute magnitude
+    row: object  # MPC orbital elements (pandas Series)
+    skyfield_obj: object = None  # Pre-computed Skyfield object
+
+
+# Known dwarf planets (official IAU-recognized)
+DWARF_PLANETS = [
+    {"name": "Pluto", "designation": "134340", "magnitude_h": -0.7},
+    {"name": "Ceres", "designation": "1", "magnitude_h": 3.34},
+    {"name": "Eris", "designation": "136199", "magnitude_h": -1.2},
+    {"name": "Makemake", "designation": "136472", "magnitude_h": -0.3},
+    {"name": "Haumea", "designation": "136108", "magnitude_h": 0.2},
 ]
+
+# Notable asteroids worth observing
+NOTABLE_ASTEROIDS = [
+    {"name": "Vesta", "designation": "4", "magnitude_h": 3.2},
+    {"name": "Pallas", "designation": "2", "magnitude_h": 4.13},
+    {"name": "Juno", "designation": "3", "magnitude_h": 5.33},
+    {"name": "Hygiea", "designation": "10", "magnitude_h": 5.43},
+]
+
+
+# DSO_CATALOG is replaced by OpenNGC loader for ~13,000 objects
+# No fallback - if OpenNGC download fails, DSO list will be empty
 
 
 # Milky Way core is a special target
@@ -104,29 +92,72 @@ MILKY_WAY = CelestialObject(
 class Catalog:
     """Manage the celestial object catalog."""
 
-    def __init__(self):
-        """Initialize the catalog."""
-        self.dso_objects = DSO_CATALOG
+    # Cache filenames
+    COMET_CACHE_FILE = "CometEls.txt"
+    MPCORB_CACHE_FILE = "MPCORB.DAT"
+
+    def __init__(self, observer_latitude: Optional[float] = None):
+        """Initialize the catalog.
+
+        Args:
+            observer_latitude: Observer latitude for filtering objects by visibility
+        """
+        self.observer_latitude = observer_latitude
         self.milky_way = MILKY_WAY
         self._comets_df = None  # Lazy load comets
-        self._setup_cache_directory()
+        self._mpcorb_df = None  # Lazy load asteroids
+        self._dso_objects = None  # Lazy load DSOs
+        self._opengc_loader = OpenNGCLoader()
+        self._cache = CacheManager()
+        # Track download/cache status
+        self.comets_downloaded = False
+        self.comets_cache_age_hours = None
 
-    def _setup_cache_directory(self):
-        """Set up cache directory for Skyfield data."""
-        from pathlib import Path
-        from platformdirs import user_cache_dir
+    def get_all_dsos(
+        self,
+        max_magnitude: float = 14.0,
+        min_altitude: float = 30.0,
+        verbose: bool = False,
+    ) -> List[CelestialObject]:
+        """Get all deep sky objects from OpenNGC.
 
-        cache_dir = Path(user_cache_dir("nightseek"))
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        self._cache_dir = cache_dir
-
-    def get_all_dsos(self) -> List[CelestialObject]:
-        """Get all deep sky objects.
+        Args:
+            max_magnitude: Maximum visual magnitude to include
+            min_altitude: Minimum useful altitude for filtering
+            verbose: If True, print status messages
 
         Returns:
-            List of DSO objects
+            List of CelestialObject instances
         """
-        return self.dso_objects
+        if self._dso_objects is None:
+            # Load from OpenNGC
+            opengc_objects = self._opengc_loader.load_dsos(
+                max_magnitude=max_magnitude,
+                observer_latitude=self.observer_latitude,
+                min_useful_altitude=min_altitude,
+                verbose=verbose,
+            )
+
+            # Convert OpenNGCObject to CelestialObject
+            self._dso_objects = [
+                CelestialObject(
+                    name=obj.name,
+                    common_name=obj.common_name,
+                    obj_type="dso",
+                    ra_hours=obj.ra_hours,
+                    dec_degrees=obj.dec_degrees,
+                    magnitude=obj.magnitude,
+                    priority=2,  # Default priority
+                    dso_subtype=obj.dso_subtype,
+                    angular_size_arcmin=obj.angular_size_arcmin,
+                    surface_brightness=obj.surface_brightness,
+                    position_angle=obj.position_angle,
+                    minor_axis_arcmin=obj.minor_axis_arcmin,
+                )
+                for obj in opengc_objects
+            ]
+
+        return self._dso_objects
 
     def get_priority_dsos(self, max_priority: int = 2) -> List[CelestialObject]:
         """Get high-priority deep sky objects.
@@ -137,7 +168,103 @@ class Catalog:
         Returns:
             List of high-priority DSO objects
         """
-        return [obj for obj in self.dso_objects if obj.priority <= max_priority]
+        all_dsos = self.get_all_dsos()
+        return [obj for obj in all_dsos if obj.priority <= max_priority]
+
+    def load_dwarf_planets(self) -> List[MinorPlanet]:
+        """Load dwarf planets from MPC data.
+
+        Returns:
+            List of MinorPlanet objects for known dwarf planets
+        """
+        dwarf_planets = []
+
+        # Load MPCORB data if not cached
+        if self._mpcorb_df is None:
+            self._load_mpcorb_data()
+
+        if self._mpcorb_df is None:
+            return []
+
+        for dp_info in DWARF_PLANETS:
+            try:
+                # Look up in MPCORB data by designation
+                designation = dp_info["designation"]
+                if designation in self._mpcorb_df.index:
+                    row = self._mpcorb_df.loc[designation]
+                    dwarf_planets.append(
+                        MinorPlanet(
+                            designation=designation,
+                            name=dp_info["name"],
+                            category="dwarf_planet",
+                            magnitude_h=dp_info["magnitude_h"],
+                            row=row,
+                        )
+                    )
+            except Exception:
+                continue
+
+        return dwarf_planets
+
+    def load_bright_asteroids(self, max_magnitude: float = 12.0) -> List[MinorPlanet]:
+        """Load bright asteroids from MPC data.
+
+        Args:
+            max_magnitude: Maximum absolute magnitude to include
+
+        Returns:
+            List of MinorPlanet objects for bright asteroids
+        """
+        asteroids = []
+
+        # Load MPCORB data if not cached
+        if self._mpcorb_df is None:
+            self._load_mpcorb_data()
+
+        if self._mpcorb_df is None:
+            return []
+
+        # First add notable asteroids
+        for ast_info in NOTABLE_ASTEROIDS:
+            try:
+                designation = ast_info["designation"]
+                if designation in self._mpcorb_df.index:
+                    row = self._mpcorb_df.loc[designation]
+                    asteroids.append(
+                        MinorPlanet(
+                            designation=designation,
+                            name=ast_info["name"],
+                            category="asteroid",
+                            magnitude_h=ast_info["magnitude_h"],
+                            row=row,
+                        )
+                    )
+            except Exception:
+                continue
+
+        return asteroids
+
+    def _load_mpcorb_data(self):
+        """Load MPC orbital elements database (cached)."""
+        try:
+            # Check cache status (7-day expiry for MPCORB)
+            cache_info = self._cache.check(
+                self.MPCORB_CACHE_FILE, CacheManager.ONE_WEEK
+            )
+
+            if cache_info.is_valid:
+                # Load from cache
+                with open(cache_info.path, "rb") as f:
+                    self._mpcorb_df = mpc.load_mpcorb_dataframe(f)
+            else:
+                # Download fresh - this is slow (~150MB file)
+                # For now, just use the notable asteroids list
+                # Full MPCORB download is optional and can be enabled later
+                self._mpcorb_df = None
+
+        except Exception as e:
+            print(f"Note: Could not load asteroid data: {e}")
+            self._mpcorb_df = None
 
     def ra_dec_to_star(self, obj: CelestialObject) -> Star:
         """Convert RA/Dec to a Skyfield Star object.
@@ -153,39 +280,51 @@ class Catalog:
             dec_degrees=obj.dec_degrees,
         )
 
-    def load_bright_comets(self, max_magnitude: float = 12.0) -> List[Comet]:
+    def load_bright_comets(
+        self, max_magnitude: float = 12.0, verbose: bool = False
+    ) -> List[Comet]:
         """Load bright comets from Minor Planet Center with local caching.
 
         Args:
             max_magnitude: Maximum magnitude to include (default: 12.0)
                           Typical values: 6 = naked eye, 10 = binoculars, 12 = telescope
+            verbose: If True, print status messages
 
         Returns:
             List of Comet objects
         """
-        import time
-
         try:
-            # Check for cached comet data (24-hour expiry)
-            cache_file = self._cache_dir / "CometEls.txt"
-            cache_max_age = 24 * 60 * 60  # 24 hours in seconds
-
-            use_cache = False
-            if cache_file.exists():
-                file_age = time.time() - cache_file.stat().st_mtime
-                if file_age < cache_max_age:
-                    use_cache = True
+            # Check cache status (24-hour expiry for comets)
+            cache_info = self._cache.check(self.COMET_CACHE_FILE, CacheManager.ONE_DAY)
+            cache_path = cache_info.path
 
             if self._comets_df is None:
-                loader = Loader(str(self._cache_dir))
-                if use_cache:
-                    # Load from local cache without network request
-                    with open(cache_file, "rb") as f:
+                loader = Loader(str(self._cache.cache_dir))
+
+                if cache_info.is_valid:
+                    # Use cached data
+                    self.comets_cache_age_hours = cache_info.age_hours
+                    self.comets_downloaded = False
+                    if verbose:
+                        print(
+                            f"Using cached MPC comet data ({cache_info.age_display} old)"
+                        )
+                    with open(cache_path, "rb") as f:
                         self._comets_df = mpc.load_comets_dataframe(f)
                 else:
-                    # Download fresh data (Skyfield caches to cache_dir)
+                    # Cache is stale or missing - need to download
+                    # Delete stale file first (Skyfield's Loader won't re-download if file exists)
+                    if cache_info.exists:
+                        self._cache.invalidate(self.COMET_CACHE_FILE)
+
+                    if verbose:
+                        print("Downloading MPC comet orbital elements...")
                     with loader.open(mpc.COMET_URL) as f:
                         self._comets_df = mpc.load_comets_dataframe(f)
+                    self.comets_downloaded = True
+                    self.comets_cache_age_hours = 0
+                    if verbose:
+                        print(f"Cached to {cache_path}")
 
             # Filter for bright comets
             bright = self._comets_df[self._comets_df["magnitude_g"] < max_magnitude]

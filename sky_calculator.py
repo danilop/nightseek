@@ -1,5 +1,6 @@
 """Astronomical calculations using Skyfield."""
 
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional
@@ -8,6 +9,85 @@ from skyfield import almanac
 from skyfield.api import Loader, wgs84
 from skyfield.constants import GM_SUN_Pitjeva_2005_km3_s2 as GM_SUN
 from skyfield.data import mpc
+
+
+# Planet apparent diameter ranges (arcseconds)
+# Min = at superior conjunction (far from Earth), Max = at opposition/inferior conjunction
+PLANET_APPARENT_DIAMETERS = {
+    # Inner planets: closest at inferior conjunction
+    "Mercury": {"min": 4.5, "max": 13.0, "type": "inner"},
+    "Venus": {"min": 9.7, "max": 66.0, "type": "inner"},
+    # Outer planets: closest at opposition
+    "Mars": {"min": 3.5, "max": 25.1, "type": "outer"},
+    "Jupiter": {"min": 29.8, "max": 50.1, "type": "outer"},
+    "Saturn": {"min": 14.5, "max": 20.1, "type": "outer"},  # Disk only, not rings
+    "Uranus": {"min": 3.3, "max": 4.1, "type": "outer"},
+    "Neptune": {"min": 2.2, "max": 2.4, "type": "outer"},
+}
+
+
+def calculate_planet_apparent_diameter(distance_au: float, planet_name: str) -> float:
+    """Calculate apparent diameter of a planet given its distance.
+
+    Uses the formula: apparent_diameter = physical_diameter / distance
+    where physical_diameter is in km and distance is in AU.
+
+    Args:
+        distance_au: Distance from Earth in AU
+        planet_name: Name of the planet
+
+    Returns:
+        Apparent diameter in arcseconds
+    """
+    # Physical diameters in km
+    physical_diameters = {
+        "Mercury": 4879,
+        "Venus": 12104,
+        "Mars": 6779,
+        "Jupiter": 139820,
+        "Saturn": 116460,
+        "Uranus": 50724,
+        "Neptune": 49244,
+    }
+
+    if planet_name not in physical_diameters:
+        return 0.0
+
+    diameter_km = physical_diameters[planet_name]
+    # 1 AU = 149,597,870.7 km
+    # Angular diameter in radians = physical_diameter / distance
+    # Convert to arcseconds: radians * 206265
+    distance_km = distance_au * 149597870.7
+    angular_diameter_rad = diameter_km / distance_km
+    return angular_diameter_rad * 206265
+
+
+def calculate_airmass(altitude_degrees: float) -> float:
+    """Calculate airmass using Pickering (2002) formula.
+
+    Airmass is the relative amount of atmosphere light must pass through.
+    At zenith (90°), airmass = 1.0. At horizon (0°), airmass → infinity.
+
+    Args:
+        altitude_degrees: Altitude in degrees (0-90)
+
+    Returns:
+        Airmass value (1.0 at zenith, higher at lower altitudes)
+    """
+    if altitude_degrees <= 0:
+        return 99.0  # Effectively infinite
+
+    # Pickering (2002) formula - more accurate than simple 1/sin(alt)
+    # Valid down to horizon
+    h = altitude_degrees
+    # Formula: 1 / sin(h + 244/(165 + 47*h^1.1))
+    denominator = h + 244.0 / (165.0 + 47.0 * (h**1.1))
+    sin_val = math.sin(math.radians(denominator))
+
+    if sin_val <= 0:
+        return 99.0
+
+    return 1.0 / sin_val
 
 
 @dataclass
@@ -30,10 +110,12 @@ class ObjectVisibility:
     """Visibility information for a celestial object."""
 
     object_name: str
-    object_type: str  # planet, dso, comet, moon, etc.
+    object_type: str  # planet, dso, comet, dwarf_planet, asteroid, moon, milky_way
     is_visible: bool
     max_altitude: float
-    max_altitude_time: Optional[datetime]
+    max_altitude_time: Optional[
+        datetime
+    ]  # Also serves as transit time (meridian crossing)
     above_45_start: Optional[datetime]
     above_45_end: Optional[datetime]
     above_60_start: Optional[datetime]
@@ -44,6 +126,25 @@ class ObjectVisibility:
     moon_warning: bool  # True if moon interferes
     magnitude: Optional[float] = None  # Visual magnitude if known
     is_interstellar: bool = False  # True for interstellar objects (e.g., 2I/Borisov)
+    # Time-altitude samples for window-specific queries (sparse: every 30 min)
+    altitude_samples: Optional[list] = None  # List of (datetime, altitude) tuples
+    # DSO-specific fields for scoring
+    subtype: str = ""  # DSO subtype: galaxy, nebula, open_cluster, etc.
+    angular_size_arcmin: float = 1.0  # Angular size for surface brightness
+    surface_brightness: Optional[float] = None  # mag/arcsec²
+    ra_hours: float = 0.0  # Right ascension for seasonal scoring
+    common_name: str = ""  # Common name for novelty scoring
+    # NEW: Airmass and azimuth for better observation planning
+    min_airmass: float = (
+        99.0  # Minimum airmass during night (lower = better, 1.0 = zenith)
+    )
+    azimuth_at_peak: float = 0.0  # Compass direction at peak altitude (0-360°)
+    # NEW: Planet-specific fields
+    apparent_diameter_arcsec: Optional[float] = None  # Current apparent size
+    apparent_diameter_min: Optional[float] = None  # Minimum size throughout year
+    apparent_diameter_max: Optional[float] = None  # Maximum size throughout year
+    # NEW: Position angle for DSOs (orientation on sky)
+    position_angle: Optional[float] = None  # 0-180° from OpenNGC
 
 
 class SkyCalculator:
@@ -261,14 +362,19 @@ class SkyCalculator:
 
         # Single vectorized observation call
         astrometric = observer.at(t_array).observe(obj)
-        alt, _, _ = astrometric.apparent().altaz()
+        alt, az, _ = astrometric.apparent().altaz()
         altitudes = alt.degrees
+        azimuths = az.degrees
 
         # Find maximum
         max_idx = altitudes.argmax()
         max_altitude = altitudes[max_idx]
         max_altitude_time = times[max_idx]
+        azimuth_at_peak = azimuths[max_idx]
         is_visible = max_altitude > 0
+
+        # Calculate minimum airmass (at peak altitude)
+        min_airmass = calculate_airmass(max_altitude)
 
         # Find threshold windows
         def find_above_threshold(threshold):
@@ -304,6 +410,12 @@ class SkyCalculator:
             ):
                 moon_warning = True
 
+        # Store sparse altitude samples (every 30 min) for window-specific display
+        altitude_samples = []
+        step = max(1, 30 // sample_interval)  # Sample every ~30 minutes
+        for i in range(0, len(times), step):
+            altitude_samples.append((times[i], float(altitudes[i])))
+
         return ObjectVisibility(
             object_name=obj_name,
             object_type=obj_type,
@@ -318,4 +430,7 @@ class SkyCalculator:
             above_75_end=above_75[1],
             moon_separation=moon_separation,
             moon_warning=moon_warning,
+            altitude_samples=altitude_samples,
+            min_airmass=min_airmass,
+            azimuth_at_peak=azimuth_at_peak,
         )

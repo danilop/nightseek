@@ -77,20 +77,44 @@ def forecast(
 
     # Initialize analyzer with status updates (heavy loading happens here)
     with Status(
-        "[bold blue]Loading ephemeris data...[/bold blue] [italic](cached locally)[/italic]",
+        "[bold blue]Loading ephemeris data...[/bold blue]",
         console=console,
         spinner="dots",
     ) as status:
         # Lazy import heavy modules
         from analyzer import VisibilityAnalyzer
 
+        # Create analyzer (loads ephemeris and comets)
         analyzer = VisibilityAnalyzer(
             config.latitude, config.longitude, comet_mag=comet_mag or 12.0
         )
+
+        # Load DSOs
+        status.update("[bold blue]Loading DSO catalog...[/bold blue]")
+        num_dsos = len(analyzer.catalog.get_all_dsos(verbose=False))
+
+        # Comets are already loaded during analyzer init
         num_comets = len(analyzer.comets)
-        status.update(
-            f"[green]Loaded {num_comets} comets[/green] [italic](updates daily)[/italic]"
+
+        status.update(f"[green]Loaded {num_dsos} DSOs, {num_comets} comets[/green]")
+
+    # Show cache status after spinner completes
+    cache_info = []
+    opengc = analyzer.catalog._opengc_loader
+    if opengc.was_downloaded:
+        cache_info.append("[yellow]DSOs: downloaded[/yellow]")
+    elif opengc.cache_age_days is not None:
+        cache_info.append(f"DSOs: {opengc.cache_age_days:.0f}d cache")
+
+    if analyzer.catalog.comets_downloaded:
+        cache_info.append("[yellow]comets: downloaded[/yellow]")
+    elif analyzer.catalog.comets_cache_age_hours is not None:
+        cache_info.append(
+            f"comets: {analyzer.catalog.comets_cache_age_hours:.0f}h cache"
         )
+
+    if cache_info:
+        console.print(f"[italic]Data: {', '.join(cache_info)}[/italic]")
 
     # Fetch weather forecast (only if ≤16 days)
     weather_forecast = None
@@ -119,9 +143,20 @@ def forecast(
             weather_forecast,
         )
         num_dsos = len(analyzer.catalog.get_all_dsos())
-        status.update(
-            f"[green]Analyzed {num_dsos} DSOs, {num_comets} comets, 7 planets[/green]"
-        )
+        num_dwarf_planets = len(analyzer.dwarf_planets)
+        num_asteroids = len(analyzer.asteroids)
+
+        # Build status message
+        parts = [f"{num_dsos} DSOs"]
+        if num_comets > 0:
+            parts.append(f"{num_comets} comets")
+        parts.append("7 planets")
+        if num_dwarf_planets > 0:
+            parts.append(f"{num_dwarf_planets} dwarf planets")
+        if num_asteroids > 0:
+            parts.append(f"{num_asteroids} asteroids")
+
+        status.update(f"[green]Analyzed {', '.join(parts)}[/green]")
 
     console.print()
 

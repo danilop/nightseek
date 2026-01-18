@@ -18,8 +18,9 @@ class TestCatalog:
         """Each DSO should have all required fields."""
         catalog = Catalog()
         for dso in catalog.get_all_dsos():
-            assert dso.name, "DSO should have a name"
-            assert dso.common_name, "DSO should have a common name"
+            assert dso.name, "DSO should have a name (NGC/IC designation)"
+            # common_name is optional - many NGC/IC objects only have catalog designation
+            # If no common_name, the name field (NGC xxx or IC xxx) serves as identifier
             assert dso.obj_type == "dso", "DSO type should be 'dso'"
             assert 0 <= dso.ra_hours <= 24, "RA should be 0-24 hours"
             assert -90 <= dso.dec_degrees <= 90, "Dec should be -90 to 90 degrees"
@@ -102,36 +103,40 @@ class TestCometNameParsing:
 class TestForecastFormatter:
     """Tests for the ForecastFormatter class."""
 
-    def test_weather_category_clear(self):
-        """Cloud cover < 30% should be 'clear'."""
-        cat, desc, color = ForecastFormatter._get_weather_category(10)
-        assert cat == "clear"
-        assert desc == "Clear"
+    def test_weather_category_excellent(self):
+        """Cloud cover < 10% should be 'excellent'."""
+        cat, desc, color = ForecastFormatter._get_weather_category(5)
+        assert cat == "excellent"
+        assert desc == "Excellent"
         assert color == "green"
 
-    def test_weather_category_partly(self):
-        """Cloud cover 30-60% should be 'partly'."""
-        cat, desc, color = ForecastFormatter._get_weather_category(45)
-        assert cat == "partly"
-        assert "Partly cloudy" in desc
+    def test_weather_category_good(self):
+        """Cloud cover 10-25% should be 'good'."""
+        cat, desc, color = ForecastFormatter._get_weather_category(15)
+        assert cat == "good"
+        assert desc == "Good"
+        assert color == "green"
+
+    def test_weather_category_fair(self):
+        """Cloud cover 25-40% should be 'fair'."""
+        cat, desc, color = ForecastFormatter._get_weather_category(30)
+        assert cat == "fair"
+        assert desc == "Fair"
         assert color == "yellow"
 
-    def test_weather_category_cloudy(self):
-        """Cloud cover >= 60% should be 'cloudy'."""
+    def test_weather_category_poor(self):
+        """Cloud cover 40-60% should be 'poor'."""
+        cat, desc, color = ForecastFormatter._get_weather_category(50)
+        assert cat == "poor"
+        assert desc == "Poor"
+        assert color == "yellow"
+
+    def test_weather_category_bad(self):
+        """Cloud cover >= 60% should be 'bad'."""
         cat, desc, color = ForecastFormatter._get_weather_category(80)
-        assert cat == "cloudy"
-        assert "Cloudy" in desc
+        assert cat == "bad"
+        assert desc == "Cloudy"
         assert color == "red"
-
-    def test_weather_category_boundary_30(self):
-        """Boundary at 30% should be 'partly'."""
-        cat, _, _ = ForecastFormatter._get_weather_category(30)
-        assert cat == "partly"
-
-    def test_weather_category_boundary_60(self):
-        """Boundary at 60% should be 'cloudy'."""
-        cat, _, _ = ForecastFormatter._get_weather_category(60)
-        assert cat == "cloudy"
 
     def test_planet_magnitudes_defined(self):
         """All major planets should have magnitudes defined."""

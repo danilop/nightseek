@@ -8,7 +8,8 @@ from rich.panel import Panel
 from rich.text import Text
 
 from analyzer import NightForecast, VisibilityScore
-from weather import WeatherForecast
+from weather import WeatherForecast, NightWeather
+from scoring import ScoredObject, get_score_tier
 
 
 class ForecastFormatter:
@@ -34,9 +35,19 @@ class ForecastFormatter:
         self.console = Console()
         self.tz = tz_converter
 
+    # Minimum altitude threshold for visibility
+    MIN_ALTITUDE = 30
+
     @staticmethod
     def _get_weather_category(clouds: float) -> tuple[str, str, str]:
         """Get weather category, description, and color based on cloud cover.
+
+        Uses 5 tiers for more granular astrophotography planning:
+        - Excellent: 0-10% (pristine conditions)
+        - Good: 10-25% (minor interference)
+        - Fair: 25-40% (noticeable but workable)
+        - Poor: 40-60% (challenging conditions)
+        - Bad: 60%+ (not recommended)
 
         Args:
             clouds: Cloud cover percentage (0-100)
@@ -44,11 +55,143 @@ class ForecastFormatter:
         Returns:
             Tuple of (category, description, color)
         """
-        if clouds < 30:
-            return "clear", "Clear", "green"
+        if clouds < 10:
+            return "excellent", "Excellent", "green"
+        elif clouds < 25:
+            return "good", "Good", "green"
+        elif clouds < 40:
+            return "fair", "Fair", "yellow"
         elif clouds < 60:
-            return "partly", f"Partly cloudy ({clouds:.0f}%)", "yellow"
-        return "cloudy", f"Cloudy ({clouds:.0f}%)", "red"
+            return "poor", "Poor", "yellow"
+        return "bad", "Cloudy", "red"
+
+    @staticmethod
+    def _get_altitude_at_time(obj, target_time) -> float | None:
+        """Get altitude at a specific time using stored samples.
+
+        Uses linear interpolation between samples.
+
+        Args:
+            obj: ObjectVisibility with altitude_samples
+            target_time: datetime to query
+
+        Returns:
+            Altitude in degrees, or None if no data
+        """
+        if not obj.altitude_samples:
+            return None
+
+        # Make target_time timezone-naive for comparison
+        target_naive = (
+            target_time.replace(tzinfo=None) if target_time.tzinfo else target_time
+        )
+
+        # Find surrounding samples
+        prev_sample = None
+        next_sample = None
+
+        for sample_time, alt in obj.altitude_samples:
+            sample_naive = (
+                sample_time.replace(tzinfo=None) if sample_time.tzinfo else sample_time
+            )
+            if sample_naive <= target_naive:
+                prev_sample = (sample_naive, alt)
+            elif next_sample is None:
+                next_sample = (sample_naive, alt)
+                break
+
+        if prev_sample is None and next_sample is None:
+            return None
+        if prev_sample is None and next_sample is not None:
+            return next_sample[1]
+        if next_sample is None and prev_sample is not None:
+            return prev_sample[1]
+        if prev_sample is None or next_sample is None:
+            return None  # Shouldn't reach here, but satisfies type checker
+
+        # Linear interpolation
+        t1, a1 = prev_sample
+        t2, a2 = next_sample
+        total_seconds = (t2 - t1).total_seconds()
+        if total_seconds == 0:
+            return a1
+        ratio = (target_naive - t1).total_seconds() / total_seconds
+        return a1 + ratio * (a2 - a1)
+
+    def _get_window_altitude_info(self, obj, window_start, window_end):
+        """Get altitude info for an object during a specific time window.
+
+        Args:
+            obj: ObjectVisibility object
+            window_start: Window start datetime
+            window_end: Window end datetime
+
+        Returns:
+            Dict with 'start_alt', 'end_alt', 'max_alt', 'phase' (rising/peak/setting),
+            'visible' (bool), and 'quality_desc'
+        """
+        start_alt = self._get_altitude_at_time(obj, window_start)
+        end_alt = self._get_altitude_at_time(obj, window_end)
+
+        # Check if visible during this window (above minimum)
+        if start_alt is None or end_alt is None:
+            return {"visible": False}
+
+        max_in_window = max(start_alt, end_alt)
+        min_in_window = min(start_alt, end_alt)
+
+        # Check if peak time is within this window
+        peak_in_window = False
+        if obj.max_altitude_time:
+            peak_naive = (
+                obj.max_altitude_time.replace(tzinfo=None)
+                if obj.max_altitude_time.tzinfo
+                else obj.max_altitude_time
+            )
+            start_naive = (
+                window_start.replace(tzinfo=None)
+                if window_start.tzinfo
+                else window_start
+            )
+            end_naive = (
+                window_end.replace(tzinfo=None) if window_end.tzinfo else window_end
+            )
+            peak_in_window = start_naive <= peak_naive <= end_naive
+            if peak_in_window:
+                max_in_window = obj.max_altitude
+
+        # Not visible if below minimum altitude throughout window
+        if max_in_window < self.MIN_ALTITUDE:
+            return {"visible": False}
+
+        # Determine phase
+        if peak_in_window:
+            phase = "peak"
+        elif end_alt > start_alt:
+            phase = "rising"
+        else:
+            phase = "setting"
+
+        # Quality based on max altitude in window
+        if max_in_window >= 75:
+            quality = "[green]Excellent[/green]"
+        elif max_in_window >= 60:
+            quality = "[green]Very Good[/green]"
+        elif max_in_window >= 45:
+            quality = "[yellow]Good[/yellow]"
+        else:
+            quality = "[red]Fair[/red]"
+
+        return {
+            "visible": True,
+            "start_alt": start_alt,
+            "end_alt": end_alt,
+            "max_alt": max_in_window,
+            "min_alt": min_in_window,
+            "phase": phase,
+            "peak_in_window": peak_in_window,
+            "quality_desc": quality,
+        }
 
     def format_forecast(
         self,
@@ -172,78 +315,127 @@ class ForecastFormatter:
         self.console.print(table)
         self.console.print()
 
-        # Highlight best nights with context
+        # Highlight best nights - but only if they're actually worth observing
         if best_dark_nights:
-            best_dates = [
-                forecasts[i].night_info.date.strftime("%b %d")
-                for i in best_dark_nights[:3]
-            ]
-            if has_weather:
-                self.console.print(
-                    f"[green]★ Top nights for dark sky observing:[/green] {', '.join(best_dates)} "
-                    "[italic](darkest skies with clearest weather)[/italic]"
+            # Filter to nights with at least "fair" quality
+            recommendable_nights = []
+            for i in best_dark_nights[:3]:
+                forecast = forecasts[i]
+                cloud_cover = (
+                    forecast.weather.avg_cloud_cover if forecast.weather else None
                 )
+                quality_level, _ = WeatherForecast.get_observing_quality(
+                    forecast.night_info.moon_illumination, cloud_cover
+                )
+                # Only recommend "excellent", "good", or "fair" nights
+                if quality_level in ("excellent", "good", "fair"):
+                    recommendable_nights.append((i, quality_level))
+
+            if recommendable_nights:
+                best_dates = [
+                    forecasts[i].night_info.date.strftime("%b %d")
+                    for i, _ in recommendable_nights
+                ]
+                # Check if top night is excellent/good
+                top_quality = recommendable_nights[0][1]
+                if top_quality == "excellent":
+                    self.console.print(
+                        f"[green]★ Excellent nights for observing:[/green] {', '.join(best_dates)} "
+                        "[italic](dark skies, clear weather)[/italic]"
+                    )
+                elif top_quality == "good":
+                    self.console.print(
+                        f"[green]★ Good nights for observing:[/green] {', '.join(best_dates)} "
+                        "[italic](favorable conditions)[/italic]"
+                    )
+                else:
+                    self.console.print(
+                        f"[yellow]★ Best available nights:[/yellow] {', '.join(best_dates)} "
+                        "[italic](conditions are fair)[/italic]"
+                    )
+                self.console.print()
             else:
+                # All nights are poor - warn the user
                 self.console.print(
-                    f"[green]★ Darkest nights for observing:[/green] {', '.join(best_dates)} "
-                    "[italic](lowest moon interference)[/italic]"
+                    "[red]⚠ No ideal nights this week[/red] "
+                    "[italic](high clouds or bright moon throughout)[/italic]"
                 )
-            self.console.print()
+                self.console.print()
+
+    def _print_conjunctions(self, forecast: NightForecast):
+        """Print notable conjunctions for tonight."""
+        if not forecast.conjunctions:
+            return
+
+        notable = [c for c in forecast.conjunctions if c.is_notable]
+        if not notable:
+            return
+
+        self.console.print("[bold magenta]CELESTIAL EVENTS[/bold magenta]")
+        for conj in notable[:3]:  # Show top 3 closest
+            if conj.separation_degrees < 2:
+                icon = "🌟"
+                color = "yellow"
+            else:
+                icon = "✨"
+                color = "cyan"
+            self.console.print(f"  {icon} [{color}]{conj.description}[/{color}]")
+        self.console.print()
+
+    def _print_weather_extras(self, weather: NightWeather):
+        """Print additional weather information (wind, visibility, humidity)."""
+        extras = []
+
+        if weather.avg_wind_speed_kmh is not None:
+            wind = weather.avg_wind_speed_kmh
+            if wind > 30:
+                extras.append(f"[red]Strong wind ({wind:.0f} km/h)[/red]")
+            elif wind > 20:
+                extras.append(f"[yellow]Moderate wind ({wind:.0f} km/h)[/yellow]")
+
+        if weather.avg_visibility_km is not None:
+            vis = weather.avg_visibility_km
+            if vis < 10:
+                extras.append(f"[yellow]Limited visibility ({vis:.0f} km)[/yellow]")
+            elif vis >= 30:
+                extras.append(f"[green]Excellent transparency ({vis:.0f} km)[/green]")
+
+        if weather.avg_humidity is not None:
+            hum = weather.avg_humidity
+            if hum > 85:
+                extras.append(f"[yellow]High humidity ({hum:.0f}%) - dew risk[/yellow]")
+
+        if weather.avg_temperature_c is not None:
+            temp = weather.avg_temperature_c
+            if temp < 0:
+                extras.append(f"Temp: {temp:.0f}°C")
+
+        if extras:
+            self.console.print("[italic]" + " • ".join(extras) + "[/italic]")
 
     def _print_tonight_highlights(self, forecast: NightForecast, max_objects: int):
-        """Print tonight's highlights grouped by time windows."""
+        """Print tonight's highlights grouped by weather-based time windows.
+
+        Uses merit-based selection - no category quotas.
+        """
         from analyzer import VisibilityAnalyzer
 
         # Create temporary analyzer to rank objects
         analyzer = VisibilityAnalyzer(0, 0)  # Coordinates don't matter for ranking
-        all_scores = analyzer.rank_objects_for_night(forecast)
+        scored_objects = analyzer.rank_objects_for_night(
+            forecast,
+            max_objects=max_objects * 2,  # Get more for window distribution
+        )
 
-        if not all_scores:
-            self.console.print("[yellow]No objects above 45° tonight[/yellow]")
+        if not scored_objects:
+            self.console.print(
+                "[yellow]No objects above minimum altitude tonight[/yellow]"
+            )
             self.console.print()
             return
 
-        # Balance selection: 50% DSOs, 25% planets, 25% comets
-        planets = [
-            s
-            for s in all_scores
-            if any(p.object_name == s.object_name for p in forecast.planets)
-        ]
-        comets = [
-            s
-            for s in all_scores
-            if any(
-                c.object_name == s.object_name or s.object_name in c.object_name
-                for c in forecast.comets
-            )
-        ]
-        dsos = [
-            s
-            for s in all_scores
-            if any(
-                d.object_name == s.object_name or s.object_name in d.object_name
-                for d in forecast.dsos
-            )
-        ]
-
-        n_dsos = max(1, max_objects // 2)
-        n_planets = max(1, max_objects // 4)
-        n_comets = max_objects - n_dsos - n_planets
-
-        scores = dsos[:n_dsos] + planets[:n_planets] + comets[:n_comets]
-
-        # Fill remaining slots if any category is short
-        remaining = max_objects - len(scores)
-        if remaining > 0:
-            for s in all_scores:
-                if s not in scores:
-                    scores.append(s)
-                    remaining -= 1
-                    if remaining == 0:
-                        break
-
-        # Sort by score
-        scores.sort(key=lambda x: x.score, reverse=True)
+        # Print conjunctions first if any
+        self._print_conjunctions(forecast)
 
         self.console.print("[bold cyan]TONIGHT'S OBSERVATION PLAN[/bold cyan]")
         date_str = forecast.night_info.date.strftime("%A, %B %d")
@@ -253,20 +445,27 @@ class ForecastFormatter:
         )
         self.console.print()
 
-        # Group objects by time windows
-        time_windows = self._group_by_time_windows(forecast, scores, max_objects)
+        # Group objects by weather-based time windows (dynamic, not fixed 2hr)
+        time_windows = self._group_by_weather_windows(
+            forecast, scored_objects, max_objects
+        )
 
         # Print each time window
         for window_info in time_windows:
-            self._print_time_window(window_info, forecast)
+            self._print_time_window_scored(window_info, forecast)
 
         self.console.print()
 
-    def _group_by_time_windows(self, forecast, scores, max_objects: int):
+    def _group_by_weather_windows(
+        self,
+        forecast: NightForecast,
+        scored_objects: List[ScoredObject],
+        max_objects: int,
+    ):
         """Group objects by weather-based time windows.
 
-        Windows are grouped by weather conditions (clear/partly/cloudy),
-        split if longer than 2 hours, with balanced selection per window.
+        Windows are grouped by weather conditions (clear/partly/cloudy).
+        NO fixed 2-hour splitting - windows reflect actual weather variability.
         """
         from datetime import datetime, timedelta, timezone
         from typing import Any
@@ -283,11 +482,10 @@ class ForecastFormatter:
         if dawn <= dusk:
             dawn = dawn + timedelta(days=1)
 
-        # Build weather-based windows
+        # Build weather-based windows (no fixed splitting)
         windows: list[dict[str, Any]] = []
 
         if forecast.weather and forecast.weather.hourly_data:
-            # Sort hours within our night window
             dusk_naive = dusk.replace(tzinfo=None) if dusk.tzinfo else dusk
             dawn_naive = dawn.replace(tzinfo=None) if dawn.tzinfo else dawn
 
@@ -300,7 +498,7 @@ class ForecastFormatter:
             )
 
             if night_hours:
-                # Group consecutive hours with same weather
+                # Group consecutive hours with same weather category
                 current_start = night_hours[0][0]
                 current_cat = self._get_weather_category(night_hours[0][1])[0]
                 current_clouds = [night_hours[0][1]]
@@ -310,12 +508,15 @@ class ForecastFormatter:
                     cat = self._get_weather_category(clouds)[0]
 
                     if cat != current_cat:
-                        # Save current window
+                        # Save current window - natural boundary
                         windows.append(
                             {
                                 "start": current_start.replace(tzinfo=timezone.utc),
                                 "end": hour.replace(tzinfo=timezone.utc),
                                 "avg_clouds": sum(current_clouds) / len(current_clouds),
+                                "min_clouds": min(current_clouds),
+                                "max_clouds": max(current_clouds),
+                                "weather_category": current_cat,
                                 "objects": [],
                             }
                         )
@@ -331,147 +532,122 @@ class ForecastFormatter:
                         "start": current_start.replace(tzinfo=timezone.utc),
                         "end": dawn_naive.replace(tzinfo=timezone.utc),
                         "avg_clouds": sum(current_clouds) / len(current_clouds),
+                        "min_clouds": min(current_clouds),
+                        "max_clouds": max(current_clouds),
+                        "weather_category": current_cat,
                         "objects": [],
                     }
                 )
 
         # Fallback: single window if no weather data
         if not windows:
-            windows = [{"start": dusk, "end": dawn, "avg_clouds": None, "objects": []}]
+            windows = [
+                {
+                    "start": dusk,
+                    "end": dawn,
+                    "avg_clouds": None,
+                    "weather_category": None,
+                    "objects": [],
+                }
+            ]
 
-        # Split windows longer than 2 hours
-        split_windows: list[dict[str, Any]] = []
-        for w in windows:
-            w_start: datetime = w["start"]
-            w_end: datetime = w["end"]
-            duration = (w_end - w_start).total_seconds() / 3600
-            if duration > 2:
-                # Split into 2-hour chunks
-                current = w_start
-                while current < w_end:
-                    chunk_end = min(current + timedelta(hours=2), w_end)
-                    split_windows.append(
+        # Collect all visibility objects for lookups
+        all_visibility_objects = (
+            forecast.planets
+            + forecast.dsos
+            + forecast.comets
+            + forecast.dwarf_planets
+            + forecast.asteroids
+            + [forecast.milky_way]
+        )
+
+        # Assign scored objects to windows where they're actually visible
+        for window in windows:
+            window_objects = []
+
+            for scored in scored_objects:
+                # Find matching visibility object
+                vis_obj = None
+                for obj in all_visibility_objects:
+                    if (
+                        scored.object_name == obj.object_name
+                        or scored.object_name in obj.object_name
+                    ):
+                        vis_obj = obj
+                        break
+
+                if vis_obj is None:
+                    continue
+
+                # Get window-specific altitude info
+                window_info = self._get_window_altitude_info(
+                    vis_obj, window["start"], window["end"]
+                )
+                if window_info["visible"]:
+                    window_objects.append(
                         {
-                            "start": current,
-                            "end": chunk_end,
-                            "avg_clouds": w["avg_clouds"],
-                            "objects": [],
+                            "scored": scored,
+                            "vis": vis_obj,
+                            "window_info": window_info,
                         }
                     )
-                    current = chunk_end
-            else:
-                split_windows.append(w)
 
-        windows = split_windows
-
-        # Build lookup of all scored objects
-        all_objects = []
-        for score in scores:
-            for obj in (
-                forecast.planets
-                + forecast.dsos
-                + forecast.comets
-                + [forecast.milky_way]
-            ):
-                if score.object_name in obj.object_name:
-                    all_objects.append(
-                        {"name": score.object_name, "obj": obj, "score": score}
-                    )
-                    break
-
-        # Assign ALL visible objects to each window (object visible if above horizon during window)
-        for window in windows:
-            for item in all_objects:
-                obj = item["obj"]
-                # Check if object is visible during this window (has altitude data and peaks tonight)
-                if obj.max_altitude_time and obj.max_altitude and obj.max_altitude > 30:
-                    # Object is visible tonight - add to this window
-                    window["objects"].append(item.copy())
-
-        # Apply balanced selection per window: 50% DSOs, 25% planets, 25% comets
-        # Interstellar objects always shown at top, don't count against limit
-        for window in windows:
-            objs = window["objects"]
-
-            # Extract interstellar objects (always shown, don't count against limit)
-            interstellar = [
-                o
-                for o in objs
-                if any(
-                    c.object_name == o["name"] or o["name"] in c.object_name
-                    for c in forecast.comets
-                    if c.is_interstellar
-                )
-            ]
-            regular_objs = [o for o in objs if o not in interstellar]
-
-            if len(regular_objs) <= max_objects:
-                # Sort and prepend interstellar
-                window["objects"] = sorted(
-                    interstellar, key=lambda x: x["score"].score, reverse=True
-                ) + sorted(regular_objs, key=lambda x: x["score"].score, reverse=True)
-                continue
-
-            planets = [
-                o
-                for o in regular_objs
-                if any(p.object_name == o["name"] for p in forecast.planets)
-            ]
-            comets = [
-                o
-                for o in regular_objs
-                if any(
-                    c.object_name == o["name"] or o["name"] in c.object_name
-                    for c in forecast.comets
-                    if not c.is_interstellar
-                )
-            ]
-            dsos = [
-                o
-                for o in regular_objs
-                if any(
-                    d.object_name == o["name"] or o["name"] in d.object_name
-                    for d in forecast.dsos
-                )
-            ]
-
-            n_dsos = max(1, max_objects // 2)
-            n_planets = max(1, max_objects // 4)
-            n_comets = max_objects - n_dsos - n_planets
-
-            selected = dsos[:n_dsos] + planets[:n_planets] + comets[:n_comets]
-
-            # Fill remaining from best available
-            remaining = max_objects - len(selected)
-            if remaining > 0:
-                for o in sorted(
-                    regular_objs, key=lambda x: x["score"].score, reverse=True
-                ):
-                    if o not in selected:
-                        selected.append(o)
-                        remaining -= 1
-                        if remaining == 0:
-                            break
-
-            # Prepend interstellar objects (always at top)
-            window["objects"] = sorted(
-                interstellar, key=lambda x: x["score"].score, reverse=True
-            ) + sorted(selected, key=lambda x: x["score"].score, reverse=True)
+            # Merit-based selection within window (no category quotas)
+            # Sort by score and take top max_objects
+            window_objects.sort(key=lambda x: x["scored"].total_score, reverse=True)
+            window["objects"] = window_objects[:max_objects]
 
         # Filter out empty windows
         return [w for w in windows if w["objects"]]
 
-    def _print_time_window(self, window_info, forecast):
-        """Print a single time window with its objects."""
-        start_str = self.tz.format_time(window_info["start"])
-        end_str = self.tz.format_time(window_info["end"])
+    def _group_by_time_windows(self, forecast, scores, max_objects: int):
+        """Legacy method - redirects to weather-based grouping."""
+        # Convert legacy VisibilityScore to format expected by new method
+        from scoring import ScoredObject
+
+        scored_objects = []
+        for score in scores:
+            # Find the visibility object
+            vis = None
+            for obj in (
+                forecast.planets
+                + forecast.dsos
+                + forecast.comets
+                + forecast.dwarf_planets
+                + forecast.asteroids
+                + [forecast.milky_way]
+            ):
+                if score.object_name in obj.object_name:
+                    vis = obj
+                    break
+
+            if vis:
+                scored_objects.append(
+                    ScoredObject(
+                        object_name=score.object_name,
+                        category=vis.object_type,
+                        subtype=getattr(vis, "subtype", ""),
+                        total_score=score.score,
+                        score_breakdown={},
+                        reason=score.reason,
+                        visibility=vis,
+                        magnitude=getattr(vis, "magnitude", None),
+                    )
+                )
+
+        return self._group_by_weather_windows(forecast, scored_objects, max_objects)
+
+    def _print_time_window(self, window_data, forecast):
+        """Print a single time window with its objects (legacy format)."""
+        start_str = self.tz.format_time(window_data["start"])
+        end_str = self.tz.format_time(window_data["end"])
 
         # Format weather info
         weather_str = ""
         weather_color = ""
-        if window_info["avg_clouds"] is not None:
+        if window_data["avg_clouds"] is not None:
             _, weather_str, weather_color = self._get_weather_category(
-                window_info["avg_clouds"]
+                window_data["avg_clouds"]
             )
 
         # Print window header
@@ -483,10 +659,14 @@ class ForecastFormatter:
         else:
             self.console.print(f"[bold]{start_str} - {end_str}[/bold]")
 
-        # Print objects in this window
-        for obj_info in window_info["objects"]:
-            obj = obj_info["obj"]
-            name = obj_info["name"]
+        # Print objects in this window with window-specific data
+        for obj_info in window_data["objects"]:
+            obj = obj_info.get("vis") or obj_info.get("obj")
+            scored = obj_info.get("scored")
+            name = (
+                scored.object_name if scored else obj_info.get("name", obj.object_name)
+            )
+            win_info = obj_info.get("window_info", {})
 
             # Get magnitude
             mag = None
@@ -497,10 +677,131 @@ class ForecastFormatter:
 
             mag_str = f" (mag {mag:.1f})" if mag is not None else ""
 
-            self.console.print(
-                f"  • {name}{mag_str} - {obj_info['score'].reason} "
-                f"(peak {obj.max_altitude:.0f}° at {self.tz.format_time(obj.max_altitude_time)})"
+            # Build window-specific altitude description
+            if win_info.get("visible"):
+                quality = win_info["quality_desc"]
+                phase = win_info["phase"]
+                start_alt = win_info["start_alt"]
+                end_alt = win_info["end_alt"]
+
+                if phase == "peak":
+                    peak_time_str = self.tz.format_time(obj.max_altitude_time)
+                    alt_desc = f"peaks {obj.max_altitude:.0f}° at {peak_time_str}"
+                elif phase == "rising":
+                    alt_desc = f"{start_alt:.0f}°→{end_alt:.0f}° rising"
+                else:  # setting
+                    alt_desc = f"{start_alt:.0f}°→{end_alt:.0f}° setting"
+
+                self.console.print(f"  • {name}{mag_str} - {quality}, {alt_desc}")
+            else:
+                self.console.print(
+                    f"  • {name}{mag_str} - "
+                    f"(peak {obj.max_altitude:.0f}° at {self.tz.format_time(obj.max_altitude_time)})"
+                )
+
+        self.console.print()
+
+    def _print_time_window_scored(self, window_data, forecast: NightForecast):
+        """Print a time window with scored objects showing quality ratings."""
+        start_str = self.tz.format_time(window_data["start"])
+        end_str = self.tz.format_time(window_data["end"])
+
+        # Format weather info with cloud % range
+        weather_str = ""
+        weather_color = ""
+        if window_data.get("avg_clouds") is not None:
+            _, cat_desc, weather_color = self._get_weather_category(
+                window_data["avg_clouds"]
             )
+            min_c = window_data.get("min_clouds", window_data["avg_clouds"])
+            max_c = window_data.get("max_clouds", window_data["avg_clouds"])
+
+            # Show range if it varies, otherwise just the value
+            if max_c - min_c > 5:
+                weather_str = f"{cat_desc} ({min_c:.0f}-{max_c:.0f}%)"
+            else:
+                weather_str = f"{cat_desc} ({window_data['avg_clouds']:.0f}%)"
+
+        # Print window header with duration
+        duration_hours = (
+            window_data["end"] - window_data["start"]
+        ).total_seconds() / 3600
+        duration_str = (
+            f"{duration_hours:.1f}h"
+            if duration_hours != int(duration_hours)
+            else f"{int(duration_hours)}h"
+        )
+
+        if weather_str:
+            self.console.print(
+                f"[bold]{start_str} - {end_str}[/bold] ({duration_str}) "
+                f"[{weather_color}]{weather_str}[/{weather_color}]"
+            )
+        else:
+            self.console.print(f"[bold]{start_str} - {end_str}[/bold] ({duration_str})")
+
+        # Print objects with score information
+        for obj_info in window_data["objects"]:
+            scored: ScoredObject = obj_info["scored"]
+            vis = obj_info["vis"]
+            win_info = obj_info.get("window_info", {})
+
+            # Get score tier and stars
+            tier, stars = get_score_tier(scored.total_score)
+
+            # Get magnitude
+            mag = scored.magnitude
+            if mag is None and scored.object_name in self.PLANET_MAGNITUDES:
+                mag = self.PLANET_MAGNITUDES[scored.object_name]
+            mag_str = f" (mag {mag:.1f})" if mag is not None else ""
+
+            # Add planet apparent diameter if available
+            diameter_str = ""
+            if (
+                hasattr(vis, "apparent_diameter_arcsec")
+                and vis.apparent_diameter_arcsec is not None
+            ):
+                d = vis.apparent_diameter_arcsec
+                d_min = vis.apparent_diameter_min
+                d_max = vis.apparent_diameter_max
+                if d_min and d_max:
+                    # Calculate how good current size is (0-100%)
+                    size_quality = (
+                        (d - d_min) / (d_max - d_min) * 100 if d_max > d_min else 50
+                    )
+                    if size_quality > 70:
+                        diameter_str = f' [green]{d:.1f}"[/green] (range: {d_min:.1f}"-{d_max:.1f}")'
+                    elif size_quality > 40:
+                        diameter_str = f' {d:.1f}" (range: {d_min:.1f}"-{d_max:.1f}")'
+                    else:
+                        diameter_str = (
+                            f' [dim]{d:.1f}"[/dim] (range: {d_min:.1f}"-{d_max:.1f}")'
+                        )
+                else:
+                    diameter_str = f' {d:.1f}"'
+
+            # Build altitude description
+            if win_info.get("visible"):
+                phase = win_info["phase"]
+                start_alt = win_info["start_alt"]
+                end_alt = win_info["end_alt"]
+
+                if phase == "peak":
+                    peak_time_str = self.tz.format_time(vis.max_altitude_time)
+                    alt_desc = f"peaks {vis.max_altitude:.0f}° at {peak_time_str}"
+                elif phase == "rising":
+                    alt_desc = f"{start_alt:.0f}°→{end_alt:.0f}° rising"
+                else:
+                    alt_desc = f"{start_alt:.0f}°→{end_alt:.0f}° setting"
+            else:
+                alt_desc = f"peak {vis.max_altitude:.0f}°"
+
+            # Format: Name (mag) [diameter] - ★★★★☆ 142pts - altitude info
+            # Why: reason
+            self.console.print(
+                f"  • {scored.object_name}{mag_str}{diameter_str} - {stars} {scored.total_score:.0f}pts - {alt_desc}"
+            )
+            self.console.print(f"    [italic]Why: {scored.reason}[/italic]")
 
         self.console.print()
 
@@ -534,23 +835,31 @@ class ForecastFormatter:
         self.console.print(desc)
 
     def _print_weekly_forecast(self, forecasts: List[NightForecast], max_objects: int):
-        """Print forecast with all objects grouped by night."""
-        num_days = len(forecasts)
-        if num_days == 1:
-            title = "TONIGHT'S TARGETS"
+        """Print forecast with merit-based object selection per night."""
+        from analyzer import VisibilityAnalyzer
+
+        # Skip tonight (first forecast) since it's already shown in detail
+        # Only show subsequent nights in this section
+        remaining_forecasts = forecasts[1:] if len(forecasts) > 1 else forecasts
+
+        num_days = len(remaining_forecasts)
+        if num_days == 0:
+            return  # Nothing to show if only tonight was requested
+        elif num_days == 1:
+            title = "TOMORROW'S TARGETS"
         elif num_days <= 3:
-            title = f"{num_days}-NIGHT FORECAST"
+            title = f"NEXT {num_days} NIGHTS"
         else:
-            title = f"{num_days}-DAY FORECAST"
+            title = f"UPCOMING {num_days} NIGHTS"
 
         self.console.print(f"[bold cyan]{title}[/bold cyan]")
         self.console.print()
 
-        has_weather = any(f.weather is not None for f in forecasts)
+        has_weather = any(f.weather is not None for f in remaining_forecasts)
 
         # Score each night for ranking
         night_scores = []
-        for forecast in forecasts:
+        for forecast in remaining_forecasts:
             score = 100 - forecast.night_info.moon_illumination
             if has_weather and forecast.weather:
                 score -= forecast.weather.avg_cloud_cover * 0.7
@@ -559,6 +868,9 @@ class ForecastFormatter:
         # Sort nights by score (best first)
         night_scores.sort(key=lambda x: x[1], reverse=True)
         best_night_date = night_scores[0][0].night_info.date.strftime("%Y-%m-%d")
+
+        # Create analyzer for scoring
+        analyzer = VisibilityAnalyzer(0, 0)
 
         # Show each night
         for forecast, night_score in night_scores:
@@ -575,133 +887,112 @@ class ForecastFormatter:
             moon_pct = forecast.night_info.moon_illumination
             conditions = f"Moon {moon_pct:.0f}%"
             if has_weather and forecast.weather:
-                clouds = forecast.weather.avg_cloud_cover
-                if clouds < 20:
-                    conditions += " • Clear"
-                elif clouds < 50:
-                    conditions += " • Partly cloudy"
-                else:
-                    conditions += " • Cloudy"
+                conditions += f" • {self._format_cloud_conditions(forecast.weather)}"
 
             self.console.print(f"{header}")
             self.console.print(f"[italic]{conditions}[/italic]")
 
-            # Collect all objects for this night
-            objects = []
-
-            # Planets (bonus - always interesting targets, easy to find)
-            for planet in forecast.planets:
-                if planet.is_visible and planet.max_altitude >= 30:
-                    score = planet.max_altitude + 15  # Bonus for planets
-                    if has_weather and forecast.weather:
-                        score -= forecast.weather.avg_cloud_cover * 0.3
-                    objects.append(
-                        (
-                            "🪐",
-                            planet.object_name,
-                            planet,
-                            score,
-                            self.PLANET_MAGNITUDES.get(planet.object_name),
-                        )
-                    )
-
-            # Comets (use ✨ for interstellar, ☄️ for regular)
-            for comet in forecast.comets:
-                if comet.is_visible and comet.max_altitude >= 30:
-                    score = comet.max_altitude
-                    if has_weather and forecast.weather:
-                        score -= forecast.weather.avg_cloud_cover * 0.3
-                    # Use sparkles emoji for interstellar objects
-                    icon = "✨" if comet.is_interstellar else "☄️"
-                    objects.append(
-                        (icon, comet.object_name, comet, score, comet.magnitude)
-                    )
-
-            # DSOs (slight bonus - main astrophotography targets)
-            for dso in forecast.dsos:
-                if dso.is_visible and dso.max_altitude >= 45:
-                    score = dso.max_altitude + 5  # Bonus for DSOs
-                    if has_weather and forecast.weather:
-                        score -= forecast.weather.avg_cloud_cover * 0.5
-                    if dso.moon_warning:
-                        score -= 20
-                    objects.append(("🌌", dso.object_name, dso, score, dso.magnitude))
-
-            # Extract interstellar objects first (always shown, don't count against limit)
-            interstellar = sorted(
-                [o for o in objects if o[0] == "✨"], key=lambda x: x[3], reverse=True
-            )
-            regular_objects = [o for o in objects if o[0] != "✨"]
-
-            # Sort by score and take balanced mix: 25% comets, 25% planets, 50% DSOs
-            comets = sorted(
-                [o for o in regular_objects if o[0] == "☄️"],
-                key=lambda x: x[3],
-                reverse=True,
-            )
-            planets = sorted(
-                [o for o in regular_objects if o[0] == "🪐"],
-                key=lambda x: x[3],
-                reverse=True,
-            )
-            dsos = sorted(
-                [o for o in regular_objects if o[0] == "🌌"],
-                key=lambda x: x[3],
-                reverse=True,
+            # Get scored objects using merit-based selection
+            scored_objects = analyzer.rank_objects_for_night(
+                forecast, max_objects=max_objects
             )
 
-            # Allocate slots: 50% DSOs, 25% planets, 25% comets
-            n_dsos = max(1, max_objects // 2)
-            n_planets = max(1, max_objects // 4)
-            n_comets = max_objects - n_dsos - n_planets
-
-            # Take top from each category, fill remaining with best available
-            selected = dsos[:n_dsos] + planets[:n_planets] + comets[:n_comets]
-
-            # If any category is short, fill from others
-            remaining = max_objects - len(selected)
-            if remaining > 0:
-                all_sorted = sorted(regular_objects, key=lambda x: x[3], reverse=True)
-                for obj in all_sorted:
-                    if obj not in selected:
-                        selected.append(obj)
-                        remaining -= 1
-                        if remaining == 0:
-                            break
-
-            # Sort final selection by score
-            selected.sort(key=lambda x: x[3], reverse=True)
-
-            # Prepend interstellar objects (always shown at top, don't count against limit)
-            selected = interstellar + selected
-
-            if not selected:
+            if not scored_objects:
                 self.console.print(
                     "  [italic]No objects visible above threshold[/italic]"
                 )
             else:
-                # Note: interstellar objects are prepended and don't count against max_objects
-                for icon, name, obj, score, mag in selected:
-                    quality = self._get_quality_color(obj.max_altitude)
-                    time_str = self.tz.format_time(obj.max_altitude_time)
+                for scored in scored_objects:
+                    vis = scored.visibility
+                    tier, stars = get_score_tier(scored.total_score)
+
+                    # Get icon based on category
+                    icon = self._get_category_icon(scored.category, scored.subtype)
+
+                    # Get magnitude
+                    mag = scored.magnitude
+                    if mag is None and scored.object_name in self.PLANET_MAGNITUDES:
+                        mag = self.PLANET_MAGNITUDES[scored.object_name]
                     mag_str = (
                         f" [italic](mag {mag:.1f})[/italic]" if mag is not None else ""
                     )
 
+                    quality = self._get_quality_color(vis.max_altitude)
+                    time_str = self.tz.format_time(vis.max_altitude_time)
+
                     # Warnings
                     warning = ""
-                    if hasattr(obj, "moon_warning") and obj.moon_warning:
+                    if hasattr(vis, "moon_warning") and vis.moon_warning:
                         warning = " [italic](moon)[/italic]"
 
                     self.console.print(
-                        f"  {icon} {name}{mag_str}: {quality}, "
-                        f"{obj.max_altitude:.0f}° at {time_str}{warning}"
+                        f"  {icon} {scored.object_name}{mag_str}: {quality}, "
+                        f"{vis.max_altitude:.0f}° at {time_str}{warning}"
                     )
 
             self.console.print()
 
         # Milky Way (separate - needs special dark sky conditions)
         self._print_milky_way_forecast(forecasts)
+
+    def _format_cloud_conditions(self, weather: NightWeather) -> str:
+        """Format cloud conditions with detail based on variability.
+
+        Shows percentage and variability when conditions change during the night.
+        """
+        avg = weather.avg_cloud_cover
+        min_c = weather.min_cloud_cover
+        max_c = weather.max_cloud_cover
+        clear_hours = weather.clear_duration_hours
+
+        # Get base description
+        desc = WeatherForecast.get_cloud_cover_description(avg)
+
+        # Check variability (difference between min and max)
+        variability = max_c - min_c
+
+        if variability > 40:
+            # Highly variable - show range
+            return f"Variable ({min_c:.0f}-{max_c:.0f}%)"
+        elif variability > 20:
+            # Moderately variable - show avg with note
+            if clear_hours >= 2:
+                return f"{desc} ({avg:.0f}%), {clear_hours:.0f}h clear"
+            return f"{desc} ({avg:.0f}%)"
+        else:
+            # Stable conditions - just show description with percentage
+            if avg < 20:
+                return f"{desc} ({avg:.0f}%)"
+            return f"{desc} ({avg:.0f}%)"
+
+    def _get_category_icon(self, category: str, subtype: str = "") -> str:
+        """Get emoji icon for object category."""
+        if category == "planet":
+            return "🪐"
+        elif category == "comet":
+            if subtype == "interstellar":
+                return "✨"
+            return "☄️"
+        elif category == "dwarf_planet":
+            return "🔵"
+        elif category == "asteroid":
+            return "🪨"
+        elif category == "milky_way":
+            return "🌌"
+        elif category == "dso":
+            # DSO subtypes
+            if subtype in ("galaxy", "galaxy_pair", "galaxy_group", "galaxy_triplet"):
+                return "🌀"
+            elif subtype in ("emission_nebula", "reflection_nebula", "nebula"):
+                return "☁️"
+            elif subtype == "planetary_nebula":
+                return "💫"
+            elif subtype in ("open_cluster", "globular_cluster"):
+                return "⭐"
+            elif subtype == "supernova_remnant":
+                return "💥"
+            return "🌌"
+        return "•"
 
     def _print_milky_way_forecast(self, forecasts: List[NightForecast]):
         """Print Milky Way visibility forecast."""
@@ -747,11 +1038,13 @@ class ForecastFormatter:
                 cat, desc, _ = self._get_weather_category(
                     best_night.weather.avg_cloud_cover
                 )
-                # Use simpler descriptions for Milky Way
+                # Use simpler descriptions for Milky Way (5-tier system)
                 simple_desc = {
-                    "clear": "Clear skies",
-                    "partly": "Partly cloudy",
-                    "cloudy": "Cloudy",
+                    "excellent": "Clear skies",
+                    "good": "Clear skies",
+                    "fair": "Partly cloudy",
+                    "poor": "Partly cloudy",
+                    "bad": "Cloudy",
                 }
                 weather_info = f" ({simple_desc[cat]})"
 

@@ -27,6 +27,14 @@ class NightWeather:
     clear_duration_hours: float  # Hours with <20% cloud cover during night
     clear_windows: List[ClearWindow]  # Windows with <40% sustained cloud cover
     hourly_data: Dict[datetime, float]  # Hourly cloud cover for the night
+    # NEW: Additional weather fields for observation quality
+    avg_visibility_km: Optional[float] = None  # Atmospheric visibility in km
+    avg_wind_speed_kmh: Optional[float] = None  # Wind speed in km/h
+    max_wind_speed_kmh: Optional[float] = None  # Maximum wind speed (gusts)
+    avg_humidity: Optional[float] = None  # Relative humidity percentage
+    avg_temperature_c: Optional[float] = None  # Temperature in Celsius
+    # Derived transparency score (combines visibility + aerosols)
+    transparency_score: Optional[float] = None  # 0-100 (higher = better)
 
 
 class WeatherForecast:
@@ -67,10 +75,20 @@ class WeatherForecast:
             # Open-Meteo API endpoint
             url = "https://api.open-meteo.com/v1/forecast"
 
+            # Request additional weather fields for observation quality
             params = {
                 "latitude": self.latitude,
                 "longitude": self.longitude,
-                "hourly": "cloud_cover",
+                "hourly": ",".join(
+                    [
+                        "cloud_cover",
+                        "visibility",  # Atmospheric visibility in meters
+                        "wind_speed_10m",  # Wind speed at 10m in km/h
+                        "wind_gusts_10m",  # Wind gusts at 10m in km/h
+                        "relative_humidity_2m",  # Humidity percentage
+                        "temperature_2m",  # Temperature in Celsius
+                    ]
+                ),
                 "forecast_days": min(num_days, self.MAX_FORECAST_DAYS),
                 "timezone": "auto",
             }
@@ -80,23 +98,51 @@ class WeatherForecast:
 
             data = response.json()
 
-            # Parse hourly cloud cover data
+            # Parse hourly data
             hourly = data.get("hourly", {})
             times = hourly.get("time", [])
             cloud_cover = hourly.get("cloud_cover", [])
+            visibility = hourly.get("visibility", [])
+            wind_speed = hourly.get("wind_speed_10m", [])
+            wind_gusts = hourly.get("wind_gusts_10m", [])
+            humidity = hourly.get("relative_humidity_2m", [])
+            temperature = hourly.get("temperature_2m", [])
 
             if not times or not cloud_cover:
                 return False
 
-            # Build hourly cloud cover map
+            # Build hourly data maps
             self._hourly_data = {}
-            for time_str, cc in zip(times, cloud_cover):
+            self._hourly_visibility = {}
+            self._hourly_wind = {}
+            self._hourly_gusts = {}
+            self._hourly_humidity = {}
+            self._hourly_temperature = {}
+
+            for i, time_str in enumerate(times):
                 # Parse time string (ISO 8601 format)
                 dt = datetime.fromisoformat(time_str)
                 # Convert to timezone-naive UTC for easier comparison
                 if dt.tzinfo is not None:
                     dt = dt.astimezone(None).replace(tzinfo=None)
-                self._hourly_data[dt] = cc if cc is not None else 0.0
+
+                self._hourly_data[dt] = (
+                    cloud_cover[i]
+                    if i < len(cloud_cover) and cloud_cover[i] is not None
+                    else 0.0
+                )
+                if i < len(visibility) and visibility[i] is not None:
+                    self._hourly_visibility[dt] = (
+                        visibility[i] / 1000.0
+                    )  # Convert m to km
+                if i < len(wind_speed) and wind_speed[i] is not None:
+                    self._hourly_wind[dt] = wind_speed[i]
+                if i < len(wind_gusts) and wind_gusts[i] is not None:
+                    self._hourly_gusts[dt] = wind_gusts[i]
+                if i < len(humidity) and humidity[i] is not None:
+                    self._hourly_humidity[dt] = humidity[i]
+                if i < len(temperature) and temperature[i] is not None:
+                    self._hourly_temperature[dt] = temperature[i]
 
             return True
 
@@ -171,6 +217,61 @@ class WeatherForecast:
             hourly_night_data, threshold=40, min_duration=2
         )
 
+        # Collect additional weather data for the night hours
+        visibility_values = []
+        wind_values = []
+        gust_values = []
+        humidity_values = []
+        temp_values = []
+
+        for hour in hourly_night_data.keys():
+            if hasattr(self, "_hourly_visibility") and hour in self._hourly_visibility:
+                visibility_values.append(self._hourly_visibility[hour])
+            if hasattr(self, "_hourly_wind") and hour in self._hourly_wind:
+                wind_values.append(self._hourly_wind[hour])
+            if hasattr(self, "_hourly_gusts") and hour in self._hourly_gusts:
+                gust_values.append(self._hourly_gusts[hour])
+            if hasattr(self, "_hourly_humidity") and hour in self._hourly_humidity:
+                humidity_values.append(self._hourly_humidity[hour])
+            if (
+                hasattr(self, "_hourly_temperature")
+                and hour in self._hourly_temperature
+            ):
+                temp_values.append(self._hourly_temperature[hour])
+
+        # Calculate averages/max
+        avg_visibility = (
+            sum(visibility_values) / len(visibility_values)
+            if visibility_values
+            else None
+        )
+        avg_wind = sum(wind_values) / len(wind_values) if wind_values else None
+        max_wind = max(gust_values) if gust_values else None
+        avg_humidity = (
+            sum(humidity_values) / len(humidity_values) if humidity_values else None
+        )
+        avg_temp = sum(temp_values) / len(temp_values) if temp_values else None
+
+        # Calculate transparency score (0-100, higher = better)
+        # Based on visibility (>20km = excellent) and low clouds
+        transparency = None
+        if avg_visibility is not None:
+            # Score visibility: 50km+ = 100, 20km = 80, 10km = 50, <5km = 20
+            if avg_visibility >= 50:
+                vis_score = 100
+            elif avg_visibility >= 20:
+                vis_score = 80 + (avg_visibility - 20) * 20 / 30
+            elif avg_visibility >= 10:
+                vis_score = 50 + (avg_visibility - 10) * 30 / 10
+            elif avg_visibility >= 5:
+                vis_score = 20 + (avg_visibility - 5) * 30 / 5
+            else:
+                vis_score = avg_visibility * 4  # 0-20 for poor visibility
+
+            # Combine with cloud factor (clear sky = full visibility benefit)
+            cloud_factor = 1.0 - (avg_cloud / 100.0)
+            transparency = vis_score * cloud_factor
+
         return NightWeather(
             date=date,
             avg_cloud_cover=avg_cloud,
@@ -179,6 +280,12 @@ class WeatherForecast:
             clear_duration_hours=float(clear_hours),
             clear_windows=clear_windows,
             hourly_data=hourly_night_data,
+            avg_visibility_km=avg_visibility,
+            avg_wind_speed_kmh=avg_wind,
+            max_wind_speed_kmh=max_wind,
+            avg_humidity=avg_humidity,
+            avg_temperature_c=avg_temp,
+            transparency_score=transparency,
         )
 
     @staticmethod

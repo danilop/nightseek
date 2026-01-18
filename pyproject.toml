@@ -23,7 +23,7 @@ dependencies = [
 nightseek = "main:app"
 
 [tool.setuptools]
-py-modules = ["main", "analyzer", "catalog", "config", "formatter", "sky_calculator", "timezone_utils", "weather"]
+py-modules = ["main", "analyzer", "catalog", "cache_manager", "config", "formatter", "sky_calculator", "timezone_utils", "weather", "opengc_loader", "scoring"]
 
 [tool.uv]
 package = true
