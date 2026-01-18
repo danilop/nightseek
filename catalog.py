@@ -189,15 +189,15 @@ class Catalog:
         for dp_info in DWARF_PLANETS:
             try:
                 # Look up in MPCORB data by designation
-                designation = dp_info["designation"]
+                designation = str(dp_info["designation"])
                 if designation in self._mpcorb_df.index:
                     row = self._mpcorb_df.loc[designation]
                     dwarf_planets.append(
                         MinorPlanet(
                             designation=designation,
-                            name=dp_info["name"],
+                            name=str(dp_info["name"]),
                             category="dwarf_planet",
-                            magnitude_h=dp_info["magnitude_h"],
+                            magnitude_h=float(dp_info["magnitude_h"]),
                             row=row,
                         )
                     )
@@ -227,15 +227,15 @@ class Catalog:
         # First add notable asteroids
         for ast_info in NOTABLE_ASTEROIDS:
             try:
-                designation = ast_info["designation"]
+                designation = str(ast_info["designation"])
                 if designation in self._mpcorb_df.index:
                     row = self._mpcorb_df.loc[designation]
                     asteroids.append(
                         MinorPlanet(
                             designation=designation,
-                            name=ast_info["name"],
+                            name=str(ast_info["name"]),
                             category="asteroid",
-                            magnitude_h=ast_info["magnitude_h"],
+                            magnitude_h=float(ast_info["magnitude_h"]),
                             row=row,
                         )
                     )

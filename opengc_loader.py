@@ -409,27 +409,29 @@ class OpenNGCLoader:
         # Add Messier objects not in NGC/IC catalog
         for m_obj in MESSIER_NOT_IN_NGC:
             # Check magnitude filter
-            if m_obj["magnitude"] > max_magnitude:
+            if float(m_obj["magnitude"]) > max_magnitude:
                 continue
 
             # Check declination filter
             if observer_latitude is not None:
-                max_possible_alt = 90 - abs(observer_latitude - m_obj["dec_degrees"])
+                max_possible_alt = 90 - abs(
+                    observer_latitude - float(m_obj["dec_degrees"])
+                )
                 if max_possible_alt < min_useful_altitude:
                     continue
 
             objects.append(
                 OpenNGCObject(
-                    name=m_obj["name"],
-                    common_name=m_obj["common_name"],
+                    name=str(m_obj["name"]),
+                    common_name=str(m_obj["common_name"]),
                     obj_type="dso",
-                    ra_hours=m_obj["ra_hours"],
-                    dec_degrees=m_obj["dec_degrees"],
-                    magnitude=m_obj["magnitude"],
-                    dso_subtype=m_obj["dso_subtype"],
-                    angular_size_arcmin=m_obj["angular_size_arcmin"],
+                    ra_hours=float(m_obj["ra_hours"]),
+                    dec_degrees=float(m_obj["dec_degrees"]),
+                    magnitude=float(m_obj["magnitude"]),
+                    dso_subtype=str(m_obj["dso_subtype"]),
+                    angular_size_arcmin=float(m_obj["angular_size_arcmin"]),
                     surface_brightness=None,
-                    constellation=m_obj["constellation"],
+                    constellation=str(m_obj["constellation"]),
                 )
             )
 

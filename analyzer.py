@@ -155,7 +155,9 @@ class VisibilityAnalyzer:
                 r = sun_dist.au  # Distance from Sun in AU
 
                 # Get magnitude slope k from MPC data (default 10 if not available)
-                k = float(comet.row.get("magnitude_k", 10.0))
+                k = float(
+                    getattr(comet.row, "get", lambda x, d: d)("magnitude_k", 10.0)
+                )
 
                 # Compute apparent magnitude
                 if delta > 0 and r > 0:
@@ -252,12 +254,12 @@ class VisibilityAnalyzer:
                     )
                     # Add min/max range from table
                     if planet_name in PLANET_APPARENT_DIAMETERS:
-                        visibility.apparent_diameter_min = PLANET_APPARENT_DIAMETERS[
-                            planet_name
-                        ]["min"]
-                        visibility.apparent_diameter_max = PLANET_APPARENT_DIAMETERS[
-                            planet_name
-                        ]["max"]
+                        visibility.apparent_diameter_min = float(
+                            PLANET_APPARENT_DIAMETERS[planet_name]["min"]
+                        )
+                        visibility.apparent_diameter_max = float(
+                            PLANET_APPARENT_DIAMETERS[planet_name]["max"]
+                        )
                 except Exception:
                     pass  # Skip if calculation fails
 
