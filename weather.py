@@ -56,10 +56,11 @@ class WeatherForecast:
         self.timezone_name: Optional[str] = None
 
     def fetch_forecast(self, num_days: int) -> bool:
-        """Fetch weather forecast from Open-Meteo.
+        """Fetch weather forecast from Open-Meteo with caching.
 
         Only fetches if num_days <= MAX_FORECAST_DAYS.
         Returns False if weather data is not available.
+        Caches responses for 1 hour to avoid repeated API calls.
 
         Args:
             num_days: Number of days to fetch
@@ -70,6 +71,24 @@ class WeatherForecast:
         if num_days > self.MAX_FORECAST_DAYS:
             # Don't fetch if user requested more days than API provides
             return False
+
+        # Check cache first
+        from cache_manager import CacheManager
+        import json
+        import hashlib
+
+        cache = CacheManager()
+        cache_key = f"weather_{hashlib.md5(f'{self.latitude}_{self.longitude}_{num_days}'.encode()).hexdigest()}.json"
+        cache_info = cache.check(cache_key, max_age_seconds=3600)  # 1 hour cache
+
+        if cache_info.exists and cache_info.is_valid:
+            try:
+                with open(cache.get_path(cache_key)) as f:
+                    data = json.load(f)
+                    self._parse_forecast_data(data)
+                    return True
+            except Exception:
+                pass  # Fall through to fetch
 
         try:
             # Open-Meteo API endpoint
@@ -98,58 +117,63 @@ class WeatherForecast:
 
             data = response.json()
 
-            # Parse hourly data
-            hourly = data.get("hourly", {})
-            times = hourly.get("time", [])
-            cloud_cover = hourly.get("cloud_cover", [])
-            visibility = hourly.get("visibility", [])
-            wind_speed = hourly.get("wind_speed_10m", [])
-            wind_gusts = hourly.get("wind_gusts_10m", [])
-            humidity = hourly.get("relative_humidity_2m", [])
-            temperature = hourly.get("temperature_2m", [])
+            # Save to cache
+            try:
+                with open(cache.get_path(cache_key), "w") as f:
+                    json.dump(data, f)
+            except Exception:
+                pass  # Don't fail if cache write fails
 
-            if not times or not cloud_cover:
-                return False
-
-            # Build hourly data maps
-            self._hourly_data = {}
-            self._hourly_visibility = {}
-            self._hourly_wind = {}
-            self._hourly_gusts = {}
-            self._hourly_humidity = {}
-            self._hourly_temperature = {}
-
-            for i, time_str in enumerate(times):
-                # Parse time string (ISO 8601 format)
-                dt = datetime.fromisoformat(time_str)
-                # Convert to timezone-naive UTC for easier comparison
-                if dt.tzinfo is not None:
-                    dt = dt.astimezone(None).replace(tzinfo=None)
-
-                self._hourly_data[dt] = (
-                    cloud_cover[i]
-                    if i < len(cloud_cover) and cloud_cover[i] is not None
-                    else 0.0
-                )
-                if i < len(visibility) and visibility[i] is not None:
-                    self._hourly_visibility[dt] = (
-                        visibility[i] / 1000.0
-                    )  # Convert m to km
-                if i < len(wind_speed) and wind_speed[i] is not None:
-                    self._hourly_wind[dt] = wind_speed[i]
-                if i < len(wind_gusts) and wind_gusts[i] is not None:
-                    self._hourly_gusts[dt] = wind_gusts[i]
-                if i < len(humidity) and humidity[i] is not None:
-                    self._hourly_humidity[dt] = humidity[i]
-                if i < len(temperature) and temperature[i] is not None:
-                    self._hourly_temperature[dt] = temperature[i]
-
+            self._parse_forecast_data(data)
             return True
-
-        except Exception as e:
-            # If API fails, continue without weather data
-            print(f"Warning: Could not fetch weather data: {e}")
+        except Exception:
             return False
+
+    def _parse_forecast_data(self, data: dict):
+        """Parse forecast data from API response."""
+        # Parse hourly data
+        hourly = data.get("hourly", {})
+        times = hourly.get("time", [])
+        cloud_cover = hourly.get("cloud_cover", [])
+        visibility = hourly.get("visibility", [])
+        wind_speed = hourly.get("wind_speed_10m", [])
+        wind_gusts = hourly.get("wind_gusts_10m", [])
+        humidity = hourly.get("relative_humidity_2m", [])
+        temperature = hourly.get("temperature_2m", [])
+
+        if not times or not cloud_cover:
+            return
+
+        # Build hourly data maps
+        self._hourly_data = {}
+        self._hourly_visibility = {}
+        self._hourly_wind = {}
+        self._hourly_gusts = {}
+        self._hourly_humidity = {}
+        self._hourly_temperature = {}
+
+        for i, time_str in enumerate(times):
+            # Parse time string (ISO 8601 format)
+            dt = datetime.fromisoformat(time_str)
+            # Convert to timezone-naive UTC for easier comparison
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(None).replace(tzinfo=None)
+
+            self._hourly_data[dt] = (
+                cloud_cover[i]
+                if i < len(cloud_cover) and cloud_cover[i] is not None
+                else 0.0
+            )
+            if i < len(visibility) and visibility[i] is not None:
+                self._hourly_visibility[dt] = visibility[i] / 1000.0  # Convert m to km
+            if i < len(wind_speed) and wind_speed[i] is not None:
+                self._hourly_wind[dt] = wind_speed[i]
+            if i < len(wind_gusts) and wind_gusts[i] is not None:
+                self._hourly_gusts[dt] = wind_gusts[i]
+            if i < len(humidity) and humidity[i] is not None:
+                self._hourly_humidity[dt] = humidity[i]
+            if i < len(temperature) and temperature[i] is not None:
+                self._hourly_temperature[dt] = temperature[i]
 
     def get_night_weather(
         self,

@@ -109,17 +109,17 @@ class VisibilityAnalyzer:
         self.asteroids = self.catalog.load_bright_asteroids()
 
     def _load_filtered_comets(self, min_useful_alt: float = 30.0):
-        """Load comets and filter by declination and apparent magnitude.
+        """Load comets and filter by declination first, then apparent magnitude.
 
         This pre-filtering removes comets that:
-        1. Can never reach useful altitude from this latitude
+        1. Can never reach useful altitude from this latitude (cheap check)
         2. Are currently too faint (apparent magnitude > threshold)
 
         The apparent magnitude is calculated from absolute magnitude and current distances.
         """
         import math
 
-        # Load comets with a generous absolute magnitude filter (we'll filter by apparent mag later)
+        # Load comets with a generous absolute magnitude filter
         all_comets = self.catalog.load_bright_comets(
             max_magnitude=20.0,  # Very generous - we filter by apparent mag below
             verbose=self.verbose,
@@ -133,18 +133,38 @@ class VisibilityAnalyzer:
         now = datetime.now()
         t_ref = self.calculator.ts.utc(now.year, now.month, now.day, 0)
 
-        filtered = []
+        # OPTIMIZATION: Pre-filter by declination BEFORE expensive position calculations
+        # This is a cheap check that eliminates many comets
+        declination_filtered = []
         for comet in all_comets:
             try:
+                # Get declination from orbital elements (cheap)
                 comet_obj = self.calculator.create_comet(comet.row)
-
-                # Get comet position from Earth
+                # Quick position check - just get declination
                 astrometric = self.calculator.earth.at(t_ref).observe(comet_obj)
+                _, dec, _ = astrometric.radec()
+                dec_degrees = dec.degrees
+
+                # Check if comet can reach useful altitude
+                max_possible_alt = 90 - abs(self.calculator.latitude - dec_degrees)
+                if max_possible_alt < min_useful_alt:
+                    continue
+
+                declination_filtered.append((comet, comet_obj, astrometric))
+            except Exception:
+                continue
+
+        # Now calculate apparent magnitude only for comets that passed declination filter
+        filtered = []
+        for comet, comet_obj, astrometric in declination_filtered:
+            try:
                 ra, dec, earth_dist = astrometric.radec()
+                delta = earth_dist.au  # Distance from Earth in AU
 
                 # Get comet position from Sun (for heliocentric distance)
                 sun_astrometric = self.calculator.sun.at(t_ref).observe(comet_obj)
                 _, _, sun_dist = sun_astrometric.radec()
+                r = sun_dist.au  # Distance from Sun in AU
 
                 # Calculate apparent magnitude using comet magnitude formula:
                 # m = g + 5*log10(Δ) + k*log10(r)
