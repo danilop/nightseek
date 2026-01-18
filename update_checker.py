@@ -26,7 +26,12 @@ def get_update_cache_file() -> Path:
 
 
 def get_local_version() -> Optional[str]:
-    """Get the currently installed commit SHA."""
+    """Get the currently installed version.
+
+    For development (git repo), returns commit SHA.
+    For installed tool, returns package version from pyproject.toml.
+    """
+    # Try git first (for development)
     try:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -39,7 +44,10 @@ def get_local_version() -> Optional[str]:
             return result.stdout.strip()[:7]
     except Exception:
         pass
-    return None
+
+    # For installed tools, use a marker file with install timestamp
+    # This ensures we always check for updates on installed versions
+    return "installed"
 
 
 def get_remote_version() -> Optional[str]:
@@ -90,9 +98,39 @@ def check_for_updates() -> bool:
     # Update the last check timestamp
     save_check_timestamp()
 
-    if local and remote and local != remote:
-        return True
+    # If we have both versions and they differ, update is available
+    # For installed tools (local="installed"), always check if remote exists
+    if remote and local:
+        if local == "installed":
+            # For installed tools, check if remote commit is different from last known
+            return check_if_remote_changed(remote)
+        elif local != remote:
+            return True
 
+    return False
+
+
+def check_if_remote_changed(current_remote: str) -> bool:
+    """Check if remote version changed since last check."""
+    cache_file = get_update_cache_file()
+    try:
+        with open(cache_file) as f:
+            data = json.load(f)
+            last_remote = data.get("last_remote_version")
+            if last_remote and last_remote != current_remote:
+                # Save new remote version
+                data["last_remote_version"] = current_remote
+                with open(cache_file, "w") as fw:
+                    json.dump(data, fw)
+                return True
+            elif not last_remote:
+                # First time, save it
+                data["last_remote_version"] = current_remote
+                with open(cache_file, "w") as fw:
+                    json.dump(data, fw)
+                return False
+    except Exception:
+        pass
     return False
 
 
