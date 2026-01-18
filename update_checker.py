@@ -81,8 +81,17 @@ def save_check_timestamp():
     """Save the current timestamp as the last update check time."""
     cache_file = get_update_cache_file()
     try:
+        # Load existing data to preserve last_remote_version
+        data = {}
+        if cache_file.exists():
+            with open(cache_file) as f:
+                data = json.load(f)
+
+        # Update timestamp
+        data["last_check"] = datetime.now().isoformat()
+
         with open(cache_file, "w") as f:
-            json.dump({"last_check": datetime.now().isoformat()}, f)
+            json.dump(data, f)
     except Exception:
         pass
 
