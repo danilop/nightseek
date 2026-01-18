@@ -375,7 +375,7 @@ class VisibilityAnalyzer:
                     )
                     visibility.magnitude = dp.magnitude_h
                     visibility.subtype = "dwarf_planet"
-                    
+
                     # Calculate apparent diameter
                     if visibility.is_visible and visibility.max_altitude_time:
                         try:
@@ -390,17 +390,23 @@ class VisibilityAnalyzer:
                             astrometric = earth.at(t_peak).observe(dp_obj)
                             distance_au = astrometric.distance().au
                             visibility.apparent_diameter_arcsec = (
-                                calculate_small_body_apparent_diameter(distance_au, dp.name)
+                                calculate_small_body_apparent_diameter(
+                                    distance_au, dp.name
+                                )
                             )
                             # Calculate min/max from orbital parameters (approximate)
                             if dp.name in SMALL_BODY_DIAMETERS:
                                 # Use typical perihelion/aphelion distances for range
                                 # For simplicity, use ±30% of current distance
-                                visibility.apparent_diameter_min = visibility.apparent_diameter_arcsec * 0.7
-                                visibility.apparent_diameter_max = visibility.apparent_diameter_arcsec * 1.3
+                                visibility.apparent_diameter_min = (
+                                    visibility.apparent_diameter_arcsec * 0.7
+                                )
+                                visibility.apparent_diameter_max = (
+                                    visibility.apparent_diameter_arcsec * 1.3
+                                )
                         except Exception:
                             pass
-                    
+
                     dwarf_planet_visibility.append(visibility)
             except Exception:
                 continue
@@ -429,7 +435,7 @@ class VisibilityAnalyzer:
                     )
                     visibility.magnitude = ast.magnitude_h
                     visibility.subtype = "asteroid"
-                    
+
                     # Calculate apparent diameter
                     if visibility.is_visible and visibility.max_altitude_time:
                         try:
@@ -444,16 +450,22 @@ class VisibilityAnalyzer:
                             astrometric = earth.at(t_peak).observe(ast_obj)
                             distance_au = astrometric.distance().au
                             visibility.apparent_diameter_arcsec = (
-                                calculate_small_body_apparent_diameter(distance_au, ast.name)
+                                calculate_small_body_apparent_diameter(
+                                    distance_au, ast.name
+                                )
                             )
                             # Calculate min/max from orbital parameters (approximate)
                             if ast.name in SMALL_BODY_DIAMETERS:
                                 # Use typical perihelion/aphelion distances for range
-                                visibility.apparent_diameter_min = visibility.apparent_diameter_arcsec * 0.7
-                                visibility.apparent_diameter_max = visibility.apparent_diameter_arcsec * 1.3
+                                visibility.apparent_diameter_min = (
+                                    visibility.apparent_diameter_arcsec * 0.7
+                                )
+                                visibility.apparent_diameter_max = (
+                                    visibility.apparent_diameter_arcsec * 1.3
+                                )
                         except Exception:
                             pass
-                    
+
                     asteroid_visibility.append(visibility)
             except Exception:
                 continue

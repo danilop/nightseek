@@ -781,7 +781,9 @@ class ForecastFormatter:
                     if size_quality > 70:
                         diameter_str = f' [green]• size {d:.1f}" (near max, {d_min:.1f}"-{d_max:.1f}")[/green]'
                     elif size_quality > 40:
-                        diameter_str = f' • size {d:.1f}" (range {d_min:.1f}"-{d_max:.1f}")'
+                        diameter_str = (
+                            f' • size {d:.1f}" (range {d_min:.1f}"-{d_max:.1f}")'
+                        )
                     else:
                         diameter_str = f' [dim]• size {d:.1f}" (small, range {d_min:.1f}"-{d_max:.1f}")[/dim]'
                 else:
