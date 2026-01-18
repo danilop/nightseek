@@ -175,6 +175,7 @@ def forecast(
         config.longitude,
         best_dark_nights,
         config.max_objects,
+        analyzer,  # Pass analyzer to avoid reloading comets
     )
 
     # Check for updates after showing forecast

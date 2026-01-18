@@ -200,6 +200,7 @@ class ForecastFormatter:
         longitude: float,
         best_dark_nights: List[int],
         max_objects: int = 8,
+        analyzer=None,  # Optional analyzer to avoid reloading data
     ):
         """Format and display the complete forecast.
 
@@ -209,7 +210,11 @@ class ForecastFormatter:
             longitude: Observer longitude
             best_dark_nights: Indices of best dark nights
             max_objects: Maximum objects to show per night
+            analyzer: Optional VisibilityAnalyzer instance to reuse
         """
+        # Store analyzer for use in helper methods
+        self.analyzer = analyzer
+
         # Header
         self._print_header(forecasts[0], forecasts[-1], latitude, longitude)
 
@@ -418,10 +423,14 @@ class ForecastFormatter:
 
         Uses merit-based selection - no category quotas.
         """
-        from analyzer import VisibilityAnalyzer
+        # Use provided analyzer or create temporary one
+        if hasattr(self, "analyzer") and self.analyzer:
+            analyzer = self.analyzer
+        else:
+            from analyzer import VisibilityAnalyzer
 
-        # Create temporary analyzer to rank objects
-        analyzer = VisibilityAnalyzer(0, 0)  # Coordinates don't matter for ranking
+            analyzer = VisibilityAnalyzer(0, 0)  # Coordinates don't matter for ranking
+
         scored_objects = analyzer.rank_objects_for_night(
             forecast,
             max_objects=max_objects * 2,  # Get more for window distribution
@@ -869,8 +878,13 @@ class ForecastFormatter:
         night_scores.sort(key=lambda x: x[1], reverse=True)
         best_night_date = night_scores[0][0].night_info.date.strftime("%Y-%m-%d")
 
-        # Create analyzer for scoring
-        analyzer = VisibilityAnalyzer(0, 0)
+        # Use provided analyzer or create temporary one
+        if hasattr(self, "analyzer") and self.analyzer:
+            analyzer = self.analyzer
+        else:
+            from analyzer import VisibilityAnalyzer
+
+            analyzer = VisibilityAnalyzer(0, 0)
 
         # Show each night
         for forecast, night_score in night_scores:
