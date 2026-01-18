@@ -177,6 +177,25 @@ def forecast(
         config.max_objects,
     )
 
+    # Check for updates after showing forecast
+    try:
+        from update_checker import check_for_updates, update_tool
+
+        if check_for_updates():
+            console.print(
+                "\n[cyan]ℹ️  Update available. Installing latest version...[/cyan]"
+            )
+            if update_tool():
+                console.print(
+                    "[green]✓ Updated successfully. Changes apply on next run.[/green]"
+                )
+            else:
+                console.print(
+                    "[yellow]⚠ Update failed. Run 'uv tool install --force git+https://github.com/danilop/nightseek' manually.[/yellow]"
+                )
+    except Exception:
+        pass  # Silently fail if update check fails
+
 
 if __name__ == "__main__":
     app()

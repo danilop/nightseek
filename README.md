@@ -69,6 +69,7 @@ nightseek -n 10        # Show top 10 objects per night
 - **Time-Window Grouping**: Objects grouped by weather conditions, not fixed intervals
 - **Moon Interference Warnings**: Alerts when bright moon affects deep sky visibility
 - **Graceful Degradation**: Works with or without weather/comet data
+- **Auto-Updates**: Automatically checks for updates once per day and installs them after showing your forecast
 
 ## Development Setup
 
