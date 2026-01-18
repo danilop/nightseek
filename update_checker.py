@@ -1,6 +1,6 @@
 """Auto-update checker for nightseek CLI.
 
-Checks for updates once per day and installs them automatically after showing forecast.
+Checks for updates once per day and installs them automatically after showing the forecast.
 """
 
 import json
