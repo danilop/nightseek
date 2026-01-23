@@ -208,9 +208,21 @@ nightseek --setup
 nightseek --help
 ```
 
-## Auto-Updates
+## Updates
 
-NightSeek automatically keeps itself up-to-date:
+### Manual Update
+
+Force check and install updates immediately:
+
+```bash
+nightseek --update
+# or
+nightseek -u
+```
+
+### Auto-Updates
+
+NightSeek also checks automatically in the background:
 
 - **Automatic checks**: Once per day (24-hour cache)
 - **Non-intrusive**: Your forecast displays immediately, update happens after

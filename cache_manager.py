@@ -5,9 +5,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 from urllib.error import URLError
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 
 from platformdirs import user_cache_dir
+from rich.progress import (
+    Progress,
+    DownloadColumn,
+    TransferSpeedColumn,
+    BarColumn,
+    TextColumn,
+    TimeRemainingColumn,
+)
 
 
 @dataclass
@@ -137,14 +145,16 @@ class CacheManager:
         filename: str,
         verbose: bool = False,
         description: str = "data",
+        show_progress: bool = True,
     ) -> CacheInfo:
-        """Download a URL to the cache.
+        """Download a URL to the cache with progress bar.
 
         Args:
             url: URL to download
             filename: Local filename to save as
             verbose: If True, print status messages
             description: Human-readable description for status messages
+            show_progress: If True, show Rich progress bar
 
         Returns:
             CacheInfo with download status
@@ -152,16 +162,39 @@ class CacheManager:
         path = self.get_path(filename)
 
         try:
-            if verbose:
-                print(f"Downloading {description}...")
+            # Create request with headers to get content-length
+            request = Request(url, headers={"User-Agent": "NightSeek/1.0"})
 
-            with urlopen(url, timeout=30) as response:
-                data = response.read()
+            with urlopen(request, timeout=30) as response:
+                total_size = response.headers.get("Content-Length")
+                total_size = int(total_size) if total_size else None
+
+                if show_progress and total_size and total_size > 100000:
+                    # Show progress bar for files > 100KB
+                    with Progress(
+                        TextColumn("[bold blue]{task.description}"),
+                        BarColumn(),
+                        DownloadColumn(),
+                        TransferSpeedColumn(),
+                        TimeRemainingColumn(),
+                    ) as progress:
+                        task = progress.add_task(f"📥 {description}", total=total_size)
+                        data = b""
+                        chunk_size = 8192
+                        while True:
+                            chunk = response.read(chunk_size)
+                            if not chunk:
+                                break
+                            data += chunk
+                            progress.update(task, advance=len(chunk))
+                else:
+                    # Small file or no size - just download
+                    if verbose:
+                        print(f"Downloading {description}...")
+                    data = response.read()
+
                 with open(path, "wb") as f:
                     f.write(data)
-
-            if verbose:
-                print(f"Cached to {path}")
 
             return CacheInfo(
                 path=path,

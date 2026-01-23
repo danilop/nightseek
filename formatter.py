@@ -6,6 +6,8 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
+from rich.rule import Rule
+from rich import box
 
 from analyzer import NightForecast, VisibilityScore
 from weather import WeatherForecast, NightWeather
@@ -14,6 +16,50 @@ from scoring import ScoredObject, get_score_tier
 
 class ForecastFormatter:
     """Format forecast data for terminal display."""
+
+    # Weather condition icons
+    WEATHER_ICONS = {
+        "excellent": "☀️ ",
+        "good": "🌤️",
+        "fair": "⛅",
+        "poor": "☁️ ",
+        "bad": "🌧️",
+    }
+
+    # Moon phase icons (8 phases)
+    MOON_ICONS = {
+        "New Moon": "🌑",
+        "Waxing Crescent": "🌒",
+        "First Quarter": "🌓",
+        "Waxing Gibbous": "🌔",
+        "Full Moon": "🌕",
+        "Waning Gibbous": "🌖",
+        "Last Quarter": "🌗",
+        "Waning Crescent": "🌘",
+    }
+
+    # Quality rating stars
+    QUALITY_STARS = {
+        "excellent": "★★★★★",
+        "good": "★★★★☆",
+        "fair": "★★★☆☆",
+        "poor": "★★☆☆☆",
+        "bad": "★☆☆☆☆",
+    }
+
+    # Object category icons
+    CATEGORY_ICONS = {
+        "planet": "🪐",
+        "dso": "🌌",
+        "comet": "☄️ ",
+        "asteroid": "🪨",
+        "dwarf_planet": "⚫",
+        "milky_way": "🌠",
+        "galaxy": "🌀",
+        "nebula": "💨",
+        "cluster": "✨",
+        "star": "⭐",
+    }
 
     # Planet magnitudes (approximate visual magnitudes)
     PLANET_MAGNITUDES = {
@@ -64,6 +110,35 @@ class ForecastFormatter:
         elif clouds < 60:
             return "poor", "Poor", "yellow"
         return "bad", "Cloudy", "red"
+
+    @classmethod
+    def _get_weather_icon(cls, category: str) -> str:
+        """Get weather icon for a category."""
+        return cls.WEATHER_ICONS.get(category, "")
+
+    @classmethod
+    def _get_moon_icon(cls, phase_name: str) -> str:
+        """Get moon phase icon."""
+        return cls.MOON_ICONS.get(phase_name, "🌙")
+
+    @classmethod
+    def _get_quality_stars(cls, quality: str) -> str:
+        """Get star rating for quality level."""
+        return cls.QUALITY_STARS.get(quality, "★☆☆☆☆")
+
+    @classmethod
+    def _get_category_icon(cls, category: str, subtype: str = "") -> str:
+        """Get icon for object category."""
+        # Check subtype first for DSOs
+        if subtype:
+            subtype_lower = subtype.lower()
+            if "galaxy" in subtype_lower:
+                return cls.CATEGORY_ICONS.get("galaxy", "🌌")
+            elif "nebula" in subtype_lower:
+                return cls.CATEGORY_ICONS.get("nebula", "💨")
+            elif "cluster" in subtype_lower:
+                return cls.CATEGORY_ICONS.get("cluster", "✨")
+        return cls.CATEGORY_ICONS.get(category, "⭐")
 
     @staticmethod
     def _get_altitude_at_time(obj, target_time) -> float | None:
@@ -221,8 +296,17 @@ class ForecastFormatter:
         # Moon phase summary
         self._print_moon_summary(forecasts, best_dark_nights)
 
+        # Section divider
+        self.console.print(Rule(style="dim"))
+        self.console.print()
+
         # Tonight's highlights (first night only)
         self._print_tonight_highlights(forecasts[0], max_objects)
+
+        # Section divider
+        self.console.print()
+        self.console.print(Rule(style="dim"))
+        self.console.print()
 
         # Weekly forecast by object type
         self._print_weekly_forecast(forecasts, max_objects)
@@ -239,10 +323,10 @@ class ForecastFormatter:
         end = last_night.night_info.date.strftime("%b %d, %Y")
 
         header = Text()
-        header.append("Sky Observation Forecast\n", style="bold cyan")
-        header.append(f"Period: {start} - {end}\n")
-        header.append(f"Location: {latitude:.4f}°, {longitude:.4f}°\n", style="italic")
-        header.append(f"Times: {self.tz.get_display_info()}\n", style="italic")
+        header.append("🔭 Sky Observation Forecast\n", style="bold cyan")
+        header.append(f"📅 Period: {start} - {end}\n")
+        header.append(f"📍 Location: {latitude:.4f}°, {longitude:.4f}°\n", style="dim")
+        header.append(f"🕐 Times: {self.tz.get_display_info()}", style="dim")
 
         self.console.print(Panel(header, border_style="cyan"))
         self.console.print()
@@ -255,27 +339,32 @@ class ForecastFormatter:
         has_weather = any(f.weather is not None for f in forecasts)
 
         if has_weather:
-            self.console.print("[bold cyan]OBSERVING CONDITIONS[/bold cyan]")
+            self.console.print("[bold cyan]🌤️  OBSERVING CONDITIONS[/bold cyan]")
         else:
-            self.console.print("[bold cyan]MOON PHASE & DARK SKY WINDOWS[/bold cyan]")
+            self.console.print(
+                "[bold cyan]🌙 MOON PHASE & DARK SKY WINDOWS[/bold cyan]"
+            )
         self.console.print(
             "[italic]Dark sky window = astronomical night (sun >18° below horizon)[/italic]"
         )
         self.console.print()
 
         # Build table with conditional weather columns
-        # Note: No hardcoded colors - let terminal theme determine text color
-        table = Table(show_header=True, header_style="bold", expand=False)
-        table.add_column("Date", no_wrap=True)
-        table.add_column("Dark Sky", no_wrap=True)
-        table.add_column("Moon Phase")
-        table.add_column("%", justify="right")
+        table = Table(
+            show_header=True,
+            header_style="bold",
+            box=box.SIMPLE,
+            padding=(0, 1),
+        )
+        table.add_column("Date")
+        table.add_column("Night")
+        table.add_column("Moon")
 
         if has_weather:
-            table.add_column("Clouds", justify="right")
-            table.add_column("Best", no_wrap=True)
+            table.add_column("☁️", justify="center")  # Clouds
+            table.add_column("Best")
 
-        table.add_column("Quality")
+        table.add_column("Rating")
 
         for i, forecast in enumerate(forecasts):
             date_str = forecast.night_info.date.strftime("%a, %b %d")
@@ -285,8 +374,16 @@ class ForecastFormatter:
             dawn_time = self.tz.format_time(forecast.night_info.astronomical_dawn)
             night_str = f"{dusk_time}-{dawn_time}"
 
-            phase_str = self._get_moon_phase_name(forecast.night_info.moon_phase)
-            moon_str = f"{forecast.night_info.moon_illumination:.0f}%"
+            phase_name = self._get_moon_phase_name(forecast.night_info.moon_phase)
+            moon_icon = self._get_moon_icon(phase_name)
+            moon_pct = forecast.night_info.moon_illumination
+            # Compact phase with illumination percentage
+            short_phase = (
+                phase_name.replace("Waxing ", "")
+                .replace("Waning ", "")
+                .replace(" Moon", "")
+            )
+            phase_str = f"{moon_icon} {short_phase} ({moon_pct:.0f}%)"
 
             # Get quality rating
             cloud_cover = forecast.weather.avg_cloud_cover if forecast.weather else None
@@ -299,15 +396,19 @@ class ForecastFormatter:
                 aod,
             )
 
-            # Color code quality
+            # Get weather icon and quality stars
+            weather_icon = self._get_weather_icon(quality_level)
+            quality_stars = self._get_quality_stars(quality_level)
+
+            # Color code quality with stars
             if quality_level == "excellent":
-                quality_colored = f"[green]{quality_desc}[/green]"
+                quality_colored = f"[green]{weather_icon}{quality_stars}[/green]"
             elif quality_level == "good":
-                quality_colored = f"[green]{quality_desc}[/green]"
+                quality_colored = f"[green]{weather_icon}{quality_stars}[/green]"
             elif quality_level == "fair":
-                quality_colored = f"[yellow]{quality_desc}[/yellow]"
+                quality_colored = f"[yellow]{weather_icon}{quality_stars}[/yellow]"
             else:
-                quality_colored = f"[red]{quality_desc}[/red]"
+                quality_colored = f"[red]{weather_icon}{quality_stars}[/red]"
 
             # Build row
             if has_weather:
@@ -331,13 +432,12 @@ class ForecastFormatter:
                     date_str,
                     night_str,
                     phase_str,
-                    moon_str,
                     cloud_str,
                     best_time_str,
                     quality_colored,
                 )
             else:
-                table.add_row(date_str, night_str, phase_str, moon_str, quality_colored)
+                table.add_row(date_str, night_str, phase_str, quality_colored)
 
         self.console.print(table)
         self.console.print()
@@ -411,7 +511,7 @@ class ForecastFormatter:
         if not notable_conjunctions and not active_showers:
             return
 
-        self.console.print("[bold magenta]CELESTIAL EVENTS[/bold magenta]")
+        self.console.print("[bold magenta]✨ CELESTIAL EVENTS[/bold magenta]")
 
         # Print conjunctions
         for conj in notable_conjunctions[:3]:  # Show top 3 closest
@@ -643,7 +743,7 @@ class ForecastFormatter:
         # Print conjunctions first if any
         self._print_conjunctions(forecast)
 
-        self.console.print("[bold cyan]TONIGHT'S OBSERVATION PLAN[/bold cyan]")
+        self.console.print("[bold cyan]🔭 TONIGHT'S OBSERVATION PLAN[/bold cyan]")
         date_str = forecast.night_info.date.strftime("%A, %B %d")
         moon_pct = f"{forecast.night_info.moon_illumination:.0f}%"
         self.console.print(
@@ -920,18 +1020,22 @@ class ForecastFormatter:
         # Format weather info with cloud % range
         weather_str = ""
         weather_color = ""
+        weather_icon = ""
         if window_data.get("avg_clouds") is not None:
-            _, cat_desc, weather_color = self._get_weather_category(
+            category, cat_desc, weather_color = self._get_weather_category(
                 window_data["avg_clouds"]
             )
+            weather_icon = self._get_weather_icon(category)
             min_c = window_data.get("min_clouds", window_data["avg_clouds"])
             max_c = window_data.get("max_clouds", window_data["avg_clouds"])
 
             # Show range if it varies, otherwise just the value
             if max_c - min_c > 5:
-                weather_str = f"{cat_desc} ({min_c:.0f}-{max_c:.0f}%)"
+                weather_str = f"{weather_icon} {cat_desc} ({min_c:.0f}-{max_c:.0f}%)"
             else:
-                weather_str = f"{cat_desc} ({window_data['avg_clouds']:.0f}%)"
+                weather_str = (
+                    f"{weather_icon} {cat_desc} ({window_data['avg_clouds']:.0f}%)"
+                )
 
         # Print window header with duration
         duration_hours = (
@@ -945,11 +1049,13 @@ class ForecastFormatter:
 
         if weather_str:
             self.console.print(
-                f"[bold]{start_str} - {end_str}[/bold] ({duration_str}) "
+                f"\n[bold]{start_str} - {end_str}[/bold] ({duration_str}) "
                 f"[{weather_color}]{weather_str}[/{weather_color}]"
             )
         else:
-            self.console.print(f"[bold]{start_str} - {end_str}[/bold] ({duration_str})")
+            self.console.print(
+                f"\n[bold]{start_str} - {end_str}[/bold] ({duration_str})"
+            )
 
         # Print objects with score information
         for obj_info in window_data["objects"]:
@@ -1007,12 +1113,17 @@ class ForecastFormatter:
             else:
                 alt_desc = f"peak {vis.max_altitude:.0f}°"
 
-            # Format: Name (mag) [diameter] - altitude info
+            # Get category icon
+            category = scored.category if hasattr(scored, "category") else "dso"
+            subtype = scored.subtype if hasattr(scored, "subtype") else ""
+            icon = self._get_category_icon(category, subtype)
+
+            # Format: Icon Name (mag) [diameter] - altitude info
             # Why: reason
             self.console.print(
-                f"  • {scored.object_name}{mag_str}{diameter_str} - {alt_desc}"
+                f"  {icon} {scored.object_name}{mag_str}{diameter_str} - {alt_desc}"
             )
-            self.console.print(f"    [italic]Why: {scored.reason}[/italic]")
+            self.console.print(f"    [dim italic]Why: {scored.reason}[/dim italic]")
 
         self.console.print()
 
@@ -1057,11 +1168,11 @@ class ForecastFormatter:
         if num_days == 0:
             return  # Nothing to show if only tonight was requested
         elif num_days == 1:
-            title = "TOMORROW'S TARGETS"
+            title = "📆 TOMORROW'S TARGETS"
         elif num_days <= 3:
-            title = f"NEXT {num_days} NIGHTS"
+            title = f"📆 NEXT {num_days} NIGHTS"
         else:
-            title = f"UPCOMING {num_days} NIGHTS"
+            title = f"📆 UPCOMING {num_days} NIGHTS"
 
         self.console.print(f"[bold cyan]{title}[/bold cyan]")
         self.console.print()

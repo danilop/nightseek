@@ -6,6 +6,13 @@ from typing import Optional
 import typer
 from rich.console import Console
 from rich.status import Status
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+)
 
 # Show banner immediately on import (before heavy imports)
 console = Console()
@@ -50,6 +57,12 @@ def forecast(
         "--setup",
         help="Run interactive setup to configure your location",
     ),
+    update: bool = typer.Option(
+        False,
+        "--update",
+        "-u",
+        help="Check for updates and install if available",
+    ),
 ):
     """Generate an astronomy observation forecast.
 
@@ -63,6 +76,43 @@ def forecast(
     )
     console.print()
 
+    # Handle update mode
+    if update:
+        from update_checker import get_remote_version, get_local_version, update_tool
+
+        with Status(
+            "[bold blue]Checking for updates...[/bold blue]",
+            console=console,
+            spinner="dots",
+        ):
+            local = get_local_version()
+            remote = get_remote_version()
+
+        if remote is None:
+            console.print(
+                "[yellow]⚠ Could not check for updates (network error)[/yellow]"
+            )
+            return
+
+        if local == "installed" or local != remote:
+            with Status(
+                "[cyan]Update available! Installing...[/cyan]",
+                console=console,
+                spinner="dots",
+            ):
+                success = update_tool()
+            if success:
+                console.print(
+                    "[green]✓ Updated successfully.[/green] Changes apply on next run."
+                )
+            else:
+                console.print(
+                    "[red]✗ Update failed.[/red] Try: uv tool install --force git+https://github.com/danilop/nightseek"
+                )
+        else:
+            console.print(f"[green]✓ Already up to date[/green] (version: {local})")
+        return
+
     # Handle setup mode (lazy import config only when needed)
     from config import Config
 
@@ -75,28 +125,41 @@ def forecast(
         latitude=latitude, longitude=longitude, days=days, max_objects=max_objects
     )
 
-    # Initialize analyzer with status updates (heavy loading happens here)
-    with Status(
-        "[bold blue]Loading ephemeris data...[/bold blue]",
+    # Initialize analyzer with progress bar showing each step
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
         console=console,
-        spinner="dots",
-    ) as status:
-        # Lazy import heavy modules
+        transient=True,
+    ) as progress:
+        task = progress.add_task("Loading data...", total=4)
+
+        # Step 1: Import modules
+        progress.update(task, description="Importing modules...")
         from analyzer import VisibilityAnalyzer
 
-        # Create analyzer (loads ephemeris and comets)
+        progress.advance(task)
+
+        # Step 2: Load ephemeris and planets
+        progress.update(task, description="Loading ephemeris...")
         analyzer = VisibilityAnalyzer(
             config.latitude, config.longitude, comet_mag=comet_mag or 12.0
         )
+        progress.advance(task)
 
-        # Load DSOs
-        status.update("[bold blue]Loading DSO catalog...[/bold blue]")
+        # Step 3: Load DSOs
+        progress.update(task, description="Loading DSO catalog...")
         num_dsos = len(analyzer.catalog.get_all_dsos(verbose=False))
+        progress.advance(task)
 
-        # Comets are already loaded during analyzer init
+        # Step 4: Count comets (already loaded)
+        progress.update(task, description="Loading comets...")
         num_comets = len(analyzer.comets)
+        progress.advance(task)
 
-        status.update(f"[green]Loaded {num_dsos} DSOs, {num_comets} comets[/green]")
+    console.print(f"[green]✓ Loaded {num_dsos} DSOs, {num_comets} comets[/green]")
 
     # Show cache status after spinner completes
     cache_info = []
@@ -121,42 +184,91 @@ def forecast(
     from weather import WeatherForecast
 
     if config.forecast_days <= WeatherForecast.MAX_FORECAST_DAYS:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task("Fetching weather...", total=3)
+
+            # Step 1: Initialize
+            progress.update(task, description="Connecting to weather API...")
+            weather_forecast = WeatherForecast(config.latitude, config.longitude)
+            progress.advance(task)
+
+            # Step 2: Fetch weather data
+            progress.update(task, description="Fetching weather data...")
+            weather_forecast._fetch_weather_api(config.forecast_days)
+            progress.advance(task)
+
+            # Step 3: Fetch air quality data
+            progress.update(task, description="Fetching air quality...")
+            weather_forecast._fetch_air_quality(config.forecast_days)
+            progress.advance(task)
+
+        console.print("[green]✓ Weather data received[/green]")
+
+    # Analyze forecast with progress bar
+    start_date = datetime.now()
+    num_dsos = len(analyzer.catalog.get_all_dsos())
+    num_dwarf_planets = len(analyzer.dwarf_planets)
+    num_asteroids = len(analyzer.asteroids)
+
+    if config.forecast_days > 1:
+        # Multi-day: show progress bar
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("[dim]{task.fields[date]}[/dim]"),
+            console=console,
+        ) as progress:
+            task = progress.add_task(
+                "Analyzing nights",
+                total=config.forecast_days,
+                date="",
+            )
+
+            def update_progress(day_num, _total, date):
+                progress.update(
+                    task,
+                    completed=day_num,
+                    date=date.strftime("%b %d"),
+                )
+
+            forecasts = analyzer.analyze_forecast(
+                start_date,
+                config.forecast_days,
+                weather_forecast,
+                progress_callback=update_progress,
+            )
+    else:
+        # Single day: use simple spinner
         with Status(
-            "[bold blue]Fetching weather forecast...[/bold blue]",
+            "[bold blue]Analyzing tonight...[/bold blue]",
             console=console,
             spinner="dots",
-        ) as status:
-            weather_forecast = WeatherForecast(config.latitude, config.longitude)
-            weather_forecast.fetch_forecast(config.forecast_days)
-            status.update("[green]Weather data received[/green]")
+        ):
+            forecasts = analyzer.analyze_forecast(
+                start_date,
+                config.forecast_days,
+                weather_forecast,
+            )
 
-    # Analyze forecast
-    with Status(
-        f"[bold blue]Calculating visibility for {config.forecast_days} night(s)...[/bold blue]",
-        console=console,
-        spinner="dots",
-    ) as status:
-        start_date = datetime.now()
-        forecasts = analyzer.analyze_forecast(
-            start_date,
-            config.forecast_days,
-            weather_forecast,
-        )
-        num_dsos = len(analyzer.catalog.get_all_dsos())
-        num_dwarf_planets = len(analyzer.dwarf_planets)
-        num_asteroids = len(analyzer.asteroids)
-
-        # Build status message
-        parts = [f"{num_dsos} DSOs"]
-        if num_comets > 0:
-            parts.append(f"{num_comets} comets")
-        parts.append("7 planets")
-        if num_dwarf_planets > 0:
-            parts.append(f"{num_dwarf_planets} dwarf planets")
-        if num_asteroids > 0:
-            parts.append(f"{num_asteroids} asteroids")
-
-        status.update(f"[green]Analyzed {', '.join(parts)}[/green]")
+    # Build status message
+    parts = [f"{num_dsos} DSOs"]
+    if num_comets > 0:
+        parts.append(f"{num_comets} comets")
+    parts.append("7 planets")
+    if num_dwarf_planets > 0:
+        parts.append(f"{num_dwarf_planets} dwarf planets")
+    if num_asteroids > 0:
+        parts.append(f"{num_asteroids} asteroids")
+    console.print(f"[green]✓ Analyzed {', '.join(parts)}[/green]")
 
     console.print()
 
@@ -183,16 +295,20 @@ def forecast(
         from update_checker import check_for_updates, update_tool
 
         if check_for_updates():
-            console.print(
-                "\n[cyan]ℹ️  Update available. Installing latest version...[/cyan]"
-            )
-            if update_tool():
+            console.print()
+            with Status(
+                "[cyan]ℹ️  Update available. Installing...[/cyan]",
+                console=console,
+                spinner="dots",
+            ):
+                success = update_tool()
+            if success:
                 console.print(
                     "[green]✓ Updated successfully. Changes apply on next run.[/green]"
                 )
             else:
                 console.print(
-                    "[yellow]⚠ Update failed. Run 'uv tool install --force git+https://github.com/danilop/nightseek' manually.[/yellow]"
+                    "[yellow]⚠ Update failed. Run 'nightseek --update' to retry.[/yellow]"
                 )
     except Exception:
         pass  # Silently fail if update check fails

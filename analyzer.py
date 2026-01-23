@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Callable
 import math
 
 from catalog import Catalog
@@ -213,6 +213,7 @@ class VisibilityAnalyzer:
         start_date: datetime,
         num_days: int,
         weather_forecast: Optional[WeatherForecast] = None,
+        progress_callback: Optional[Callable] = None,
     ) -> List[NightForecast]:
         """Analyze visibility for multiple nights.
 
@@ -220,6 +221,7 @@ class VisibilityAnalyzer:
             start_date: Starting date for the forecast
             num_days: Number of nights to analyze
             weather_forecast: Optional weather forecast data
+            progress_callback: Optional callback(day_num, total_days, date) for progress
 
         Returns:
             List of NightForecast objects
@@ -228,6 +230,11 @@ class VisibilityAnalyzer:
 
         for day_offset in range(num_days):
             date = start_date + timedelta(days=day_offset)
+
+            # Call progress callback if provided
+            if progress_callback:
+                progress_callback(day_offset + 1, num_days, date)
+
             forecast = self._analyze_single_night(date, weather_forecast)
             forecasts.append(forecast)
 
