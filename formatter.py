@@ -17,12 +17,12 @@ from scoring import ScoredObject, get_score_tier
 class ForecastFormatter:
     """Format forecast data for terminal display."""
 
-    # Weather condition icons
+    # Weather condition icons (consistent width)
     WEATHER_ICONS = {
-        "excellent": "☀️ ",
+        "excellent": "☀️",
         "good": "🌤️",
         "fair": "⛅",
-        "poor": "☁️ ",
+        "poor": "☁️",
         "bad": "🌧️",
     }
 
@@ -51,14 +51,16 @@ class ForecastFormatter:
     CATEGORY_ICONS = {
         "planet": "🪐",
         "dso": "🌌",
-        "comet": "☄️ ",
+        "comet": "☄️",
         "asteroid": "🪨",
-        "dwarf_planet": "⚫",
-        "milky_way": "🌠",
+        "dwarf_planet": "🔵",
+        "milky_way": "🌌",
         "galaxy": "🌀",
-        "nebula": "💨",
+        "nebula": "☁️",  # Gas cloud representation
         "cluster": "✨",
         "star": "⭐",
+        "planetary_nebula": "💫",
+        "supernova_remnant": "💥",
     }
 
     # Planet magnitudes (approximate visual magnitudes)
@@ -127,15 +129,19 @@ class ForecastFormatter:
         return cls.QUALITY_STARS.get(quality, "★☆☆☆☆")
 
     @classmethod
-    def _get_category_icon(cls, category: str, subtype: str = "") -> str:
-        """Get icon for object category."""
+    def _get_category_icon_from_dict(cls, category: str, subtype: str = "") -> str:
+        """Get icon for object category from class dictionary."""
         # Check subtype first for DSOs
         if subtype:
             subtype_lower = subtype.lower()
-            if "galaxy" in subtype_lower:
-                return cls.CATEGORY_ICONS.get("galaxy", "🌌")
+            if "planetary" in subtype_lower and "nebula" in subtype_lower:
+                return cls.CATEGORY_ICONS.get("planetary_nebula", "💫")
+            elif "supernova" in subtype_lower:
+                return cls.CATEGORY_ICONS.get("supernova_remnant", "💥")
+            elif "galaxy" in subtype_lower:
+                return cls.CATEGORY_ICONS.get("galaxy", "🌀")
             elif "nebula" in subtype_lower:
-                return cls.CATEGORY_ICONS.get("nebula", "💨")
+                return cls.CATEGORY_ICONS.get("nebula", "☁️")
             elif "cluster" in subtype_lower:
                 return cls.CATEGORY_ICONS.get("cluster", "✨")
         return cls.CATEGORY_ICONS.get(category, "⭐")
@@ -1300,33 +1306,32 @@ class ForecastFormatter:
             return f"{desc} ({avg:.0f}%)"
 
     def _get_category_icon(self, category: str, subtype: str = "") -> str:
-        """Get emoji icon for object category."""
-        if category == "planet":
-            return "🪐"
-        elif category == "comet":
-            if subtype == "interstellar":
-                return "✨"
-            return "☄️"
-        elif category == "dwarf_planet":
-            return "🔵"
-        elif category == "asteroid":
-            return "🪨"
-        elif category == "milky_way":
-            return "🌌"
-        elif category == "dso":
-            # DSO subtypes
+        """Get emoji icon for object category.
+
+        Uses CATEGORY_ICONS dictionary with special handling for
+        interstellar objects and specific DSO subtypes.
+        """
+        # Special case: interstellar comets get sparkle
+        if category == "comet" and subtype == "interstellar":
+            return "✨"
+
+        # DSO subtypes need detailed mapping
+        if category == "dso" and subtype:
+            subtype_lower = subtype.lower()
             if subtype in ("galaxy", "galaxy_pair", "galaxy_group", "galaxy_triplet"):
-                return "🌀"
-            elif subtype in ("emission_nebula", "reflection_nebula", "nebula"):
-                return "☁️"
-            elif subtype == "planetary_nebula":
-                return "💫"
-            elif subtype in ("open_cluster", "globular_cluster"):
-                return "⭐"
+                return self.CATEGORY_ICONS.get("galaxy", "🌀")
+            elif "planetary" in subtype_lower and "nebula" in subtype_lower:
+                return self.CATEGORY_ICONS.get("planetary_nebula", "💫")
             elif subtype == "supernova_remnant":
-                return "💥"
-            return "🌌"
-        return "•"
+                return self.CATEGORY_ICONS.get("supernova_remnant", "💥")
+            elif subtype in ("emission_nebula", "reflection_nebula", "nebula"):
+                return self.CATEGORY_ICONS.get("nebula", "☁️")
+            elif subtype in ("open_cluster", "globular_cluster"):
+                return self.CATEGORY_ICONS.get("cluster", "✨")
+            return self.CATEGORY_ICONS.get("dso", "🌌")
+
+        # Standard categories from dictionary
+        return self.CATEGORY_ICONS.get(category, "•")
 
     def _print_milky_way_forecast(self, forecasts: List[NightForecast]):
         """Print Milky Way visibility forecast."""
