@@ -265,16 +265,17 @@ class ForecastFormatter:
 
         # Build table with conditional weather columns
         # Note: No hardcoded colors - let terminal theme determine text color
-        table = Table(show_header=True, header_style="bold")
-        table.add_column("Date", width=11)
-        table.add_column("Dark Sky Window", width=17)
-        table.add_column("Moon Phase", width=18)
-        table.add_column("Moon %", justify="right", width=6)
+        table = Table(show_header=True, header_style="bold", expand=False)
+        table.add_column("Date", no_wrap=True)
+        table.add_column("Dark Sky", no_wrap=True)
+        table.add_column("Moon Phase")
+        table.add_column("%", justify="right")
 
         if has_weather:
-            table.add_column("Clouds", justify="right", width=9)
+            table.add_column("Clouds", justify="right")
+            table.add_column("Best", no_wrap=True)
 
-        table.add_column("Observing Quality", width=23)
+        table.add_column("Quality")
 
         for i, forecast in enumerate(forecasts):
             date_str = forecast.night_info.date.strftime("%a, %b %d")
@@ -289,9 +290,13 @@ class ForecastFormatter:
 
             # Get quality rating
             cloud_cover = forecast.weather.avg_cloud_cover if forecast.weather else None
+            aod = (
+                forecast.weather.avg_aerosol_optical_depth if forecast.weather else None
+            )
             quality_level, quality_desc = WeatherForecast.get_observing_quality(
                 forecast.night_info.moon_illumination,
                 cloud_cover,
+                aod,
             )
 
             # Color code quality
@@ -309,10 +314,27 @@ class ForecastFormatter:
                 if forecast.weather:
                     # Show cloud cover range (min-max) during night
                     cloud_str = f"{forecast.weather.min_cloud_cover:.0f}-{forecast.weather.max_cloud_cover:.0f}%"
+                    # Best time to observe
+                    if forecast.weather.best_time:
+                        best_time_str = self.tz.format_time(
+                            forecast.weather.best_time.time.replace(tzinfo=None)
+                        )
+                        best_cloud = forecast.weather.best_time.cloud_cover
+                        if best_cloud < 30:
+                            best_time_str = f"[green]{best_time_str}[/green]"
+                    else:
+                        best_time_str = "-"
                 else:
                     cloud_str = "N/A"
+                    best_time_str = "-"
                 table.add_row(
-                    date_str, night_str, phase_str, moon_str, cloud_str, quality_colored
+                    date_str,
+                    night_str,
+                    phase_str,
+                    moon_str,
+                    cloud_str,
+                    best_time_str,
+                    quality_colored,
                 )
             else:
                 table.add_row(date_str, night_str, phase_str, moon_str, quality_colored)
@@ -329,8 +351,13 @@ class ForecastFormatter:
                 cloud_cover = (
                     forecast.weather.avg_cloud_cover if forecast.weather else None
                 )
+                aod = (
+                    forecast.weather.avg_aerosol_optical_depth
+                    if forecast.weather
+                    else None
+                )
                 quality_level, _ = WeatherForecast.get_observing_quality(
-                    forecast.night_info.moon_illumination, cloud_cover
+                    forecast.night_info.moon_illumination, cloud_cover, aod
                 )
                 # Only recommend "excellent", "good", or "fair" nights
                 if quality_level in ("excellent", "good", "fair"):
@@ -445,16 +472,21 @@ class ForecastFormatter:
         self._print_celestial_events(forecast)
 
     def _print_weather_extras(self, weather: NightWeather):
-        """Print additional weather information (wind, visibility, humidity)."""
+        """Print additional weather information (wind, visibility, humidity, etc.)."""
         extras = []
+        warnings = []
 
+        # Wind warning
         if weather.avg_wind_speed_kmh is not None:
             wind = weather.avg_wind_speed_kmh
             if wind > 30:
-                extras.append(f"[red]Strong wind ({wind:.0f} km/h)[/red]")
+                warnings.append(
+                    f"[red]Strong wind ({wind:.0f} km/h) - unstable imaging[/red]"
+                )
             elif wind > 20:
-                extras.append(f"[yellow]Moderate wind ({wind:.0f} km/h)[/yellow]")
+                warnings.append(f"[yellow]Moderate wind ({wind:.0f} km/h)[/yellow]")
 
+        # Visibility/transparency
         if weather.avg_visibility_km is not None:
             vis = weather.avg_visibility_km
             if vis < 10:
@@ -462,18 +494,126 @@ class ForecastFormatter:
             elif vis >= 30:
                 extras.append(f"[green]Excellent transparency ({vis:.0f} km)[/green]")
 
-        if weather.avg_humidity is not None:
-            hum = weather.avg_humidity
-            if hum > 85:
-                extras.append(f"[yellow]High humidity ({hum:.0f}%) - dew risk[/yellow]")
+        # Dew risk (using actual dew margin instead of just humidity)
+        if weather.min_dew_margin is not None:
+            if weather.min_dew_margin < 2:
+                warnings.append(
+                    f"[red]Dew risk - margin {weather.min_dew_margin:.1f}°C[/red]"
+                )
+            elif weather.min_dew_margin < 3:
+                warnings.append(
+                    f"[yellow]Dew possible - margin {weather.min_dew_margin:.1f}°C[/yellow]"
+                )
+        elif weather.avg_humidity is not None and weather.avg_humidity > 85:
+            warnings.append(
+                f"[yellow]High humidity ({weather.avg_humidity:.0f}%) - dew risk[/yellow]"
+            )
 
-        if weather.avg_temperature_c is not None:
-            temp = weather.avg_temperature_c
-            if temp < 0:
-                extras.append(f"Temp: {temp:.0f}°C")
+        # Precipitation
+        if (
+            weather.max_precip_probability is not None
+            and weather.max_precip_probability > 20
+        ):
+            if weather.max_precip_probability > 50:
+                warnings.append(
+                    f"[red]Rain likely ({weather.min_precip_probability:.0f}-{weather.max_precip_probability:.0f}%)[/red]"
+                )
+            else:
+                warnings.append(
+                    f"[yellow]Rain possible ({weather.min_precip_probability:.0f}-{weather.max_precip_probability:.0f}%)[/yellow]"
+                )
 
+        # CAPE / Storm risk
+        if weather.max_cape is not None and weather.max_cape > 500:
+            if weather.max_cape > 1500:
+                warnings.append(
+                    f"[red]Storm risk (CAPE {weather.max_cape:.0f} J/kg)[/red]"
+                )
+            else:
+                warnings.append(
+                    f"[yellow]Unstable atmosphere (CAPE {weather.max_cape:.0f} J/kg)[/yellow]"
+                )
+
+        # Temperature (cold warning)
+        if weather.avg_temperature_c is not None and weather.avg_temperature_c < 0:
+            extras.append(f"Temp: {weather.avg_temperature_c:.0f}°C")
+
+        # Print warnings first (important)
+        if warnings:
+            self.console.print("[italic]⚠ " + " • ".join(warnings) + "[/italic]")
+
+        # Print extras (informational)
         if extras:
             self.console.print("[italic]" + " • ".join(extras) + "[/italic]")
+
+        # Print detailed conditions on separate line
+        self._print_weather_details(weather)
+
+    def _print_weather_details(self, weather: NightWeather):
+        """Print detailed weather breakdown (cloud layers, stability, best time)."""
+        details = []
+
+        # Cloud layers (always show if available)
+        if weather.cloud_cover_low is not None:
+            layers = []
+            if weather.cloud_cover_low > 10:
+                layers.append(f"Low:{weather.cloud_cover_low:.0f}%")
+            if weather.cloud_cover_mid is not None and weather.cloud_cover_mid > 10:
+                layers.append(f"Mid:{weather.cloud_cover_mid:.0f}%")
+            if weather.cloud_cover_high is not None and weather.cloud_cover_high > 10:
+                layers.append(f"High:{weather.cloud_cover_high:.0f}%")
+            if layers:
+                details.append(f"Clouds: {', '.join(layers)}")
+
+        # Atmospheric stability (pressure-based)
+        if weather.avg_pressure_hpa is not None:
+            pressure = weather.avg_pressure_hpa
+            if pressure >= 1020:
+                details.append(f"[green]Stable ({pressure:.0f} hPa)[/green]")
+            elif pressure >= 1010:
+                details.append(f"Pressure: {pressure:.0f} hPa")
+            else:
+                details.append(f"[yellow]Unsettled ({pressure:.0f} hPa)[/yellow]")
+
+        # Air quality / haze (AOD-based)
+        if weather.avg_aerosol_optical_depth is not None:
+            aod = weather.avg_aerosol_optical_depth
+            if aod < 0.1:
+                details.append(f"[green]Clear air (AOD {aod:.2f})[/green]")
+            elif aod < 0.2:
+                details.append(f"Good air (AOD {aod:.2f})")
+            elif aod < 0.4:
+                details.append(f"[yellow]Hazy (AOD {aod:.2f})[/yellow]")
+            else:
+                details.append(f"[red]Very hazy (AOD {aod:.2f})[/red]")
+
+        # Dust warning (Saharan dust events)
+        if weather.avg_dust is not None and weather.avg_dust > 50:
+            details.append(f"[yellow]Dust: {weather.avg_dust:.0f} μg/m³[/yellow]")
+
+        # Transparency score (combined visibility + cloud + AOD assessment)
+        if weather.transparency_score is not None:
+            ts = weather.transparency_score
+            if ts >= 80:
+                details.append(f"[green]Transparency: {ts:.0f}%[/green]")
+            elif ts >= 60:
+                details.append(f"Transparency: {ts:.0f}%")
+            elif ts >= 40:
+                details.append(f"[yellow]Transparency: {ts:.0f}%[/yellow]")
+            else:
+                details.append(f"[red]Transparency: {ts:.0f}%[/red]")
+
+        # Best observing time
+        if weather.best_time is not None:
+            time_str = self.tz.format_time(weather.best_time.time.replace(tzinfo=None))
+            cloud_str = f"{weather.best_time.cloud_cover:.0f}%"
+            if weather.best_time.cloud_cover < 30:
+                details.append(f"[green]Best: {time_str} ({cloud_str} clouds)[/green]")
+            else:
+                details.append(f"Best: {time_str} ({cloud_str} clouds)")
+
+        if details:
+            self.console.print("[dim]" + " • ".join(details) + "[/dim]")
 
     def _print_tonight_highlights(self, forecast: NightForecast, max_objects: int):
         """Print tonight's highlights grouped by weather-based time windows.
@@ -509,6 +649,11 @@ class ForecastFormatter:
         self.console.print(
             f"[italic]{date_str} • Moon: {moon_pct} illuminated[/italic]"
         )
+
+        # Print weather warnings and details
+        if forecast.weather:
+            self._print_weather_extras(forecast.weather)
+
         self.console.print()
 
         # Group objects by weather-based time windows (dynamic, not fixed 2hr)
@@ -959,6 +1104,13 @@ class ForecastFormatter:
             conditions = f"Moon {moon_pct:.0f}%"
             if has_weather and forecast.weather:
                 conditions += f" • {self._format_cloud_conditions(forecast.weather)}"
+                # Add air quality if notable
+                if forecast.weather.avg_aerosol_optical_depth is not None:
+                    aod = forecast.weather.avg_aerosol_optical_depth
+                    if aod < 0.1:
+                        conditions += " • Clear air"
+                    elif aod > 0.3:
+                        conditions += f" • [yellow]Hazy (AOD {aod:.2f})[/yellow]"
 
             self.console.print(f"{header}")
             self.console.print(f"[italic]{conditions}[/italic]")

@@ -47,6 +47,35 @@ class Config:
             print(f"Geocoding error: {e}")
             return None
 
+    @staticmethod
+    def _detect_location_from_ip() -> Optional[dict]:
+        """Detect location from IP address using IP-API.com.
+
+        Returns:
+            Dict with lat, lon, city, country, timezone or None if detection fails
+        """
+        try:
+            import requests
+
+            url = "http://ip-api.com/json/"
+            params = {"fields": "status,lat,lon,city,country,timezone"}
+
+            response = requests.get(url, params=params, timeout=5)
+            response.raise_for_status()
+
+            data = response.json()
+            if data.get("status") == "success":
+                return {
+                    "lat": data["lat"],
+                    "lon": data["lon"],
+                    "city": data.get("city", "Unknown"),
+                    "country": data.get("country", "Unknown"),
+                    "timezone": data.get("timezone", ""),
+                }
+            return None
+        except Exception:
+            return None
+
     @classmethod
     def _interactive_setup(cls):
         """Interactive setup wizard for first-time configuration."""
@@ -60,17 +89,55 @@ class Config:
         print("You need to configure your observation location.")
         print()
 
-        # Ask for input method
+        # Try to detect location from IP first
+        print("Detecting your location from IP address...")
+        detected = cls._detect_location_from_ip()
+
+        # Build options dynamically
+        options = []
+        if detected:
+            print(
+                f"Found: {detected['city']}, {detected['country']} "
+                f"({detected['lat']:.4f}°, {detected['lon']:.4f}°)"
+            )
+            print()
+            options.append(
+                (
+                    "ip",
+                    f"Use detected location: {detected['city']}, {detected['country']}",
+                )
+            )
+        else:
+            print("Could not detect location from IP.")
+            print()
+
+        options.append(
+            ("address", "Enter address (e.g., 'London, UK' or 'New York, USA')")
+        )
+        options.append(("coords", "Enter coordinates (latitude and longitude)"))
+
+        # Display options
         print("How would you like to provide your location?")
-        print("  1. Enter address (e.g., 'London, UK' or 'New York, USA')")
-        print("  2. Enter coordinates (latitude and longitude)")
+        for i, (_, label) in enumerate(options, 1):
+            print(f"  {i}. {label}")
         print()
 
-        choice = input("Choice (1 or 2): ").strip()
+        valid_choices = [str(i) for i in range(1, len(options) + 1)]
+        choice = input(f"Choice ({'/'.join(valid_choices)}): ").strip()
 
+        if choice not in valid_choices:
+            print("Invalid choice.")
+            return
+
+        selected = options[int(choice) - 1][0]
         lat, lon = None, None
 
-        if choice == "1":
+        if selected == "ip" and detected:
+            # Use detected location
+            lat, lon = detected["lat"], detected["lon"]
+            print(f"\nUsing: {detected['city']}, {detected['country']}")
+
+        elif selected == "address":
             # Address-based setup
             address = input("\nEnter your address or city: ").strip()
             if address:
@@ -84,7 +151,7 @@ class Config:
                         "Could not find location. Please try entering coordinates manually."
                     )
 
-        if choice == "2" or lat is None:
+        if selected == "coords" or (selected == "address" and lat is None):
             # Coordinate-based setup
             try:
                 print()

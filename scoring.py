@@ -209,12 +209,19 @@ def calculate_peak_timing_score(
 
 
 def calculate_weather_score(
-    cloud_cover: Optional[float], weights: ScoreWeights = DEFAULT_WEIGHTS
+    cloud_cover: Optional[float],
+    aod: Optional[float] = None,
+    precip_probability: Optional[float] = None,
+    is_deep_sky: bool = False,
+    weights: ScoreWeights = DEFAULT_WEIGHTS,
 ) -> float:
     """Calculate score based on weather conditions.
 
     Args:
         cloud_cover: Cloud cover percentage (0-100), None if unknown
+        aod: Aerosol optical depth (0-1+), None if unknown
+        precip_probability: Precipitation probability (0-100), None if unknown
+        is_deep_sky: True for DSOs/Milky Way (more affected by haze)
         weights: Score weights configuration
 
     Returns:
@@ -225,16 +232,45 @@ def calculate_weather_score(
     if cloud_cover is None:
         return max_score * 0.7  # Assume decent weather if unknown
 
+    # Base score from cloud cover
     if cloud_cover < 10:
-        return max_score
+        base_score = max_score
     elif cloud_cover < 25:
-        return max_score * 0.9
+        base_score = max_score * 0.9
     elif cloud_cover < 50:
-        return max_score * 0.6
+        base_score = max_score * 0.6
     elif cloud_cover < 75:
-        return max_score * 0.3
+        base_score = max_score * 0.3
     else:
-        return max_score * 0.1
+        base_score = max_score * 0.1
+
+    # AOD penalty (affects deep sky objects more)
+    aod_factor = 1.0
+    if aod is not None:
+        if aod < 0.1:
+            aod_factor = 1.0  # Excellent
+        elif aod < 0.2:
+            aod_factor = 0.95 if is_deep_sky else 0.98
+        elif aod < 0.3:
+            aod_factor = 0.85 if is_deep_sky else 0.92
+        elif aod < 0.5:
+            aod_factor = 0.70 if is_deep_sky else 0.85
+        else:
+            aod_factor = 0.50 if is_deep_sky else 0.75
+
+    # Precipitation penalty
+    precip_factor = 1.0
+    if precip_probability is not None:
+        if precip_probability > 70:
+            precip_factor = 0.3
+        elif precip_probability > 50:
+            precip_factor = 0.5
+        elif precip_probability > 30:
+            precip_factor = 0.7
+        elif precip_probability > 10:
+            precip_factor = 0.9
+
+    return base_score * aod_factor * precip_factor
 
 
 def calculate_surface_brightness_score(
@@ -508,6 +544,8 @@ def score_object(
     window_start: datetime,
     window_end: datetime,
     cloud_cover: Optional[float] = None,
+    aod: Optional[float] = None,
+    precip_probability: Optional[float] = None,
     ra_hours: float = 0.0,
     common_name: str = "",
     surface_brightness: Optional[float] = None,
@@ -526,6 +564,8 @@ def score_object(
         window_start: Start of observation window
         window_end: End of observation window
         cloud_cover: Cloud cover percentage (optional)
+        aod: Aerosol optical depth (optional)
+        precip_probability: Max precipitation probability (optional)
         ra_hours: Right ascension in hours
         common_name: Common name if known
         surface_brightness: Surface brightness in mag/arcsec²
@@ -550,7 +590,10 @@ def score_object(
     breakdown["timing"] = calculate_peak_timing_score(
         visibility.max_altitude_time, window_start, window_end, weights
     )
-    breakdown["weather"] = calculate_weather_score(cloud_cover, weights)
+    is_deep_sky = category in ("dso", "milky_way")
+    breakdown["weather"] = calculate_weather_score(
+        cloud_cover, aod, precip_probability, is_deep_sky, weights
+    )
 
     # Object characteristics (0-50)
     breakdown["surface_brightness"] = calculate_surface_brightness_score(

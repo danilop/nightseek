@@ -30,7 +30,12 @@ Run the interactive setup on first use:
 nightseek --setup
 ```
 
-This will prompt you to enter your location either as an address (e.g., "London, UK") or as coordinates (latitude/longitude).
+The setup will:
+1. **Auto-detect your location** from IP address (if available)
+2. Let you enter an address (e.g., "London, UK")
+3. Let you enter coordinates manually (latitude/longitude)
+
+You can confirm the auto-detected location or choose another method.
 
 ### 4. Generate your forecast
 
@@ -46,7 +51,8 @@ nightseek -n 10        # Show top 10 objects per night
 ### Core Features
 - **~13,000 Deep Sky Objects**: Full OpenNGC catalog (NGC/IC objects) with intelligent filtering
 - **Professional Scoring**: Merit-based 200-point scoring algorithm for optimal target selection
-- **Weather-Integrated Forecasts**: Cloud cover, visibility, wind, humidity from Open-Meteo API
+- **Weather-Integrated Forecasts**: Cloud cover, visibility, wind, humidity, precipitation from Open-Meteo API
+- **Air Quality Integration**: Aerosol optical depth (AOD), dust, PM2.5/PM10 from Open-Meteo Air Quality API
 - **Smart Night Ranking**: Combines moon phase AND weather conditions for optimal observing nights
 - **Airmass Calculations**: Scientifically accurate atmospheric extinction modeling
 
@@ -60,15 +66,19 @@ nightseek -n 10        # Show top 10 objects per night
 ### Observation Planning
 - **Conjunction Alerts**: Automatic detection of close approaches between planets/Moon
 - **5-Tier Weather Rating**: Excellent/Good/Fair/Poor/Bad with cloud percentage ranges
+- **Best Observing Time**: Hourly analysis to find optimal conditions (lowest cloud + precipitation)
 - **Position Angle**: DSO orientation for composition planning
 - **Transit Times**: When objects cross the meridian (optimal viewing)
-- **Transparency Score**: Combined visibility and aerosol assessment
+- **Transparency Score**: Combined visibility, cloud cover, and aerosol assessment
+- **Dew Risk Warnings**: Based on temperature-dewpoint margin (not just humidity)
+- **Storm Alerts**: CAPE-based atmospheric instability warnings
 
 ### Quality of Life
 - **Tonight's Highlights**: Top objects prioritized by imaging quality score
 - **Time-Window Grouping**: Objects grouped by weather conditions, not fixed intervals
 - **Moon Interference Warnings**: Alerts when bright moon affects deep sky visibility
 - **Graceful Degradation**: Works with or without weather/comet data
+- **IP-Based Location**: Auto-detects your location during setup (optional)
 - **Auto-Updates**: Automatically checks for updates once per day and installs them after showing your forecast
 
 ## Development Setup
@@ -226,7 +236,10 @@ The forecast includes:
    - Dark sky window (astronomical night: sun >18° below horizon)
    - Moon phases and illumination percentage
    - Cloud cover range (min-max) during astronomical night
-   - Wind speed, visibility, humidity warnings when relevant
+   - Best observing time (hour with lowest cloud + precipitation probability)
+   - Wind speed, visibility, humidity, dew risk warnings when relevant
+   - Atmospheric stability (pressure) and storm risk (CAPE)
+   - Air quality: AOD, dust levels, transparency score
    - Combined quality ratings (Excellent/Good/Fair/Poor)
 
 2. **Celestial Events**: Conjunction alerts when planets/Moon are close together
@@ -249,13 +262,20 @@ The forecast includes:
 ### Weather Integration
 
 - **Days 1-16**: Full weather integration with:
-  - Hourly cloud cover during astronomical night
-  - Atmospheric visibility (transparency)
+  - Hourly cloud cover (total + low/mid/high layers)
+  - Best observing time per night (lowest cloud + precipitation)
+  - Atmospheric visibility (transparency score)
   - Wind speed and gusts
-  - Humidity (dew risk warnings)
-  - Temperature
+  - Humidity and dew point (dew risk calculation)
+  - Temperature and pressure (atmospheric stability)
+  - Precipitation probability (min-max range)
+  - CAPE (storm potential indicator)
+- **Days 1-5**: Additional air quality data:
+  - Aerosol Optical Depth (AOD) - atmospheric haze
+  - Dust concentration (Saharan dust events)
+  - PM2.5 and PM10 particulate matter
 - **Days 17-30**: Astronomical data only (moon, object positions)
-- **API**: Uses Open-Meteo (free, no API key required)
+- **APIs**: Uses Open-Meteo Weather + Air Quality APIs (free, no API key required)
 
 ### Scoring System
 
@@ -363,13 +383,21 @@ Loaded from **OpenNGC** catalog with intelligent filtering:
 - 10-minute sampling resolution for altitude calculations
 
 ### Weather Forecasting
-- Uses [Open-Meteo API](https://open-meteo.com/) for comprehensive weather data:
-  - Cloud cover (hourly)
+- Uses [Open-Meteo Weather API](https://open-meteo.com/) for comprehensive 16-day forecast:
+  - Cloud cover (total + low/mid/high layers, hourly)
   - Visibility (atmospheric transparency)
   - Wind speed and gusts
+  - Temperature and dew point (dew risk margin)
   - Relative humidity
-  - Temperature
-- **Transparency Score**: Combined visibility + cloud assessment
+  - Surface pressure (atmospheric stability)
+  - Precipitation probability
+  - CAPE (Convective Available Potential Energy)
+- Uses [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api) for 5-day forecast:
+  - Aerosol Optical Depth (AOD) at 550nm
+  - Dust concentration (μg/m³)
+  - PM2.5 and PM10 particulate matter
+- **Transparency Score**: Combined visibility + cloud + AOD assessment
+- **Best Time Calculation**: Hourly analysis to find lowest cloud + precipitation
 - Combines moon illumination (30%) and cloud cover (70%) for quality scoring
 - No API key required, completely free
 

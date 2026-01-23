@@ -555,6 +555,10 @@ class VisibilityAnalyzer:
         observation_date = forecast.night_info.date
         moon_illumination = forecast.night_info.moon_illumination
         cloud_cover = forecast.weather.avg_cloud_cover if forecast.weather else None
+        aod = forecast.weather.avg_aerosol_optical_depth if forecast.weather else None
+        precip_prob = (
+            forecast.weather.max_precip_probability if forecast.weather else None
+        )
 
         # Score planets
         for planet in forecast.planets:
@@ -568,6 +572,8 @@ class VisibilityAnalyzer:
                     window_start=window_start,
                     window_end=window_end,
                     cloud_cover=cloud_cover,
+                    aod=aod,
+                    precip_probability=precip_prob,
                 )
                 all_scored.append(scored)
 
@@ -583,6 +589,8 @@ class VisibilityAnalyzer:
                     window_start=window_start,
                     window_end=window_end,
                     cloud_cover=cloud_cover,
+                    aod=aod,
+                    precip_probability=precip_prob,
                     ra_hours=dso.ra_hours,
                     common_name=dso.common_name,
                     surface_brightness=dso.surface_brightness,
@@ -602,6 +610,8 @@ class VisibilityAnalyzer:
                     window_start=window_start,
                     window_end=window_end,
                     cloud_cover=cloud_cover,
+                    aod=aod,
+                    precip_probability=precip_prob,
                     is_interstellar=comet.is_interstellar,
                 )
                 all_scored.append(scored)
@@ -618,6 +628,8 @@ class VisibilityAnalyzer:
                     window_start=window_start,
                     window_end=window_end,
                     cloud_cover=cloud_cover,
+                    aod=aod,
+                    precip_probability=precip_prob,
                 )
                 all_scored.append(scored)
 
@@ -633,6 +645,8 @@ class VisibilityAnalyzer:
                     window_start=window_start,
                     window_end=window_end,
                     cloud_cover=cloud_cover,
+                    aod=aod,
+                    precip_probability=precip_prob,
                 )
                 all_scored.append(scored)
 
@@ -647,6 +661,8 @@ class VisibilityAnalyzer:
                 window_start=window_start,
                 window_end=window_end,
                 cloud_cover=cloud_cover,
+                aod=aod,
+                precip_probability=precip_prob,
             )
             all_scored.append(scored)
 
