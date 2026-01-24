@@ -1,21 +1,71 @@
-"""Configuration management for NightSeek."""
+"""Configuration management for NightSeek using pydantic-settings."""
 
-import os
 import sys
-from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
-from dotenv import load_dotenv
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from platformdirs import user_config_dir
+
+from logging_config import get_logger
+from models import LocationData
+
+logger = get_logger(__name__)
 
 
-@dataclass
-class Config:
-    """Application configuration."""
+def _get_config_file() -> Path:
+    """Get the path to the config file."""
+    config_dir = Path(user_config_dir("nightseek"))
+    return config_dir / "config"
 
-    latitude: float
-    longitude: float
-    forecast_days: int
-    max_objects: int  # Maximum objects to show per night
+
+class Config(BaseSettings):
+    """Application configuration with validation."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(_get_config_file()),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    latitude: Optional[float] = Field(
+        default=None,
+        ge=-90,
+        le=90,
+        description="Observer latitude in degrees (-90 to 90)",
+    )
+    longitude: Optional[float] = Field(
+        default=None,
+        ge=-180,
+        le=180,
+        description="Observer longitude in degrees (-180 to 180)",
+    )
+    forecast_days: int = Field(
+        default=7,
+        ge=1,
+        le=30,
+        description="Number of days to forecast (1-30)",
+    )
+    max_objects: int = Field(
+        default=8,
+        ge=1,
+        le=50,
+        description="Maximum objects to show per night (1-50)",
+    )
+
+    @field_validator("latitude", "longitude", mode="before")
+    @classmethod
+    def parse_float_or_none(cls, v):
+        """Parse string to float, treating empty strings as None."""
+        if v is None or v == "":
+            return None
+        if isinstance(v, str):
+            try:
+                return float(v)
+            except ValueError:
+                return None
+        return v
 
     @staticmethod
     def _geocode_address(address: str) -> Optional[tuple[float, float]]:
@@ -43,16 +93,16 @@ class Config:
                 lon = float(results[0]["lon"])
                 return (lat, lon)
             return None
-        except Exception as e:
-            print(f"Geocoding error: {e}")
+        except (requests.RequestException, KeyError, ValueError) as e:
+            logger.warning("Geocoding error: %s", e)
             return None
 
     @staticmethod
-    def _detect_location_from_ip() -> Optional[dict]:
+    def _detect_location_from_ip() -> Optional[LocationData]:
         """Detect location from IP address using IP-API.com.
 
         Returns:
-            Dict with lat, lon, city, country, timezone or None if detection fails
+            LocationData instance or None if detection fails
         """
         try:
             import requests
@@ -65,23 +115,21 @@ class Config:
 
             data = response.json()
             if data.get("status") == "success":
-                return {
-                    "lat": data["lat"],
-                    "lon": data["lon"],
-                    "city": data.get("city", "Unknown"),
-                    "country": data.get("country", "Unknown"),
-                    "timezone": data.get("timezone", ""),
-                }
+                return LocationData(
+                    latitude=data["lat"],
+                    longitude=data["lon"],
+                    city=data.get("city", "Unknown"),
+                    country=data.get("country", "Unknown"),
+                    timezone=data.get("timezone", ""),
+                )
             return None
-        except Exception:
+        except (requests.RequestException, KeyError, ValueError) as e:
+            logger.debug("IP location detection failed: %s", e)
             return None
 
     @classmethod
     def _interactive_setup(cls):
         """Interactive setup wizard for first-time configuration."""
-        from pathlib import Path
-        from platformdirs import user_config_dir
-
         print("\n" + "=" * 70)
         print("Welcome to NightSeek! Let's set up your default location.")
         print("=" * 70)
@@ -97,14 +145,14 @@ class Config:
         options = []
         if detected:
             print(
-                f"Found: {detected['city']}, {detected['country']} "
-                f"({detected['lat']:.4f}°, {detected['lon']:.4f}°)"
+                f"Found: {detected.city}, {detected.country} "
+                f"({detected.latitude:.4f}, {detected.longitude:.4f})"
             )
             print()
             options.append(
                 (
                     "ip",
-                    f"Use detected location: {detected['city']}, {detected['country']}",
+                    f"Use detected location: {detected.city}, {detected.country}",
                 )
             )
         else:
@@ -134,8 +182,8 @@ class Config:
 
         if selected == "ip" and detected:
             # Use detected location
-            lat, lon = detected["lat"], detected["lon"]
-            print(f"\nUsing: {detected['city']}, {detected['country']}")
+            lat, lon = detected.latitude, detected.longitude
+            print(f"\nUsing: {detected.city}, {detected.country}")
 
         elif selected == "address":
             # Address-based setup
@@ -145,7 +193,7 @@ class Config:
                 coords = cls._geocode_address(address)
                 if coords:
                     lat, lon = coords
-                    print(f"Found: {lat:.4f}°, {lon:.4f}°")
+                    print(f"Found: {lat:.4f}, {lon:.4f}")
                 else:
                     print(
                         "Could not find location. Please try entering coordinates manually."
@@ -176,11 +224,10 @@ class Config:
             return
 
         # Create config file (cross-platform)
-        config_dir = Path(user_config_dir("nightseek"))
-        config_file = config_dir / "config"
+        config_file = _get_config_file()
 
         try:
-            config_dir.mkdir(parents=True, exist_ok=True)
+            config_file.parent.mkdir(parents=True, exist_ok=True)
 
             with open(config_file, "w") as f:
                 f.write(f"LATITUDE={lat}\n")
@@ -188,7 +235,7 @@ class Config:
                 f.write("FORECAST_DAYS=7\n")
 
             print()
-            print(f"✓ Configuration saved to {config_file}")
+            print(f"Configuration saved to {config_file}")
             print()
             print("You can now run: nightseek")
             print()
@@ -225,107 +272,27 @@ class Config:
         Returns:
             Config instance
         """
-        # Load configuration from user's config directory (cross-platform)
-        from pathlib import Path
-        from platformdirs import user_config_dir
+        # Build overrides from CLI parameters
+        overrides = {}
+        if latitude is not None:
+            overrides["latitude"] = latitude
+        if longitude is not None:
+            overrides["longitude"] = longitude
+        if days is not None:
+            overrides["forecast_days"] = days
+        if max_objects is not None:
+            overrides["max_objects"] = max_objects
 
-        config_dir = Path(user_config_dir("nightseek"))
-        config_file = config_dir / "config"
-        if config_file.exists():
-            load_dotenv(config_file)
-
-        # Get latitude (CLI param > env var)
-        lat = latitude
-        if lat is None:
-            lat_str = os.getenv("LATITUDE")
-            if lat_str:
-                try:
-                    lat = float(lat_str)
-                except ValueError:
-                    print(f"Error: Invalid LATITUDE value in .env: {lat_str}")
-                    sys.exit(1)
-
-        # Get longitude (CLI param > env var)
-        lon = longitude
-        if lon is None:
-            lon_str = os.getenv("LONGITUDE")
-            if lon_str:
-                try:
-                    lon = float(lon_str)
-                except ValueError:
-                    print(f"Error: Invalid LONGITUDE value in .env: {lon_str}")
-                    sys.exit(1)
+        try:
+            config = cls(**overrides)
+        except Exception as e:
+            print(f"Error: Invalid configuration: {e}")
+            sys.exit(1)
 
         # Validate that we have location
-        if lat is None or lon is None:
+        if config.latitude is None or config.longitude is None:
             # Offer interactive setup
             cls._interactive_setup()
             sys.exit(1)
 
-        # Type narrowing: after None check, lat and lon are guaranteed to be int | float
-        assert lat is not None and lon is not None
-
-        # Validate latitude range
-        if not -90 <= lat <= 90:
-            print(f"Error: Latitude must be between -90 and 90 (got {lat})")
-            sys.exit(1)
-
-        # Validate longitude range
-        if not -180 <= lon <= 180:
-            print(f"Error: Longitude must be between -180 and 180 (got {lon})")
-            sys.exit(1)
-
-        # Get forecast days (CLI param > env var > default)
-        forecast_days = days
-        if forecast_days is None:
-            days_str = os.getenv("FORECAST_DAYS")
-            if days_str:
-                try:
-                    forecast_days = int(days_str)
-                except ValueError:
-                    print(f"Error: Invalid FORECAST_DAYS value in .env: {days_str}")
-                    sys.exit(1)
-            else:
-                forecast_days = 7
-
-        # Type narrowing: forecast_days is guaranteed to be int at this point
-        assert forecast_days is not None
-
-        # Validate forecast days
-        if forecast_days < 1:
-            print(f"Error: Forecast days must be at least 1 (got {forecast_days})")
-            sys.exit(1)
-        if forecast_days > 30:
-            print(f"Error: Forecast days cannot exceed 30 (got {forecast_days})")
-            sys.exit(1)
-
-        # Get max objects (CLI param > env var > default)
-        max_objs = max_objects
-        if max_objs is None:
-            max_objs_str = os.getenv("MAX_OBJECTS")
-            if max_objs_str:
-                try:
-                    max_objs = int(max_objs_str)
-                except ValueError:
-                    print(f"Error: Invalid MAX_OBJECTS value in .env: {max_objs_str}")
-                    sys.exit(1)
-            else:
-                max_objs = 8  # Default: show top 8 objects per night
-
-        # Type narrowing: max_objs is guaranteed to be int at this point
-        assert max_objs is not None
-
-        # Validate max objects
-        if max_objs < 1:
-            print(f"Error: Max objects must be at least 1 (got {max_objs})")
-            sys.exit(1)
-        if max_objs > 50:
-            print(f"Error: Max objects cannot exceed 50 (got {max_objs})")
-            sys.exit(1)
-
-        return cls(
-            latitude=lat,
-            longitude=lon,
-            forecast_days=forecast_days,
-            max_objects=max_objs,
-        )
+        return config

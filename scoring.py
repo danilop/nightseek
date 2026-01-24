@@ -1,12 +1,17 @@
 """Professional merit-based scoring algorithm for astronomical objects."""
 
+from __future__ import annotations
+
 import math
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import TYPE_CHECKING, List, Optional, Dict, Any
 
 from opengc_loader import DSO_MOON_SENSITIVITY
+
+if TYPE_CHECKING:
+    from sky_calculator import ObjectVisibility
 
 
 @dataclass
@@ -19,7 +24,7 @@ class ScoredObject:
     total_score: float
     score_breakdown: Dict[str, float]
     reason: str  # Human-readable summary of why this score
-    visibility: Any  # ObjectVisibility reference
+    visibility: "ObjectVisibility"  # ObjectVisibility reference
     magnitude: Optional[float] = None
 
 

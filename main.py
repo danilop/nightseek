@@ -14,8 +14,11 @@ from rich.progress import (
     TaskProgressColumn,
 )
 
+from logging_config import setup_logging, get_logger
+
 # Show banner immediately on import (before heavy imports)
 console = Console()
+logger = get_logger(__name__)
 
 app = typer.Typer(help="Plan your astronomy observations based on object visibility.")
 
@@ -63,12 +66,21 @@ def forecast(
         "-u",
         help="Check for updates and install if available",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show debug output for troubleshooting",
+    ),
 ):
     """Generate an astronomy observation forecast.
 
     Analyzes celestial object visibility for the next N nights,
     considering altitude thresholds and moon interference.
     """
+    # Initialize logging based on verbose flag
+    setup_logging(verbose=verbose)
+
     # Show welcome message FIRST (before any heavy loading)
     console.print()
     console.print(
@@ -78,7 +90,13 @@ def forecast(
 
     # Handle update mode
     if update:
-        from update_checker import get_remote_version, get_local_version, update_tool
+        from update_checker import (
+            get_remote_version,
+            get_local_version,
+            update_tool,
+            is_update_available,
+            save_installed_version,
+        )
 
         with Status(
             "[bold blue]Checking for updates...[/bold blue]",
@@ -94,7 +112,7 @@ def forecast(
             )
             return
 
-        if local == "installed" or local != remote:
+        if is_update_available(local, remote):
             with Status(
                 "[cyan]Update available! Installing...[/cyan]",
                 console=console,
@@ -102,6 +120,7 @@ def forecast(
             ):
                 success = update_tool()
             if success:
+                save_installed_version(remote)
                 console.print(
                     "[green]✓ Updated successfully.[/green] Changes apply on next run."
                 )
@@ -110,7 +129,10 @@ def forecast(
                     "[red]✗ Update failed.[/red] Try: uv tool install --force git+https://github.com/danilop/nightseek"
                 )
         else:
-            console.print(f"[green]✓ Already up to date[/green] (version: {local})")
+            version_str = remote if local == "installed" else local
+            console.print(
+                f"[green]✓ Already up to date[/green] (version: {version_str})"
+            )
         return
 
     # Handle setup mode (lazy import config only when needed)
@@ -310,8 +332,8 @@ def forecast(
                 console.print(
                     "[yellow]⚠ Update failed. Run 'nightseek --update' to retry.[/yellow]"
                 )
-    except Exception:
-        pass  # Silently fail if update check fails
+    except Exception as e:
+        logger.debug("Update check failed: %s", e)
 
 
 if __name__ == "__main__":

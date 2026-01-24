@@ -13,6 +13,10 @@ from typing import Optional
 import requests
 from platformdirs import user_cache_dir
 
+from logging_config import get_logger
+
+logger = get_logger(__name__)
+
 GITHUB_REPO = "danilop/nightseek"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/commits/main"
 UPDATE_CHECK_INTERVAL = timedelta(hours=24)
@@ -42,8 +46,8 @@ def get_local_version() -> Optional[str]:
         )
         if result.returncode == 0:
             return result.stdout.strip()[:7]
-    except Exception:
-        pass
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.debug("Could not get git version: %s", e)
 
     # For installed tools, use a marker file with install timestamp
     # This ensures we always check for updates on installed versions
@@ -56,8 +60,8 @@ def get_remote_version() -> Optional[str]:
         response = requests.get(GITHUB_API_URL, timeout=5)
         if response.status_code == 200:
             return response.json()["sha"][:7]
-    except Exception:
-        pass
+    except (requests.RequestException, KeyError, ValueError) as e:
+        logger.debug("Could not get remote version: %s", e)
     return None
 
 
@@ -73,7 +77,8 @@ def should_check_for_updates() -> bool:
             data = json.load(f)
             last_check = datetime.fromisoformat(data["last_check"])
             return datetime.now() - last_check > UPDATE_CHECK_INTERVAL
-    except Exception:
+    except (OSError, json.JSONDecodeError, KeyError, ValueError) as e:
+        logger.debug("Could not read update cache: %s", e)
         return True
 
 
@@ -92,12 +97,37 @@ def save_check_timestamp():
 
         with open(cache_file, "w") as f:
             json.dump(data, f)
-    except Exception:
-        pass
+    except (OSError, json.JSONDecodeError) as e:
+        logger.debug("Could not save check timestamp: %s", e)
+
+
+def is_update_available(local: str, remote: str) -> bool:
+    """Check if an update is available given local and remote versions.
+
+    For dev (git), compares commit SHAs directly.
+    For installed tools, compares remote with last known installed version.
+    """
+    if local == "installed":
+        # For installed tools, check against cached version
+        cache_file = get_update_cache_file()
+        try:
+            if cache_file.exists():
+                with open(cache_file) as f:
+                    data = json.load(f)
+                    last_remote = data.get("last_remote_version")
+                    if last_remote and last_remote == remote:
+                        return False  # Same version, no update needed
+        except (OSError, json.JSONDecodeError, KeyError) as e:
+            logger.debug("Could not read cached version: %s", e)
+        # First time or different version: update available
+        return True
+    else:
+        # For dev (git), compare commit SHAs
+        return local != remote
 
 
 def check_for_updates() -> bool:
-    """Check if an update is available. Returns True if update available."""
+    """Check if an update is available (with rate limiting). Returns True if update available."""
     if not should_check_for_updates():
         return False
 
@@ -107,40 +137,26 @@ def check_for_updates() -> bool:
     # Update the last check timestamp
     save_check_timestamp()
 
-    # If we have both versions and they differ, update is available
-    # For installed tools (local="installed"), always check if remote exists
     if remote and local:
-        if local == "installed":
-            # For installed tools, check if remote commit is different from last known
-            return check_if_remote_changed(remote)
-        elif local != remote:
-            return True
+        return is_update_available(local, remote)
 
     return False
 
 
-def check_if_remote_changed(current_remote: str) -> bool:
-    """Check if remote version changed since last check."""
+def save_installed_version(version: str) -> None:
+    """Save the installed version after a successful update."""
     cache_file = get_update_cache_file()
     try:
-        with open(cache_file) as f:
-            data = json.load(f)
-            last_remote = data.get("last_remote_version")
-            if last_remote and last_remote != current_remote:
-                # Save new remote version
-                data["last_remote_version"] = current_remote
-                with open(cache_file, "w") as fw:
-                    json.dump(data, fw)
-                return True
-            elif not last_remote:
-                # First time, save it
-                data["last_remote_version"] = current_remote
-                with open(cache_file, "w") as fw:
-                    json.dump(data, fw)
-                return False
-    except Exception:
-        pass
-    return False
+        data = {}
+        if cache_file.exists():
+            with open(cache_file) as f:
+                data = json.load(f)
+        data["last_remote_version"] = version
+        data["last_check"] = datetime.now().isoformat()
+        with open(cache_file, "w") as f:
+            json.dump(data, f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.debug("Could not save installed version: %s", e)
 
 
 def update_tool() -> bool:
@@ -160,5 +176,6 @@ def update_tool() -> bool:
             timeout=60,
         )
         return result.returncode == 0
-    except Exception:
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning("Update failed: %s", e)
         return False

@@ -17,13 +17,14 @@ dependencies = [
     "timezonefinder>=6.5.0",
     "pandas>=2.0.0",  # Required for comet orbital elements
     "platformdirs>=4.0.0",  # Cross-platform config/cache directories
+    "pydantic-settings>=2.0.0",  # Type-safe configuration management
 ]
 
 [project.scripts]
 nightseek = "main:app"
 
 [tool.setuptools]
-py-modules = ["main", "analyzer", "catalog", "cache_manager", "config", "events", "formatter", "sky_calculator", "timezone_utils", "weather", "opengc_loader", "scoring", "update_checker"]
+py-modules = ["main", "analyzer", "catalog", "cache_manager", "config", "enums", "event_detection", "events", "formatter", "logging_config", "models", "sky_calculator", "timezone_utils", "weather", "opengc_loader", "scoring", "update_checker"]
 
 [tool.uv]
 package = true

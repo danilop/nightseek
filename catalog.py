@@ -7,7 +7,10 @@ from skyfield.api import Star, Loader
 from skyfield.data import mpc
 
 from cache_manager import CacheManager
+from logging_config import get_logger
 from opengc_loader import OpenNGCLoader
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -201,7 +204,12 @@ class Catalog:
                             row=row,
                         )
                     )
-            except Exception:
+            except (KeyError, ValueError, TypeError) as e:
+                logger.debug(
+                    "Could not load dwarf planet %s: %s",
+                    dp_info.get("name", "unknown"),
+                    e,
+                )
                 continue
 
         return dwarf_planets
@@ -239,7 +247,10 @@ class Catalog:
                             row=row,
                         )
                     )
-            except Exception:
+            except (KeyError, ValueError, TypeError) as e:
+                logger.debug(
+                    "Could not load asteroid %s: %s", ast_info.get("name", "unknown"), e
+                )
                 continue
 
         return asteroids
@@ -262,8 +273,8 @@ class Catalog:
                 # Full MPCORB download is optional and can be enabled later
                 self._mpcorb_df = None
 
-        except Exception as e:
-            print(f"Note: Could not load asteroid data: {e}")
+        except (OSError, ValueError, KeyError) as e:
+            logger.warning("Could not load asteroid data: %s", e)
             self._mpcorb_df = None
 
     def ra_dec_to_star(self, obj: CelestialObject) -> Star:
@@ -372,14 +383,13 @@ class Catalog:
 
             return comets
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             # If comet loading fails, return empty list (graceful degradation)
             if hasattr(self, "_comets_df") and self._comets_df is not None:
-                print(f"Warning: Could not parse comet data: {e}")
-                print(
-                    f"Available columns: {list(self._comets_df.columns[:10])}"
-                )  # Show first 10
+                logger.warning("Could not parse comet data: %s", e)
+                logger.debug(
+                    "Available columns: %s", list(self._comets_df.columns[:10])
+                )
             else:
-                print(f"Warning: Could not load comet data: {e}")
-            # traceback.print_exc()  # Uncomment for debugging
+                logger.warning("Could not load comet data: %s", e)
             return []

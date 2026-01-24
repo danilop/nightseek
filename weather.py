@@ -7,6 +7,10 @@ from statistics import mean
 
 import requests
 
+from logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 # =============================================================================
 # Constants
@@ -336,7 +340,8 @@ class WeatherForecast:
                 data = json.load(f)
                 self._parse_weather_response(data)
                 return True
-        except Exception:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
+            logger.debug("Could not load cached weather data: %s", e)
             return False
 
     def _get_cache_key(self, num_days: int) -> str:
@@ -369,13 +374,14 @@ class WeatherForecast:
             try:
                 with open(cache.get_path(self._get_cache_key(num_days)), "w") as f:
                     json.dump(data, f)
-            except Exception:
-                pass
+            except OSError as e:
+                logger.debug("Could not cache weather data: %s", e)
 
             self._parse_weather_response(data)
             return True
 
-        except Exception:
+        except (requests.RequestException, KeyError, ValueError) as e:
+            logger.warning("Could not fetch weather data: %s", e)
             return False
 
     def _fetch_air_quality(self, num_days: int) -> None:
@@ -393,8 +399,8 @@ class WeatherForecast:
             response.raise_for_status()
             self._parse_air_quality_response(response.json())
 
-        except Exception:
-            pass  # Air quality is optional
+        except (requests.RequestException, KeyError, ValueError) as e:
+            logger.debug("Could not fetch air quality data (optional): %s", e)
 
     def _parse_weather_response(self, data: dict) -> None:
         """Parse weather API response into hourly data."""
