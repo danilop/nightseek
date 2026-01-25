@@ -112,7 +112,7 @@ def forecast(
             )
             return
 
-        if is_update_available(local, remote):
+        if local and is_update_available(local, remote):
             with Status(
                 "[cyan]Update available! Installing...[/cyan]",
                 console=console,
@@ -147,6 +147,17 @@ def forecast(
         latitude=latitude, longitude=longitude, days=days, max_objects=max_objects
     )
 
+    # Validate required coordinates
+    if config.latitude is None or config.longitude is None:
+        console.print(
+            "[red]Error: Location not configured. Run 'nightseek --setup' first.[/red]"
+        )
+        raise typer.Exit(1)
+
+    # Type narrowing: after validation, these are guaranteed non-None
+    lat: float = config.latitude
+    lon: float = config.longitude
+
     # Initialize analyzer with progress bar showing each step
     with Progress(
         SpinnerColumn(),
@@ -166,9 +177,7 @@ def forecast(
 
         # Step 2: Load ephemeris and planets
         progress.update(task, description="Loading ephemeris...")
-        analyzer = VisibilityAnalyzer(
-            config.latitude, config.longitude, comet_mag=comet_mag or 12.0
-        )
+        analyzer = VisibilityAnalyzer(lat, lon, comet_mag=comet_mag or 12.0)
         progress.advance(task)
 
         # Step 3: Load DSOs
@@ -218,7 +227,7 @@ def forecast(
 
             # Step 1: Initialize
             progress.update(task, description="Connecting to weather API...")
-            weather_forecast = WeatherForecast(config.latitude, config.longitude)
+            weather_forecast = WeatherForecast(lat, lon)
             progress.advance(task)
 
             # Step 2: Fetch weather data
@@ -301,12 +310,12 @@ def forecast(
     from timezone_utils import TimezoneConverter
     from formatter import ForecastFormatter
 
-    tz_converter = TimezoneConverter(config.latitude, config.longitude)
+    tz_converter = TimezoneConverter(lat, lon)
     formatter = ForecastFormatter(tz_converter)
     formatter.format_forecast(
         forecasts,
-        config.latitude,
-        config.longitude,
+        lat,
+        lon,
         best_dark_nights,
         config.max_objects,
         analyzer,  # Pass analyzer to avoid reloading comets
