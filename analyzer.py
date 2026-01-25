@@ -578,6 +578,8 @@ class VisibilityAnalyzer:
         precip_prob = (
             forecast.weather.max_precip_probability if forecast.weather else None
         )
+        wind_gust = forecast.weather.max_wind_speed_kmh if forecast.weather else None
+        transparency = forecast.weather.transparency_score if forecast.weather else None
 
         # Score planets
         for planet in forecast.planets:
@@ -593,6 +595,8 @@ class VisibilityAnalyzer:
                     cloud_cover=cloud_cover,
                     aod=aod,
                     precip_probability=precip_prob,
+                    wind_gust_kmh=wind_gust,
+                    transparency=transparency,
                 )
                 all_scored.append(scored)
 
@@ -610,6 +614,8 @@ class VisibilityAnalyzer:
                     cloud_cover=cloud_cover,
                     aod=aod,
                     precip_probability=precip_prob,
+                    wind_gust_kmh=wind_gust,
+                    transparency=transparency,
                     ra_hours=dso.ra_hours,
                     common_name=dso.common_name,
                     surface_brightness=dso.surface_brightness,
@@ -631,6 +637,8 @@ class VisibilityAnalyzer:
                     cloud_cover=cloud_cover,
                     aod=aod,
                     precip_probability=precip_prob,
+                    wind_gust_kmh=wind_gust,
+                    transparency=transparency,
                     is_interstellar=comet.is_interstellar,
                 )
                 all_scored.append(scored)
@@ -649,6 +657,8 @@ class VisibilityAnalyzer:
                     cloud_cover=cloud_cover,
                     aod=aod,
                     precip_probability=precip_prob,
+                    wind_gust_kmh=wind_gust,
+                    transparency=transparency,
                 )
                 all_scored.append(scored)
 
@@ -666,6 +676,8 @@ class VisibilityAnalyzer:
                     cloud_cover=cloud_cover,
                     aod=aod,
                     precip_probability=precip_prob,
+                    wind_gust_kmh=wind_gust,
+                    transparency=transparency,
                 )
                 all_scored.append(scored)
 
@@ -682,6 +694,8 @@ class VisibilityAnalyzer:
                 cloud_cover=cloud_cover,
                 aod=aod,
                 precip_probability=precip_prob,
+                wind_gust_kmh=wind_gust,
+                transparency=transparency,
             )
             all_scored.append(scored)
 

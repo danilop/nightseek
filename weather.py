@@ -175,6 +175,7 @@ class NightWeather:
 
     # Atmospheric stability
     avg_pressure_hpa: Optional[float] = None
+    pressure_trend: Optional[str] = None  # "rising", "falling", or "steady"
     max_cape: Optional[float] = None
 
     # Best time to observe
@@ -586,6 +587,7 @@ class WeatherForecast:
                 1 for m in stats.dew_margins if m < WeatherThresholds.DEW_RISK_MARGIN_C
             ),
             avg_pressure_hpa=safe_avg(stats.pressure_values),
+            pressure_trend=self._calculate_pressure_trend(stats.pressure_values),
             max_cape=safe_max(stats.cape_values),
             best_time=self._find_best_observing_time(night_hours),
             avg_aerosol_optical_depth=avg_aod,
@@ -637,6 +639,35 @@ class WeatherForecast:
 
         cloud_factor = 1.0 - (avg_cloud / 100.0)
         return vis_score * cloud_factor * aod_factor
+
+    @staticmethod
+    def _calculate_pressure_trend(pressure_values: List[float]) -> Optional[str]:
+        """Calculate pressure trend from start to end of night.
+
+        Args:
+            pressure_values: Chronological list of pressure readings in hPa
+
+        Returns:
+            "rising", "falling", or "steady" based on pressure change
+        """
+        if not pressure_values or len(pressure_values) < 2:
+            return None
+
+        # Compare first and last third of readings for trend
+        n = len(pressure_values)
+        first_third = pressure_values[: max(1, n // 3)]
+        last_third = pressure_values[-max(1, n // 3) :]
+
+        start_avg = sum(first_third) / len(first_third)
+        end_avg = sum(last_third) / len(last_third)
+        change = end_avg - start_avg
+
+        # Threshold: 2 hPa change is significant for short-term forecast
+        if change > 2:
+            return "rising"
+        elif change < -2:
+            return "falling"
+        return "steady"
 
     def _find_best_observing_time(
         self, night_hours: List[datetime]

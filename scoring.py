@@ -217,7 +217,10 @@ def calculate_weather_score(
     cloud_cover: Optional[float],
     aod: Optional[float] = None,
     precip_probability: Optional[float] = None,
+    wind_gust_kmh: Optional[float] = None,
+    transparency: Optional[float] = None,
     is_deep_sky: bool = False,
+    is_planet: bool = False,
     weights: ScoreWeights = DEFAULT_WEIGHTS,
 ) -> float:
     """Calculate score based on weather conditions.
@@ -226,7 +229,10 @@ def calculate_weather_score(
         cloud_cover: Cloud cover percentage (0-100), None if unknown
         aod: Aerosol optical depth (0-1+), None if unknown
         precip_probability: Precipitation probability (0-100), None if unknown
-        is_deep_sky: True for DSOs/Milky Way (more affected by haze)
+        wind_gust_kmh: Maximum wind gusts in km/h, None if unknown
+        transparency: Transparency score (0-100), None if unknown
+        is_deep_sky: True for DSOs/Milky Way (more affected by haze/transparency)
+        is_planet: True for planets (less affected by wind - short exposures)
         weights: Score weights configuration
 
     Returns:
@@ -263,6 +269,18 @@ def calculate_weather_score(
         else:
             aod_factor = 0.50 if is_deep_sky else 0.75
 
+    # Transparency bonus/penalty for deep sky (uses calculated transparency score)
+    transparency_factor = 1.0
+    if transparency is not None and is_deep_sky:
+        if transparency >= 80:
+            transparency_factor = 1.05  # Bonus for excellent transparency
+        elif transparency >= 60:
+            transparency_factor = 1.0
+        elif transparency >= 40:
+            transparency_factor = 0.90
+        else:
+            transparency_factor = 0.75  # Poor transparency hurts DSOs
+
     # Precipitation penalty
     precip_factor = 1.0
     if precip_probability is not None:
@@ -275,7 +293,26 @@ def calculate_weather_score(
         elif precip_probability > 10:
             precip_factor = 0.9
 
-    return base_score * aod_factor * precip_factor
+    # Wind penalty - affects all imaging but DSOs/comets more (long exposures)
+    # Planets use short video frames so less affected
+    wind_factor = 1.0
+    if wind_gust_kmh is not None:
+        if wind_gust_kmh < 15:
+            wind_factor = 1.0  # Calm - no penalty
+        elif wind_gust_kmh < 25:
+            # Light wind - minor penalty, less for planets
+            wind_factor = 0.98 if is_planet else 0.95
+        elif wind_gust_kmh < 40:
+            # Moderate wind - noticeable impact on long exposures
+            wind_factor = 0.92 if is_planet else 0.80
+        elif wind_gust_kmh < 55:
+            # Strong wind - significant tracking issues
+            wind_factor = 0.80 if is_planet else 0.60
+        else:
+            # Very strong wind - imaging very difficult
+            wind_factor = 0.60 if is_planet else 0.40
+
+    return base_score * aod_factor * transparency_factor * precip_factor * wind_factor
 
 
 def calculate_surface_brightness_score(
@@ -551,6 +588,8 @@ def score_object(
     cloud_cover: Optional[float] = None,
     aod: Optional[float] = None,
     precip_probability: Optional[float] = None,
+    wind_gust_kmh: Optional[float] = None,
+    transparency: Optional[float] = None,
     ra_hours: float = 0.0,
     common_name: str = "",
     surface_brightness: Optional[float] = None,
@@ -571,6 +610,8 @@ def score_object(
         cloud_cover: Cloud cover percentage (optional)
         aod: Aerosol optical depth (optional)
         precip_probability: Max precipitation probability (optional)
+        wind_gust_kmh: Max wind gusts in km/h (optional)
+        transparency: Transparency score 0-100 (optional)
         ra_hours: Right ascension in hours
         common_name: Common name if known
         surface_brightness: Surface brightness in mag/arcsec²
@@ -595,9 +636,17 @@ def score_object(
     breakdown["timing"] = calculate_peak_timing_score(
         visibility.max_altitude_time, window_start, window_end, weights
     )
-    is_deep_sky = category in ("dso", "milky_way")
+    is_deep_sky = category in ("dso", "milky_way", "comet")
+    is_planet = category == "planet"
     breakdown["weather"] = calculate_weather_score(
-        cloud_cover, aod, precip_probability, is_deep_sky, weights
+        cloud_cover,
+        aod,
+        precip_probability,
+        wind_gust_kmh,
+        transparency,
+        is_deep_sky,
+        is_planet,
+        weights,
     )
 
     # Object characteristics (0-50)

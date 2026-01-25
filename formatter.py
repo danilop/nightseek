@@ -51,7 +51,7 @@ class ForecastFormatter:
     CATEGORY_ICONS = {
         "planet": "🪐",
         "dso": "🌌",
-        "comet": "☄️",
+        "comet": "☄",
         "asteroid": "🪨",
         "dwarf_planet": "🔵",
         "milky_way": "🌌",
@@ -127,6 +127,24 @@ class ForecastFormatter:
     def _get_quality_stars(cls, quality: str) -> str:
         """Get star rating for quality level."""
         return cls.QUALITY_STARS.get(quality, "★☆☆☆☆")
+
+    @staticmethod
+    def _azimuth_to_cardinal(azimuth: float) -> str:
+        """Convert azimuth degrees to cardinal direction.
+
+        Args:
+            azimuth: Compass bearing in degrees (0-360, 0=N, 90=E, 180=S, 270=W)
+
+        Returns:
+            Cardinal direction string (N, NE, E, SE, S, SW, W, NW)
+        """
+        # Normalize to 0-360
+        azimuth = azimuth % 360
+        # 8 cardinal directions, each spans 45°, centered on their direction
+        directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        # Offset by 22.5° so N spans -22.5 to 22.5
+        index = int((azimuth + 22.5) / 45) % 8
+        return directions[index]
 
     @classmethod
     def _get_category_icon_from_dict(cls, category: str, subtype: str = "") -> str:
@@ -421,14 +439,14 @@ class ForecastFormatter:
                 if forecast.weather:
                     # Show cloud cover range (min-max) during night
                     cloud_str = f"{forecast.weather.min_cloud_cover:.0f}-{forecast.weather.max_cloud_cover:.0f}%"
-                    # Best time to observe
-                    if forecast.weather.best_time:
-                        best_time_str = self.tz.format_time(
-                            forecast.weather.best_time.time.replace(tzinfo=None)
+                    # Best time to observe (uses shared helper for consistency)
+                    time_str, best_cloud = self._get_best_time_str(forecast.weather)
+                    if time_str:
+                        best_time_str = (
+                            f"[green]{time_str}[/green]"
+                            if best_cloud is not None and best_cloud < 30
+                            else time_str
                         )
-                        best_cloud = forecast.weather.best_time.cloud_cover
-                        if best_cloud < 30:
-                            best_time_str = f"[green]{best_time_str}[/green]"
                     else:
                         best_time_str = "-"
                 else:
@@ -644,6 +662,20 @@ class ForecastFormatter:
         if weather.avg_temperature_c is not None and weather.avg_temperature_c < 0:
             extras.append(f"Temp: {weather.avg_temperature_c:.0f}°C")
 
+        # Humidity - only show if no dew warning already present (avoid redundancy)
+        has_dew_warning = (
+            weather.min_dew_margin is not None and weather.min_dew_margin < 3
+        )
+        if weather.avg_humidity is not None and not has_dew_warning:
+            hum = weather.avg_humidity
+            if hum > 85:
+                extras.append(f"[yellow]Humidity: {hum:.0f}%[/yellow]")
+            elif hum > 75:
+                extras.append(f"Humidity: {hum:.0f}%")
+            elif hum < 40:
+                extras.append(f"[green]Humidity: {hum:.0f}% (dry)[/green]")
+            # Don't show moderate humidity (40-75%) to reduce clutter
+
         # Print warnings first (important)
         if warnings:
             self.console.print("[italic]⚠ " + " • ".join(warnings) + "[/italic]")
@@ -671,15 +703,34 @@ class ForecastFormatter:
             if layers:
                 details.append(f"Clouds: {', '.join(layers)}")
 
-        # Atmospheric stability (pressure-based)
+        # Atmospheric stability (pressure-based with trend)
         if weather.avg_pressure_hpa is not None:
             pressure = weather.avg_pressure_hpa
+            trend = weather.pressure_trend
+            # Trend arrows: ↑ = rising (improving), ↓ = falling (deteriorating)
+            trend_str = {
+                "rising": " ↑",
+                "falling": " ↓",
+                "steady": "",
+            }.get(trend, "")
+
             if pressure >= 1020:
-                details.append(f"[green]Stable ({pressure:.0f} hPa)[/green]")
+                details.append(f"[green]Stable ({pressure:.0f} hPa{trend_str})[/green]")
             elif pressure >= 1010:
-                details.append(f"Pressure: {pressure:.0f} hPa")
+                if trend == "falling":
+                    details.append(f"[yellow]{pressure:.0f} hPa{trend_str}[/yellow]")
+                else:
+                    details.append(f"{pressure:.0f} hPa{trend_str}")
             else:
-                details.append(f"[yellow]Unsettled ({pressure:.0f} hPa)[/yellow]")
+                if trend == "rising":
+                    # Low pressure but rising = improving
+                    details.append(
+                        f"[yellow]Unsettled ({pressure:.0f} hPa{trend_str})[/yellow]"
+                    )
+                else:
+                    details.append(
+                        f"[red]Unsettled ({pressure:.0f} hPa{trend_str})[/red]"
+                    )
 
         # Air quality / haze (AOD-based)
         if weather.avg_aerosol_optical_depth is not None:
@@ -709,14 +760,10 @@ class ForecastFormatter:
             else:
                 details.append(f"[red]Transparency: {ts:.0f}%[/red]")
 
-        # Best observing time
-        if weather.best_time is not None:
-            time_str = self.tz.format_time(weather.best_time.time.replace(tzinfo=None))
-            cloud_str = f"{weather.best_time.cloud_cover:.0f}%"
-            if weather.best_time.cloud_cover < 30:
-                details.append(f"[green]Best: {time_str} ({cloud_str} clouds)[/green]")
-            else:
-                details.append(f"Best: {time_str} ({cloud_str} clouds)")
+        # Best observing time (uses helper for DRY with weekly forecast)
+        best_time_info = self._format_best_time_info(weather, include_clouds=True)
+        if best_time_info:
+            details.append(best_time_info)
 
         if details:
             self.console.print("[dim]" + " • ".join(details) + "[/dim]")
@@ -1103,7 +1150,12 @@ class ForecastFormatter:
                 else:
                     diameter_str = f' • size {d:.1f}"'
 
-            # Build altitude description
+            # Build altitude description with azimuth direction (consistent format)
+            azimuth = getattr(vis, "azimuth_at_peak", None)
+            direction_str = (
+                f" {self._azimuth_to_cardinal(azimuth)}" if azimuth is not None else ""
+            )
+
             if win_info.get("visible"):
                 phase = win_info["phase"]
                 start_alt = win_info["start_alt"]
@@ -1111,13 +1163,13 @@ class ForecastFormatter:
 
                 if phase == "peak":
                     peak_time_str = self.tz.format_time(vis.max_altitude_time)
-                    alt_desc = f"peaks {vis.max_altitude:.0f}° at {peak_time_str}"
+                    alt_desc = f"peaks {vis.max_altitude:.0f}°{direction_str} at {peak_time_str}"
                 elif phase == "rising":
-                    alt_desc = f"{start_alt:.0f}°→{end_alt:.0f}° rising"
+                    alt_desc = f"{start_alt:.0f}°→{end_alt:.0f}°{direction_str} rising"
                 else:
-                    alt_desc = f"{start_alt:.0f}°→{end_alt:.0f}° setting"
+                    alt_desc = f"{start_alt:.0f}°→{end_alt:.0f}°{direction_str} setting"
             else:
-                alt_desc = f"peak {vis.max_altitude:.0f}°"
+                alt_desc = f"peak {vis.max_altitude:.0f}°{direction_str}"
 
             # Get category icon
             category = scored.category if hasattr(scored, "category") else "dso"
@@ -1154,13 +1206,36 @@ class ForecastFormatter:
             style="italic",
         )
 
-        # Add visibility windows
-        if obj_vis.above_60_start and obj_vis.above_60_end:
-            start = self.tz.format_time(obj_vis.above_60_start)
-            end = self.tz.format_time(obj_vis.above_60_end)
-            desc.append(f"\n  Above 60°: {start} - {end}", style="italic")
+        # Add visibility windows (show highest threshold that has data)
+        windows = self._format_visibility_windows(obj_vis)
+        if windows:
+            desc.append(f"\n  {windows}", style="italic")
 
         self.console.print(desc)
+
+    def _format_visibility_windows(self, vis) -> str:
+        """Format altitude visibility windows concisely.
+
+        Shows the best available windows (highest altitude threshold).
+        """
+        parts = []
+
+        # Show windows from highest to lowest threshold
+        if vis.above_75_start and vis.above_75_end:
+            start = self.tz.format_time(vis.above_75_start)
+            end = self.tz.format_time(vis.above_75_end)
+            parts.append(f"Above 75°: {start}-{end}")
+        if vis.above_60_start and vis.above_60_end:
+            start = self.tz.format_time(vis.above_60_start)
+            end = self.tz.format_time(vis.above_60_end)
+            parts.append(f"Above 60°: {start}-{end}")
+        if vis.above_45_start and vis.above_45_end:
+            start = self.tz.format_time(vis.above_45_start)
+            end = self.tz.format_time(vis.above_45_end)
+            parts.append(f"Above 45°: {start}-{end}")
+
+        # Return most relevant (highest threshold first, limit to 2)
+        return " • ".join(parts[:2]) if parts else ""
 
     def _print_weekly_forecast(self, forecasts: List[NightForecast], max_objects: int):
         """Print forecast with merit-based object selection per night."""
@@ -1221,6 +1296,10 @@ class ForecastFormatter:
             conditions = f"Moon {moon_pct:.0f}%"
             if has_weather and forecast.weather:
                 conditions += f" • {self._format_cloud_conditions(forecast.weather)}"
+                # Add best observing time
+                best_time_info = self._format_best_time_info(forecast.weather)
+                if best_time_info:
+                    conditions += f" • {best_time_info}"
                 # Add air quality if notable
                 if forecast.weather.avg_aerosol_optical_depth is not None:
                     aod = forecast.weather.avg_aerosol_optical_depth
@@ -1260,6 +1339,14 @@ class ForecastFormatter:
                     quality = self._get_quality_color(vis.max_altitude)
                     time_str = self.tz.format_time(vis.max_altitude_time)
 
+                    # Add azimuth direction (check for None, not falsy, since 0° is valid)
+                    azimuth = getattr(vis, "azimuth_at_peak", None)
+                    direction = (
+                        f" {self._azimuth_to_cardinal(azimuth)}"
+                        if azimuth is not None
+                        else ""
+                    )
+
                     # Warnings
                     warning = ""
                     if hasattr(vis, "moon_warning") and vis.moon_warning:
@@ -1267,7 +1354,7 @@ class ForecastFormatter:
 
                     self.console.print(
                         f"  {icon} {scored.object_name}{mag_str}: {quality}, "
-                        f"{vis.max_altitude:.0f}° at {time_str}{warning}"
+                        f"{vis.max_altitude:.0f}°{direction} at {time_str}{warning}"
                     )
 
             self.console.print()
@@ -1304,6 +1391,61 @@ class ForecastFormatter:
             if avg < 20:
                 return f"{desc} ({avg:.0f}%)"
             return f"{desc} ({avg:.0f}%)"
+
+    def _get_best_time_str(
+        self, weather: NightWeather
+    ) -> tuple[str | None, float | None]:
+        """Get best observing time string and cloud cover.
+
+        Prefers clear_windows (ranges) when available, falls back to best_time.
+        Returns the raw time string without prefix or coloring.
+
+        Args:
+            weather: NightWeather with best_time and/or clear_windows
+
+        Returns:
+            Tuple of (time_string, cloud_cover) or (None, None) if unavailable
+        """
+        # Prefer clear_windows if available - gives a range
+        if weather.clear_windows:
+            best_window = min(weather.clear_windows, key=lambda w: w.avg_cloud_cover)
+            start_str = self.tz.format_time(best_window.start)
+            end_str = self.tz.format_time(best_window.end)
+            return f"{start_str}-{end_str}", best_window.avg_cloud_cover
+
+        # Fall back to single point
+        if weather.best_time:
+            time_str = self.tz.format_time(weather.best_time.time.replace(tzinfo=None))
+            return time_str, weather.best_time.cloud_cover
+
+        return None, None
+
+    def _format_best_time_info(
+        self, weather: NightWeather, include_clouds: bool = False
+    ) -> str | None:
+        """Format best observing time with 'Best:' prefix and coloring.
+
+        Uses _get_best_time_str for consistent time extraction across displays.
+
+        Args:
+            weather: NightWeather with best_time and/or clear_windows
+            include_clouds: If True, append cloud percentage in parentheses
+
+        Returns:
+            Formatted string like "Best: 2-4 AM" or "Best: 2 AM (25% clouds)"
+        """
+        best_str, cloud_cover = self._get_best_time_str(weather)
+        if not best_str:
+            return None
+
+        # Add cloud percentage if requested
+        if include_clouds and cloud_cover is not None:
+            best_str = f"{best_str} ({cloud_cover:.0f}% clouds)"
+
+        # Color green for good conditions
+        if cloud_cover is not None and cloud_cover < 30:
+            return f"[green]Best: {best_str}[/green]"
+        return f"Best: {best_str}"
 
     def _get_category_icon(self, category: str, subtype: str = "") -> str:
         """Get emoji icon for object category.
