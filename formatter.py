@@ -426,13 +426,13 @@ class ForecastFormatter:
 
             # Color code quality with stars
             if quality_level == "excellent":
-                quality_colored = f"[green]{weather_icon}{quality_stars}[/green]"
+                quality_colored = f"[green]{weather_icon} {quality_stars}[/green]"
             elif quality_level == "good":
-                quality_colored = f"[green]{weather_icon}{quality_stars}[/green]"
+                quality_colored = f"[green]{weather_icon} {quality_stars}[/green]"
             elif quality_level == "fair":
-                quality_colored = f"[yellow]{weather_icon}{quality_stars}[/yellow]"
+                quality_colored = f"[yellow]{weather_icon} {quality_stars}[/yellow]"
             else:
-                quality_colored = f"[red]{weather_icon}{quality_stars}[/red]"
+                quality_colored = f"[red]{weather_icon} {quality_stars}[/red]"
 
             # Build row
             if has_weather:
