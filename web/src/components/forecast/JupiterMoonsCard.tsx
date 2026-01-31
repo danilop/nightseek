@@ -125,8 +125,7 @@ function MoonPositionDiagram({ positions }: { positions: GalileanMoonPosition[] 
 
         {/* Moons */}
         {positions.map(moon => {
-          // x is positive west, negative east
-          // For direct view (as seen with naked eye or smart telescope): east is left, west is right
+          // x is positive west, negative east (east is left, west is right)
           const moonX = centerX + moon.x * scale;
           const moonY = centerY - moon.y * scale;
           const color = moonColors[moon.name];
@@ -176,9 +175,7 @@ function MoonPositionDiagram({ positions }: { positions: GalileanMoonPosition[] 
           W
         </text>
       </svg>
-      <p className="text-xs text-gray-500 text-center mt-2">
-        Direct view (as seen with naked eye or smart telescope)
-      </p>
+      <p className="text-xs text-gray-500 text-center mt-2">Direct view</p>
     </div>
   );
 }
