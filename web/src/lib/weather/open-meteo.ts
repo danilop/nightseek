@@ -5,6 +5,8 @@ import type {
   NightInfo,
   NightWeather,
 } from '@/types';
+import { avg, maxVal, minVal, sum } from '../utils/array-math';
+import { getOrDefault } from '../utils/map-helpers';
 
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1/forecast';
 const AIR_QUALITY_API_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
@@ -97,6 +99,157 @@ export async function fetchAirQuality(
 }
 
 /**
+ * Weather arrays collected during night hours
+ */
+interface NightWeatherArrays {
+  cloudCover: number[];
+  windSpeed: number[];
+  windGust: number[];
+  humidity: number[];
+  temp: number[];
+  precipProb: number[];
+  precip: number[];
+  pressure: number[];
+  cape: number[];
+  aod: number[];
+  pm25: number[];
+  pm10: number[];
+  dust: number[];
+  dewMargin: number[];
+}
+
+/**
+ * Create empty weather arrays structure
+ */
+function createEmptyWeatherArrays(): NightWeatherArrays {
+  return {
+    cloudCover: [],
+    windSpeed: [],
+    windGust: [],
+    humidity: [],
+    temp: [],
+    precipProb: [],
+    precip: [],
+    pressure: [],
+    cape: [],
+    aod: [],
+    pm25: [],
+    pm10: [],
+    dust: [],
+    dewMargin: [],
+  };
+}
+
+/**
+ * Collect hourly weather data for a single hour
+ */
+function collectHourlyData(
+  hourly: WeatherAPIResponse['hourly'],
+  i: number,
+  arrays: NightWeatherArrays
+): void {
+  arrays.cloudCover.push(hourly.cloud_cover[i]);
+
+  if (hourly.wind_speed_10m?.[i] != null) arrays.windSpeed.push(hourly.wind_speed_10m[i]);
+  if (hourly.wind_gusts_10m?.[i] != null) arrays.windGust.push(hourly.wind_gusts_10m[i]);
+  if (hourly.relative_humidity_2m?.[i] != null)
+    arrays.humidity.push(hourly.relative_humidity_2m[i]);
+  if (hourly.temperature_2m?.[i] != null) arrays.temp.push(hourly.temperature_2m[i]);
+  if (hourly.precipitation_probability?.[i] != null)
+    arrays.precipProb.push(hourly.precipitation_probability[i]);
+  if (hourly.precipitation?.[i] != null) arrays.precip.push(hourly.precipitation[i]);
+  if (hourly.pressure_msl?.[i] != null) arrays.pressure.push(hourly.pressure_msl[i]);
+  if (hourly.cape?.[i] != null) arrays.cape.push(hourly.cape[i]);
+
+  if (hourly.temperature_2m?.[i] != null && hourly.dew_point_2m?.[i] != null) {
+    arrays.dewMargin.push(hourly.temperature_2m[i] - hourly.dew_point_2m[i]);
+  }
+}
+
+/**
+ * Collect air quality data for a specific time
+ */
+function collectAirQualityData(
+  airHourly: AirQualityAPIResponse['hourly'],
+  time: number,
+  arrays: NightWeatherArrays
+): void {
+  const aqIndex = airHourly.time.findIndex(t => new Date(t).getTime() === time);
+  if (aqIndex < 0) return;
+
+  if (airHourly.aerosol_optical_depth?.[aqIndex] != null) {
+    arrays.aod.push(airHourly.aerosol_optical_depth[aqIndex]);
+  }
+  if (airHourly.pm2_5?.[aqIndex] != null) arrays.pm25.push(airHourly.pm2_5[aqIndex]);
+  if (airHourly.pm10?.[aqIndex] != null) arrays.pm10.push(airHourly.pm10[aqIndex]);
+  if (airHourly.dust?.[aqIndex] != null) arrays.dust.push(airHourly.dust[aqIndex]);
+}
+
+/**
+ * Build an HourlyWeather object from hourly data at index
+ */
+function buildHourlyWeather(hourly: WeatherAPIResponse['hourly'], i: number): HourlyWeather {
+  return {
+    cloudCover: hourly.cloud_cover[i],
+    visibility: hourly.visibility?.[i] ?? null,
+    windSpeed: hourly.wind_speed_10m?.[i] ?? null,
+    windGust: hourly.wind_gusts_10m?.[i] ?? null,
+    humidity: hourly.relative_humidity_2m?.[i] ?? null,
+    temperature: hourly.temperature_2m?.[i] ?? null,
+    dewPoint: hourly.dew_point_2m?.[i] ?? null,
+    precipProbability: hourly.precipitation_probability?.[i] ?? null,
+    precipitation: hourly.precipitation?.[i] ?? null,
+    pressure: hourly.pressure_msl?.[i] ?? null,
+    cape: hourly.cape?.[i] ?? null,
+    aod: null,
+    pm25: null,
+    pm10: null,
+    dust: null,
+  };
+}
+
+/**
+ * Calculate transparency score from AOD
+ */
+function calculateTransparencyScore(avgAod: number | null): number | null {
+  if (avgAod === null) return null;
+  return Math.max(0, Math.min(100, (1 - avgAod / 0.5) * 100));
+}
+
+/**
+ * Calculate pressure trend from pressure array
+ */
+function calculatePressureTrend(pressureValues: number[]): 'rising' | 'falling' | 'steady' | null {
+  if (pressureValues.length < 2) return null;
+
+  const diff = pressureValues[pressureValues.length - 1] - pressureValues[0];
+  if (diff > 2) return 'rising';
+  if (diff < -2) return 'falling';
+  return 'steady';
+}
+
+/**
+ * Get optional average - returns null if array is empty
+ */
+function avgOrNull(arr: number[]): number | null {
+  return arr.length > 0 ? avg(arr) : null;
+}
+
+/**
+ * Get optional min - returns null if array is empty
+ */
+function minOrNull(arr: number[]): number | null {
+  return arr.length > 0 ? minVal(arr) : null;
+}
+
+/**
+ * Get optional max - returns null if array is empty
+ */
+function maxOrNull(arr: number[]): number | null {
+  return arr.length > 0 ? maxVal(arr) : null;
+}
+
+/**
  * Parse weather data and combine with air quality for a specific night
  */
 export function parseNightWeather(
@@ -111,138 +264,72 @@ export function parseNightWeather(
   const dawnTime = nightInfo.astronomicalDawn.getTime();
 
   const hourlyMap = new Map<number, HourlyWeather>();
-  const nightCloudCover: number[] = [];
-  const nightWindSpeed: number[] = [];
-  const nightWindGust: number[] = [];
-  const nightHumidity: number[] = [];
-  const nightTemp: number[] = [];
-  const nightPrecipProb: number[] = [];
-  const nightPrecip: number[] = [];
-  const nightPressure: number[] = [];
-  const nightCape: number[] = [];
-  const nightAod: number[] = [];
-  const nightPm25: number[] = [];
-  const nightPm10: number[] = [];
-  const nightDust: number[] = [];
-  const nightDewMargin: number[] = [];
+  const arrays = createEmptyWeatherArrays();
 
+  // Collect data for night hours
   for (let i = 0; i < hourly.time.length; i++) {
     const time = new Date(hourly.time[i]).getTime();
 
-    // Only include hours within the night
     if (time >= duskTime && time <= dawnTime) {
-      const cloudCover = hourly.cloud_cover[i];
-      nightCloudCover.push(cloudCover);
-
-      if (hourly.wind_speed_10m?.[i] != null) nightWindSpeed.push(hourly.wind_speed_10m[i]);
-      if (hourly.wind_gusts_10m?.[i] != null) nightWindGust.push(hourly.wind_gusts_10m[i]);
-      if (hourly.relative_humidity_2m?.[i] != null)
-        nightHumidity.push(hourly.relative_humidity_2m[i]);
-      if (hourly.temperature_2m?.[i] != null) nightTemp.push(hourly.temperature_2m[i]);
-      if (hourly.precipitation_probability?.[i] != null)
-        nightPrecipProb.push(hourly.precipitation_probability[i]);
-      if (hourly.precipitation?.[i] != null) nightPrecip.push(hourly.precipitation[i]);
-      if (hourly.pressure_msl?.[i] != null) nightPressure.push(hourly.pressure_msl[i]);
-      if (hourly.cape?.[i] != null) nightCape.push(hourly.cape[i]);
-
-      // Calculate dew margin
-      if (hourly.temperature_2m?.[i] != null && hourly.dew_point_2m?.[i] != null) {
-        nightDewMargin.push(hourly.temperature_2m[i] - hourly.dew_point_2m[i]);
-      }
-
-      // Find matching air quality data
-      if (airHourly) {
-        const aqIndex = airHourly.time.findIndex(t => new Date(t).getTime() === time);
-        if (aqIndex >= 0) {
-          if (airHourly.aerosol_optical_depth?.[aqIndex] != null) {
-            nightAod.push(airHourly.aerosol_optical_depth[aqIndex]);
-          }
-          if (airHourly.pm2_5?.[aqIndex] != null) nightPm25.push(airHourly.pm2_5[aqIndex]);
-          if (airHourly.pm10?.[aqIndex] != null) nightPm10.push(airHourly.pm10[aqIndex]);
-          if (airHourly.dust?.[aqIndex] != null) nightDust.push(airHourly.dust[aqIndex]);
-        }
-      }
-
-      hourlyMap.set(time, {
-        cloudCover,
-        visibility: hourly.visibility?.[i] ?? null,
-        windSpeed: hourly.wind_speed_10m?.[i] ?? null,
-        windGust: hourly.wind_gusts_10m?.[i] ?? null,
-        humidity: hourly.relative_humidity_2m?.[i] ?? null,
-        temperature: hourly.temperature_2m?.[i] ?? null,
-        dewPoint: hourly.dew_point_2m?.[i] ?? null,
-        precipProbability: hourly.precipitation_probability?.[i] ?? null,
-        precipitation: hourly.precipitation?.[i] ?? null,
-        pressure: hourly.pressure_msl?.[i] ?? null,
-        cape: hourly.cape?.[i] ?? null,
-        aod: null,
-        pm25: null,
-        pm10: null,
-        dust: null,
-      });
+      collectHourlyData(hourly, i, arrays);
+      if (airHourly) collectAirQualityData(airHourly, time, arrays);
+      hourlyMap.set(time, buildHourlyWeather(hourly, i));
     }
   }
 
-  const avg = (arr: number[]) => (arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
-  const minVal = (arr: number[]) => (arr.length > 0 ? Math.min(...arr) : 0);
-  const maxVal = (arr: number[]) => (arr.length > 0 ? Math.max(...arr) : 0);
-
-  // Calculate transparency score from AOD
-  const avgAod = nightAod.length > 0 ? avg(nightAod) : null;
-  const transparencyScore =
-    avgAod !== null ? Math.max(0, Math.min(100, (1 - avgAod / 0.5) * 100)) : null;
-
-  // Calculate pressure trend
-  let pressureTrend: 'rising' | 'falling' | 'steady' | null = null;
-  if (nightPressure.length >= 2) {
-    const diff = nightPressure[nightPressure.length - 1] - nightPressure[0];
-    if (diff > 2) pressureTrend = 'rising';
-    else if (diff < -2) pressureTrend = 'falling';
-    else pressureTrend = 'steady';
-  }
-
-  // Find clear windows (< 30% cloud cover for at least 2 hours)
+  const avgAod = avgOrNull(arrays.aod);
   const clearWindows = findClearWindows(hourlyMap, duskTime, dawnTime);
-
-  // Calculate best observing time
   const bestTime = findBestObservingTime(hourlyMap, duskTime, dawnTime);
-
-  // Count dew risk hours
-  const dewRiskHours = nightDewMargin.filter(m => m < 3).length;
 
   return {
     date: nightInfo.date,
-    avgCloudCover: avg(nightCloudCover),
-    minCloudCover: minVal(nightCloudCover),
-    maxCloudCover: maxVal(nightCloudCover),
+    avgCloudCover: avg(arrays.cloudCover),
+    minCloudCover: minVal(arrays.cloudCover),
+    maxCloudCover: maxVal(arrays.cloudCover),
     clearDurationHours: clearWindows.reduce(
-      (sum, w) => sum + (w.end.getTime() - w.start.getTime()) / (60 * 60 * 1000),
+      (total, w) => total + (w.end.getTime() - w.start.getTime()) / (60 * 60 * 1000),
       0
     ),
     clearWindows,
     hourlyData: hourlyMap,
-    avgVisibilityKm: nightWindSpeed.length > 0 ? avg(nightWindSpeed) : null,
-    avgWindSpeedKmh: nightWindSpeed.length > 0 ? avg(nightWindSpeed) : null,
-    maxWindSpeedKmh: nightWindGust.length > 0 ? maxVal(nightWindGust) : null,
-    avgHumidity: nightHumidity.length > 0 ? avg(nightHumidity) : null,
-    avgTemperatureC: nightTemp.length > 0 ? avg(nightTemp) : null,
-    transparencyScore,
+    avgVisibilityKm: avgOrNull(arrays.windSpeed),
+    avgWindSpeedKmh: avgOrNull(arrays.windSpeed),
+    maxWindSpeedKmh: maxOrNull(arrays.windGust),
+    avgHumidity: avgOrNull(arrays.humidity),
+    avgTemperatureC: avgOrNull(arrays.temp),
+    transparencyScore: calculateTransparencyScore(avgAod),
     cloudCoverLow: hourly.cloud_cover_low ? avg(hourly.cloud_cover_low) : null,
     cloudCoverMid: hourly.cloud_cover_mid ? avg(hourly.cloud_cover_mid) : null,
     cloudCoverHigh: hourly.cloud_cover_high ? avg(hourly.cloud_cover_high) : null,
-    minPrecipProbability: nightPrecipProb.length > 0 ? minVal(nightPrecipProb) : null,
-    maxPrecipProbability: nightPrecipProb.length > 0 ? maxVal(nightPrecipProb) : null,
-    totalPrecipitationMm: nightPrecip.length > 0 ? nightPrecip.reduce((a, b) => a + b, 0) : null,
-    minDewMargin: nightDewMargin.length > 0 ? minVal(nightDewMargin) : null,
-    dewRiskHours,
-    avgPressureHpa: nightPressure.length > 0 ? avg(nightPressure) : null,
-    pressureTrend,
-    maxCape: nightCape.length > 0 ? maxVal(nightCape) : null,
+    minPrecipProbability: minOrNull(arrays.precipProb),
+    maxPrecipProbability: maxOrNull(arrays.precipProb),
+    totalPrecipitationMm: arrays.precip.length > 0 ? sum(arrays.precip) : null,
+    minDewMargin: minOrNull(arrays.dewMargin),
+    dewRiskHours: arrays.dewMargin.filter(m => m < 3).length,
+    avgPressureHpa: avgOrNull(arrays.pressure),
+    pressureTrend: calculatePressureTrend(arrays.pressure),
+    maxCape: maxOrNull(arrays.cape),
     bestTime,
     avgAerosolOpticalDepth: avgAod,
-    avgPm25: nightPm25.length > 0 ? avg(nightPm25) : null,
-    avgPm10: nightPm10.length > 0 ? avg(nightPm10) : null,
-    avgDust: nightDust.length > 0 ? avg(nightDust) : null,
+    avgPm25: avgOrNull(arrays.pm25),
+    avgPm10: avgOrNull(arrays.pm10),
+    avgDust: avgOrNull(arrays.dust),
+  };
+}
+
+/**
+ * Finalize a clear window if it meets minimum duration
+ */
+function finalizeClearWindow(
+  windowStart: Date,
+  windowEnd: Date,
+  cloudCoverValues: number[]
+): ClearWindow | null {
+  if (cloudCoverValues.length < 2) return null;
+  return {
+    start: windowStart,
+    end: windowEnd,
+    avgCloudCover: avg(cloudCoverValues),
   };
 }
 
@@ -258,7 +345,7 @@ function findClearWindows(
   const times = Array.from(hourlyData.keys()).sort((a, b) => a - b);
 
   for (const time of times) {
-    const data = hourlyData.get(time)!;
+    const data = getOrDefault(hourlyData, time, { cloudCover: 100 } as HourlyWeather);
 
     if (data.cloudCover < 30) {
       if (!windowStart) {
@@ -266,29 +353,51 @@ function findClearWindows(
         windowCloudCover = [];
       }
       windowCloudCover.push(data.cloudCover);
-    } else {
-      if (windowStart && windowCloudCover.length >= 2) {
-        windows.push({
-          start: windowStart,
-          end: new Date(time - 60 * 60 * 1000),
-          avgCloudCover: windowCloudCover.reduce((a, b) => a + b, 0) / windowCloudCover.length,
-        });
-      }
+    } else if (windowStart) {
+      const window = finalizeClearWindow(
+        windowStart,
+        new Date(time - 60 * 60 * 1000),
+        windowCloudCover
+      );
+      if (window) windows.push(window);
       windowStart = null;
       windowCloudCover = [];
     }
   }
 
   // Handle window that extends to dawn
-  if (windowStart && windowCloudCover.length >= 2) {
-    windows.push({
-      start: windowStart,
-      end: new Date(dawnTime),
-      avgCloudCover: windowCloudCover.reduce((a, b) => a + b, 0) / windowCloudCover.length,
-    });
+  if (windowStart) {
+    const window = finalizeClearWindow(windowStart, new Date(dawnTime), windowCloudCover);
+    if (window) windows.push(window);
   }
 
   return windows;
+}
+
+/**
+ * Score a single hour for observing quality
+ */
+function scoreObservingHour(data: HourlyWeather): number {
+  let score = 100 - data.cloudCover;
+
+  if (data.humidity !== null && data.humidity < 70) {
+    score += 10;
+  }
+
+  if (data.windGust !== null && data.windGust > 30) {
+    score -= 20;
+  }
+
+  return score;
+}
+
+/**
+ * Get reason string for observing conditions
+ */
+function getObservingReason(cloudCover: number): string {
+  if (cloudCover < 20) return 'Clear skies';
+  if (cloudCover < 40) return 'Partly cloudy';
+  return 'Best conditions';
 }
 
 function findBestObservingTime(
@@ -303,52 +412,27 @@ function findBestObservingTime(
 
   const times = Array.from(hourlyData.keys()).sort((a, b) => a - b);
 
-  // Find the best 2-hour window
   for (let i = 0; i < times.length - 1; i++) {
-    let windowScore = 0;
-    let windowHours = 0;
-    const reasons: string[] = [];
+    const windowHours: number[] = [];
 
     for (let j = i; j < Math.min(i + 3, times.length); j++) {
-      const data = hourlyData.get(times[j])!;
-
-      // Score based on cloud cover (0-100, inverted)
-      let hourScore = 100 - data.cloudCover;
-
-      // Bonus for low humidity
-      if (data.humidity !== null && data.humidity < 70) {
-        hourScore += 10;
-      }
-
-      // Penalty for high wind
-      if (data.windGust !== null && data.windGust > 30) {
-        hourScore -= 20;
-      }
-
-      windowScore += hourScore;
-      windowHours++;
+      const data = getOrDefault(hourlyData, times[j], { cloudCover: 100 } as HourlyWeather);
+      windowHours.push(scoreObservingHour(data));
     }
 
-    if (windowHours > 0) {
-      const avgScore = windowScore / windowHours;
+    if (windowHours.length > 0) {
+      const avgScore = avg(windowHours);
       if (avgScore > bestScore) {
         bestScore = avgScore;
         bestStart = new Date(times[i]);
         bestEnd = new Date(times[Math.min(i + 2, times.length - 1)]);
 
-        const data = hourlyData.get(times[i])!;
-        if (data.cloudCover < 20) {
-          reasons.push('Clear skies');
-        } else if (data.cloudCover < 40) {
-          reasons.push('Partly cloudy');
-        }
-        bestReason = reasons.join(', ') || 'Best conditions';
+        const data = getOrDefault(hourlyData, times[i], { cloudCover: 100 } as HourlyWeather);
+        bestReason = getObservingReason(data.cloudCover);
       }
     }
   }
 
-  // Return best window if conditions are at least marginally better than terrible
-  // (score > 20 means at least some hours with < 80% cloud cover)
   if (bestStart && bestEnd && bestScore > 20) {
     return {
       start: bestStart,

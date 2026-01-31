@@ -11,7 +11,8 @@ import {
   getCategoryIcon,
   getStarRating,
 } from '@/lib/utils/format';
-import type { NightInfo, NightWeather, ScoredObject } from '@/types';
+import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
+import type { NightInfo, NightWeather, ObjectVisibility, ScoredObject } from '@/types';
 
 interface ObjectCardProps {
   object: ScoredObject;
@@ -20,6 +21,145 @@ interface ObjectCardProps {
   compact?: boolean;
 }
 
+interface BadgeConfig {
+  id: string;
+  bgClass: string;
+  textClass: string;
+  text: string;
+}
+
+/**
+ * Build badge configurations for an object
+ */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Badge logic requires checking multiple conditions
+function buildBadgeConfigs(
+  visibility: ObjectVisibility,
+  magnitude: number | null,
+  subtype: string | null | undefined
+): BadgeConfig[] {
+  const badges: BadgeConfig[] = [];
+
+  if (magnitude !== null) {
+    badges.push({
+      id: 'magnitude',
+      bgClass: 'bg-night-700',
+      textClass: 'text-gray-300',
+      text: `mag ${formatMagnitude(magnitude)}`,
+    });
+  }
+
+  if (subtype) {
+    badges.push({
+      id: 'subtype',
+      bgClass: 'bg-night-700',
+      textClass: 'text-gray-300 capitalize',
+      text: subtype.replace(/_/g, ' '),
+    });
+  }
+
+  if (visibility.constellation) {
+    badges.push({
+      id: 'constellation',
+      bgClass: 'bg-night-700',
+      textClass: 'text-gray-300',
+      text: visibility.constellation,
+    });
+  }
+
+  if (visibility.isAtOpposition) {
+    badges.push({
+      id: 'opposition',
+      bgClass: 'bg-red-500/20',
+      textClass: 'text-red-400 font-medium',
+      text: 'At Opposition',
+    });
+  }
+
+  if (
+    visibility.isNearPerihelion &&
+    visibility.perihelionBoostPercent !== undefined &&
+    visibility.perihelionBoostPercent > 0
+  ) {
+    badges.push({
+      id: 'perihelion',
+      bgClass: 'bg-green-500/20',
+      textClass: 'text-green-400 font-medium',
+      text: `Near Perihelion (+${visibility.perihelionBoostPercent}% brighter)`,
+    });
+  }
+
+  if (visibility.elongationDeg !== undefined && visibility.elongationDeg > 15) {
+    badges.push({
+      id: 'elongation',
+      bgClass: 'bg-purple-500/20',
+      textClass: 'text-purple-400',
+      text: `${visibility.elongationDeg.toFixed(1)}° elongation`,
+    });
+  }
+
+  if (visibility.saturnRings) {
+    badges.push({
+      id: 'saturn-rings',
+      bgClass: 'bg-amber-500/20',
+      textClass: 'text-amber-400',
+      text: `Rings: ${visibility.saturnRings.tiltAngle}° (${visibility.saturnRings.openness})`,
+    });
+  }
+
+  if (visibility.libration && visibility.objectType === 'moon') {
+    const dir = visibility.libration.longitudeDeg >= 0 ? 'E' : 'W';
+    badges.push({
+      id: 'libration',
+      bgClass: 'bg-blue-500/20',
+      textClass: 'text-blue-400',
+      text: `Libration: ${Math.abs(visibility.libration.longitudeDeg).toFixed(1)}° ${dir}`,
+    });
+  }
+
+  if (
+    visibility.heliocentricDistanceAU !== undefined &&
+    (visibility.objectType === 'comet' || visibility.objectType === 'asteroid')
+  ) {
+    badges.push({
+      id: 'heliocentric',
+      bgClass: 'bg-orange-500/20',
+      textClass: 'text-orange-400',
+      text: `${visibility.heliocentricDistanceAU.toFixed(2)} AU from Sun`,
+    });
+  }
+
+  return badges;
+}
+
+/**
+ * Render astronomical badges for an object
+ */
+function AstronomicalBadges({
+  visibility,
+  magnitude,
+  subtype,
+}: {
+  visibility: ObjectVisibility;
+  magnitude: number | null;
+  subtype: string | null | undefined;
+}) {
+  const badges = buildBadgeConfigs(visibility, magnitude, subtype);
+
+  return (
+    <>
+      {badges.map(badge => (
+        <span
+          key={badge.id}
+          className={`px-2 py-1 ${badge.bgClass} rounded text-xs ${badge.textClass}`}
+        >
+          {badge.text}
+        </span>
+      ))}
+    </>
+  );
+}
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Card component with multiple display modes and conditional content
 export default function ObjectCard({
   object,
   nightInfo: _nightInfo,
@@ -146,15 +286,7 @@ export default function ObjectCard({
           <Camera className="w-4 h-4 text-green-400" />
           <span className="text-gray-400">Best Window:</span>
           <span
-            className={`font-medium ${
-              visibility.imagingWindow.quality === 'excellent'
-                ? 'text-green-400'
-                : visibility.imagingWindow.quality === 'good'
-                  ? 'text-blue-400'
-                  : visibility.imagingWindow.quality === 'acceptable'
-                    ? 'text-yellow-400'
-                    : 'text-gray-400'
-            }`}
+            className={`font-medium ${getImagingQualityColorClass(visibility.imagingWindow.quality)}`}
           >
             {formatImagingWindow(visibility.imagingWindow)}
           </span>
@@ -171,61 +303,7 @@ export default function ObjectCard({
       )}
 
       <div className="mt-3 pt-3 border-t border-night-700 flex flex-wrap gap-2">
-        {magnitude !== null && (
-          <span className="px-2 py-1 bg-night-700 rounded text-xs text-gray-300">
-            mag {formatMagnitude(magnitude)}
-          </span>
-        )}
-        {subtype && (
-          <span className="px-2 py-1 bg-night-700 rounded text-xs text-gray-300 capitalize">
-            {subtype.replace(/_/g, ' ')}
-          </span>
-        )}
-        {visibility.constellation && (
-          <span className="px-2 py-1 bg-night-700 rounded text-xs text-gray-300">
-            {visibility.constellation}
-          </span>
-        )}
-        {/* Opposition badge for outer planets */}
-        {visibility.isAtOpposition && (
-          <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs font-medium">
-            At Opposition
-          </span>
-        )}
-        {/* Perihelion badge for planets */}
-        {visibility.isNearPerihelion &&
-          visibility.perihelionBoostPercent !== undefined &&
-          visibility.perihelionBoostPercent > 0 && (
-            <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs font-medium">
-              Near Perihelion (+{visibility.perihelionBoostPercent}% brighter)
-            </span>
-          )}
-        {/* Elongation for inner planets */}
-        {visibility.elongationDeg !== undefined && visibility.elongationDeg > 15 && (
-          <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs">
-            {visibility.elongationDeg.toFixed(1)}° elongation
-          </span>
-        )}
-        {/* Saturn rings */}
-        {visibility.saturnRings && (
-          <span className="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">
-            Rings: {visibility.saturnRings.tiltAngle}° ({visibility.saturnRings.openness})
-          </span>
-        )}
-        {/* Libration info for Moon */}
-        {visibility.libration && visibility.objectType === 'moon' && (
-          <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">
-            Libration: {Math.abs(visibility.libration.longitudeDeg).toFixed(1)}°{' '}
-            {visibility.libration.longitudeDeg >= 0 ? 'E' : 'W'}
-          </span>
-        )}
-        {/* Heliocentric distance for comets */}
-        {visibility.heliocentricDistanceAU !== undefined &&
-          (visibility.objectType === 'comet' || visibility.objectType === 'asteroid') && (
-            <span className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded text-xs">
-              {visibility.heliocentricDistanceAU.toFixed(2)} AU from Sun
-            </span>
-          )}
+        <AstronomicalBadges visibility={visibility} magnitude={magnitude} subtype={subtype} />
       </div>
     </div>
   );

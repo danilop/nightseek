@@ -71,10 +71,12 @@ describe('sidereal', () => {
       const result = getLocalSiderealTime(testDate, 0);
 
       const match = result.match(/^(\d{1,2})h (\d{2})m$/);
-      expect(match).not.toBeNull();
+      if (!match) {
+        throw new Error(`Unexpected format: ${result}`);
+      }
 
-      const hours = parseInt(match![1], 10);
-      const minutes = parseInt(match![2], 10);
+      const hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
 
       expect(hours).toBeGreaterThanOrEqual(0);
       expect(hours).toBeLessThan(24);

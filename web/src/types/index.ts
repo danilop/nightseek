@@ -254,7 +254,7 @@ export interface Settings {
 
 export interface DSOCatalogEntry {
   name: string;
-  type: string;
+  type: DSOSubtype;
   raHours: number;
   decDegrees: number;
   magnitude: number | null;

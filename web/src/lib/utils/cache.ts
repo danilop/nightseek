@@ -24,6 +24,7 @@ export async function getCached<T>(key: string, maxAge: number): Promise<T | nul
 
     return entry.data;
   } catch (_error) {
+    // Silently fail for cache operations
     return null;
   }
 }
@@ -38,7 +39,9 @@ export async function setCache<T>(key: string, data: T): Promise<void> {
       timestamp: Date.now(),
     };
     await set(key, entry);
-  } catch (_error) {}
+  } catch {
+    // Silently fail for cache operations
+  }
 }
 
 /**
@@ -47,7 +50,9 @@ export async function setCache<T>(key: string, data: T): Promise<void> {
 export async function removeCache(key: string): Promise<void> {
   try {
     await del(key);
-  } catch (_error) {}
+  } catch {
+    // Silently fail for cache operations
+  }
 }
 
 /**
@@ -61,12 +66,15 @@ export async function clearAllCache(): Promise<void> {
         await del(key);
       }
     }
-  } catch (_error) {}
+  } catch {
+    // Silently fail for cache operations
+  }
 }
 
 /**
  * Prune expired cache entries
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Cache pruning requires iterating keys and checking multiple conditions
 export async function pruneCache(maxAges: Record<string, number>): Promise<void> {
   try {
     const allKeys = await keys();
@@ -91,7 +99,9 @@ export async function pruneCache(maxAges: Record<string, number>): Promise<void>
         }
       }
     }
-  } catch (_error) {}
+  } catch {
+    // Silently fail for cache operations
+  }
 }
 
 /**
@@ -112,7 +122,8 @@ export async function getCacheSize(): Promise<number> {
     }
 
     return totalSize;
-  } catch (_error) {
+  } catch {
+    // Silently fail for cache operations
     return 0;
   }
 }
