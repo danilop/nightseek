@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles */
+:root {
+  --color-night-950: #070614;
+  --color-night-900: #0f0d24;
+  --color-night-800: #1e1b4b;
+}
+
+body {
+  @apply bg-night-950 text-gray-100;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Better focus styles */
+*:focus-visible {
+  @apply outline-none ring-2 ring-sky-500 ring-offset-2 ring-offset-night-950;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-night-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-night-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-night-600;
+}
+
+/* Loading animation */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Card hover effect */
+.card-hover {
+  @apply transition-all duration-200;
+}
+
+.card-hover:hover {
+  @apply transform -translate-y-0.5 shadow-lg shadow-sky-500/10;
+}
+
+/* Star rating */
+.star-rating {
+  @apply text-yellow-400;
+  letter-spacing: 0.1em;
+}
+
+/* Safe area padding for notched devices */
+@supports (padding: max(0px)) {
+  .safe-area-inset {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Responsive table wrapper */
+.table-wrapper {
+  @apply overflow-x-auto -mx-4 px-4;
+}
+
+@screen sm {
+  .table-wrapper {
+    @apply mx-0 px-0 overflow-x-visible;
+  }
+}
