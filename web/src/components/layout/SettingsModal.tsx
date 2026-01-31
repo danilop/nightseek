@@ -1,4 +1,4 @@
-import { X, MapPin, Calendar, Eye, CircleDot } from 'lucide-react';
+import { Calendar, CircleDot, Eye, MapPin, X } from 'lucide-react';
 import { useApp } from '@/stores/AppContext';
 
 interface SettingsModalProps {
@@ -36,6 +36,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         <div className="flex items-center justify-between p-4 border-b border-night-700">
           <h2 className="text-lg font-semibold text-white">Settings</h2>
           <button
+            type="button"
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-white rounded-lg transition-colors"
           >
@@ -48,15 +49,17 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           {/* Location */}
           {location && (
             <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
                 <MapPin className="w-4 h-4" />
-                Location
-              </label>
+                <span>Location</span>
+              </div>
               <div className="flex items-center justify-between bg-night-800 rounded-lg p-3">
                 <span className="text-sm text-gray-400 truncate">
-                  {location.name || `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`}
+                  {location.name ||
+                    `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`}
                 </span>
                 <button
+                  type="button"
                   onClick={handleChangeLocation}
                   className="text-sm text-sky-400 hover:text-sky-300 transition-colors"
                 >
@@ -68,41 +71,47 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
           {/* Forecast Days */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+            <label
+              htmlFor="forecast-days"
+              className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2"
+            >
               <Calendar className="w-4 h-4" />
               Forecast Days
             </label>
             <div className="flex items-center gap-4">
               <input
+                id="forecast-days"
                 type="range"
                 min="1"
                 max="30"
                 value={settings.forecastDays}
-                onChange={(e) => handleForecastDaysChange(parseInt(e.target.value))}
+                onChange={e => handleForecastDaysChange(parseInt(e.target.value, 10))}
                 className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
               />
               <span className="w-12 text-center text-sm text-white bg-night-800 rounded-lg py-1">
                 {settings.forecastDays}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Weather data available for up to 16 days
-            </p>
+            <p className="text-xs text-gray-500 mt-1">Weather data available for up to 16 days</p>
           </div>
 
           {/* Max Objects */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+            <label
+              htmlFor="max-objects"
+              className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2"
+            >
               <Eye className="w-4 h-4" />
               Objects Per Night
             </label>
             <div className="flex items-center gap-4">
               <input
+                id="max-objects"
                 type="range"
                 min="1"
                 max="50"
                 value={settings.maxObjects}
-                onChange={(e) => handleMaxObjectsChange(parseInt(e.target.value))}
+                onChange={e => handleMaxObjectsChange(parseInt(e.target.value, 10))}
                 className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
               />
               <span className="w-12 text-center text-sm text-white bg-night-800 rounded-lg py-1">
@@ -113,33 +122,36 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
           {/* DSO Magnitude Limit */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+            <label
+              htmlFor="dso-magnitude"
+              className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2"
+            >
               <CircleDot className="w-4 h-4" />
               DSO Magnitude Limit
             </label>
             <div className="flex items-center gap-4">
               <input
+                id="dso-magnitude"
                 type="range"
                 min="6"
                 max="18"
                 step="0.5"
                 value={settings.dsoMagnitude}
-                onChange={(e) => handleDsoMagnitudeChange(parseFloat(e.target.value))}
+                onChange={e => handleDsoMagnitudeChange(parseFloat(e.target.value))}
                 className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
               />
               <span className="w-12 text-center text-sm text-white bg-night-800 rounded-lg py-1">
                 {settings.dsoMagnitude.toFixed(1)}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Lower values show brighter objects only
-            </p>
+            <p className="text-xs text-gray-500 mt-1">Lower values show brighter objects only</p>
           </div>
         </div>
 
         {/* Footer */}
         <div className="p-4 border-t border-night-700">
           <button
+            type="button"
             onClick={onClose}
             className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded-lg transition-colors"
           >

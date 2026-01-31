@@ -1,5 +1,5 @@
-import type { ObjectVisibility, NightInfo } from '@/types';
-import { SkyCalculator } from '../astronomy/calculator';
+import type { NightInfo, ObjectVisibility } from '@/types';
+import type { SkyCalculator } from '../astronomy/calculator';
 
 /**
  * Minor planet data structure
@@ -32,7 +32,7 @@ export const DWARF_PLANETS: MinorPlanetData[] = [
     semiMajorAxis: 39.482,
     eccentricity: 0.2488,
     inclination: 17.16,
-    longitudeOfAscendingNode: 110.30,
+    longitudeOfAscendingNode: 110.3,
     argumentOfPerihelion: 113.76,
     meanAnomalyAtEpoch: 14.53,
     epochJD: 2451545.0, // J2000.0
@@ -47,7 +47,7 @@ export const DWARF_PLANETS: MinorPlanetData[] = [
     eccentricity: 0.0758,
     inclination: 10.59,
     longitudeOfAscendingNode: 80.33,
-    argumentOfPerihelion: 73.60,
+    argumentOfPerihelion: 73.6,
     meanAnomalyAtEpoch: 77.37,
     epochJD: 2451545.0,
     absoluteMagnitude: 3.34,
@@ -71,9 +71,9 @@ export const DWARF_PLANETS: MinorPlanetData[] = [
     designation: '136472',
     name: 'Makemake',
     category: 'dwarf_planet',
-    semiMajorAxis: 45.430,
-    eccentricity: 0.1610,
-    inclination: 29.00,
+    semiMajorAxis: 45.43,
+    eccentricity: 0.161,
+    inclination: 29.0,
     longitudeOfAscendingNode: 79.36,
     argumentOfPerihelion: 298.83,
     meanAnomalyAtEpoch: 85.13,
@@ -119,7 +119,7 @@ export const NOTABLE_ASTEROIDS: MinorPlanetData[] = [
     designation: '2',
     name: 'Pallas',
     category: 'asteroid',
-    semiMajorAxis: 2.7720,
+    semiMajorAxis: 2.772,
     eccentricity: 0.2305,
     inclination: 34.83,
     longitudeOfAscendingNode: 173.09,
@@ -133,7 +133,7 @@ export const NOTABLE_ASTEROIDS: MinorPlanetData[] = [
     designation: '3',
     name: 'Juno',
     category: 'asteroid',
-    semiMajorAxis: 2.6700,
+    semiMajorAxis: 2.67,
     eccentricity: 0.2562,
     inclination: 12.98,
     longitudeOfAscendingNode: 169.85,
@@ -150,7 +150,7 @@ export const NOTABLE_ASTEROIDS: MinorPlanetData[] = [
     semiMajorAxis: 3.1421,
     eccentricity: 0.1146,
     inclination: 3.84,
-    longitudeOfAscendingNode: 283.20,
+    longitudeOfAscendingNode: 283.2,
     argumentOfPerihelion: 312.32,
     meanAnomalyAtEpoch: 156.08,
     epochJD: 2451545.0,
@@ -180,37 +180,40 @@ export function calculateMinorPlanetPosition(
   mp: MinorPlanetData,
   julianDate: number
 ): { x: number; y: number; z: number; r: number; earthDist: number; ra: number; dec: number } {
-  const { semiMajorAxis: a, eccentricity: e, inclination: i,
-          longitudeOfAscendingNode: Omega, argumentOfPerihelion: omega,
-          meanAnomalyAtEpoch: M0, epochJD } = mp;
+  const {
+    semiMajorAxis: a,
+    eccentricity: e,
+    inclination: i,
+    longitudeOfAscendingNode: Omega,
+    argumentOfPerihelion: omega,
+    meanAnomalyAtEpoch: M0,
+    epochJD,
+  } = mp;
 
   // Convert angles to radians
-  const iRad = i * Math.PI / 180;
-  const OmegaRad = Omega * Math.PI / 180;
-  const omegaRad = omega * Math.PI / 180;
-  const M0Rad = M0 * Math.PI / 180;
+  const iRad = (i * Math.PI) / 180;
+  const OmegaRad = (Omega * Math.PI) / 180;
+  const omegaRad = (omega * Math.PI) / 180;
+  const M0Rad = (M0 * Math.PI) / 180;
 
   // Days since epoch
   const dt = julianDate - epochJD;
 
   // Mean motion (radians per day)
   const k = 0.01720209895; // Gaussian gravitational constant
-  const n = k / Math.pow(a, 1.5);
+  const n = k / a ** 1.5;
 
   // Mean anomaly at current time
   let M = M0Rad + n * dt;
   // Normalize to 0-2π
-  M = M % (2 * Math.PI);
+  M %= 2 * Math.PI;
   if (M < 0) M += 2 * Math.PI;
 
   // Solve Kepler's equation for eccentric anomaly
   const E = solveKepler(M, e);
 
   // True anomaly
-  const nu = 2 * Math.atan2(
-    Math.sqrt(1 + e) * Math.sin(E / 2),
-    Math.sqrt(1 - e) * Math.cos(E / 2)
-  );
+  const nu = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
 
   // Distance from Sun
   const r = a * (1 - e * Math.cos(E));
@@ -227,18 +230,21 @@ export function calculateMinorPlanetPosition(
   const cosOmegaArg = Math.cos(omegaRad);
   const sinOmegaArg = Math.sin(omegaRad);
 
-  const x = (cosOmega * cosOmegaArg - sinOmega * sinOmegaArg * cosI) * xOrbital +
-            (-cosOmega * sinOmegaArg - sinOmega * cosOmegaArg * cosI) * yOrbital;
-  const y = (sinOmega * cosOmegaArg + cosOmega * sinOmegaArg * cosI) * xOrbital +
-            (-sinOmega * sinOmegaArg + cosOmega * cosOmegaArg * cosI) * yOrbital;
-  const z = (sinOmegaArg * sinI) * xOrbital + (cosOmegaArg * sinI) * yOrbital;
+  const x =
+    (cosOmega * cosOmegaArg - sinOmega * sinOmegaArg * cosI) * xOrbital +
+    (-cosOmega * sinOmegaArg - sinOmega * cosOmegaArg * cosI) * yOrbital;
+  const y =
+    (sinOmega * cosOmegaArg + cosOmega * sinOmegaArg * cosI) * xOrbital +
+    (-sinOmega * sinOmegaArg + cosOmega * cosOmegaArg * cosI) * yOrbital;
+  const z = sinOmegaArg * sinI * xOrbital + cosOmegaArg * sinI * yOrbital;
 
   // Get Earth's position (simplified)
   const T = (julianDate - 2451545.0) / 36525;
-  const earthL = (100.46646 + 36000.76983 * T) * Math.PI / 180;
-  const earthM = (357.52911 + 35999.05029 * T) * Math.PI / 180;
-  const earthC = (1.9146 * Math.sin(earthM) + 0.019993 * Math.sin(2 * earthM)) * Math.PI / 180;
-  const earthR = 1.00000261 * (1 - 0.01671123 * 0.01671123) / (1 + 0.01671123 * Math.cos(earthM + earthC));
+  const earthL = ((100.46646 + 36000.76983 * T) * Math.PI) / 180;
+  const earthM = ((357.52911 + 35999.05029 * T) * Math.PI) / 180;
+  const earthC = ((1.9146 * Math.sin(earthM) + 0.019993 * Math.sin(2 * earthM)) * Math.PI) / 180;
+  const earthR =
+    (1.00000261 * (1 - 0.01671123 * 0.01671123)) / (1 + 0.01671123 * Math.cos(earthM + earthC));
   const earthLon = earthL + earthC;
   const earthX = earthR * Math.cos(earthLon);
   const earthY = earthR * Math.sin(earthLon);
@@ -252,7 +258,7 @@ export function calculateMinorPlanetPosition(
   const earthDist = Math.sqrt(geoX * geoX + geoY * geoY + geoZ * geoZ);
 
   // Obliquity of ecliptic
-  const eps = 23.4393 * Math.PI / 180;
+  const eps = (23.4393 * Math.PI) / 180;
 
   // Convert to equatorial
   const eqX = geoX;
@@ -260,11 +266,11 @@ export function calculateMinorPlanetPosition(
   const eqZ = geoY * Math.sin(eps) + geoZ * Math.cos(eps);
 
   // RA and Dec
-  let ra = Math.atan2(eqY, eqX) * 180 / Math.PI;
+  let ra = (Math.atan2(eqY, eqX) * 180) / Math.PI;
   if (ra < 0) ra += 360;
   // Clamp to [-1, 1] to handle floating point precision issues
   const sinDec = Math.max(-1, Math.min(1, eqZ / earthDist));
-  const dec = Math.asin(sinDec) * 180 / Math.PI;
+  const dec = (Math.asin(sinDec) * 180) / Math.PI;
 
   return { x, y, z, r, earthDist, ra: ra / 15, dec }; // ra in hours
 }
@@ -291,10 +297,7 @@ export function calculateMinorPlanetMagnitude(
 /**
  * Calculate apparent diameter in arcseconds
  */
-export function calculateApparentDiameter(
-  physicalDiameterKm: number,
-  distanceAU: number
-): number {
+export function calculateApparentDiameter(physicalDiameterKm: number, distanceAU: number): number {
   if (distanceAU <= 0) return 0;
   const distanceKm = distanceAU * 149597870.7;
   const angularDiameterRad = physicalDiameterKm / distanceKm;
@@ -320,16 +323,17 @@ export function calculateMinorPlanetVisibility(
   const pos = calculateMinorPlanetPosition(mp, jd);
 
   // Skip if position calculation produced invalid values
-  if (!isFinite(pos.ra) || !isFinite(pos.dec) || !isFinite(pos.earthDist) || pos.earthDist <= 0) {
+  if (
+    !Number.isFinite(pos.ra) ||
+    !Number.isFinite(pos.dec) ||
+    !Number.isFinite(pos.earthDist) ||
+    pos.earthDist <= 0
+  ) {
     return null;
   }
 
   // Calculate apparent magnitude
-  const apparentMag = calculateMinorPlanetMagnitude(
-    mp.absoluteMagnitude,
-    pos.r,
-    pos.earthDist
-  );
+  const apparentMag = calculateMinorPlanetMagnitude(mp.absoluteMagnitude, pos.r, pos.earthDist);
 
   // Skip if too faint
   if (apparentMag > maxMagnitude) {

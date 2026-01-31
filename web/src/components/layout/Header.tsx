@@ -1,7 +1,7 @@
+import { MapPin, RefreshCw, Settings, Telescope } from 'lucide-react';
 import { useState } from 'react';
-import { Telescope, Settings, MapPin, RefreshCw } from 'lucide-react';
-import { useApp } from '@/stores/AppContext';
 import { formatCoordinates } from '@/lib/geo/location';
+import { useApp } from '@/stores/AppContext';
 import SettingsModal from './SettingsModal';
 
 export default function Header() {
@@ -24,16 +24,17 @@ export default function Header() {
             {location && (
               <div className="hidden sm:flex items-center gap-2 text-sm text-gray-400">
                 <MapPin className="w-4 h-4" />
-                <span>{location.name || formatCoordinates(location.latitude, location.longitude)}</span>
+                <span>
+                  {location.name || formatCoordinates(location.latitude, location.longitude)}
+                </span>
               </div>
             )}
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              {isLoading && (
-                <RefreshCw className="w-5 h-5 text-sky-400 animate-spin" />
-              )}
+              {isLoading && <RefreshCw className="w-5 h-5 text-sky-400 animate-spin" />}
               <button
+                type="button"
                 onClick={() => setShowSettings(true)}
                 className="p-2 text-gray-400 hover:text-white hover:bg-night-700 rounded-lg transition-colors"
                 aria-label="Settings"
@@ -55,9 +56,7 @@ export default function Header() {
         </div>
       </header>
 
-      {showSettings && (
-        <SettingsModal onClose={() => setShowSettings(false)} />
-      )}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </>
   );
 }
