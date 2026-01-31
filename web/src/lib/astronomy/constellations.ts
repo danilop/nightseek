@@ -10,8 +10,7 @@ export function getConstellation(raHours: number, decDegrees: number): string {
   try {
     const constellation = Astronomy.Constellation(raHours * 15, decDegrees);
     return constellation.name;
-  } catch (error) {
-    console.warn('Failed to determine constellation:', error);
+  } catch (_error) {
     return 'Unknown';
   }
 }
@@ -32,8 +31,7 @@ export function getConstellationInfo(
       name: constellation.name,
       symbol: constellation.symbol,
     };
-  } catch (error) {
-    console.warn('Failed to determine constellation:', error);
+  } catch (_error) {
     return { name: 'Unknown', symbol: '?' };
   }
 }
@@ -49,8 +47,7 @@ export function getPlanetConstellation(
   try {
     const equator = Astronomy.Equator(body, time, observer, true, true);
     return getConstellation(equator.ra, equator.dec);
-  } catch (error) {
-    console.warn(`Failed to determine constellation for ${body}:`, error);
+  } catch (_error) {
     return 'Unknown';
   }
 }

@@ -27,14 +27,14 @@ export async function detectLocationByIP(): Promise<Location | null> {
  * Detect location using browser geolocation API
  */
 export function detectLocationByBrowser(): Promise<Location | null> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     if (!navigator.geolocation) {
       resolve(null);
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      position => {
         resolve({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -63,14 +63,11 @@ export async function geocodeAddress(address: string): Promise<Location | null> 
       limit: '1',
     });
 
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?${params}`,
-      {
-        headers: {
-          'User-Agent': 'NightSeek-PWA/1.0.0',
-        },
-      }
-    );
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+      headers: {
+        'User-Agent': 'NightSeek-PWA/1.0.0',
+      },
+    });
 
     const results = await response.json();
     if (results.length === 0) return null;
@@ -88,10 +85,7 @@ export async function geocodeAddress(address: string): Promise<Location | null> 
 /**
  * Reverse geocode coordinates to a place name
  */
-export async function reverseGeocode(
-  latitude: number,
-  longitude: number
-): Promise<string | null> {
+export async function reverseGeocode(latitude: number, longitude: number): Promise<string | null> {
   try {
     const params = new URLSearchParams({
       lat: latitude.toString(),
@@ -99,14 +93,11 @@ export async function reverseGeocode(
       format: 'json',
     });
 
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?${params}`,
-      {
-        headers: {
-          'User-Agent': 'NightSeek-PWA/1.0.0',
-        },
-      }
-    );
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
+      headers: {
+        'User-Agent': 'NightSeek-PWA/1.0.0',
+      },
+    });
 
     const result = await response.json();
     if (result.error) return null;
@@ -131,8 +122,8 @@ export async function reverseGeocode(
  */
 export function validateCoordinates(latitude: number, longitude: number): boolean {
   return (
-    !isNaN(latitude) &&
-    !isNaN(longitude) &&
+    !Number.isNaN(latitude) &&
+    !Number.isNaN(longitude) &&
     latitude >= -90 &&
     latitude <= 90 &&
     longitude >= -180 &&

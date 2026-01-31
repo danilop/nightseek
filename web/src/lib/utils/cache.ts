@@ -1,4 +1,4 @@
-import { get, set, del, keys } from 'idb-keyval';
+import { del, get, keys, set } from 'idb-keyval';
 
 /**
  * Cache entry with timestamp
@@ -11,10 +11,7 @@ interface CacheEntry<T> {
 /**
  * Get cached data if not expired
  */
-export async function getCached<T>(
-  key: string,
-  maxAge: number
-): Promise<T | null> {
+export async function getCached<T>(key: string, maxAge: number): Promise<T | null> {
   try {
     const entry = await get<CacheEntry<T>>(key);
     if (!entry) return null;
@@ -26,8 +23,7 @@ export async function getCached<T>(
     }
 
     return entry.data;
-  } catch (error) {
-    console.warn('Cache read error:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -42,9 +38,7 @@ export async function setCache<T>(key: string, data: T): Promise<void> {
       timestamp: Date.now(),
     };
     await set(key, entry);
-  } catch (error) {
-    console.warn('Cache write error:', error);
-  }
+  } catch (_error) {}
 }
 
 /**
@@ -53,9 +47,7 @@ export async function setCache<T>(key: string, data: T): Promise<void> {
 export async function removeCache(key: string): Promise<void> {
   try {
     await del(key);
-  } catch (error) {
-    console.warn('Cache delete error:', error);
-  }
+  } catch (_error) {}
 }
 
 /**
@@ -69,9 +61,7 @@ export async function clearAllCache(): Promise<void> {
         await del(key);
       }
     }
-  } catch (error) {
-    console.warn('Cache clear error:', error);
-  }
+  } catch (_error) {}
 }
 
 /**
@@ -101,9 +91,7 @@ export async function pruneCache(maxAges: Record<string, number>): Promise<void>
         }
       }
     }
-  } catch (error) {
-    console.warn('Cache prune error:', error);
-  }
+  } catch (_error) {}
 }
 
 /**
@@ -124,8 +112,7 @@ export async function getCacheSize(): Promise<number> {
     }
 
     return totalSize;
-  } catch (error) {
-    console.warn('Cache size error:', error);
+  } catch (_error) {
     return 0;
   }
 }

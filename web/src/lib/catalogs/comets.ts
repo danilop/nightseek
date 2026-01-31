@@ -1,5 +1,5 @@
-import type { ObjectVisibility, NightInfo } from '@/types';
-import { SkyCalculator } from '../astronomy/calculator';
+import type { NightInfo, ObjectVisibility } from '@/types';
+import type { SkyCalculator } from '../astronomy/calculator';
 import { getCached, setCache } from '../utils/cache';
 
 const COMET_CACHE_KEY = 'nightseek:comets';
@@ -43,11 +43,7 @@ export function calculateCometMagnitude(
 ): number {
   if (earthDistanceAU <= 0 || sunDistanceAU <= 0) return 99.0;
 
-  return (
-    absoluteMag +
-    5 * Math.log10(earthDistanceAU) +
-    slopeParameter * Math.log10(sunDistanceAU)
-  );
+  return absoluteMag + 5 * Math.log10(earthDistanceAU) + slopeParameter * Math.log10(sunDistanceAU);
 }
 
 /**
@@ -122,13 +118,13 @@ function parseMPCCometLine(line: string): ParsedComet | null {
     const H = parseFloat(hStr) || 10.0;
     const K = parseFloat(kStr) || 10.0;
 
-    if (isNaN(q) || isNaN(e)) {
+    if (Number.isNaN(q) || Number.isNaN(e)) {
       return null;
     }
 
     // Parse perihelion date (YYYYMMDD.dddd format)
-    const year = parseInt(perihelionDateStr.substring(0, 4));
-    const month = parseInt(perihelionDateStr.substring(4, 6));
+    const year = parseInt(perihelionDateStr.substring(0, 4), 10);
+    const month = parseInt(perihelionDateStr.substring(4, 6), 10);
     const day = parseFloat(perihelionDateStr.substring(6));
 
     // Convert to Julian date (approximate)
@@ -137,10 +133,10 @@ function parseMPCCometLine(line: string): ParsedComet | null {
     // Parse epoch
     let epochJD = perihelionJD;
     if (epochStr.length >= 8) {
-      const epochYear = parseInt(epochStr.substring(0, 4));
-      const epochMonth = parseInt(epochStr.substring(4, 6));
+      const epochYear = parseInt(epochStr.substring(0, 4), 10);
+      const epochMonth = parseInt(epochStr.substring(4, 6), 10);
       const epochDay = parseFloat(epochStr.substring(6));
-      if (!isNaN(epochYear)) {
+      if (!Number.isNaN(epochYear)) {
         epochJD = dateToJulian(epochYear, epochMonth, epochDay);
       }
     }
@@ -152,9 +148,9 @@ function parseMPCCometLine(line: string): ParsedComet | null {
       name: name || designation,
       perihelionDistance: q,
       eccentricity: e,
-      inclination: isNaN(inc) ? 0 : inc,
-      longitudeOfAscendingNode: isNaN(node) ? 0 : node,
-      argumentOfPerihelion: isNaN(omega) ? 0 : omega,
+      inclination: Number.isNaN(inc) ? 0 : inc,
+      longitudeOfAscendingNode: Number.isNaN(node) ? 0 : node,
+      argumentOfPerihelion: Number.isNaN(omega) ? 0 : omega,
       perihelionTime: perihelionJD,
       absoluteMagnitude: H,
       slopeParameter: K,
@@ -176,11 +172,8 @@ function dateToJulian(year: number, month: number, day: number): number {
   }
   const A = Math.floor(year / 100);
   const B = 2 - A + Math.floor(A / 4);
-  return Math.floor(365.25 * (year + 4716)) +
-         Math.floor(30.6001 * (month + 1)) +
-         day + B - 1524.5;
+  return Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day + B - 1524.5;
 }
-
 
 /**
  * Solve Kepler's equation for eccentric anomaly
@@ -221,14 +214,19 @@ export function calculateCometPosition(
   comet: ParsedComet,
   julianDate: number
 ): { x: number; y: number; z: number; r: number } {
-  const { perihelionDistance: q, eccentricity: e, inclination: i,
-          longitudeOfAscendingNode: Omega, argumentOfPerihelion: omega,
-          perihelionTime: T } = comet;
+  const {
+    perihelionDistance: q,
+    eccentricity: e,
+    inclination: i,
+    longitudeOfAscendingNode: Omega,
+    argumentOfPerihelion: omega,
+    perihelionTime: T,
+  } = comet;
 
   // Convert angles to radians
-  const iRad = i * Math.PI / 180;
-  const OmegaRad = Omega * Math.PI / 180;
-  const omegaRad = omega * Math.PI / 180;
+  const iRad = (i * Math.PI) / 180;
+  const OmegaRad = (Omega * Math.PI) / 180;
+  const omegaRad = (omega * Math.PI) / 180;
 
   // Time since perihelion in days
   const dt = julianDate - T;
@@ -249,7 +247,7 @@ export function calculateCometPosition(
   // Mean motion (radians per day)
   // n = sqrt(GM_sun / a^3) where GM_sun ≈ 0.01720209895^2 AU^3/day^2
   const k = 0.01720209895; // Gaussian gravitational constant
-  const n = k / Math.pow(Math.abs(a), 1.5);
+  const n = k / Math.abs(a) ** 1.5;
 
   // Mean anomaly
   const M = n * dt;
@@ -263,17 +261,11 @@ export function calculateCometPosition(
 
   if (e < 1) {
     // Elliptical
-    nu = 2 * Math.atan2(
-      Math.sqrt(1 + e) * Math.sin(E / 2),
-      Math.sqrt(1 - e) * Math.cos(E / 2)
-    );
+    nu = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
     r = a * (1 - e * Math.cos(E));
   } else {
     // Hyperbolic
-    nu = 2 * Math.atan2(
-      Math.sqrt(e + 1) * Math.sinh(E / 2),
-      Math.sqrt(e - 1) * Math.cosh(E / 2)
-    );
+    nu = 2 * Math.atan2(Math.sqrt(e + 1) * Math.sinh(E / 2), Math.sqrt(e - 1) * Math.cosh(E / 2));
     r = a * (e * Math.cosh(E) - 1);
   }
 
@@ -290,11 +282,13 @@ export function calculateCometPosition(
   const sinOmegaArg = Math.sin(omegaRad);
 
   // Transform to heliocentric ecliptic coordinates
-  const x = (cosOmega * cosOmegaArg - sinOmega * sinOmegaArg * cosI) * xOrbital +
-            (-cosOmega * sinOmegaArg - sinOmega * cosOmegaArg * cosI) * yOrbital;
-  const y = (sinOmega * cosOmegaArg + cosOmega * sinOmegaArg * cosI) * xOrbital +
-            (-sinOmega * sinOmegaArg + cosOmega * cosOmegaArg * cosI) * yOrbital;
-  const z = (sinOmegaArg * sinI) * xOrbital + (cosOmegaArg * sinI) * yOrbital;
+  const x =
+    (cosOmega * cosOmegaArg - sinOmega * sinOmegaArg * cosI) * xOrbital +
+    (-cosOmega * sinOmegaArg - sinOmega * cosOmegaArg * cosI) * yOrbital;
+  const y =
+    (sinOmega * cosOmegaArg + cosOmega * sinOmegaArg * cosI) * xOrbital +
+    (-sinOmega * sinOmegaArg + cosOmega * cosOmegaArg * cosI) * yOrbital;
+  const z = sinOmegaArg * sinI * xOrbital + cosOmegaArg * sinI * yOrbital;
 
   return { x, y, z, r };
 }
@@ -309,32 +303,31 @@ function getEarthPosition(julianDate: number): { x: number; y: number; z: number
   const T = (julianDate - 2451545.0) / 36525; // Julian centuries from J2000
 
   // Mean longitude of Earth
-  const L = (100.46646 + 36000.76983 * T) * Math.PI / 180;
+  const L = ((100.46646 + 36000.76983 * T) * Math.PI) / 180;
 
   // Earth's orbital elements (simplified)
   const a = 1.00000261; // Semi-major axis in AU
   const e = 0.01671123 - 0.00004392 * T; // Eccentricity
 
   // Mean anomaly
-  const M = (357.52911 + 35999.05029 * T) * Math.PI / 180;
+  const M = ((357.52911 + 35999.05029 * T) * Math.PI) / 180;
 
   // Equation of center (approximate)
-  const C = (1.9146 - 0.004817 * T) * Math.sin(M) +
-            0.019993 * Math.sin(2 * M);
+  const C = (1.9146 - 0.004817 * T) * Math.sin(M) + 0.019993 * Math.sin(2 * M);
 
   // True anomaly
-  const nu = M + C * Math.PI / 180;
+  const nu = M + (C * Math.PI) / 180;
 
   // Distance
-  const r = a * (1 - e * e) / (1 + e * Math.cos(nu));
+  const r = (a * (1 - e * e)) / (1 + e * Math.cos(nu));
 
   // Heliocentric ecliptic longitude
-  const lon = L + C * Math.PI / 180;
+  const lon = L + (C * Math.PI) / 180;
 
   return {
     x: r * Math.cos(lon),
     y: r * Math.sin(lon),
-    z: 0 // Earth is in the ecliptic plane (approximately)
+    z: 0, // Earth is in the ecliptic plane (approximately)
   };
 }
 
@@ -342,7 +335,9 @@ function getEarthPosition(julianDate: number): { x: number; y: number; z: number
  * Calculate RA/Dec from heliocentric position
  */
 export function heliocentricToEquatorial(
-  helioX: number, helioY: number, helioZ: number,
+  helioX: number,
+  helioY: number,
+  helioZ: number,
   julianDate: number
 ): { ra: number; dec: number; distance: number } {
   // Get Earth's position
@@ -357,7 +352,7 @@ export function heliocentricToEquatorial(
   const distance = Math.sqrt(geoX * geoX + geoY * geoY + geoZ * geoZ);
 
   // Obliquity of the ecliptic
-  const eps = 23.4393 * Math.PI / 180;
+  const eps = (23.4393 * Math.PI) / 180;
 
   // Convert ecliptic to equatorial
   const eqX = geoX;
@@ -365,11 +360,11 @@ export function heliocentricToEquatorial(
   const eqZ = geoY * Math.sin(eps) + geoZ * Math.cos(eps);
 
   // RA and Dec
-  let ra = Math.atan2(eqY, eqX) * 180 / Math.PI;
+  let ra = (Math.atan2(eqY, eqX) * 180) / Math.PI;
   if (ra < 0) ra += 360;
   // Clamp to [-1, 1] to handle floating point precision issues
   const sinDec = Math.max(-1, Math.min(1, eqZ / distance));
-  const dec = Math.asin(sinDec) * 180 / Math.PI;
+  const dec = (Math.asin(sinDec) * 180) / Math.PI;
 
   return { ra: ra / 15, dec, distance }; // ra in hours
 }
@@ -406,8 +401,7 @@ export async function fetchComets(maxMagnitude: number = 12.0): Promise<ParsedCo
     await setCache(COMET_CACHE_KEY, comets);
 
     return comets.filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
-  } catch (error) {
-    console.warn('Could not fetch MPC comet data, using fallback:', error);
+  } catch (_error) {
     // Return fallback bright comets
     return getFallbackComets();
   }
@@ -501,7 +495,12 @@ export function calculateCometVisibility(
   const { ra, dec, distance: earthDist } = heliocentricToEquatorial(pos.x, pos.y, pos.z, jd);
 
   // Skip if position calculation produced invalid values
-  if (!isFinite(ra) || !isFinite(dec) || !isFinite(earthDist) || earthDist <= 0) {
+  if (
+    !Number.isFinite(ra) ||
+    !Number.isFinite(dec) ||
+    !Number.isFinite(earthDist) ||
+    earthDist <= 0
+  ) {
     return null;
   }
 

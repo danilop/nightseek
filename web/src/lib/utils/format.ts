@@ -132,11 +132,16 @@ export function formatScore(score: number, maxScore: number = 200): string {
  */
 export function getTierColorClass(tier: ScoreTier): string {
   switch (tier) {
-    case 'excellent': return 'text-yellow-400';
-    case 'very_good': return 'text-green-400';
-    case 'good': return 'text-blue-400';
-    case 'fair': return 'text-orange-400';
-    case 'poor': return 'text-red-400';
+    case 'excellent':
+      return 'text-yellow-400';
+    case 'very_good':
+      return 'text-green-400';
+    case 'good':
+      return 'text-blue-400';
+    case 'fair':
+      return 'text-orange-400';
+    case 'poor':
+      return 'text-red-400';
   }
 }
 
@@ -181,10 +186,7 @@ export function getStarRating(rating: number, maxStars: number = 5): string {
 /**
  * Calculate night quality rating (1-5 stars)
  */
-export function calculateNightRating(
-  moonIllumination: number,
-  cloudCover?: number | null
-): number {
+export function calculateNightRating(moonIllumination: number, cloudCover?: number | null): number {
   let rating = 5;
 
   // Moon penalty

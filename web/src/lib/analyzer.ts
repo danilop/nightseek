@@ -1,36 +1,49 @@
 import * as Astronomy from 'astronomy-engine';
 import type {
-  NightForecast,
-  ObjectVisibility,
-  Location,
-  Settings,
-  ScoredObject,
-  NightWeather,
-  DSOCatalogEntry,
   AstronomicalEvents,
+  DSOCatalogEntry,
+  Location,
+  NightForecast,
+  NightWeather,
+  ObjectVisibility,
+  ScoredObject,
+  Settings,
 } from '@/types';
 import { SkyCalculator } from './astronomy/calculator';
-import { PLANETS } from './astronomy/planets';
-import { loadOpenNGCCatalog } from './catalogs/opengc';
-import { getCommonName } from './catalogs/common-names';
-import { fetchComets, calculateCometVisibility } from './catalogs/comets';
+import { getConstellation, getPlanetConstellation } from './astronomy/constellations';
 import {
+  detectMaxElongations,
+  getElongationForPlanet,
+  isInnerPlanet,
+  isOuterPlanet,
+} from './astronomy/elongation';
+import { getJupiterMoonsData } from './astronomy/galilean-moons';
+import { getBestImagingWindow } from './astronomy/imaging-windows';
+import { getLibrationForNight } from './astronomy/libration';
+import { getLunarApsisForNight } from './astronomy/lunar-apsis';
+import { getEclipseSeasonInfo } from './astronomy/lunar-nodes';
+import { getMoonPhaseEvents } from './astronomy/moon-phases';
+import { detectOppositions, getOppositionForPlanet } from './astronomy/opposition';
+import { getPlanetsNearPerihelion, isNearPerihelion } from './astronomy/planet-apsis';
+import { PLANETS } from './astronomy/planets';
+import { getSeeingFromWeather } from './astronomy/seeing';
+import { getLocalSiderealTime } from './astronomy/sidereal';
+import { getVenusPeakInfo } from './astronomy/venus-peak';
+import { calculateCometVisibility, fetchComets } from './catalogs/comets';
+import { getCommonName } from './catalogs/common-names';
+import {
+  calculateMinorPlanetVisibility,
   getDwarfPlanets,
   getNotableAsteroids,
-  calculateMinorPlanetVisibility,
 } from './catalogs/minor-planets';
-import { fetchWeather, fetchAirQuality, parseNightWeather } from './weather/open-meteo';
+import { loadOpenNGCCatalog } from './catalogs/opengc';
 import { detectConjunctions } from './events/conjunctions';
-import { detectMeteorShowers } from './events/meteor-showers';
 import { detectEclipses } from './events/eclipses';
+import { detectMeteorShowers } from './events/meteor-showers';
 import { detectSeasonalMarkers } from './events/seasons';
+import { getTransitForDisplay } from './events/transits';
 import { calculateTotalScore } from './scoring';
-import { getConstellation, getPlanetConstellation } from './astronomy/constellations';
-import { detectOppositions, getOppositionForPlanet } from './astronomy/opposition';
-import { detectMaxElongations, getElongationForPlanet, isInnerPlanet, isOuterPlanet } from './astronomy/elongation';
-import { getJupiterMoonsData } from './astronomy/galilean-moons';
-import { getLunarApsisForNight } from './astronomy/lunar-apsis';
-import { getLibrationForNight } from './astronomy/libration';
+import { fetchAirQuality, fetchWeather, parseNightWeather } from './weather/open-meteo';
 
 const MIN_SCORE_THRESHOLD = 60;
 const MAX_WEATHER_DAYS = 16;
@@ -69,8 +82,8 @@ export async function generateForecast(
       observerLatitude: latitude,
       minAltitude: 30,
     });
-  } catch (error) {
-    console.warn('Failed to load DSO catalog:', error);
+  } catch {
+    // DSO catalog loading failed - continue without DSO data
   }
 
   // Fetch comets from MPC
@@ -89,16 +102,16 @@ export async function generateForecast(
   if (forecastDays <= MAX_WEATHER_DAYS) {
     try {
       weatherData = await fetchWeather(latitude, longitude, forecastDays);
-    } catch (error) {
-      console.warn('Failed to fetch weather:', error);
+    } catch {
+      // Weather fetch failed - continue without weather data
     }
   }
 
   if (forecastDays <= MAX_AIR_QUALITY_DAYS) {
     try {
       airQualityData = await fetchAirQuality(latitude, longitude, forecastDays);
-    } catch (error) {
-      console.warn('Failed to fetch air quality:', error);
+    } catch {
+      // Air quality fetch failed - continue without air quality data
     }
   }
 
@@ -127,24 +140,37 @@ export async function generateForecast(
     // Calculate night info
     const nightInfo = calculator.getNightInfo(nightDate);
 
+    // Calculate exact moon phase events
+    const moonPhaseEvents = getMoonPhaseEvents(nightDate, nightInfo);
+    nightInfo.moonPhaseExact = moonPhaseEvents.tonightEvent;
+
+    // Calculate local sidereal time at midnight
+    const midnight = new Date(nightInfo.sunset);
+    midnight.setHours(midnight.getHours() + 6);
+    nightInfo.localSiderealTimeAtMidnight = getLocalSiderealTime(
+      midnight,
+      calculator.getLongitude()
+    );
+
     // Calculate planet visibility with constellation and planetary events
     const planets: ObjectVisibility[] = [];
     let jupiterVisible = false;
 
+    // Get Venus peak info for scoring
+    const venusPeak = getVenusPeakInfo(nightDate);
+
+    // Get planets near perihelion
+    const planetsNearPerihelion = getPlanetsNearPerihelion(nightDate);
+
     for (const planet of PLANETS) {
       try {
-        const visibility = calculator.calculatePlanetVisibility(
-          planet.name,
-          nightInfo
-        );
+        const visibility = calculator.calculatePlanetVisibility(planet.name, nightInfo);
 
         if (visibility.isVisible) {
+          const body = Astronomy.Body[planet.name as keyof typeof Astronomy.Body];
+
           // Add constellation
-          const constellation = getPlanetConstellation(
-            Astronomy.Body[planet.name as keyof typeof Astronomy.Body],
-            nightInfo.astronomicalDusk,
-            observer
-          );
+          const constellation = getPlanetConstellation(body, nightInfo.astronomicalDusk, observer);
           visibility.constellation = constellation;
 
           // Add elongation for inner planets
@@ -163,6 +189,41 @@ export async function generateForecast(
             }
           }
 
+          // Calculate hour angle at peak altitude time
+          if (visibility.maxAltitudeTime) {
+            visibility.hourAngle = calculator.getHourAngle(body, visibility.maxAltitudeTime);
+
+            // Calculate meridian transit time during the night
+            const meridianTime = calculator.getMeridianTransitTime(
+              body,
+              nightInfo.astronomicalDusk
+            );
+            if (
+              meridianTime &&
+              meridianTime >= nightInfo.sunset &&
+              meridianTime <= nightInfo.sunrise
+            ) {
+              visibility.meridianTransitTime = meridianTime;
+            }
+          }
+
+          // Calculate sun angle for twilight penalty
+          visibility.sunAngle = calculator.getSunAngle(body, nightInfo.astronomicalDusk);
+
+          // Calculate heliocentric and geocentric distances
+          visibility.heliocentricDistanceAU = calculator.getHeliocentricDistance(body, nightDate);
+          visibility.geocentricDistanceAU = calculator.getGeocentricDistance(body, nightDate);
+
+          // Check perihelion status
+          const perihelionInfo = isNearPerihelion(planet.name, nightDate);
+          visibility.isNearPerihelion = perihelionInfo.isNear;
+          visibility.perihelionBoostPercent = perihelionInfo.brightnessBoostPercent;
+
+          // Add Saturn ring info
+          if (planet.name.toLowerCase() === 'saturn') {
+            visibility.saturnRings = calculator.getSaturnRingInfo(nightDate);
+          }
+
           // Track if Jupiter is visible for moon calculations
           if (planet.name.toLowerCase() === 'jupiter') {
             jupiterVisible = true;
@@ -170,8 +231,8 @@ export async function generateForecast(
 
           planets.push(visibility);
         }
-      } catch (error) {
-        console.warn(`Failed to calculate ${planet.name} visibility:`, error);
+      } catch {
+        // Planet visibility calculation failed - skip this planet
       }
     }
 
@@ -214,6 +275,24 @@ export async function generateForecast(
       );
 
       if (visibility.isVisible) {
+        // Add hour angle and meridian transit for DSOs
+        if (visibility.maxAltitudeTime) {
+          visibility.hourAngle = calculator.getHourAngleForRA(
+            dso.raHours,
+            visibility.maxAltitudeTime
+          );
+          visibility.meridianTransitTime =
+            calculator.getMeridianTransitTimeForRA(dso.raHours, nightInfo.astronomicalDusk) ??
+            undefined;
+        }
+
+        // Calculate sun angle
+        visibility.sunAngle = calculator.getSunAngleForPosition(
+          dso.raHours,
+          dso.decDegrees,
+          nightInfo.astronomicalDusk
+        );
+
         dsos.push(visibility);
       }
     }
@@ -274,10 +353,13 @@ export async function generateForecast(
     if (weatherData) {
       try {
         weather = parseNightWeather(weatherData, airQualityData, nightInfo);
-      } catch (error) {
-        console.warn('Failed to parse weather:', error);
+      } catch {
+        // Weather parsing failed - continue without weather data
       }
     }
+
+    // Calculate seeing forecast based on weather
+    nightInfo.seeingForecast = getSeeingFromWeather(weather);
 
     // Detect conjunctions
     const conjunctions = detectConjunctions(observer, planets, nightInfo);
@@ -290,6 +372,12 @@ export async function generateForecast(
     const eclipses = detectEclipses(nightDate, observer, 1); // Just check this day
     const seasonalMarker = detectSeasonalMarkers(nightDate, 1); // Check if today has a marker
     const jupiterMoons = jupiterVisible ? getJupiterMoonsData(nightInfo, true) : null;
+
+    // Get eclipse season info
+    const eclipseSeason = getEclipseSeasonInfo(nightDate);
+
+    // Get planetary transit info (rare events)
+    const planetaryTransit = getTransitForDisplay(nightDate);
 
     // Build astronomical events object
     const astronomicalEvents: AstronomicalEvents = {
@@ -307,6 +395,13 @@ export async function generateForecast(
         return Math.abs(daysDiff) <= 7;
       }),
       seasonalMarker,
+      // New event fields
+      moonPhaseEvent: moonPhaseEvents.tonightEvent,
+      nextMoonPhase: moonPhaseEvents.next,
+      planetPerihelia: planetsNearPerihelion,
+      eclipseSeason: eclipseSeason?.isActive ? eclipseSeason : null,
+      venusPeak,
+      planetaryTransit,
     };
 
     // Create forecast
@@ -339,10 +434,28 @@ export async function generateForecast(
       ...(moon.isVisible ? [moon] : []),
     ];
 
+    // Calculate imaging windows for all visible objects
+    for (const obj of allObjects) {
+      const imagingWindow = getBestImagingWindow(obj, nightInfo, weather);
+      if (imagingWindow) {
+        obj.imagingWindow = imagingWindow;
+      }
+    }
+
     // Score all objects and filter by minimum threshold
     // Don't limit here - let the UI handle display with category grouping
     const scored = allObjects
-      .map(obj => calculateTotalScore(obj, nightInfo, weather, sunPos.ra, astronomicalEvents.oppositions, lunarApsis))
+      .map(obj =>
+        calculateTotalScore(
+          obj,
+          nightInfo,
+          weather,
+          sunPos.ra,
+          astronomicalEvents.oppositions,
+          lunarApsis,
+          venusPeak
+        )
+      )
       .filter(s => s.totalScore >= MIN_SCORE_THRESHOLD)
       .sort((a, b) => b.totalScore - a.totalScore);
 

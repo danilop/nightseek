@@ -1,4 +1,10 @@
-import type { NightWeather, HourlyWeather, BestObservingTime, ClearWindow, NightInfo } from '@/types';
+import type {
+  BestObservingTime,
+  ClearWindow,
+  HourlyWeather,
+  NightInfo,
+  NightWeather,
+} from '@/types';
 
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1/forecast';
 const AIR_QUALITY_API_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
@@ -130,9 +136,11 @@ export function parseNightWeather(
 
       if (hourly.wind_speed_10m?.[i] != null) nightWindSpeed.push(hourly.wind_speed_10m[i]);
       if (hourly.wind_gusts_10m?.[i] != null) nightWindGust.push(hourly.wind_gusts_10m[i]);
-      if (hourly.relative_humidity_2m?.[i] != null) nightHumidity.push(hourly.relative_humidity_2m[i]);
+      if (hourly.relative_humidity_2m?.[i] != null)
+        nightHumidity.push(hourly.relative_humidity_2m[i]);
       if (hourly.temperature_2m?.[i] != null) nightTemp.push(hourly.temperature_2m[i]);
-      if (hourly.precipitation_probability?.[i] != null) nightPrecipProb.push(hourly.precipitation_probability[i]);
+      if (hourly.precipitation_probability?.[i] != null)
+        nightPrecipProb.push(hourly.precipitation_probability[i]);
       if (hourly.precipitation?.[i] != null) nightPrecip.push(hourly.precipitation[i]);
       if (hourly.pressure_msl?.[i] != null) nightPressure.push(hourly.pressure_msl[i]);
       if (hourly.cape?.[i] != null) nightCape.push(hourly.cape[i]);
@@ -175,13 +183,14 @@ export function parseNightWeather(
     }
   }
 
-  const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-  const minVal = (arr: number[]) => arr.length > 0 ? Math.min(...arr) : 0;
-  const maxVal = (arr: number[]) => arr.length > 0 ? Math.max(...arr) : 0;
+  const avg = (arr: number[]) => (arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+  const minVal = (arr: number[]) => (arr.length > 0 ? Math.min(...arr) : 0);
+  const maxVal = (arr: number[]) => (arr.length > 0 ? Math.max(...arr) : 0);
 
   // Calculate transparency score from AOD
   const avgAod = nightAod.length > 0 ? avg(nightAod) : null;
-  const transparencyScore = avgAod !== null ? Math.max(0, Math.min(100, (1 - avgAod / 0.5) * 100)) : null;
+  const transparencyScore =
+    avgAod !== null ? Math.max(0, Math.min(100, (1 - avgAod / 0.5) * 100)) : null;
 
   // Calculate pressure trend
   let pressureTrend: 'rising' | 'falling' | 'steady' | null = null;
@@ -206,8 +215,9 @@ export function parseNightWeather(
     avgCloudCover: avg(nightCloudCover),
     minCloudCover: minVal(nightCloudCover),
     maxCloudCover: maxVal(nightCloudCover),
-    clearDurationHours: clearWindows.reduce((sum, w) =>
-      sum + (w.end.getTime() - w.start.getTime()) / (60 * 60 * 1000), 0
+    clearDurationHours: clearWindows.reduce(
+      (sum, w) => sum + (w.end.getTime() - w.start.getTime()) / (60 * 60 * 1000),
+      0
     ),
     clearWindows,
     hourlyData: hourlyMap,

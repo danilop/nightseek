@@ -27,8 +27,7 @@ export function searchNextLunarApsis(
       date: result.time.date,
       distanceKm: result.dist_km,
     };
-  } catch (error) {
-    console.warn('Failed to search lunar apsis:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -104,8 +103,7 @@ export function getLunarApsisForNight(
       distanceKm: apsis.distanceKm,
       isSupermoon: supermoon,
     };
-  } catch (error) {
-    console.warn('Failed to get lunar apsis for night:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -161,8 +159,7 @@ export function checkSupermoon(date: Date): {
       distanceKm: perigee.distanceKm,
       fullMoonPhase: moonPhase,
     };
-  } catch (error) {
-    console.warn('Failed to check supermoon:', error);
+  } catch (_error) {
     return {
       isSupermoon: false,
       perigeeDate: null,
@@ -183,7 +180,10 @@ export function describeLunarApsis(apsis: LunarApsis): string {
   }
 
   if (apsis.type === 'perigee') {
-    const percentCloser = ((MEAN_APOGEE_KM - apsis.distanceKm) / (MEAN_APOGEE_KM - MEAN_PERIGEE_KM) * 100).toFixed(0);
+    const percentCloser = (
+      ((MEAN_APOGEE_KM - apsis.distanceKm) / (MEAN_APOGEE_KM - MEAN_PERIGEE_KM)) *
+      100
+    ).toFixed(0);
     return `Moon at perigee (${distanceStr} km) - appears ${percentCloser}% larger than average`;
   }
 
