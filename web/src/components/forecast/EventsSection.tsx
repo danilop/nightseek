@@ -8,12 +8,14 @@ interface EventsSectionProps {
   conjunctions: Conjunction[];
   meteorShowers: MeteorShower[];
   astronomicalEvents?: AstronomicalEvents;
+  latitude: number;
 }
 
 export default function EventsSection({
   conjunctions,
   meteorShowers,
   astronomicalEvents,
+  latitude,
 }: EventsSectionProps) {
   const hasBasicEvents = conjunctions.length > 0 || meteorShowers.length > 0;
   const hasAstroEvents =
@@ -42,6 +44,7 @@ export default function EventsSection({
         <JupiterMoonsCard
           positions={astronomicalEvents.jupiterMoons.positions}
           events={astronomicalEvents.jupiterMoons.events}
+          latitude={latitude}
         />
       )}
 
