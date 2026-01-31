@@ -42,6 +42,7 @@ function getPlanetBody(name: string): Astronomy.Body | null {
 /**
  * Detect conjunctions between planets and between planets and the Moon
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Conjunction detection requires pairwise comparisons between all planets
 export function detectConjunctions(
   observer: Astronomy.Observer,
   visiblePlanets: ObjectVisibility[],
@@ -77,8 +78,10 @@ export function detectConjunctions(
     for (let j = i + 1; j < planetNames.length; j++) {
       const name1 = planetNames[i];
       const name2 = planetNames[j];
-      const pos1 = positions.get(name1)!;
-      const pos2 = positions.get(name2)!;
+      const pos1 = positions.get(name1);
+      const pos2 = positions.get(name2);
+
+      if (!pos1 || !pos2) continue;
 
       // Calculate angular separation (equatorial)
       const angSeparation = angularSeparation(pos1.ra, pos1.dec, pos2.ra, pos2.dec);

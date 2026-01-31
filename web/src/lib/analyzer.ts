@@ -58,6 +58,7 @@ export interface ForecastResult {
 /**
  * Generate a complete forecast for the given location and settings
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Forecast generation orchestrates many calculations
 export async function generateForecast(
   location: Location,
   settings: Settings,
@@ -265,7 +266,7 @@ export async function generateForecast(
         'dso',
         {
           magnitude: dso.magnitude,
-          subtype: dso.type as any,
+          subtype: dso.type,
           angularSizeArcmin: dso.majorAxisArcmin ?? 0,
           surfaceBrightness: dso.surfaceBrightness,
           commonName: formattedCommonName,
@@ -478,6 +479,7 @@ export async function generateForecast(
 /**
  * Determine the best nights based on moon and weather
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Night scoring requires evaluating multiple factors
 function determineBestNights(forecasts: NightForecast[]): string[] {
   const nightScores: Array<{ date: string; score: number }> = [];
 

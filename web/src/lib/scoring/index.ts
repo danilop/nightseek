@@ -16,6 +16,7 @@ import type {
 /**
  * Calculate altitude score based on airmass (0-40 points)
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Score mapping requires multiple threshold checks
 export function calculateAltitudeScore(airmass: number, altitude: number): number {
   // Prefer airmass-based scoring if available
   if (airmass !== Infinity && airmass > 0) {
@@ -126,6 +127,7 @@ export function calculatePeakTimingScore(peakTime: Date | null, dusk: Date, dawn
 /**
  * Calculate weather score (0-15 points)
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Weather scoring combines multiple atmospheric factors
 export function calculateWeatherScore(
   weather: NightWeather | null,
   objectType: ObjectCategory,
@@ -234,6 +236,7 @@ export function calculateSurfaceBrightnessScore(
 /**
  * Magnitude score (0-15 points)
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Score mapping varies by object type with multiple thresholds
 export function calculateMagnitudeScore(
   magnitude: number | null,
   objectType: ObjectCategory
@@ -267,6 +270,7 @@ export function calculateMagnitudeScore(
 /**
  * Type suitability score based on moon conditions (0-15 points)
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Suitability scoring varies by object type and moon conditions
 export function calculateTypeSuitabilityScore(
   objectType: ObjectCategory,
   subtype: DSOSubtype | null,
@@ -570,6 +574,7 @@ export function calculateDewRiskPenalty(weather: NightWeather | null): number {
 /**
  * Calculate total score for an object
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Total score combines many individual scoring components
 export function calculateTotalScore(
   visibility: ObjectVisibility,
   nightInfo: NightInfo,

@@ -91,6 +91,7 @@ function parseCSVLine(line: string): string[] {
 /**
  * Load and parse the OpenNGC catalog
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: CSV parsing requires handling multiple field types and validation
 export async function loadOpenNGCCatalog(
   options: { maxMagnitude?: number; observerLatitude?: number; minAltitude?: number } = {}
 ): Promise<DSOCatalogEntry[]> {
