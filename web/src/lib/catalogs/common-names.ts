@@ -6,13 +6,13 @@ export const COMMON_NAMES: Record<string, string> = {
   'NGC 598': 'Triangulum Galaxy',
   'NGC 1952': 'Crab Nebula',
   'NGC 1976': 'Orion Nebula',
-  'NGC 1982': 'De Mairan\'s Nebula',
+  'NGC 1982': "De Mairan's Nebula",
   'NGC 2070': 'Tarantula Nebula',
   'NGC 2237': 'Rosette Nebula',
   'NGC 2244': 'Rosette Cluster',
   'NGC 2392': 'Eskimo Nebula',
   'NGC 2683': 'UFO Galaxy',
-  'NGC 3031': 'Bode\'s Galaxy',
+  'NGC 3031': "Bode's Galaxy",
   'NGC 3034': 'Cigar Galaxy',
   'NGC 3132': 'Eight-Burst Nebula',
   'NGC 3242': 'Ghost of Jupiter',
@@ -43,7 +43,7 @@ export const COMMON_NAMES: Record<string, string> = {
   'NGC 6514': 'Trifid Nebula',
   'NGC 6523': 'Lagoon Nebula',
   'NGC 6530': 'Lagoon Cluster',
-  'NGC 6543': 'Cat\'s Eye Nebula',
+  'NGC 6543': "Cat's Eye Nebula",
   'NGC 6611': 'Eagle Nebula',
   'NGC 6618': 'Omega Nebula',
   'NGC 6720': 'Ring Nebula',
@@ -66,12 +66,12 @@ export const COMMON_NAMES: Record<string, string> = {
   'NGC 7380': 'Wizard Nebula',
   'NGC 7635': 'Bubble Nebula',
   'NGC 7662': 'Blue Snowball Nebula',
-  'NGC 7789': 'Caroline\'s Rose',
+  'NGC 7789': "Caroline's Rose",
   'NGC 869': 'Double Cluster (h)',
   'NGC 884': 'Double Cluster (chi)',
   'IC 434': 'Horsehead Nebula',
   'IC 1318': 'Sadr Region',
-  'IC 1396': 'Elephant\'s Trunk Nebula',
+  'IC 1396': "Elephant's Trunk Nebula",
   'IC 1805': 'Heart Nebula',
   'IC 1848': 'Soul Nebula',
   'IC 2118': 'Witch Head Nebula',
@@ -95,8 +95,8 @@ export function getCommonName(ngcName: string): string | null {
 
   // Normalize: add space after NGC/IC if missing, and remove leading zeros
   const normalized = ngcName
-    .replace(/^(NGC|IC)(\d)/, '$1 $2')  // Add space: NGC3031 -> NGC 3031
-    .replace(/^(NGC|IC) 0+(\d)/, '$1 $2');  // Remove leading zeros: NGC 0224 -> NGC 224
+    .replace(/^(NGC|IC)(\d)/, '$1 $2') // Add space: NGC3031 -> NGC 3031
+    .replace(/^(NGC|IC) 0+(\d)/, '$1 $2'); // Remove leading zeros: NGC 0224 -> NGC 224
 
   return COMMON_NAMES[normalized] ?? null;
 }

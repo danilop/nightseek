@@ -1,11 +1,11 @@
+import { RefreshCw, Sparkles, Star } from 'lucide-react';
 import { useState } from 'react';
-import { RefreshCw, Star, Sparkles } from 'lucide-react';
-import type { NightForecast, ScoredObject, Location } from '@/types';
-import { formatDateRange, formatDate } from '@/lib/utils/format';
-import NightSummaryTable from './NightSummaryTable';
-import TonightHighlights from './TonightHighlights';
+import { formatDate, formatDateRange } from '@/lib/utils/format';
+import type { Location, NightForecast, ScoredObject } from '@/types';
 import EventsSection from './EventsSection';
 import NightDetails from './NightDetails';
+import NightSummaryTable from './NightSummaryTable';
+import TonightHighlights from './TonightHighlights';
 
 interface ForecastViewProps {
   forecasts: NightForecast[];
@@ -54,6 +54,7 @@ export default function ForecastView({
         </div>
 
         <button
+          type="button"
           onClick={onRefresh}
           className="inline-flex items-center gap-2 px-4 py-2 bg-night-800 hover:bg-night-700 text-white rounded-lg transition-colors self-start sm:self-auto"
         >
@@ -65,6 +66,7 @@ export default function ForecastView({
       {/* Tab Navigation (Mobile) */}
       <div className="flex sm:hidden gap-2 mb-6">
         <button
+          type="button"
           onClick={() => setActiveTab('tonight')}
           className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
             activeTab === 'tonight'
@@ -75,6 +77,7 @@ export default function ForecastView({
           Tonight
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('week')}
           className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
             activeTab === 'week'
@@ -99,9 +102,7 @@ export default function ForecastView({
               return (
                 <span key={dateStr}>
                   {i > 0 && ', '}
-                  <span className="text-green-300 font-medium">
-                    {formatDate(date)}
-                  </span>
+                  <span className="text-green-300 font-medium">{formatDate(date)}</span>
                 </span>
               );
             })}

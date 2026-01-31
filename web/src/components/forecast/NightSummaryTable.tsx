@@ -1,14 +1,13 @@
-
 import { Star } from 'lucide-react';
-import type { NightForecast, NightWeather } from '@/types';
 import {
+  calculateNightRating,
   formatDate,
   formatTime,
   getMoonPhaseEmoji,
-  getWeatherEmoji,
   getStarRating,
-  calculateNightRating,
+  getWeatherEmoji,
 } from '@/lib/utils/format';
+import type { NightForecast, NightWeather } from '@/types';
 
 /**
  * Get best observation time display string
@@ -91,21 +90,18 @@ export default function NightSummaryTable({
                   key={dateKey}
                   onClick={() => onSelectNight(index)}
                   className={`cursor-pointer transition-colors ${
-                    isSelected
-                      ? 'bg-sky-600/20'
-                      : 'hover:bg-night-800/50'
+                    isSelected ? 'bg-sky-600/20' : 'hover:bg-night-800/50'
                   } ${isBestNight ? 'border-l-2 border-l-green-500' : ''}`}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {isBestNight && <Star className="w-4 h-4 text-green-400" />}
-                      <span className="text-white font-medium">
-                        {formatDate(nightInfo.date)}
-                      </span>
+                      <span className="text-white font-medium">{formatDate(nightInfo.date)}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-400 text-sm">
-                    {formatTime(nightInfo.astronomicalDusk)} - {formatTime(nightInfo.astronomicalDawn)}
+                    {formatTime(nightInfo.astronomicalDusk)} -{' '}
+                    {formatTime(nightInfo.astronomicalDawn)}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="text-lg">{getMoonPhaseEmoji(nightInfo.moonPhase)}</span>
@@ -129,9 +125,7 @@ export default function NightSummaryTable({
                     {getBestTimeDisplay(weather) || '—'}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className="star-rating text-sm">
-                      {getStarRating(rating)}
-                    </span>
+                    <span className="star-rating text-sm">{getStarRating(rating)}</span>
                   </td>
                 </tr>
               );
@@ -147,15 +141,20 @@ export default function NightSummaryTable({
           const dateKey = nightInfo.date.toISOString().split('T')[0];
           const isBestNight = bestNightSet.has(dateKey);
           const isSelected = index === selectedIndex;
-          const rating = calculateNightRating(
-            nightInfo.moonIllumination,
-            weather?.avgCloudCover
-          );
+          const rating = calculateNightRating(nightInfo.moonIllumination, weather?.avgCloudCover);
 
           return (
             <div
               key={dateKey}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelectNight(index)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectNight(index);
+                }
+              }}
               className={`p-4 cursor-pointer transition-colors ${
                 isSelected ? 'bg-sky-600/20' : ''
               } ${isBestNight ? 'border-l-2 border-l-green-500' : ''}`}
@@ -163,13 +162,9 @@ export default function NightSummaryTable({
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   {isBestNight && <Star className="w-4 h-4 text-green-400" />}
-                  <span className="text-white font-medium">
-                    {formatDate(nightInfo.date)}
-                  </span>
+                  <span className="text-white font-medium">{formatDate(nightInfo.date)}</span>
                 </div>
-                <span className="star-rating text-sm">
-                  {getStarRating(rating)}
-                </span>
+                <span className="star-rating text-sm">{getStarRating(rating)}</span>
               </div>
 
               <div className="flex items-center gap-4 text-sm text-gray-400">
@@ -184,7 +179,8 @@ export default function NightSummaryTable({
                   </span>
                 )}
                 <span className="text-gray-500">
-                  {formatTime(nightInfo.astronomicalDusk)} - {formatTime(nightInfo.astronomicalDawn)}
+                  {formatTime(nightInfo.astronomicalDusk)} -{' '}
+                  {formatTime(nightInfo.astronomicalDawn)}
                 </span>
               </div>
             </div>

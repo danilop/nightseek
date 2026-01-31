@@ -1,25 +1,24 @@
-import { useState } from 'react';
 import { ChevronDown, ChevronUp, Circle } from 'lucide-react';
-import type { GalileanMoonPosition, GalileanMoonEvent } from '@/types';
-import { formatTime } from '@/lib/utils/format';
+import { useState } from 'react';
 import { describeGalileanMoonEvent } from '@/lib/astronomy/galilean-moons';
+import { formatTime } from '@/lib/utils/format';
+import type { GalileanMoonEvent, GalileanMoonPosition } from '@/types';
 
 interface JupiterMoonsCardProps {
   positions: GalileanMoonPosition[];
   events: GalileanMoonEvent[];
 }
 
-export default function JupiterMoonsCard({
-  positions,
-  events,
-}: JupiterMoonsCardProps) {
+export default function JupiterMoonsCard({ positions, events }: JupiterMoonsCardProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const hasActiveEvents = events.length > 0 || positions.some(p => p.isTransiting || p.shadowOnJupiter);
+  const hasActiveEvents =
+    events.length > 0 || positions.some(p => p.isTransiting || p.shadowOnJupiter);
 
   return (
     <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full px-4 py-3 border-b border-night-700 flex items-center justify-between hover:bg-night-800 transition-colors"
       >
@@ -56,8 +55,11 @@ export default function JupiterMoonsCard({
             <div className="pt-3 border-t border-night-700">
               <h4 className="text-sm font-medium text-white mb-2">Tonight's Events</h4>
               <div className="space-y-2">
-                {events.map((event, index) => (
-                  <EventItem key={index} event={event} />
+                {events.map(event => (
+                  <EventItem
+                    key={`${event.type}-${event.moon}-${event.time.getTime()}`}
+                    event={event}
+                  />
                 ))}
               </div>
             </div>
@@ -86,7 +88,14 @@ function MoonPositionDiagram({ positions }: { positions: GalileanMoonPosition[] 
 
   return (
     <div className="bg-night-800 rounded-lg p-4">
-      <svg width="100%" height="80" viewBox="0 0 240 80" className="mx-auto">
+      <svg
+        width="100%"
+        height="80"
+        viewBox="0 0 240 80"
+        className="mx-auto"
+        aria-labelledby="jupiter-moons-title"
+      >
+        <title id="jupiter-moons-title">Jupiter and Galilean Moons Position Diagram</title>
         {/* Jupiter */}
         <circle
           cx={centerX}
@@ -117,8 +126,8 @@ function MoonPositionDiagram({ positions }: { positions: GalileanMoonPosition[] 
         {/* Moons */}
         {positions.map(moon => {
           // x is positive west, negative east
-          // For the diagram, west is left, east is right
-          const moonX = centerX - moon.x * scale;
+          // For direct view (as seen with naked eye or smart telescope): east is left, west is right
+          const moonX = centerX + moon.x * scale;
           const moonY = centerY - moon.y * scale;
           const color = moonColors[moon.name];
           const isBehind = moon.z > 0;
@@ -148,7 +157,7 @@ function MoonPositionDiagram({ positions }: { positions: GalileanMoonPosition[] 
               {/* Shadow indicator */}
               {moon.shadowOnJupiter && (
                 <circle
-                  cx={centerX - moon.x * scale * 0.9}
+                  cx={centerX + moon.x * scale * 0.9}
                   cy={centerY}
                   r={2}
                   fill="#000"
@@ -161,14 +170,14 @@ function MoonPositionDiagram({ positions }: { positions: GalileanMoonPosition[] 
 
         {/* Direction labels */}
         <text x={20} y={centerY + 4} className="text-[8px] fill-gray-500">
-          W
+          E
         </text>
         <text x={220} y={centerY + 4} className="text-[8px] fill-gray-500">
-          E
+          W
         </text>
       </svg>
       <p className="text-xs text-gray-500 text-center mt-2">
-        View as seen through telescope (inverted)
+        Direct view (as seen with naked eye or smart telescope)
       </p>
     </div>
   );
@@ -187,8 +196,8 @@ function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
             moon.isTransiting
               ? 'fill-yellow-400 text-yellow-400'
               : moon.shadowOnJupiter
-              ? 'fill-orange-400 text-orange-400'
-              : 'fill-gray-400 text-gray-400'
+                ? 'fill-orange-400 text-orange-400'
+                : 'fill-gray-400 text-gray-400'
           }`}
         />
         <span className="text-sm text-white">{moon.name}</span>
@@ -197,12 +206,8 @@ function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
         {distance} Rj {direction}
         {isBehind && ' (behind)'}
       </p>
-      {moon.isTransiting && (
-        <span className="text-xs text-yellow-400">Transit in progress</span>
-      )}
-      {moon.shadowOnJupiter && (
-        <span className="text-xs text-orange-400">Shadow visible</span>
-      )}
+      {moon.isTransiting && <span className="text-xs text-yellow-400">Transit in progress</span>}
+      {moon.shadowOnJupiter && <span className="text-xs text-orange-400">Shadow visible</span>}
     </div>
   );
 }

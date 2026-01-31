@@ -23,8 +23,7 @@ export function getElongation(
       elongation: result.elongation,
       visibility: result.visibility.toString(),
     };
-  } catch (error) {
-    console.warn(`Failed to calculate elongation for ${body}:`, error);
+  } catch (_error) {
     return { elongation: 0, visibility: 'unknown' };
   }
 }
@@ -46,8 +45,7 @@ export function searchMaxElongation(
       // Evening visibility means the planet is east of the Sun
       isEastern: result.visibility.toString() === 'Evening',
     };
-  } catch (error) {
-    console.warn(`Failed to search max elongation for ${body}:`, error);
+  } catch (_error) {
     return null;
   }
 }
@@ -115,8 +113,7 @@ export function isNearMaxElongation(
       isEastern: false,
       daysUntil: Infinity,
     };
-  } catch (error) {
-    console.warn(`Failed to check max elongation for ${body}:`, error);
+  } catch (_error) {
     return {
       isNearMax: false,
       currentElongation: 0,
@@ -131,10 +128,7 @@ export function isNearMaxElongation(
 /**
  * Detect upcoming max elongations for Mercury and Venus
  */
-export function detectMaxElongations(
-  date: Date,
-  forecastDays: number = 7
-): MaxElongation[] {
+export function detectMaxElongations(date: Date, forecastDays: number = 7): MaxElongation[] {
   const events: MaxElongation[] = [];
   const windowDays = forecastDays + ELONGATION_WINDOW_DAYS;
 
@@ -162,9 +156,7 @@ export function getElongationForPlanet(
   planetName: string,
   date: Date
 ): { elongationDeg: number; isNearMax: boolean; isEastern: boolean } | null {
-  const planet = INNER_PLANETS.find(
-    p => p.name.toLowerCase() === planetName.toLowerCase()
-  );
+  const planet = INNER_PLANETS.find(p => p.name.toLowerCase() === planetName.toLowerCase());
 
   if (!planet) return null;
 
@@ -181,9 +173,7 @@ export function getElongationForPlanet(
  * Check if a planet is an inner planet (has elongation)
  */
 export function isInnerPlanet(planetName: string): boolean {
-  return INNER_PLANETS.some(
-    p => p.name.toLowerCase() === planetName.toLowerCase()
-  );
+  return INNER_PLANETS.some(p => p.name.toLowerCase() === planetName.toLowerCase());
 }
 
 /**

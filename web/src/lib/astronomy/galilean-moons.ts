@@ -1,5 +1,5 @@
 import * as Astronomy from 'astronomy-engine';
-import type { GalileanMoonPosition, GalileanMoonEvent, NightInfo } from '@/types';
+import type { GalileanMoonEvent, GalileanMoonPosition, NightInfo } from '@/types';
 
 type MoonName = 'Io' | 'Europa' | 'Ganymede' | 'Callisto';
 
@@ -44,7 +44,8 @@ export function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
       // Shadow detection is complex - simplified to approximate
       // Shadow is visible when moon is in front of Jupiter and not in transit itself
       // A more accurate calculation would involve Sun-Jupiter-Moon geometry
-      const shadowOnJupiter = z < 0 && distFromCenter < 1.5 && distFromCenter > 0.5 && !isTransiting;
+      const shadowOnJupiter =
+        z < 0 && distFromCenter < 1.5 && distFromCenter > 0.5 && !isTransiting;
 
       positions.push({
         name,
@@ -57,8 +58,7 @@ export function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
     }
 
     return positions;
-  } catch (error) {
-    console.warn('Failed to calculate Galilean moon positions:', error);
+  } catch (_error) {
     return [];
   }
 }
@@ -67,9 +67,7 @@ export function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
  * Detect transit and shadow events during the night
  * Samples every 5 minutes to find state changes
  */
-export function detectGalileanMoonEvents(
-  nightInfo: NightInfo
-): GalileanMoonEvent[] {
+export function detectGalileanMoonEvents(nightInfo: NightInfo): GalileanMoonEvent[] {
   const events: GalileanMoonEvent[] = [];
   const startTime = nightInfo.astronomicalDusk.getTime();
   const endTime = nightInfo.astronomicalDawn.getTime();
@@ -153,8 +151,7 @@ export function getJupiterMoonsData(
     const events = detectGalileanMoonEvents(nightInfo);
 
     return { positions, events };
-  } catch (error) {
-    console.warn('Failed to get Jupiter moons data:', error);
+  } catch (_error) {
     return null;
   }
 }

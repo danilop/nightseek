@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Navigation, Search, Loader2 } from 'lucide-react';
-import { useApp } from '@/stores/AppContext';
+import { Loader2, MapPin, Navigation, Search } from 'lucide-react';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 import {
-  detectLocationByIP,
   detectLocationByBrowser,
+  detectLocationByIP,
   geocodeAddress,
   reverseGeocode,
   validateCoordinates,
 } from '@/lib/geo/location';
+import { useApp } from '@/stores/AppContext';
 import type { Location } from '@/types';
 
 type SetupMode = 'choose' | 'detect' | 'search' | 'manual';
@@ -151,6 +152,7 @@ export default function Setup() {
           {/* Use detected location */}
           {detectedLocation && (
             <button
+              type="button"
               onClick={handleUseDetected}
               className="w-full flex items-center gap-3 p-4 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-colors"
             >
@@ -164,6 +166,7 @@ export default function Setup() {
 
           {/* Precise location */}
           <button
+            type="button"
             onClick={handleBrowserDetect}
             disabled={isLoading}
             className="w-full flex items-center gap-3 p-4 bg-night-800 hover:bg-night-700 text-white rounded-xl border border-night-600 transition-colors disabled:opacity-50"
@@ -181,6 +184,7 @@ export default function Setup() {
 
           {/* Search */}
           <button
+            type="button"
             onClick={() => setMode('search')}
             className="w-full flex items-center gap-3 p-4 bg-night-800 hover:bg-night-700 text-white rounded-xl border border-night-600 transition-colors"
           >
@@ -193,6 +197,7 @@ export default function Setup() {
 
           {/* Manual */}
           <button
+            type="button"
             onClick={() => setMode('manual')}
             className="w-full flex items-center gap-3 p-4 bg-night-800 hover:bg-night-700 text-white rounded-xl border border-night-600 transition-colors"
           >
@@ -208,16 +213,19 @@ export default function Setup() {
       {mode === 'search' && (
         <form onSubmit={handleSearch} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label
+              htmlFor="search-location"
+              className="block text-sm font-medium text-gray-300 mb-2"
+            >
               Search Location
             </label>
             <input
+              id="search-location"
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               placeholder="Enter city, address, or place..."
               className="w-full px-4 py-3 bg-night-800 border border-night-600 rounded-xl text-white placeholder-gray-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
-              autoFocus
             />
           </div>
 
@@ -250,29 +258,36 @@ export default function Setup() {
       {mode === 'manual' && (
         <form onSubmit={handleManualSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label
+              htmlFor="manual-latitude"
+              className="block text-sm font-medium text-gray-300 mb-2"
+            >
               Latitude
             </label>
             <input
+              id="manual-latitude"
               type="number"
               step="any"
               value={manualLat}
-              onChange={(e) => setManualLat(e.target.value)}
+              onChange={e => setManualLat(e.target.value)}
               placeholder="-90 to 90"
               className="w-full px-4 py-3 bg-night-800 border border-night-600 rounded-xl text-white placeholder-gray-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
-              autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label
+              htmlFor="manual-longitude"
+              className="block text-sm font-medium text-gray-300 mb-2"
+            >
               Longitude
             </label>
             <input
+              id="manual-longitude"
               type="number"
               step="any"
               value={manualLon}
-              onChange={(e) => setManualLon(e.target.value)}
+              onChange={e => setManualLon(e.target.value)}
               placeholder="-180 to 180"
               className="w-full px-4 py-3 bg-night-800 border border-night-600 rounded-xl text-white placeholder-gray-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
             />
@@ -291,11 +306,7 @@ export default function Setup() {
               disabled={isLoading || !manualLat || !manualLon}
               className="flex-1 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                'Save Location'
-              )}
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Location'}
             </button>
           </div>
         </form>

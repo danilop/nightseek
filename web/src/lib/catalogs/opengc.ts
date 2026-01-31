@@ -1,8 +1,9 @@
 import type { DSOCatalogEntry, DSOSubtype } from '@/types';
-import { getCommonName, MESSIER_EXTRAS } from './common-names';
 import { getCached, setCache } from '../utils/cache';
+import { getCommonName, MESSIER_EXTRAS } from './common-names';
 
-const OPENGC_URL = 'https://raw.githubusercontent.com/mattiaverga/OpenNGC/master/database_files/NGC.csv';
+const OPENGC_URL =
+  'https://raw.githubusercontent.com/mattiaverga/OpenNGC/master/database_files/NGC.csv';
 const CACHE_KEY = 'nightseek:opengc';
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -11,21 +12,21 @@ const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
  */
 function mapTypeToSubtype(type: string): DSOSubtype {
   const mapping: Record<string, DSOSubtype> = {
-    'G': 'galaxy',
-    'GGroup': 'galaxy_group',
-    'GPair': 'galaxy_pair',
-    'GTrpl': 'galaxy_triplet',
-    'PN': 'planetary_nebula',
-    'HII': 'hii_region',
-    'EmN': 'emission_nebula',
-    'RfN': 'reflection_nebula',
-    'SNR': 'supernova_remnant',
-    'OCl': 'open_cluster',
-    'GCl': 'globular_cluster',
-    'Ast': 'asterism',
-    'DN': 'dark_nebula',
+    G: 'galaxy',
+    GGroup: 'galaxy_group',
+    GPair: 'galaxy_pair',
+    GTrpl: 'galaxy_triplet',
+    PN: 'planetary_nebula',
+    HII: 'hii_region',
+    EmN: 'emission_nebula',
+    RfN: 'reflection_nebula',
+    SNR: 'supernova_remnant',
+    OCl: 'open_cluster',
+    GCl: 'globular_cluster',
+    Ast: 'asterism',
+    DN: 'dark_nebula',
     'Cl+N': 'open_cluster', // Cluster with nebulosity
-    'Neb': 'nebula',
+    Neb: 'nebula',
   };
 
   return mapping[type] || 'other';
@@ -91,11 +92,7 @@ function parseCSVLine(line: string): string[] {
  * Load and parse the OpenNGC catalog
  */
 export async function loadOpenNGCCatalog(
-  options: {
-    maxMagnitude?: number;
-    observerLatitude?: number;
-    minAltitude?: number;
-  } = {}
+  options: { maxMagnitude?: number; observerLatitude?: number; minAltitude?: number } = {}
 ): Promise<DSOCatalogEntry[]> {
   const { maxMagnitude = 14.0, observerLatitude, minAltitude = 30 } = options;
 
@@ -132,16 +129,16 @@ export async function loadOpenNGCCatalog(
 
     const fields = parseCSVLine(line);
 
-    const name = fields[cols['Name']] || '';
-    const type = fields[cols['Type']] || '';
-    const raStr = fields[cols['RA']] || '';
-    const decStr = fields[cols['Dec']] || '';
+    const name = fields[cols.Name] || '';
+    const type = fields[cols.Type] || '';
+    const raStr = fields[cols.RA] || '';
+    const decStr = fields[cols.Dec] || '';
     const vMag = fields[cols['V-Mag']] || '';
     const bMag = fields[cols['B-Mag']] || '';
-    const majorAx = fields[cols['MajAx']] || '';
-    const minorAx = fields[cols['MinAx']] || '';
-    const constellation = fields[cols['Const']] || '';
-    const messier = fields[cols['M']] || '';
+    const majorAx = fields[cols.MajAx] || '';
+    const minorAx = fields[cols.MinAx] || '';
+    const constellation = fields[cols.Const] || '';
+    const messier = fields[cols.M] || '';
 
     // Skip non-DSO types
     if (skipTypes.has(type)) continue;
@@ -153,18 +150,20 @@ export async function loadOpenNGCCatalog(
 
     // Parse magnitude (prefer V-Mag, fall back to B-Mag)
     let magnitude: number | null = null;
-    if (vMag && !isNaN(parseFloat(vMag))) {
+    if (vMag && !Number.isNaN(parseFloat(vMag))) {
       magnitude = parseFloat(vMag);
-    } else if (bMag && !isNaN(parseFloat(bMag))) {
+    } else if (bMag && !Number.isNaN(parseFloat(bMag))) {
       magnitude = parseFloat(bMag);
     }
 
     // Parse angular size
-    const majorAxisArcmin = majorAx && !isNaN(parseFloat(majorAx)) ? parseFloat(majorAx) : null;
-    const minorAxisArcmin = minorAx && !isNaN(parseFloat(minorAx)) ? parseFloat(minorAx) : null;
+    const majorAxisArcmin =
+      majorAx && !Number.isNaN(parseFloat(majorAx)) ? parseFloat(majorAx) : null;
+    const minorAxisArcmin =
+      minorAx && !Number.isNaN(parseFloat(minorAx)) ? parseFloat(minorAx) : null;
 
     // Get Messier number
-    const messierNumber = messier && messier.match(/\d+/) ? parseInt(messier, 10) : null;
+    const messierNumber = messier?.match(/\d+/) ? parseInt(messier, 10) : null;
 
     // Get common name
     const commonName = getCommonName(name);
@@ -247,10 +246,7 @@ function filterCatalog(
 /**
  * Search for objects by name or common name
  */
-export function searchCatalog(
-  catalog: DSOCatalogEntry[],
-  query: string
-): DSOCatalogEntry[] {
+export function searchCatalog(catalog: DSOCatalogEntry[], query: string): DSOCatalogEntry[] {
   const lowerQuery = query.toLowerCase();
 
   return catalog.filter(entry => {
