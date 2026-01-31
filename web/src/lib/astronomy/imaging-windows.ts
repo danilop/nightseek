@@ -5,6 +5,7 @@ import type {
   NightWeather,
   ObjectVisibility,
 } from '@/types';
+import { avg } from '../utils/array-math';
 import { calculateAirmass } from './airmass';
 
 /**
@@ -180,11 +181,46 @@ function calculateQualityAtTime(
 }
 
 /**
+ * Average imaging factors from multiple data points
+ */
+function averageFactors(factors: ImagingWindow['factors'][]): ImagingWindow['factors'] {
+  return {
+    altitude: Math.round(avg(factors.map(f => f.altitude))),
+    airmass: Math.round(avg(factors.map(f => f.airmass))),
+    moonInterference: Math.round(avg(factors.map(f => f.moonInterference))),
+    cloudCover: Math.round(avg(factors.map(f => f.cloudCover))),
+  };
+}
+
+/**
+ * Finalize an imaging window if it meets minimum duration
+ */
+function finalizeImagingWindow(
+  start: Date,
+  end: Date,
+  scores: number[],
+  factors: ImagingWindow['factors'][]
+): ImagingWindow | null {
+  const durationMinutes = (end.getTime() - start.getTime()) / (60 * 1000);
+  if (durationMinutes < MIN_WINDOW_DURATION_MINUTES) return null;
+
+  const avgScore = avg(scores);
+  return {
+    start,
+    end,
+    quality: getQualityRating(avgScore),
+    qualityScore: Math.round(avgScore),
+    factors: averageFactors(factors),
+  };
+}
+
+/**
  * Calculate imaging windows for an object throughout the night
  *
  * Analyzes the night in time slices and identifies the best periods
  * for imaging based on altitude, airmass, moon interference, and weather.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Window calculation requires iterating through night samples with state tracking
 export function calculateImagingWindows(
   object: ObjectVisibility,
   nightInfo: NightInfo,
@@ -234,47 +270,16 @@ export function calculateImagingWindows(
     const isAcceptable = point.score >= QUALITY_THRESHOLDS.acceptable;
 
     if (isAcceptable && !windowStart) {
-      // Start new window
       windowStart = point.time;
       windowScores = [point.score];
       windowFactors = [point.factors];
     } else if (isAcceptable && windowStart) {
-      // Continue window
       windowScores.push(point.score);
       windowFactors.push(point.factors);
     } else if (!isAcceptable && windowStart) {
-      // End window
       const windowEnd = qualityPoints[i - 1].time;
-      const durationMinutes = (windowEnd.getTime() - windowStart.getTime()) / (60 * 1000);
-
-      if (durationMinutes >= MIN_WINDOW_DURATION_MINUTES) {
-        const avgScore = windowScores.reduce((a, b) => a + b, 0) / windowScores.length;
-
-        // Average the factors
-        const avgFactors: ImagingWindow['factors'] = {
-          altitude: Math.round(
-            windowFactors.reduce((a, b) => a + b.altitude, 0) / windowFactors.length
-          ),
-          airmass: Math.round(
-            windowFactors.reduce((a, b) => a + b.airmass, 0) / windowFactors.length
-          ),
-          moonInterference: Math.round(
-            windowFactors.reduce((a, b) => a + b.moonInterference, 0) / windowFactors.length
-          ),
-          cloudCover: Math.round(
-            windowFactors.reduce((a, b) => a + b.cloudCover, 0) / windowFactors.length
-          ),
-        };
-
-        windows.push({
-          start: windowStart,
-          end: windowEnd,
-          quality: getQualityRating(avgScore),
-          qualityScore: Math.round(avgScore),
-          factors: avgFactors,
-        });
-      }
-
+      const window = finalizeImagingWindow(windowStart, windowEnd, windowScores, windowFactors);
+      if (window) windows.push(window);
       windowStart = null;
       windowScores = [];
       windowFactors = [];
@@ -284,33 +289,8 @@ export function calculateImagingWindows(
   // Handle final window if still open
   if (windowStart && windowScores.length > 0) {
     const windowEnd = qualityPoints[qualityPoints.length - 1].time;
-    const durationMinutes = (windowEnd.getTime() - windowStart.getTime()) / (60 * 1000);
-
-    if (durationMinutes >= MIN_WINDOW_DURATION_MINUTES) {
-      const avgScore = windowScores.reduce((a, b) => a + b, 0) / windowScores.length;
-      const avgFactors: ImagingWindow['factors'] = {
-        altitude: Math.round(
-          windowFactors.reduce((a, b) => a + b.altitude, 0) / windowFactors.length
-        ),
-        airmass: Math.round(
-          windowFactors.reduce((a, b) => a + b.airmass, 0) / windowFactors.length
-        ),
-        moonInterference: Math.round(
-          windowFactors.reduce((a, b) => a + b.moonInterference, 0) / windowFactors.length
-        ),
-        cloudCover: Math.round(
-          windowFactors.reduce((a, b) => a + b.cloudCover, 0) / windowFactors.length
-        ),
-      };
-
-      windows.push({
-        start: windowStart,
-        end: windowEnd,
-        quality: getQualityRating(avgScore),
-        qualityScore: Math.round(avgScore),
-        factors: avgFactors,
-      });
-    }
+    const window = finalizeImagingWindow(windowStart, windowEnd, windowScores, windowFactors);
+    if (window) windows.push(window);
   }
 
   // Sort by quality score descending

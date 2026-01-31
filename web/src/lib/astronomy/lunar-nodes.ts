@@ -38,13 +38,31 @@ function searchPreviousMoonNode(date: Date): Astronomy.NodeEventInfo | null {
 }
 
 /**
+ * Build eclipse season info from a node event
+ */
+function buildEclipseSeason(node: Astronomy.NodeEventInfo, isActive: boolean): EclipseSeason {
+  const windowStart = new Date(node.time.date);
+  windowStart.setDate(windowStart.getDate() - ECLIPSE_SEASON_WINDOW_DAYS);
+
+  const windowEnd = new Date(node.time.date);
+  windowEnd.setDate(windowEnd.getDate() + ECLIPSE_SEASON_WINDOW_DAYS);
+
+  return {
+    nodeType: node.kind === 0 ? 'ascending' : 'descending',
+    nodeCrossingTime: node.time.date,
+    windowStart,
+    windowEnd,
+    isActive,
+  };
+}
+
+/**
  * Determine if a date is within an eclipse season
  *
  * Eclipse seasons occur when the Moon is within ~17 days of crossing
  * either the ascending or descending node of its orbit.
  */
 export function getEclipseSeasonInfo(date: Date): EclipseSeason | null {
-  // Check previous node
   const previousNode = searchPreviousMoonNode(date);
   const nextNode = searchNextMoonNode(date);
 
@@ -58,19 +76,7 @@ export function getEclipseSeasonInfo(date: Date): EclipseSeason | null {
       (date.getTime() - previousNode.time.date.getTime()) / (24 * 60 * 60 * 1000);
 
     if (daysSincePrevious <= ECLIPSE_SEASON_WINDOW_DAYS) {
-      const windowStart = new Date(previousNode.time.date);
-      windowStart.setDate(windowStart.getDate() - ECLIPSE_SEASON_WINDOW_DAYS);
-
-      const windowEnd = new Date(previousNode.time.date);
-      windowEnd.setDate(windowEnd.getDate() + ECLIPSE_SEASON_WINDOW_DAYS);
-
-      return {
-        nodeType: previousNode.kind === 0 ? 'ascending' : 'descending',
-        nodeCrossingTime: previousNode.time.date,
-        windowStart,
-        windowEnd,
-        isActive: true,
-      };
+      return buildEclipseSeason(previousNode, true);
     }
   }
 
@@ -79,37 +85,11 @@ export function getEclipseSeasonInfo(date: Date): EclipseSeason | null {
     const daysToNext = (nextNode.time.date.getTime() - date.getTime()) / (24 * 60 * 60 * 1000);
 
     if (daysToNext <= ECLIPSE_SEASON_WINDOW_DAYS) {
-      const windowStart = new Date(nextNode.time.date);
-      windowStart.setDate(windowStart.getDate() - ECLIPSE_SEASON_WINDOW_DAYS);
-
-      const windowEnd = new Date(nextNode.time.date);
-      windowEnd.setDate(windowEnd.getDate() + ECLIPSE_SEASON_WINDOW_DAYS);
-
-      return {
-        nodeType: nextNode.kind === 0 ? 'ascending' : 'descending',
-        nodeCrossingTime: nextNode.time.date,
-        windowStart,
-        windowEnd,
-        isActive: true,
-      };
+      return buildEclipseSeason(nextNode, true);
     }
-  }
 
-  // Not in an eclipse season, but return info about the next one
-  if (nextNode) {
-    const windowStart = new Date(nextNode.time.date);
-    windowStart.setDate(windowStart.getDate() - ECLIPSE_SEASON_WINDOW_DAYS);
-
-    const windowEnd = new Date(nextNode.time.date);
-    windowEnd.setDate(windowEnd.getDate() + ECLIPSE_SEASON_WINDOW_DAYS);
-
-    return {
-      nodeType: nextNode.kind === 0 ? 'ascending' : 'descending',
-      nodeCrossingTime: nextNode.time.date,
-      windowStart,
-      windowEnd,
-      isActive: false,
-    };
+    // Not in an eclipse season, but return info about the next one
+    return buildEclipseSeason(nextNode, false);
   }
 
   return null;

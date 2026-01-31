@@ -64,6 +64,26 @@ export function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
 }
 
 /**
+ * Detect a state transition and return an event if one occurred
+ */
+function detectEventTransition(
+  moon: MoonName,
+  currentState: boolean,
+  previousState: boolean | undefined,
+  time: Date,
+  startType: GalileanMoonEvent['type'],
+  endType: GalileanMoonEvent['type']
+): GalileanMoonEvent | null {
+  if (currentState && previousState === false) {
+    return { moon, type: startType, time };
+  }
+  if (!currentState && previousState === true) {
+    return { moon, type: endType, time };
+  }
+  return null;
+}
+
+/**
  * Detect transit and shadow events during the night
  * Samples every 5 minutes to find state changes
  */
@@ -73,7 +93,6 @@ export function detectGalileanMoonEvents(nightInfo: NightInfo): GalileanMoonEven
   const endTime = nightInfo.astronomicalDawn.getTime();
   const interval = 5 * 60 * 1000; // 5 minutes
 
-  // Track previous state for each moon
   const prevTransiting: Map<MoonName, boolean> = new Map();
   const prevShadow: Map<MoonName, boolean> = new Map();
 
@@ -82,51 +101,31 @@ export function detectGalileanMoonEvents(nightInfo: NightInfo): GalileanMoonEven
     const positions = getGalileanMoonPositions(time);
 
     for (const pos of positions) {
-      const wasTransiting = prevTransiting.get(pos.name);
-      const hadShadow = prevShadow.get(pos.name);
+      const transitEvent = detectEventTransition(
+        pos.name,
+        pos.isTransiting,
+        prevTransiting.get(pos.name),
+        time,
+        'transit_start',
+        'transit_end'
+      );
+      if (transitEvent) events.push(transitEvent);
 
-      // Detect transit start
-      if (pos.isTransiting && wasTransiting === false) {
-        events.push({
-          moon: pos.name,
-          type: 'transit_start',
-          time: new Date(t),
-        });
-      }
-
-      // Detect transit end
-      if (!pos.isTransiting && wasTransiting === true) {
-        events.push({
-          moon: pos.name,
-          type: 'transit_end',
-          time: new Date(t),
-        });
-      }
-
-      // Detect shadow start
-      if (pos.shadowOnJupiter && hadShadow === false) {
-        events.push({
-          moon: pos.name,
-          type: 'shadow_start',
-          time: new Date(t),
-        });
-      }
-
-      // Detect shadow end
-      if (!pos.shadowOnJupiter && hadShadow === true) {
-        events.push({
-          moon: pos.name,
-          type: 'shadow_end',
-          time: new Date(t),
-        });
-      }
+      const shadowEvent = detectEventTransition(
+        pos.name,
+        pos.shadowOnJupiter,
+        prevShadow.get(pos.name),
+        time,
+        'shadow_start',
+        'shadow_end'
+      );
+      if (shadowEvent) events.push(shadowEvent);
 
       prevTransiting.set(pos.name, pos.isTransiting);
       prevShadow.set(pos.name, pos.shadowOnJupiter);
     }
   }
 
-  // Sort events by time
   return events.sort((a, b) => a.time.getTime() - b.time.getTime());
 }
 
