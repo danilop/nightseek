@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="skyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="45" fill="#0f0d24"/>
+  <!-- Telescope -->
+  <g transform="translate(50,50)">
+    <!-- Tube -->
+    <rect x="-25" y="-8" width="40" height="16" rx="3" fill="url(#skyGradient)" transform="rotate(-30)"/>
+    <!-- Eyepiece -->
+    <circle cx="-18" cy="10" r="6" fill="#0ea5e9"/>
+    <!-- Mount -->
+    <rect x="-5" y="5" width="10" height="25" rx="2" fill="#4338ca"/>
+    <!-- Tripod legs -->
+    <line x1="0" y1="30" x2="-20" y2="40" stroke="#4338ca" stroke-width="4" stroke-linecap="round"/>
+    <line x1="0" y1="30" x2="20" y2="40" stroke="#4338ca" stroke-width="4" stroke-linecap="round"/>
+    <line x1="0" y1="30" x2="0" y2="42" stroke="#4338ca" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <!-- Stars -->
+  <circle cx="75" cy="20" r="3" fill="#fbbf24"/>
+  <circle cx="25" cy="25" r="2" fill="#fbbf24"/>
+  <circle cx="80" cy="40" r="2" fill="#fbbf24"/>
+  <circle cx="20" cy="60" r="1.5" fill="#fbbf24"/>
+</svg>
