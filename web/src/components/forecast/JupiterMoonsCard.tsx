@@ -7,9 +7,10 @@ import type { GalileanMoonEvent, GalileanMoonPosition } from '@/types';
 interface JupiterMoonsCardProps {
   positions: GalileanMoonPosition[];
   events: GalileanMoonEvent[];
+  latitude: number;
 }
 
-export default function JupiterMoonsCard({ positions, events }: JupiterMoonsCardProps) {
+export default function JupiterMoonsCard({ positions, events, latitude }: JupiterMoonsCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const hasActiveEvents =
@@ -41,7 +42,7 @@ export default function JupiterMoonsCard({ positions, events }: JupiterMoonsCard
       {expanded && (
         <div className="p-4 space-y-4">
           {/* Visual diagram of moon positions */}
-          <MoonPositionDiagram positions={positions} />
+          <MoonPositionDiagram positions={positions} isNorthernHemisphere={latitude >= 0} />
 
           {/* Moon details */}
           <div className="grid grid-cols-2 gap-2">
@@ -70,13 +71,26 @@ export default function JupiterMoonsCard({ positions, events }: JupiterMoonsCard
   );
 }
 
-function MoonPositionDiagram({ positions }: { positions: GalileanMoonPosition[] }) {
+function MoonPositionDiagram({
+  positions,
+  isNorthernHemisphere,
+}: {
+  positions: GalileanMoonPosition[];
+  isNorthernHemisphere: boolean;
+}) {
   // Calculate scale dynamically to fit all moons
   const maxDist = Math.max(...positions.map(p => Math.sqrt(p.x * p.x + p.y * p.y)), 10);
   const scale = Math.min(8, 100 / maxDist); // Scale to fit within ~100px from center
   const centerX = 120;
   const centerY = 40;
   const jupiterRadius = 10;
+
+  // E/W orientation depends on hemisphere:
+  // Northern Hemisphere (looking south): East is left, West is right
+  // Southern Hemisphere (looking north): East is right, West is left
+  const leftLabel = isNorthernHemisphere ? 'E' : 'W';
+  const rightLabel = isNorthernHemisphere ? 'W' : 'E';
+  const viewDirection = isNorthernHemisphere ? 'looking south' : 'looking north';
 
   // Moon colors
   const moonColors: Record<string, string> = {
@@ -125,8 +139,11 @@ function MoonPositionDiagram({ positions }: { positions: GalileanMoonPosition[] 
 
         {/* Moons */}
         {positions.map(moon => {
-          // x is positive west, negative east (east is left, west is right)
-          const moonX = centerX + moon.x * scale;
+          // x is positive west, negative east in celestial coordinates
+          // Northern Hemisphere (looking south): west is right (+x = right)
+          // Southern Hemisphere (looking north): west is left (+x = left, so flip)
+          const xMultiplier = isNorthernHemisphere ? 1 : -1;
+          const moonX = centerX + moon.x * scale * xMultiplier;
           const moonY = centerY - moon.y * scale;
           const color = moonColors[moon.name];
           const isBehind = moon.z > 0;
@@ -156,7 +173,7 @@ function MoonPositionDiagram({ positions }: { positions: GalileanMoonPosition[] 
               {/* Shadow indicator */}
               {moon.shadowOnJupiter && (
                 <circle
-                  cx={centerX + moon.x * scale * 0.9}
+                  cx={centerX + moon.x * scale * 0.9 * xMultiplier}
                   cy={centerY}
                   r={2}
                   fill="#000"
@@ -169,13 +186,13 @@ function MoonPositionDiagram({ positions }: { positions: GalileanMoonPosition[] 
 
         {/* Direction labels */}
         <text x={20} y={centerY + 4} className="text-[8px] fill-gray-500">
-          E
+          {leftLabel}
         </text>
         <text x={220} y={centerY + 4} className="text-[8px] fill-gray-500">
-          W
+          {rightLabel}
         </text>
       </svg>
-      <p className="text-xs text-gray-500 text-center mt-2">Direct view</p>
+      <p className="text-xs text-gray-500 text-center mt-2">Direct view ({viewDirection})</p>
     </div>
   );
 }
