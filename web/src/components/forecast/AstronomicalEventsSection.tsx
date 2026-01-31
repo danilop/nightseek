@@ -1,24 +1,41 @@
-import { Moon, Sun, Calendar, CircleDot, Target } from 'lucide-react';
-import type { AstronomicalEvents } from '@/types';
-import { formatTime } from '@/lib/utils/format';
-import { describeLunarEclipse, describeSolarEclipse } from '@/lib/events/eclipses';
+import {
+  AlertTriangle,
+  Calendar,
+  CircleDot,
+  Moon,
+  Sparkles,
+  Star,
+  Sun,
+  Target,
+} from 'lucide-react';
 import { describeLunarApsis } from '@/lib/astronomy/lunar-apsis';
-import { getSeasonalMarkerName, describeSeasonalMarker } from '@/lib/events/seasons';
+import { getEclipseSeasonDescription } from '@/lib/astronomy/lunar-nodes';
+import { getMoonPhaseEmoji, getMoonPhaseName } from '@/lib/astronomy/moon-phases';
+import { getPlanetApsisDescription } from '@/lib/astronomy/planet-apsis';
+import { getVenusPeakDescription } from '@/lib/astronomy/venus-peak';
+import { describeLunarEclipse, describeSolarEclipse } from '@/lib/events/eclipses';
+import { describeSeasonalMarker, getSeasonalMarkerName } from '@/lib/events/seasons';
+import { getTransitAlertSummary } from '@/lib/events/transits';
+import { formatTime } from '@/lib/utils/format';
+import type { AstronomicalEvents } from '@/types';
 
 interface AstronomicalEventsSectionProps {
   events: AstronomicalEvents;
 }
 
-export default function AstronomicalEventsSection({
-  events,
-}: AstronomicalEventsSectionProps) {
+export default function AstronomicalEventsSection({ events }: AstronomicalEventsSectionProps) {
   const hasEvents =
     events.lunarEclipse ||
     events.solarEclipse ||
     events.lunarApsis?.isSupermoon ||
     events.seasonalMarker ||
     events.oppositions.some(o => o.isActive) ||
-    events.maxElongations.some(e => Math.abs(e.daysUntil) <= 3);
+    events.maxElongations.some(e => Math.abs(e.daysUntil) <= 3) ||
+    events.moonPhaseEvent ||
+    events.eclipseSeason?.isActive ||
+    events.venusPeak?.isNearPeak ||
+    events.planetPerihelia?.length > 0 ||
+    (events.planetaryTransit && events.planetaryTransit.yearsUntil <= 2);
 
   if (!hasEvents) {
     return null;
@@ -85,8 +102,8 @@ export default function AstronomicalEventsSection({
                 opposition.daysUntil === 0
                   ? 'Opposition tonight!'
                   : opposition.daysUntil < 0
-                  ? `${Math.abs(opposition.daysUntil)} days ago`
-                  : `In ${opposition.daysUntil} days`
+                    ? `${Math.abs(opposition.daysUntil)} days ago`
+                    : `In ${opposition.daysUntil} days`
               }
               time={opposition.date}
               isHighlight={Math.abs(opposition.daysUntil) <= 3}
@@ -119,6 +136,73 @@ export default function AstronomicalEventsSection({
             isHighlight
           />
         )}
+
+        {/* Moon Phase Tonight */}
+        {events.moonPhaseEvent && (
+          <EventCard
+            icon={<span className="text-lg">{getMoonPhaseEmoji(events.moonPhaseEvent.phase)}</span>}
+            title={getMoonPhaseName(events.moonPhaseEvent.phase)}
+            description={`Exact ${getMoonPhaseName(events.moonPhaseEvent.phase).toLowerCase()} tonight`}
+            time={events.moonPhaseEvent.time}
+            isHighlight={
+              events.moonPhaseEvent.phase === 'full' || events.moonPhaseEvent.phase === 'new'
+            }
+            details={`at ${formatTime(events.moonPhaseEvent.time)}`}
+          />
+        )}
+
+        {/* Eclipse Season */}
+        {events.eclipseSeason?.isActive && (
+          <EventCard
+            icon={<AlertTriangle className="w-4 h-4 text-orange-400" />}
+            title="Eclipse Season Active"
+            description={getEclipseSeasonDescription(events.eclipseSeason)}
+            time={events.eclipseSeason.nodeCrossingTime}
+            isHighlight
+            details="Watch for potential eclipses"
+          />
+        )}
+
+        {/* Venus Peak Brightness */}
+        {events.venusPeak?.isNearPeak && (
+          <EventCard
+            icon={<Star className="w-4 h-4 text-yellow-200" />}
+            title="Venus at Peak Brightness"
+            description={getVenusPeakDescription(events.venusPeak)}
+            time={events.venusPeak.peakDate}
+            isHighlight={events.venusPeak.daysUntil <= 7}
+            details={`Magnitude: ${events.venusPeak.peakMagnitude.toFixed(1)}`}
+          />
+        )}
+
+        {/* Planets Near Perihelion */}
+        {events.planetPerihelia?.map(apsis => (
+          <EventCard
+            key={`${apsis.planet}-perihelion`}
+            icon={<Sparkles className="w-4 h-4 text-green-400" />}
+            title={`${apsis.planet} Near Perihelion`}
+            description={getPlanetApsisDescription(apsis)}
+            time={apsis.date}
+            isHighlight={apsis.brightnessBoostPercent >= 10}
+            details={
+              apsis.brightnessBoostPercent > 0
+                ? `+${apsis.brightnessBoostPercent}% brighter`
+                : undefined
+            }
+          />
+        ))}
+
+        {/* Planetary Transit (Rare!) */}
+        {events.planetaryTransit && events.planetaryTransit.yearsUntil <= 2 && (
+          <EventCard
+            icon={<Sun className="w-4 h-4 text-red-400" />}
+            title={`${events.planetaryTransit.planet} Transit Coming!`}
+            description={getTransitAlertSummary(events.planetaryTransit)}
+            time={events.planetaryTransit.peak}
+            isHighlight
+            details="Rare event - mark your calendar!"
+          />
+        )}
       </div>
     </div>
   );
@@ -144,9 +228,7 @@ function EventCard({
   return (
     <div
       className={`p-3 rounded-lg ${
-        isHighlight
-          ? 'bg-indigo-500/10 border border-indigo-500/30'
-          : 'bg-night-800'
+        isHighlight ? 'bg-indigo-500/10 border border-indigo-500/30' : 'bg-night-800'
       }`}
     >
       <div className="flex items-center gap-2 mb-1">
@@ -158,9 +240,7 @@ function EventCard({
         <span className="text-xs text-gray-500">
           {time.toLocaleDateString()} at {formatTime(time)}
         </span>
-        {details && (
-          <span className="text-xs text-gray-500">{details}</span>
-        )}
+        {details && <span className="text-xs text-gray-500">{details}</span>}
       </div>
     </div>
   );

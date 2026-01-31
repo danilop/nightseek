@@ -4,7 +4,15 @@ export {
   detectConjunctions,
   hasNotableConjunction,
 } from './conjunctions';
-
+export {
+  describeLunarEclipse,
+  describeSolarEclipse,
+  detectEclipses,
+  getLunarEclipseForNight,
+  getSolarEclipseForDate,
+  searchNextLunarEclipse,
+  searchNextSolarEclipse,
+} from './eclipses';
 export {
   detectMeteorShowers,
   getAdjustedHourlyRate,
@@ -12,20 +20,10 @@ export {
 } from './meteor-showers';
 
 export {
-  searchNextLunarEclipse,
-  searchNextSolarEclipse,
-  getLunarEclipseForNight,
-  getSolarEclipseForDate,
-  describeLunarEclipse,
-  describeSolarEclipse,
-  detectEclipses,
-} from './eclipses';
-
-export {
-  getSeasonsForYear,
-  getNextSeasonalMarker,
-  getCurrentSeason,
   describeSeasonalMarker,
-  getSeasonalMarkerName,
   detectSeasonalMarkers,
+  getCurrentSeason,
+  getNextSeasonalMarker,
+  getSeasonalMarkerName,
+  getSeasonsForYear,
 } from './seasons';

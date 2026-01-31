@@ -1,8 +1,27 @@
 import * as Astronomy from 'astronomy-engine';
-import type { Conjunction, ObjectVisibility, NightInfo } from '@/types';
+import type { Conjunction, NightInfo, ObjectVisibility } from '@/types';
 import { angularSeparation } from '../astronomy/calculator';
 
 const CONJUNCTION_THRESHOLD = 10; // degrees
+
+/**
+ * Calculate ecliptic longitude difference between two bodies
+ * Uses PairLongitude for more accurate conjunction timing
+ * Returns the difference in degrees (0-180)
+ */
+function getEclipticSeparation(body1: Astronomy.Body, body2: Astronomy.Body, time: Date): number {
+  try {
+    // PairLongitude returns the difference in ecliptic longitudes
+    // This is more accurate for conjunction detection than equatorial separation
+    const pairLon = Astronomy.PairLongitude(body1, body2, time);
+    // Normalize to 0-180 range (absolute difference)
+    const diff = Math.abs(pairLon);
+    return diff > 180 ? 360 - diff : diff;
+  } catch {
+    // Fallback to simple calculation if PairLongitude fails
+    return Infinity;
+  }
+}
 
 /**
  * Get the astronomy-engine body for a planet name
@@ -61,7 +80,20 @@ export function detectConjunctions(
       const pos1 = positions.get(name1)!;
       const pos2 = positions.get(name2)!;
 
-      const separation = angularSeparation(pos1.ra, pos1.dec, pos2.ra, pos2.dec);
+      // Calculate angular separation (equatorial)
+      const angSeparation = angularSeparation(pos1.ra, pos1.dec, pos2.ra, pos2.dec);
+
+      // Also check ecliptic separation using PairLongitude for better accuracy
+      const body1 = getPlanetBody(name1);
+      const body2 = getPlanetBody(name2);
+      let eclipticSeparation = Infinity;
+
+      if (body1 && body2) {
+        eclipticSeparation = getEclipticSeparation(body1, body2, midnight);
+      }
+
+      // Use the smaller of the two separations (ecliptic is often more meaningful)
+      const separation = Math.min(angSeparation, eclipticSeparation);
 
       if (separation < CONJUNCTION_THRESHOLD) {
         conjunctions.push({
@@ -103,11 +135,7 @@ export function detectConjunctions(
 /**
  * Generate a human-readable description for a conjunction
  */
-function getConjunctionDescription(
-  object1: string,
-  object2: string,
-  separation: number
-): string {
+function getConjunctionDescription(object1: string, object2: string, separation: number): string {
   const sepStr = separation.toFixed(1);
 
   if (separation < 2) {

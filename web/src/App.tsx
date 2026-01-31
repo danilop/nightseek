@@ -1,12 +1,12 @@
-import { useEffect, useCallback } from 'react';
-import { useApp } from './stores/AppContext';
-import { generateForecast } from './lib/analyzer';
+import { useCallback, useEffect } from 'react';
+import ForecastView from './components/forecast/ForecastView';
 import Header from './components/layout/Header';
 import Setup from './components/setup/Setup';
-import ForecastView from './components/forecast/ForecastView';
-import LoadingScreen from './components/ui/LoadingScreen';
 import ErrorMessage from './components/ui/ErrorMessage';
+import LoadingScreen from './components/ui/LoadingScreen';
 import OfflineBanner from './components/ui/OfflineBanner';
+import { generateForecast } from './lib/analyzer';
+import { useApp } from './stores/AppContext';
 
 export default function App() {
   const { state, dispatch, setProgress } = useApp();
@@ -15,7 +15,10 @@ export default function App() {
   const loadForecast = useCallback(async () => {
     if (!location) return;
 
-    dispatch({ type: 'SET_LOADING', payload: { isLoading: true, message: 'Starting...', percent: 0 } });
+    dispatch({
+      type: 'SET_LOADING',
+      payload: { isLoading: true, message: 'Starting...', percent: 0 },
+    });
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
@@ -36,7 +39,6 @@ export default function App() {
         },
       });
     } catch (err) {
-      console.error('Forecast error:', err);
       dispatch({
         type: 'SET_ERROR',
         payload: err instanceof Error ? err.message : 'Failed to generate forecast',
@@ -69,19 +71,11 @@ export default function App() {
       <Header />
       {isOffline && <OfflineBanner />}
 
-      {isLoading && (
-        <LoadingScreen
-          message={state.loadingMessage}
-          percent={state.loadingPercent}
-        />
-      )}
+      {isLoading && <LoadingScreen message={state.loadingMessage} percent={state.loadingPercent} />}
 
       {error && (
         <div className="container mx-auto px-4 py-8">
-          <ErrorMessage
-            message={error}
-            onRetry={loadForecast}
-          />
+          <ErrorMessage message={error} onRetry={loadForecast} />
         </div>
       )}
 

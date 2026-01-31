@@ -1,6 +1,6 @@
-import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import type { Location, Settings, NightForecast, ScoredObject } from '@/types';
-import { getCached, setCache, CACHE_KEYS } from '@/lib/utils/cache';
+import { createContext, useCallback, useContext, useEffect, useReducer } from 'react';
+import { CACHE_KEYS, getCached, setCache } from '@/lib/utils/cache';
+import type { Location, NightForecast, ScoredObject, Settings } from '@/types';
 
 interface AppState {
   location: Location | null;
@@ -19,7 +19,14 @@ interface AppState {
 type Action =
   | { type: 'SET_LOCATION'; payload: Location }
   | { type: 'SET_SETTINGS'; payload: Partial<Settings> }
-  | { type: 'SET_FORECAST'; payload: { forecasts: NightForecast[]; scoredObjects: Map<string, ScoredObject[]>; bestNights: string[] } }
+  | {
+      type: 'SET_FORECAST';
+      payload: {
+        forecasts: NightForecast[];
+        scoredObjects: Map<string, ScoredObject[]>;
+        bestNights: string[];
+      };
+    }
   | { type: 'SET_LOADING'; payload: { isLoading: boolean; message?: string; percent?: number } }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_OFFLINE'; payload: boolean }
@@ -30,7 +37,7 @@ const DEFAULT_SETTINGS: Settings = {
   forecastDays: 7,
   maxObjects: 8,
   cometMagnitude: 12.0,
-  dsoMagnitude: 16.0,  // Support deep astrophotography setups
+  dsoMagnitude: 16.0, // Support deep astrophotography setups
   theme: 'dark',
 };
 

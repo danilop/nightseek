@@ -10,9 +10,7 @@ export function calculateAirmass(altitudeDeg: number): number {
   if (altitudeDeg >= 90) return 1.0;
 
   const h = altitudeDeg;
-  const denominator = Math.sin(
-    ((h + 244 / (165 + 47 * Math.pow(h, 1.1))) * Math.PI) / 180
-  );
+  const denominator = Math.sin(((h + 244 / (165 + 47 * h ** 1.1)) * Math.PI) / 180);
 
   return 1 / denominator;
 }
@@ -32,8 +30,24 @@ export function getAltitudeQuality(altitude: number): string {
  * Get cardinal direction from azimuth
  */
 export function getCardinalDirection(azimuth: number): string {
-  const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-                      'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  const directions = [
+    'N',
+    'NNE',
+    'NE',
+    'ENE',
+    'E',
+    'ESE',
+    'SE',
+    'SSE',
+    'S',
+    'SSW',
+    'SW',
+    'WSW',
+    'W',
+    'WNW',
+    'NW',
+    'NNW',
+  ];
   const index = Math.round(azimuth / 22.5) % 16;
   return directions[index];
 }

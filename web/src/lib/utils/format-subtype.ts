@@ -35,7 +35,5 @@ export function formatSubtype(subtype: string): string {
   }
 
   // Fallback: replace underscores and capitalize words
-  return subtype
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase());
+  return subtype.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }

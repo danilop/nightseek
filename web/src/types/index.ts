@@ -33,10 +33,14 @@ export interface NightInfo {
   sunrise: Date;
   astronomicalDusk: Date;
   astronomicalDawn: Date;
-  moonPhase: number;           // 0-1 (0=new, 0.5=full)
-  moonIllumination: number;    // 0-100%
+  moonPhase: number; // 0-1 (0=new, 0.5=full)
+  moonIllumination: number; // 0-100%
   moonRise: Date | null;
   moonSet: Date | null;
+  // New fields
+  moonPhaseExact: MoonPhaseEvent | null;
+  localSiderealTimeAtMidnight: string | null;
+  seeingForecast: SeeingForecast | null;
 }
 
 export interface ObjectVisibility {
@@ -55,7 +59,7 @@ export interface ObjectVisibility {
   moonWarning: boolean;
   magnitude: number | null;
   isInterstellar: boolean;
-  altitudeSamples: Array<[Date, number]>;
+  altitudeSamples: [Date, number][];
   subtype: DSOSubtype | null;
   angularSizeArcmin: number;
   surfaceBrightness: number | null;
@@ -75,6 +79,16 @@ export interface ObjectVisibility {
   isAtOpposition?: boolean;
   // Lunar libration
   libration?: LunarLibration;
+  // New astronomy-engine fields
+  hourAngle?: number; // 0-24 hours; 0 = on meridian
+  meridianTransitTime?: Date; // When object crosses meridian
+  sunAngle?: number; // Angular distance from Sun (degrees)
+  heliocentricDistanceAU?: number; // Distance from Sun
+  geocentricDistanceAU?: number; // Distance from Earth
+  isNearPerihelion?: boolean; // Planet within 30 days of perihelion
+  perihelionBoostPercent?: number; // Brightness boost from perihelion
+  imagingWindow?: ImagingWindow; // Best imaging slot
+  saturnRings?: SaturnRingInfo; // Saturn ring geometry (Saturn only)
 }
 
 export interface NightWeather {
@@ -178,10 +192,17 @@ export interface ScoreBreakdown {
   transientBonus: number;
   seasonalWindow: number;
   noveltyPopularity: number;
-  // New bonus fields
-  oppositionBonus: number;    // 0-20
-  elongationBonus: number;    // 0-15
-  supermoonBonus: number;     // 0-10
+  // Planetary event bonuses
+  oppositionBonus: number; // 0-20
+  elongationBonus: number; // 0-15
+  supermoonBonus: number; // 0-10
+  // New scoring factors
+  perihelionBonus: number; // 0-10 (planet within 30 days of perihelion)
+  meridianBonus: number; // 0-5 (object within 1hr of meridian)
+  twilightPenalty: number; // -30 to 0 (object close to Sun)
+  venusPeakBonus: number; // 0-8 (Venus within 14 days of peak)
+  seeingQuality: number; // 0-8 (atmospheric conditions)
+  dewRiskPenalty: number; // -5 to 0 (high dew probability)
 }
 
 export type ScoreTier = 'excellent' | 'very_good' | 'good' | 'fair' | 'poor';
@@ -341,6 +362,88 @@ export interface SeasonalMarker {
   daysUntil: number;
 }
 
+// Moon Phase Events
+export interface MoonPhaseEvent {
+  phase: 'new' | 'first_quarter' | 'full' | 'third_quarter';
+  time: Date;
+  isTonight: boolean;
+  daysUntil: number;
+}
+
+// Planetary Transits (Mercury/Venus across Sun)
+export interface PlanetaryTransit {
+  planet: 'Mercury' | 'Venus';
+  start: Date;
+  peak: Date;
+  finish: Date;
+  separationArcmin: number;
+  yearsUntil: number;
+}
+
+// Planet Perihelion/Aphelion
+export interface PlanetApsis {
+  planet: string;
+  type: 'perihelion' | 'aphelion';
+  date: Date;
+  distanceAU: number;
+  daysUntil: number;
+  brightnessBoostPercent: number;
+}
+
+// Eclipse Season (lunar node crossing)
+export interface EclipseSeason {
+  nodeType: 'ascending' | 'descending';
+  nodeCrossingTime: Date;
+  windowStart: Date;
+  windowEnd: Date;
+  isActive: boolean;
+}
+
+// Venus Peak Brightness
+export interface VenusPeakInfo {
+  peakDate: Date;
+  peakMagnitude: number;
+  daysUntil: number;
+  isNearPeak: boolean;
+}
+
+// Imaging Window (best time to photograph object)
+export interface ImagingWindow {
+  start: Date;
+  end: Date;
+  quality: 'excellent' | 'good' | 'acceptable' | 'poor';
+  qualityScore: number;
+  factors: {
+    altitude: number;
+    airmass: number;
+    moonInterference: number;
+    cloudCover: number;
+  };
+}
+
+// Atmospheric Seeing Forecast
+export interface SeeingForecast {
+  rating: 'excellent' | 'good' | 'fair' | 'poor';
+  estimatedArcsec: number;
+  confidence: number;
+  recommendation: string;
+}
+
+// Saturn Ring Geometry
+export interface SaturnRingInfo {
+  tiltAngle: number;
+  isNorthPoleVisible: boolean;
+  openness: 'edge-on' | 'narrow' | 'moderate' | 'wide' | 'maximum';
+  description: string;
+}
+
+// Dew Risk Timeline Entry
+export interface DewRiskEntry {
+  hour: Date;
+  riskLevel: 'safe' | 'low' | 'moderate' | 'high';
+  dewMargin: number; // temperature - dewpoint
+}
+
 // Container for all astronomical events
 export interface AstronomicalEvents {
   lunarEclipse: LunarEclipse | null;
@@ -350,4 +453,11 @@ export interface AstronomicalEvents {
   oppositions: OppositionEvent[];
   maxElongations: MaxElongation[];
   seasonalMarker: SeasonalMarker | null;
+  // New event fields
+  moonPhaseEvent: MoonPhaseEvent | null;
+  nextMoonPhase: MoonPhaseEvent | null;
+  planetPerihelia: PlanetApsis[];
+  eclipseSeason: EclipseSeason | null;
+  venusPeak: VenusPeakInfo | null;
+  planetaryTransit: PlanetaryTransit | null;
 }

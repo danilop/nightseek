@@ -21,8 +21,7 @@ export function getSeasonsForYear(year: number): {
       septemberEquinox: seasons.sep_equinox.date,
       decemberSolstice: seasons.dec_solstice.date,
     };
-  } catch (error) {
-    console.warn('Failed to get seasons:', error);
+  } catch (_error) {
     // Return approximate dates as fallback
     return {
       marchEquinox: new Date(year, 2, 20),
@@ -36,10 +35,7 @@ export function getSeasonsForYear(year: number): {
 /**
  * Find the next seasonal marker from a given date
  */
-export function getNextSeasonalMarker(
-  date: Date,
-  windowDays: number = 7
-): SeasonalMarker | null {
+export function getNextSeasonalMarker(date: Date, windowDays: number = 7): SeasonalMarker | null {
   try {
     const year = date.getFullYear();
 
@@ -71,8 +67,7 @@ export function getNextSeasonalMarker(
     }
 
     return null;
-  } catch (error) {
-    console.warn('Failed to get next seasonal marker:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -148,9 +143,6 @@ export function getSeasonalMarkerName(type: SeasonType): string {
 /**
  * Check if a seasonal marker falls within the forecast window
  */
-export function detectSeasonalMarkers(
-  date: Date,
-  forecastDays: number = 7
-): SeasonalMarker | null {
+export function detectSeasonalMarkers(date: Date, forecastDays: number = 7): SeasonalMarker | null {
   return getNextSeasonalMarker(date, forecastDays);
 }

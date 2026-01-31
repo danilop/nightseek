@@ -1,14 +1,16 @@
 import type {
-  ObjectVisibility,
-  ObjectCategory,
   DSOSubtype,
-  NightWeather,
-  NightInfo,
-  ScoredObject,
-  ScoreBreakdown,
-  ScoreTier,
-  OppositionEvent,
   LunarApsis,
+  NightInfo,
+  NightWeather,
+  ObjectCategory,
+  ObjectVisibility,
+  OppositionEvent,
+  ScoreBreakdown,
+  ScoredObject,
+  ScoreTier,
+  SeeingForecast,
+  VenusPeakInfo,
 } from '@/types';
 
 /**
@@ -38,15 +40,24 @@ export function calculateAltitudeScore(airmass: number, altitude: number): numbe
  */
 function getMoonSensitivity(subtype: DSOSubtype | null): number {
   switch (subtype) {
-    case 'reflection_nebula': return 0.95;
-    case 'emission_nebula': return 0.90;
-    case 'galaxy': return 0.80;
-    case 'supernova_remnant': return 0.85;
-    case 'planetary_nebula': return 0.50;
-    case 'globular_cluster': return 0.40;
-    case 'open_cluster': return 0.30;
-    case 'double_star': return 0.10;
-    default: return 0.70;
+    case 'reflection_nebula':
+      return 0.95;
+    case 'emission_nebula':
+      return 0.9;
+    case 'galaxy':
+      return 0.8;
+    case 'supernova_remnant':
+      return 0.85;
+    case 'planetary_nebula':
+      return 0.5;
+    case 'globular_cluster':
+      return 0.4;
+    case 'open_cluster':
+      return 0.3;
+    case 'double_star':
+      return 0.1;
+    default:
+      return 0.7;
   }
 }
 
@@ -79,7 +90,7 @@ export function calculateMoonInterference(
 
   // Apply illumination penalty
   const illumPenalty = (moonIllumination / 100) * 0.5;
-  score = score * (1 - illumPenalty);
+  score *= 1 - illumPenalty;
 
   // Apply sensitivity factor for DSO subtypes
   const sensitivity = getMoonSensitivity(subtype);
@@ -92,11 +103,7 @@ export function calculateMoonInterference(
 /**
  * Calculate peak timing score (0-15 points)
  */
-export function calculatePeakTimingScore(
-  peakTime: Date | null,
-  dusk: Date,
-  dawn: Date
-): number {
+export function calculatePeakTimingScore(peakTime: Date | null, dusk: Date, dawn: Date): number {
   if (!peakTime) return 3;
 
   const peakMs = peakTime.getTime();
@@ -107,10 +114,8 @@ export function calculatePeakTimingScore(
   if (peakMs >= duskMs && peakMs <= dawnMs) return 15;
 
   // Calculate hours outside window
-  const hoursOutside = Math.min(
-    Math.abs(peakMs - duskMs),
-    Math.abs(peakMs - dawnMs)
-  ) / (60 * 60 * 1000);
+  const hoursOutside =
+    Math.min(Math.abs(peakMs - duskMs), Math.abs(peakMs - dawnMs)) / (60 * 60 * 1000);
 
   if (hoursOutside < 1) return 12;
   if (hoursOutside < 2) return 9;
@@ -152,15 +157,13 @@ export function calculateWeatherScore(
       if (aod < 0.1) aodFactor = 1.0;
       else if (aod < 0.2) aodFactor = 0.95;
       else if (aod < 0.3) aodFactor = 0.85;
-      else if (aod < 0.5) aodFactor = 0.70;
-      else aodFactor = 0.50;
-    } else {
-      if (aod < 0.1) aodFactor = 1.0;
-      else if (aod < 0.2) aodFactor = 0.98;
-      else if (aod < 0.3) aodFactor = 0.92;
-      else if (aod < 0.5) aodFactor = 0.85;
-      else aodFactor = 0.75;
-    }
+      else if (aod < 0.5) aodFactor = 0.7;
+      else aodFactor = 0.5;
+    } else if (aod < 0.1) aodFactor = 1.0;
+    else if (aod < 0.2) aodFactor = 0.98;
+    else if (aod < 0.3) aodFactor = 0.92;
+    else if (aod < 0.5) aodFactor = 0.85;
+    else aodFactor = 0.75;
   }
 
   // Transparency bonus (deep sky only)
@@ -189,15 +192,13 @@ export function calculateWeatherScore(
       if (windGustKmh < 15) windFactor = 1.0;
       else if (windGustKmh < 25) windFactor = 0.98;
       else if (windGustKmh < 40) windFactor = 0.92;
-      else if (windGustKmh < 55) windFactor = 0.80;
-      else windFactor = 0.60;
-    } else {
-      if (windGustKmh < 15) windFactor = 1.0;
-      else if (windGustKmh < 25) windFactor = 0.95;
-      else if (windGustKmh < 40) windFactor = 0.80;
-      else if (windGustKmh < 55) windFactor = 0.60;
-      else windFactor = 0.40;
-    }
+      else if (windGustKmh < 55) windFactor = 0.8;
+      else windFactor = 0.6;
+    } else if (windGustKmh < 15) windFactor = 1.0;
+    else if (windGustKmh < 25) windFactor = 0.95;
+    else if (windGustKmh < 40) windFactor = 0.8;
+    else if (windGustKmh < 55) windFactor = 0.6;
+    else windFactor = 0.4;
   }
 
   // Combine factors and scale to 0-15
@@ -217,7 +218,7 @@ export function calculateSurfaceBrightnessScore(
 
   // Estimate if not provided
   if (sb === null && magnitude !== null && angularSizeArcmin > 0) {
-    const areaArcsec2 = Math.PI * Math.pow((angularSizeArcmin * 60) / 2, 2);
+    const areaArcsec2 = Math.PI * ((angularSizeArcmin * 60) / 2) ** 2;
     sb = magnitude + 2.5 * Math.log10(Math.max(areaArcsec2, 1));
   }
 
@@ -275,7 +276,8 @@ export function calculateTypeSuitabilityScore(
 
   if (isDarkSky) {
     if (objectType === 'milky_way') return 15;
-    if (subtype === 'emission_nebula' || subtype === 'reflection_nebula' || subtype === 'galaxy') return 14.25;
+    if (subtype === 'emission_nebula' || subtype === 'reflection_nebula' || subtype === 'galaxy')
+      return 14.25;
     if (subtype === 'planetary_nebula' || subtype === 'supernova_remnant') return 12.75;
     if (objectType === 'comet') return 12;
     if (subtype === 'globular_cluster' || subtype === 'open_cluster') return 10.5;
@@ -312,10 +314,7 @@ export function calculateTransientBonus(
  * Seasonal window bonus (0-15 points)
  * Objects opposite the sun score higher
  */
-export function calculateSeasonalWindowScore(
-  objectRaHours: number,
-  sunRaHours: number
-): number {
+export function calculateSeasonalWindowScore(objectRaHours: number, sunRaHours: number): number {
   // Calculate RA difference (0-24 hours)
   let raDiff = Math.abs(objectRaHours - sunRaHours);
   if (raDiff > 12) raDiff = 24 - raDiff;
@@ -327,10 +326,7 @@ export function calculateSeasonalWindowScore(
 /**
  * Novelty/popularity bonus (0-10 points)
  */
-export function calculateNoveltyScore(
-  isMessier: boolean,
-  hasCommonName: boolean
-): number {
+export function calculateNoveltyScore(isMessier: boolean, hasCommonName: boolean): number {
   if (isMessier) return 10;
   if (hasCommonName) return 5;
   return 0;
@@ -351,9 +347,7 @@ export function calculateOppositionBonus(
   }
 
   // Check oppositions list for this planet
-  const opposition = oppositions.find(
-    o => o.planet.toLowerCase() === planetName.toLowerCase()
-  );
+  const opposition = oppositions.find(o => o.planet.toLowerCase() === planetName.toLowerCase());
 
   if (!opposition) return 0;
 
@@ -421,6 +415,159 @@ export function calculateSupermoonBonus(
 }
 
 /**
+ * Perihelion bonus for planets (0-10 points)
+ * Planets are brighter when closer to the Sun
+ */
+export function calculatePerihelionBonus(
+  isNearPerihelion: boolean | undefined,
+  perihelionBoostPercent: number | undefined,
+  objectType: ObjectCategory
+): number {
+  if (objectType !== 'planet') return 0;
+  if (!isNearPerihelion) return 0;
+
+  // Scale bonus based on brightness boost
+  if (perihelionBoostPercent === undefined || perihelionBoostPercent === 0) {
+    return 5; // Default bonus for being near perihelion
+  }
+
+  // Higher boost = higher score (up to 10 points)
+  if (perihelionBoostPercent >= 15) return 10;
+  if (perihelionBoostPercent >= 10) return 8;
+  if (perihelionBoostPercent >= 5) return 6;
+  return 4;
+}
+
+/**
+ * Meridian bonus (0-5 points)
+ * Objects on or near the meridian have the least atmosphere to pass through
+ */
+export function calculateMeridianBonus(hourAngle: number | undefined): number {
+  if (hourAngle === undefined) return 0;
+
+  // Hour angle of 0 = on meridian
+  // Convert to hours from meridian (0-12)
+  let hoursFromMeridian = Math.abs(hourAngle);
+  if (hoursFromMeridian > 12) {
+    hoursFromMeridian = 24 - hoursFromMeridian;
+  }
+
+  // Score based on proximity to meridian
+  if (hoursFromMeridian < 0.5) return 5; // Within 30 min of meridian
+  if (hoursFromMeridian < 1.0) return 4; // Within 1 hour
+  if (hoursFromMeridian < 1.5) return 3; // Within 1.5 hours
+  if (hoursFromMeridian < 2.0) return 2; // Within 2 hours
+  if (hoursFromMeridian < 3.0) return 1; // Within 3 hours
+
+  return 0;
+}
+
+/**
+ * Twilight penalty (-30 to 0 points)
+ * Objects too close to the Sun during twilight are difficult to observe
+ */
+export function calculateTwilightPenalty(
+  sunAngle: number | undefined,
+  objectType: ObjectCategory
+): number {
+  if (sunAngle === undefined) return 0;
+
+  // Planets can be observed closer to the Sun
+  const isPlanet = objectType === 'planet';
+
+  if (sunAngle < 15) {
+    // Too close to observe
+    return -30;
+  } else if (sunAngle < 20) {
+    return isPlanet ? -15 : -25;
+  } else if (sunAngle < 25) {
+    return isPlanet ? -5 : -15;
+  } else if (sunAngle < 30) {
+    return isPlanet ? 0 : -5;
+  }
+
+  return 0; // Far enough from Sun
+}
+
+/**
+ * Venus peak brightness bonus (0-8 points)
+ * Venus is exceptionally bright near peak magnitude
+ */
+export function calculateVenusPeakBonus(
+  objectName: string,
+  venusPeak: VenusPeakInfo | null
+): number {
+  if (objectName.toLowerCase() !== 'venus') return 0;
+  if (!venusPeak || !venusPeak.isNearPeak) return 0;
+
+  // Scale bonus based on days from peak
+  if (venusPeak.daysUntil <= 3) return 8;
+  if (venusPeak.daysUntil <= 7) return 6;
+  if (venusPeak.daysUntil <= 14) return 4;
+
+  return 0;
+}
+
+/**
+ * Seeing quality score (0-8 points)
+ * Better atmospheric seeing = better imaging conditions
+ */
+export function calculateSeeingQualityScore(
+  seeingForecast: SeeingForecast | null,
+  objectType: ObjectCategory
+): number {
+  if (!seeingForecast) return 4; // Default middle score
+
+  // Planets benefit most from good seeing
+  const isPlanet = objectType === 'planet' || objectType === 'moon';
+  const multiplier = isPlanet ? 1.0 : 0.7;
+
+  let baseScore: number;
+  switch (seeingForecast.rating) {
+    case 'excellent':
+      baseScore = 8;
+      break;
+    case 'good':
+      baseScore = 6;
+      break;
+    case 'fair':
+      baseScore = 3;
+      break;
+    case 'poor':
+      baseScore = 0;
+      break;
+  }
+
+  return Math.round(baseScore * multiplier);
+}
+
+/**
+ * Dew risk penalty (-5 to 0 points)
+ * High dew probability during observation time is problematic
+ */
+export function calculateDewRiskPenalty(weather: NightWeather | null): number {
+  if (!weather) return 0;
+
+  // Check dew margin (temperature - dew point)
+  const minDewMargin = weather.minDewMargin;
+
+  if (minDewMargin === null) {
+    // Estimate from humidity
+    const humidity = weather.avgHumidity;
+    if (humidity !== null && humidity > 90) return -5;
+    if (humidity !== null && humidity > 80) return -3;
+    return 0;
+  }
+
+  // Direct dew margin assessment
+  if (minDewMargin < 2) return -5; // Very high dew risk
+  if (minDewMargin < 4) return -3; // Moderate dew risk
+  if (minDewMargin < 6) return -1; // Low dew risk
+
+  return 0;
+}
+
+/**
  * Calculate total score for an object
  */
 export function calculateTotalScore(
@@ -429,7 +576,8 @@ export function calculateTotalScore(
   weather: NightWeather | null,
   sunRaHours: number,
   oppositions: OppositionEvent[] = [],
-  lunarApsis: LunarApsis | null = null
+  lunarApsis: LunarApsis | null = null,
+  venusPeak: VenusPeakInfo | null = null
 ): ScoredObject {
   const {
     objectType,
@@ -448,20 +596,35 @@ export function calculateTotalScore(
     objectName,
     elongationDeg,
     isAtOpposition,
+    // New fields
+    hourAngle,
+    sunAngle,
+    isNearPerihelion,
+    perihelionBoostPercent,
   } = visibility;
 
   const moonIllumination = nightInfo.moonIllumination;
 
   // Imaging Quality (0-100)
   const altitudeScore = calculateAltitudeScore(minAirmass, maxAltitude);
-  const moonInterference = calculateMoonInterference(moonIllumination, moonSeparation, objectType, subtype);
-  const peakTiming = calculatePeakTimingScore(maxAltitudeTime, nightInfo.astronomicalDusk, nightInfo.astronomicalDawn);
+  const moonInterference = calculateMoonInterference(
+    moonIllumination,
+    moonSeparation,
+    objectType,
+    subtype
+  );
+  const peakTiming = calculatePeakTimingScore(
+    maxAltitudeTime,
+    nightInfo.astronomicalDusk,
+    nightInfo.astronomicalDawn
+  );
   const weatherScore = calculateWeatherScore(weather, objectType, subtype);
 
   // Object Characteristics (0-50)
-  const surfaceBrightnessScore = objectType === 'dso'
-    ? calculateSurfaceBrightnessScore(surfaceBrightness, magnitude, angularSizeArcmin)
-    : 10;
+  const surfaceBrightnessScore =
+    objectType === 'dso'
+      ? calculateSurfaceBrightnessScore(surfaceBrightness, magnitude, angularSizeArcmin)
+      : 10;
   const magnitudeScore = calculateMagnitudeScore(magnitude, objectType);
   const typeSuitability = calculateTypeSuitabilityScore(objectType, subtype, moonIllumination);
 
@@ -471,13 +634,23 @@ export function calculateTotalScore(
   const noveltyPopularity = calculateNoveltyScore(isMessier ?? false, commonName !== objectName);
 
   // New planetary/lunar bonuses (0-45)
-  const oppositionBonus = objectType === 'planet'
-    ? calculateOppositionBonus(objectName, isAtOpposition, oppositions)
-    : 0;
-  const elongationBonus = objectType === 'planet'
-    ? calculateElongationBonus(elongationDeg, objectName)
-    : 0;
+  const oppositionBonus =
+    objectType === 'planet' ? calculateOppositionBonus(objectName, isAtOpposition, oppositions) : 0;
+  const elongationBonus =
+    objectType === 'planet' ? calculateElongationBonus(elongationDeg, objectName) : 0;
   const supermoonBonus = calculateSupermoonBonus(lunarApsis, moonIllumination, objectType);
+
+  // New scoring factors
+  const perihelionBonus = calculatePerihelionBonus(
+    isNearPerihelion,
+    perihelionBoostPercent,
+    objectType
+  );
+  const meridianBonus = calculateMeridianBonus(hourAngle);
+  const twilightPenalty = calculateTwilightPenalty(sunAngle, objectType);
+  const venusPeakBonus = calculateVenusPeakBonus(objectName, venusPeak);
+  const seeingQuality = calculateSeeingQualityScore(nightInfo.seeingForecast, objectType);
+  const dewRiskPenalty = calculateDewRiskPenalty(weather);
 
   const totalScore =
     altitudeScore +
@@ -492,7 +665,13 @@ export function calculateTotalScore(
     noveltyPopularity +
     oppositionBonus +
     elongationBonus +
-    supermoonBonus;
+    supermoonBonus +
+    perihelionBonus +
+    meridianBonus +
+    twilightPenalty +
+    venusPeakBonus +
+    seeingQuality +
+    dewRiskPenalty;
 
   const scoreBreakdown: ScoreBreakdown = {
     altitudeScore,
@@ -508,6 +687,12 @@ export function calculateTotalScore(
     oppositionBonus,
     elongationBonus,
     supermoonBonus,
+    perihelionBonus,
+    meridianBonus,
+    twilightPenalty,
+    venusPeakBonus,
+    seeingQuality,
+    dewRiskPenalty,
   };
 
   // Generate reason string
@@ -520,6 +705,12 @@ export function calculateTotalScore(
   if (oppositionBonus >= 15) reasons.push('At opposition');
   if (elongationBonus >= 10) reasons.push('Near max elongation');
   if (supermoonBonus >= 5) reasons.push('Supermoon');
+  if (perihelionBonus >= 6) reasons.push('Near perihelion');
+  if (meridianBonus >= 4) reasons.push('Near meridian');
+  if (twilightPenalty < -15) reasons.push('Near Sun');
+  if (venusPeakBonus >= 4) reasons.push('Peak brightness');
+  if (seeingQuality >= 6) reasons.push('Good seeing');
+  if (dewRiskPenalty < -3) reasons.push('Dew risk');
 
   return {
     objectName,
@@ -549,10 +740,15 @@ export function getScoreTier(totalScore: number): ScoreTier {
  */
 export function getTierDisplay(tier: ScoreTier): { stars: number; label: string; color: string } {
   switch (tier) {
-    case 'excellent': return { stars: 5, label: 'Excellent', color: 'text-yellow-400' };
-    case 'very_good': return { stars: 4, label: 'Very Good', color: 'text-green-400' };
-    case 'good': return { stars: 3, label: 'Good', color: 'text-blue-400' };
-    case 'fair': return { stars: 2, label: 'Fair', color: 'text-orange-400' };
-    case 'poor': return { stars: 1, label: 'Poor', color: 'text-red-400' };
+    case 'excellent':
+      return { stars: 5, label: 'Excellent', color: 'text-yellow-400' };
+    case 'very_good':
+      return { stars: 4, label: 'Very Good', color: 'text-green-400' };
+    case 'good':
+      return { stars: 3, label: 'Good', color: 'text-blue-400' };
+    case 'fair':
+      return { stars: 2, label: 'Fair', color: 'text-orange-400' };
+    case 'poor':
+      return { stars: 1, label: 'Poor', color: 'text-red-400' };
   }
 }

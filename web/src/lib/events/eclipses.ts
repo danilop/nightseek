@@ -1,12 +1,10 @@
 import * as Astronomy from 'astronomy-engine';
-import type { LunarEclipse, SolarEclipse, NightInfo } from '@/types';
+import type { LunarEclipse, NightInfo, SolarEclipse } from '@/types';
 
 /**
  * Search for the next lunar eclipse after a given date
  */
-export function searchNextLunarEclipse(
-  startDate: Date
-): {
+export function searchNextLunarEclipse(startDate: Date): {
   kind: 'penumbral' | 'partial' | 'total';
   peakTime: Date;
   magnitude: number;
@@ -70,8 +68,7 @@ export function searchNextLunarEclipse(
     }
 
     return result;
-  } catch (error) {
-    console.warn('Failed to search lunar eclipse:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -114,8 +111,7 @@ export function searchNextSolarEclipse(
       obscuration: eclipse.obscuration,
       altitude: eclipse.peak.altitude,
     };
-  } catch (error) {
-    console.warn('Failed to search solar eclipse:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -123,9 +119,7 @@ export function searchNextSolarEclipse(
 /**
  * Check if a lunar eclipse is visible during a given night
  */
-export function getLunarEclipseForNight(
-  nightInfo: NightInfo
-): LunarEclipse | null {
+export function getLunarEclipseForNight(nightInfo: NightInfo): LunarEclipse | null {
   try {
     // Search starting from a few days before the night
     const searchStart = new Date(nightInfo.date);
@@ -162,8 +156,7 @@ export function getLunarEclipseForNight(
       partialEnd: eclipse.partialEnd,
       penumbralEnd: eclipse.penumbralEnd,
     };
-  } catch (error) {
-    console.warn('Failed to get lunar eclipse for night:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -204,8 +197,7 @@ export function getSolarEclipseForDate(
       obscuration: eclipse.obscuration,
       altitude: eclipse.altitude,
     };
-  } catch (error) {
-    console.warn('Failed to get solar eclipse for date:', error);
+  } catch (_error) {
     return null;
   }
 }
@@ -215,7 +207,9 @@ export function getSolarEclipseForDate(
  */
 export function describeLunarEclipse(eclipse: LunarEclipse): string {
   const kindStr = eclipse.kind.charAt(0).toUpperCase() + eclipse.kind.slice(1);
-  const visibility = eclipse.isVisible ? 'visible from your location' : 'not visible from your location';
+  const visibility = eclipse.isVisible
+    ? 'visible from your location'
+    : 'not visible from your location';
 
   return `${kindStr} lunar eclipse - ${visibility}`;
 }
@@ -270,9 +264,7 @@ export function detectEclipses(
         solar = solarResult;
       }
     }
-  } catch (error) {
-    console.warn('Failed to detect eclipses:', error);
-  }
+  } catch (_error) {}
 
   return { lunar, solar };
 }

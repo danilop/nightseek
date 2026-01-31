@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import type { ScoredObject, NightInfo, NightWeather } from '@/types';
+import { useState } from 'react';
 import { formatSubtype } from '@/lib/utils/format-subtype';
+import type { NightInfo, NightWeather, ScoredObject } from '@/types';
 import ObjectCard from './ObjectCard';
 
 interface CategorySectionProps {
@@ -37,6 +37,7 @@ export default function CategorySection({
     <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
       {/* Header - always clickable */}
       <button
+        type="button"
         className="w-full px-4 py-3 flex items-center justify-between hover:bg-night-800 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
@@ -50,13 +51,17 @@ export default function CategorySection({
         <div className="flex items-center gap-2">
           {!expanded && objects.length > 0 && (
             <span className="text-sm text-gray-500 hidden sm:block">
-              Top: {objects.slice(0, 3).map(o => {
-                const name = o.visibility.commonName || o.objectName;
-                if (showSubtypeInPreview && o.subtype) {
-                  return `${name} (${formatSubtype(o.subtype)})`;
-                }
-                return name;
-              }).join(', ')}
+              Top:{' '}
+              {objects
+                .slice(0, 3)
+                .map(o => {
+                  const name = o.visibility.commonName || o.objectName;
+                  if (showSubtypeInPreview && o.subtype) {
+                    return `${name} (${formatSubtype(o.subtype)})`;
+                  }
+                  return name;
+                })
+                .join(', ')}
             </span>
           )}
           {expanded ? (
@@ -73,7 +78,7 @@ export default function CategorySection({
           <div className="p-4">
             {/* Desktop Grid */}
             <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {displayObjects.map((obj) => (
+              {displayObjects.map(obj => (
                 <ObjectCard
                   key={obj.objectName}
                   object={obj}
@@ -85,7 +90,7 @@ export default function CategorySection({
 
             {/* Mobile List */}
             <div className="sm:hidden space-y-3">
-              {displayObjects.map((obj) => (
+              {displayObjects.map(obj => (
                 <ObjectCard
                   key={obj.objectName}
                   object={obj}
@@ -101,16 +106,15 @@ export default function CategorySection({
           {hasMore && (
             <div className="px-4 pb-4">
               <button
+                type="button"
                 className="w-full py-2 text-sm text-sky-400 hover:text-sky-300
                            hover:bg-night-800 rounded-lg transition-colors"
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation();
                   setShowAll(!showAll);
                 }}
               >
-                {showAll
-                  ? `Show less`
-                  : `Show all ${objects.length} objects`}
+                {showAll ? `Show less` : `Show all ${objects.length} objects`}
               </button>
             </div>
           )}

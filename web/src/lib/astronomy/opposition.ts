@@ -18,17 +18,13 @@ const OPPOSITION_WINDOW_DAYS = 14;
  * Opposition occurs when the planet's ecliptic longitude differs from
  * the Sun's by 180 degrees (planet is opposite the Sun in the sky)
  */
-export function searchNextOpposition(
-  body: Astronomy.Body,
-  startDate: Date
-): Date | null {
+export function searchNextOpposition(body: Astronomy.Body, startDate: Date): Date | null {
   try {
     // SearchRelativeLongitude finds when the planet reaches
     // a specific longitude difference from the Sun
     const result = Astronomy.SearchRelativeLongitude(body, 180, startDate);
     return result?.date ?? null;
-  } catch (error) {
-    console.warn(`Failed to search opposition for ${body}:`, error);
+  } catch (_error) {
     return null;
   }
 }
@@ -73,8 +69,7 @@ export function isNearOpposition(
     }
 
     return { isActive: false, daysUntil: Infinity, oppositionDate: null };
-  } catch (error) {
-    console.warn(`Failed to check opposition for ${body}:`, error);
+  } catch (_error) {
     return { isActive: false, daysUntil: Infinity, oppositionDate: null };
   }
 }
@@ -82,19 +77,13 @@ export function isNearOpposition(
 /**
  * Detect all upcoming oppositions within the forecast window
  */
-export function detectOppositions(
-  date: Date,
-  forecastDays: number = 7
-): OppositionEvent[] {
+export function detectOppositions(date: Date, forecastDays: number = 7): OppositionEvent[] {
   const events: OppositionEvent[] = [];
   const endDate = new Date(date);
   endDate.setDate(endDate.getDate() + forecastDays + OPPOSITION_WINDOW_DAYS);
 
   for (const planet of OUTER_PLANETS) {
-    const { isActive, daysUntil, oppositionDate } = isNearOpposition(
-      planet.body,
-      date
-    );
+    const { isActive, daysUntil, oppositionDate } = isNearOpposition(planet.body, date);
 
     // Include if opposition is within our extended window
     if (oppositionDate && Math.abs(daysUntil) <= forecastDays + OPPOSITION_WINDOW_DAYS) {
@@ -118,13 +107,8 @@ export function detectOppositions(
 /**
  * Get opposition info for a specific planet name
  */
-export function getOppositionForPlanet(
-  planetName: string,
-  date: Date
-): OppositionEvent | null {
-  const planet = OUTER_PLANETS.find(
-    p => p.name.toLowerCase() === planetName.toLowerCase()
-  );
+export function getOppositionForPlanet(planetName: string, date: Date): OppositionEvent | null {
+  const planet = OUTER_PLANETS.find(p => p.name.toLowerCase() === planetName.toLowerCase());
 
   if (!planet) return null;
 

@@ -20,8 +20,7 @@ export function calculateLibration(date: Date): LunarLibration {
       latitudeDeg: libration.elat,
       description,
     };
-  } catch (error) {
-    console.warn('Failed to calculate libration:', error);
+  } catch (_error) {
     return {
       longitudeDeg: 0,
       latitudeDeg: 0,

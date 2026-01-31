@@ -1,4 +1,3 @@
-
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
 interface ErrorMessageProps {
@@ -14,6 +13,7 @@ export default function ErrorMessage({ message, onRetry }: ErrorMessageProps) {
       <p className="text-gray-400 mb-4">{message}</p>
       {onRetry && (
         <button
+          type="button"
           onClick={onRetry}
           className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
         >

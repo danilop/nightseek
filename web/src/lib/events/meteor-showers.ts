@@ -1,10 +1,13 @@
 import type { MeteorShower, NightInfo } from '@/types';
-import { SkyCalculator, angularSeparation } from '../astronomy/calculator';
+import { angularSeparation, type SkyCalculator } from '../astronomy/calculator';
 
 /**
  * Major meteor showers data
  */
-export const METEOR_SHOWERS: Omit<MeteorShower, 'isActive' | 'daysFromPeak' | 'radiantAltitude' | 'moonIllumination' | 'moonSeparationDeg'>[] = [
+export const METEOR_SHOWERS: Omit<
+  MeteorShower,
+  'isActive' | 'daysFromPeak' | 'radiantAltitude' | 'moonIllumination' | 'moonSeparationDeg'
+>[] = [
   {
     name: 'Quadrantids',
     code: 'QUA',
@@ -191,7 +194,7 @@ export const METEOR_SHOWERS: Omit<MeteorShower, 'isActive' | 'daysFromPeak' | 'r
  * Check if a shower is active on a given date
  */
 function isShowerActive(
-  shower: typeof METEOR_SHOWERS[0],
+  shower: (typeof METEOR_SHOWERS)[0],
   date: Date
 ): { isActive: boolean; daysFromPeak: number } {
   const currentMonth = date.getMonth() + 1;
