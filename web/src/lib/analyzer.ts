@@ -11,6 +11,12 @@ import type {
 import { SkyCalculator } from './astronomy/calculator';
 import { PLANETS } from './astronomy/planets';
 import { loadOpenNGCCatalog } from './catalogs/opengc';
+import { fetchComets, calculateCometVisibility } from './catalogs/comets';
+import {
+  getDwarfPlanets,
+  getNotableAsteroids,
+  calculateMinorPlanetVisibility,
+} from './catalogs/minor-planets';
 import { fetchWeather, fetchAirQuality, parseNightWeather } from './weather/open-meteo';
 import { detectConjunctions } from './events/conjunctions';
 import { detectMeteorShowers } from './events/meteor-showers';
@@ -56,6 +62,14 @@ export async function generateForecast(
   } catch (error) {
     console.warn('Failed to load DSO catalog:', error);
   }
+
+  // Fetch comets from MPC
+  progress('Loading comet data...', 15);
+  const cometCatalog = await fetchComets(settings.cometMagnitude);
+
+  // Load minor planets (dwarf planets and asteroids)
+  const dwarfPlanets = getDwarfPlanets();
+  const asteroids = getNotableAsteroids();
 
   // Fetch weather data (if within range)
   progress('Fetching weather data...', 20);
@@ -111,9 +125,9 @@ export async function generateForecast(
       }
     }
 
-    // Calculate DSO visibility
+    // Calculate DSO visibility (full catalog - filtering done in loadOpenNGCCatalog)
     const dsos: ObjectVisibility[] = [];
-    for (const dso of dsoCatalog.slice(0, 500)) { // Limit for performance
+    for (const dso of dsoCatalog) {
       const visibility = calculator.calculateVisibility(
         dso.raHours,
         dso.decDegrees,
@@ -133,6 +147,48 @@ export async function generateForecast(
 
       if (visibility.isVisible) {
         dsos.push(visibility);
+      }
+    }
+
+    // Calculate comet visibility
+    const comets: ObjectVisibility[] = [];
+    for (const comet of cometCatalog) {
+      const visibility = calculateCometVisibility(
+        comet,
+        calculator,
+        nightInfo,
+        settings.cometMagnitude
+      );
+      if (visibility) {
+        comets.push(visibility);
+      }
+    }
+
+    // Calculate dwarf planet visibility
+    const dwarfPlanetVisibility: ObjectVisibility[] = [];
+    for (const dp of dwarfPlanets) {
+      const visibility = calculateMinorPlanetVisibility(
+        dp,
+        calculator,
+        nightInfo,
+        settings.cometMagnitude // Use comet magnitude limit for minor planets
+      );
+      if (visibility) {
+        dwarfPlanetVisibility.push(visibility);
+      }
+    }
+
+    // Calculate asteroid visibility
+    const asteroidVisibility: ObjectVisibility[] = [];
+    for (const asteroid of asteroids) {
+      const visibility = calculateMinorPlanetVisibility(
+        asteroid,
+        calculator,
+        nightInfo,
+        settings.cometMagnitude
+      );
+      if (visibility) {
+        asteroidVisibility.push(visibility);
       }
     }
 
@@ -163,9 +219,9 @@ export async function generateForecast(
       nightInfo,
       planets,
       dsos,
-      comets: [], // TODO: Add comet support
-      dwarfPlanets: [],
-      asteroids: [],
+      comets,
+      dwarfPlanets: dwarfPlanetVisibility,
+      asteroids: asteroidVisibility,
       milkyWay: milkyWay.isVisible ? milkyWay : null,
       moon,
       weather,
@@ -180,6 +236,9 @@ export async function generateForecast(
     const allObjects: ObjectVisibility[] = [
       ...planets,
       ...dsos,
+      ...comets,
+      ...dwarfPlanetVisibility,
+      ...asteroidVisibility,
       ...(milkyWay.isVisible ? [milkyWay] : []),
     ];
 
