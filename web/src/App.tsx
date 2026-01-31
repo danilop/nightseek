@@ -42,12 +42,12 @@ export default function App() {
     }
   }, [location, settings, dispatch, setProgress]);
 
-  // Load forecast when location or settings change
+  // Load forecast when location changes (only if not already loading or errored)
   useEffect(() => {
-    if (location && !forecasts && !isLoading) {
+    if (location && !forecasts && !isLoading && !error) {
       loadForecast();
     }
-  }, [location, forecasts, isLoading, loadForecast]);
+  }, [location, forecasts, isLoading, error, loadForecast]);
 
   // Show setup if no location
   if (!isSetupComplete || !location) {
