@@ -1,5 +1,6 @@
 import { RefreshCw, Sparkles, Star } from 'lucide-react';
 import { useState } from 'react';
+import { useUIState } from '@/hooks/useUIState';
 import { formatDate, formatDateRange } from '@/lib/utils/format';
 import type { Location, NightForecast, ScoredObject } from '@/types';
 import EventsSection from './EventsSection';
@@ -23,7 +24,7 @@ export default function ForecastView({
   onRefresh,
 }: ForecastViewProps) {
   const [selectedNightIndex, setSelectedNightIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState<'tonight' | 'week'>('tonight');
+  const { activeTab, setActiveTab } = useUIState();
 
   if (forecasts.length === 0) {
     return (
