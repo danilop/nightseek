@@ -7,6 +7,8 @@ import type {
   ScoredObject,
   ScoreBreakdown,
   ScoreTier,
+  OppositionEvent,
+  LunarApsis,
 } from '@/types';
 
 /**
@@ -335,13 +337,99 @@ export function calculateNoveltyScore(
 }
 
 /**
+ * Opposition bonus for outer planets (0-20 points)
+ * Maximum bonus when at opposition, decreasing as days from opposition increase
+ */
+export function calculateOppositionBonus(
+  planetName: string,
+  isAtOpposition: boolean | undefined,
+  oppositions: OppositionEvent[]
+): number {
+  // Check if this planet is at opposition
+  if (isAtOpposition === true) {
+    return 20;
+  }
+
+  // Check oppositions list for this planet
+  const opposition = oppositions.find(
+    o => o.planet.toLowerCase() === planetName.toLowerCase()
+  );
+
+  if (!opposition) return 0;
+
+  if (opposition.isActive) {
+    // Scale bonus based on days from opposition (14 day window)
+    const daysFactor = Math.max(0, 1 - Math.abs(opposition.daysUntil) / 14);
+    return Math.round(20 * daysFactor);
+  }
+
+  return 0;
+}
+
+/**
+ * Elongation bonus for inner planets (0-15 points)
+ * Maximum bonus at maximum elongation
+ */
+export function calculateElongationBonus(
+  elongationDeg: number | undefined,
+  planetName: string
+): number {
+  if (elongationDeg === undefined) return 0;
+
+  // Only Mercury and Venus have meaningful elongation
+  const lowerName = planetName.toLowerCase();
+  if (lowerName !== 'mercury' && lowerName !== 'venus') return 0;
+
+  // Maximum elongation values
+  const maxElongation = lowerName === 'mercury' ? 28 : 47;
+
+  // Score based on how close to max elongation
+  const elongationRatio = elongationDeg / maxElongation;
+
+  // Higher score when closer to max elongation
+  if (elongationRatio >= 0.9) return 15;
+  if (elongationRatio >= 0.8) return 12;
+  if (elongationRatio >= 0.7) return 9;
+  if (elongationRatio >= 0.6) return 6;
+  if (elongationRatio >= 0.5) return 3;
+
+  return 0;
+}
+
+/**
+ * Supermoon bonus for Moon photography (0-10 points)
+ */
+export function calculateSupermoonBonus(
+  lunarApsis: LunarApsis | null,
+  moonIllumination: number,
+  objectType: ObjectCategory
+): number {
+  // Only applies to the Moon
+  if (objectType !== 'moon') return 0;
+
+  // Check if we have a supermoon
+  if (lunarApsis?.isSupermoon) {
+    return 10;
+  }
+
+  // Partial bonus for perigee near full moon
+  if (lunarApsis?.type === 'perigee' && moonIllumination >= 80) {
+    return 5;
+  }
+
+  return 0;
+}
+
+/**
  * Calculate total score for an object
  */
 export function calculateTotalScore(
   visibility: ObjectVisibility,
   nightInfo: NightInfo,
   weather: NightWeather | null,
-  sunRaHours: number
+  sunRaHours: number,
+  oppositions: OppositionEvent[] = [],
+  lunarApsis: LunarApsis | null = null
 ): ScoredObject {
   const {
     objectType,
@@ -358,6 +446,8 @@ export function calculateTotalScore(
     isMessier,
     commonName,
     objectName,
+    elongationDeg,
+    isAtOpposition,
   } = visibility;
 
   const moonIllumination = nightInfo.moonIllumination;
@@ -380,6 +470,15 @@ export function calculateTotalScore(
   const seasonalWindow = calculateSeasonalWindowScore(raHours, sunRaHours);
   const noveltyPopularity = calculateNoveltyScore(isMessier ?? false, commonName !== objectName);
 
+  // New planetary/lunar bonuses (0-45)
+  const oppositionBonus = objectType === 'planet'
+    ? calculateOppositionBonus(objectName, isAtOpposition, oppositions)
+    : 0;
+  const elongationBonus = objectType === 'planet'
+    ? calculateElongationBonus(elongationDeg, objectName)
+    : 0;
+  const supermoonBonus = calculateSupermoonBonus(lunarApsis, moonIllumination, objectType);
+
   const totalScore =
     altitudeScore +
     moonInterference +
@@ -390,7 +489,10 @@ export function calculateTotalScore(
     typeSuitability +
     transientBonus +
     seasonalWindow +
-    noveltyPopularity;
+    noveltyPopularity +
+    oppositionBonus +
+    elongationBonus +
+    supermoonBonus;
 
   const scoreBreakdown: ScoreBreakdown = {
     altitudeScore,
@@ -403,6 +505,9 @@ export function calculateTotalScore(
     transientBonus,
     seasonalWindow,
     noveltyPopularity,
+    oppositionBonus,
+    elongationBonus,
+    supermoonBonus,
   };
 
   // Generate reason string
@@ -412,6 +517,9 @@ export function calculateTotalScore(
   if (weatherScore >= 12) reasons.push('Good weather');
   if (transientBonus > 0) reasons.push('Rare/transient');
   if (seasonalWindow >= 12) reasons.push('In season');
+  if (oppositionBonus >= 15) reasons.push('At opposition');
+  if (elongationBonus >= 10) reasons.push('Near max elongation');
+  if (supermoonBonus >= 5) reasons.push('Supermoon');
 
   return {
     objectName,
