@@ -262,7 +262,9 @@ export function calculateMinorPlanetPosition(
   // RA and Dec
   let ra = Math.atan2(eqY, eqX) * 180 / Math.PI;
   if (ra < 0) ra += 360;
-  const dec = Math.asin(eqZ / earthDist) * 180 / Math.PI;
+  // Clamp to [-1, 1] to handle floating point precision issues
+  const sinDec = Math.max(-1, Math.min(1, eqZ / earthDist));
+  const dec = Math.asin(sinDec) * 180 / Math.PI;
 
   return { x, y, z, r, earthDist, ra: ra / 15, dec }; // ra in hours
 }
@@ -316,6 +318,11 @@ export function calculateMinorPlanetVisibility(
 
   // Calculate position
   const pos = calculateMinorPlanetPosition(mp, jd);
+
+  // Skip if position calculation produced invalid values
+  if (!isFinite(pos.ra) || !isFinite(pos.dec) || !isFinite(pos.earthDist) || pos.earthDist <= 0) {
+    return null;
+  }
 
   // Calculate apparent magnitude
   const apparentMag = calculateMinorPlanetMagnitude(

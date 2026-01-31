@@ -1,6 +1,6 @@
 
 import { Star } from 'lucide-react';
-import type { NightForecast } from '@/types';
+import type { NightForecast, NightWeather } from '@/types';
 import {
   formatDate,
   formatTime,
@@ -9,6 +9,37 @@ import {
   getStarRating,
   calculateNightRating,
 } from '@/lib/utils/format';
+
+/**
+ * Get best observation time display string
+ * Shows bestTime if available, otherwise the best clearWindow
+ */
+function getBestTimeDisplay(weather: NightWeather | null): string | null {
+  if (!weather) return null;
+
+  // Prefer bestTime if available (calculated from scoring)
+  if (weather.bestTime) {
+    return `${formatTime(weather.bestTime.start)} - ${formatTime(weather.bestTime.end)}`;
+  }
+
+  // Fall back to the longest clear window
+  if (weather.clearWindows.length > 0) {
+    // Sort by duration (longest first)
+    const sorted = [...weather.clearWindows].sort((a, b) => {
+      const durationA = a.end.getTime() - a.start.getTime();
+      const durationB = b.end.getTime() - b.start.getTime();
+      return durationB - durationA;
+    });
+
+    const best = sorted[0];
+    const hours = Math.round((best.end.getTime() - best.start.getTime()) / (60 * 60 * 1000));
+    if (hours >= 1) {
+      return `${formatTime(best.start)} - ${formatTime(best.end)}`;
+    }
+  }
+
+  return null;
+}
 
 interface NightSummaryTableProps {
   forecasts: NightForecast[];
@@ -95,11 +126,7 @@ export default function NightSummaryTable({
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-400">
-                    {weather?.bestTime ? (
-                      `${formatTime(weather.bestTime.start)} - ${formatTime(weather.bestTime.end)}`
-                    ) : (
-                      '—'
-                    )}
+                    {getBestTimeDisplay(weather) || '—'}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="star-rating text-sm">

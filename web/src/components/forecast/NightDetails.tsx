@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, CloudSun, Wind, Droplets, Eye } from 'lucide-react';
-import type { NightForecast, ScoredObject } from '@/types';
+import type { NightForecast } from '@/types';
 import {
   formatTime,
   getMoonPhaseEmoji,
@@ -11,12 +11,11 @@ import {
 
 interface NightDetailsProps {
   forecast: NightForecast;
-  objects: ScoredObject[];
 }
 
-export default function NightDetails({ forecast, objects }: NightDetailsProps) {
+export default function NightDetails({ forecast }: NightDetailsProps) {
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
-  const { nightInfo, weather, planets, dsos, milkyWay } = forecast;
+  const { nightInfo, weather } = forecast;
 
   return (
     <div className="space-y-4">
@@ -161,32 +160,6 @@ export default function NightDetails({ forecast, objects }: NightDetailsProps) {
         </div>
       )}
 
-      {/* Object Summary */}
-      <div className="bg-night-900 rounded-xl border border-night-700 p-4">
-        <h3 className="font-semibold text-white mb-4">Tonight's Summary</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-          <SummaryItem
-            emoji="🪐"
-            count={planets.length}
-            label="Planets"
-          />
-          <SummaryItem
-            emoji="🌌"
-            count={dsos.length}
-            label="Deep Sky"
-          />
-          <SummaryItem
-            emoji="🌀"
-            count={milkyWay ? 1 : 0}
-            label="Milky Way"
-          />
-          <SummaryItem
-            emoji="⭐"
-            count={objects.filter(o => o.totalScore >= 100).length}
-            label="Top Rated"
-          />
-        </div>
-      </div>
     </div>
   );
 }
@@ -220,20 +193,3 @@ function DetailRow({
   );
 }
 
-function SummaryItem({
-  emoji,
-  count,
-  label,
-}: {
-  emoji: string;
-  count: number;
-  label: string;
-}) {
-  return (
-    <div className={count === 0 ? 'opacity-50' : ''}>
-      <div className="text-2xl mb-1">{emoji}</div>
-      <div className="text-lg font-bold text-white">{count}</div>
-      <div className="text-xs text-gray-500">{label}</div>
-    </div>
-  );
-}

@@ -23,6 +23,10 @@ export default function App() {
         setProgress(message, percent);
       });
 
+      // Show 100% complete briefly before hiding loading screen
+      setProgress('Complete!', 100);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       dispatch({
         type: 'SET_FORECAST',
         payload: {

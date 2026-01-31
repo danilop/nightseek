@@ -367,7 +367,9 @@ export function heliocentricToEquatorial(
   // RA and Dec
   let ra = Math.atan2(eqY, eqX) * 180 / Math.PI;
   if (ra < 0) ra += 360;
-  const dec = Math.asin(eqZ / distance) * 180 / Math.PI;
+  // Clamp to [-1, 1] to handle floating point precision issues
+  const sinDec = Math.max(-1, Math.min(1, eqZ / distance));
+  const dec = Math.asin(sinDec) * 180 / Math.PI;
 
   return { ra: ra / 15, dec, distance }; // ra in hours
 }
@@ -497,6 +499,11 @@ export function calculateCometVisibility(
   // Calculate comet position
   const pos = calculateCometPosition(comet, jd);
   const { ra, dec, distance: earthDist } = heliocentricToEquatorial(pos.x, pos.y, pos.z, jd);
+
+  // Skip if position calculation produced invalid values
+  if (!isFinite(ra) || !isFinite(dec) || !isFinite(earthDist) || earthDist <= 0) {
+    return null;
+  }
 
   // Calculate apparent magnitude
   const apparentMag = calculateCometMagnitude(

@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
+// GitHub Pages base path - set to repo name for GitHub Pages, '/' for other hosting
+const base = process.env.GITHUB_ACTIONS ? '/nightseek/' : '/';
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -13,20 +17,20 @@ export default defineConfig({
         name: 'NightSeek - Astronomy Planner',
         short_name: 'NightSeek',
         description: 'Plan your astronomy observations with weather-integrated forecasts',
-        start_url: '/',
+        start_url: base,
         display: 'standalone',
         background_color: '#0f172a',
         theme_color: '#0ea5e9',
         orientation: 'any',
         icons: [
           {
-            src: '/icons/icon-192.png',
+            src: 'icons/icon-192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: '/icons/icon-512.png',
+            src: 'icons/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'

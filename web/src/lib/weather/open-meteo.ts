@@ -337,12 +337,14 @@ function findBestObservingTime(
     }
   }
 
-  if (bestStart && bestEnd && bestScore > 50) {
+  // Return best window if conditions are at least marginally better than terrible
+  // (score > 20 means at least some hours with < 80% cloud cover)
+  if (bestStart && bestEnd && bestScore > 20) {
     return {
       start: bestStart,
       end: bestEnd,
       score: bestScore,
-      reason: bestReason,
+      reason: bestReason || 'Least cloudy period',
     };
   }
 

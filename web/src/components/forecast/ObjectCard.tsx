@@ -155,6 +155,24 @@ export default function ObjectCard({
             {visibility.constellation}
           </span>
         )}
+        {/* Opposition badge for outer planets */}
+        {visibility.isAtOpposition && (
+          <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs font-medium">
+            At Opposition
+          </span>
+        )}
+        {/* Elongation for inner planets */}
+        {visibility.elongationDeg !== undefined && visibility.elongationDeg > 15 && (
+          <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs">
+            {visibility.elongationDeg.toFixed(1)}° elongation
+          </span>
+        )}
+        {/* Libration info for Moon */}
+        {visibility.libration && visibility.objectType === 'moon' && (
+          <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">
+            Libration: {Math.abs(visibility.libration.longitudeDeg).toFixed(1)}° {visibility.libration.longitudeDeg >= 0 ? 'E' : 'W'}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -187,6 +205,25 @@ function ScoreDetails({ breakdown }: { breakdown: ScoredObject['scoreBreakdown']
         <span className="text-gray-500">Magnitude</span>
         <span className="text-gray-300">{breakdown.magnitudeScore}/15</span>
       </div>
+      {/* New bonus scores */}
+      {breakdown.oppositionBonus > 0 && (
+        <div className="flex justify-between">
+          <span className="text-red-400">Opposition</span>
+          <span className="text-red-400">+{breakdown.oppositionBonus}</span>
+        </div>
+      )}
+      {breakdown.elongationBonus > 0 && (
+        <div className="flex justify-between">
+          <span className="text-purple-400">Elongation</span>
+          <span className="text-purple-400">+{breakdown.elongationBonus}</span>
+        </div>
+      )}
+      {breakdown.supermoonBonus > 0 && (
+        <div className="flex justify-between">
+          <span className="text-yellow-400">Supermoon</span>
+          <span className="text-yellow-400">+{breakdown.supermoonBonus}</span>
+        </div>
+      )}
     </div>
   );
 }

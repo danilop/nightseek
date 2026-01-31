@@ -72,10 +72,23 @@ export class SkyCalculator {
     const astronomicalDusk = duskSearch?.date ?? sunset;
     const astronomicalDawn = dawnSearch?.date ?? sunrise;
 
-    // Moon illumination at midnight
+    // Moon phase and illumination at midnight
     const midnight = new Date(sunset);
     midnight.setHours(midnight.getHours() + 6);
-    const moonIllum = Astronomy.Illumination(Astronomy.Body.Moon, midnight);
+
+    // MoonPhase returns 0-360 degrees where 0=new, 180=full
+    const moonPhaseDegrees = Astronomy.MoonPhase(midnight);
+    // Convert to 0-1 fraction where 0=new, 0.5=full, 1=new again
+    const moonPhaseFraction = moonPhaseDegrees / 360;
+
+    // Calculate illumination (0 at new, 100 at full)
+    // Phase 0-180 is waxing (illumination increases), 180-360 is waning (decreases)
+    let moonIlluminationPct: number;
+    if (moonPhaseDegrees <= 180) {
+      moonIlluminationPct = (moonPhaseDegrees / 180) * 100;
+    } else {
+      moonIlluminationPct = ((360 - moonPhaseDegrees) / 180) * 100;
+    }
 
     // Moon rise/set
     const moonRiseSearch = Astronomy.SearchRiseSet(
@@ -91,8 +104,8 @@ export class SkyCalculator {
       sunrise,
       astronomicalDusk,
       astronomicalDawn,
-      moonPhase: moonIllum.phase_angle / 180,
-      moonIllumination: moonIllum.phase_fraction * 100,
+      moonPhase: moonPhaseFraction,
+      moonIllumination: moonIlluminationPct,
       moonRise: moonRiseSearch?.date ?? null,
       moonSet: moonSetSearch?.date ?? null,
     };

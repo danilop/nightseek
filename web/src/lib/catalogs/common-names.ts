@@ -85,9 +85,20 @@ export const COMMON_NAMES: Record<string, string> = {
 
 /**
  * Get common name for an object, or return the original name
+ * Handles various formats: "NGC3031", "NGC 3031", "NGC0224", "NGC 224"
  */
 export function getCommonName(ngcName: string): string | null {
-  return COMMON_NAMES[ngcName] ?? null;
+  // Try exact match first
+  if (COMMON_NAMES[ngcName]) {
+    return COMMON_NAMES[ngcName];
+  }
+
+  // Normalize: add space after NGC/IC if missing, and remove leading zeros
+  const normalized = ngcName
+    .replace(/^(NGC|IC)(\d)/, '$1 $2')  // Add space: NGC3031 -> NGC 3031
+    .replace(/^(NGC|IC) 0+(\d)/, '$1 $2');  // Remove leading zeros: NGC 0224 -> NGC 224
+
+  return COMMON_NAMES[normalized] ?? null;
 }
 
 /**

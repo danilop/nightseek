@@ -70,6 +70,11 @@ export interface ObjectVisibility {
   positionAngle: number | null;
   constellation?: string;
   isMessier?: boolean;
+  // New planetary event fields
+  elongationDeg?: number;
+  isAtOpposition?: boolean;
+  // Lunar libration
+  libration?: LunarLibration;
 }
 
 export interface NightWeather {
@@ -148,6 +153,7 @@ export interface NightForecast {
   weather: NightWeather | null;
   conjunctions: Conjunction[];
   meteorShowers: MeteorShower[];
+  astronomicalEvents: AstronomicalEvents;
 }
 
 export interface ScoredObject {
@@ -172,6 +178,10 @@ export interface ScoreBreakdown {
   transientBonus: number;
   seasonalWindow: number;
   noveltyPopularity: number;
+  // New bonus fields
+  oppositionBonus: number;    // 0-20
+  elongationBonus: number;    // 0-15
+  supermoonBonus: number;     // 0-10
 }
 
 export type ScoreTier = 'excellent' | 'very_good' | 'good' | 'fair' | 'poor';
@@ -255,4 +265,89 @@ export interface PlanetData {
   physicalDiameter: number;
   apparentDiameterMin: number;
   apparentDiameterMax: number;
+}
+
+// Eclipses
+export interface LunarEclipse {
+  kind: 'penumbral' | 'partial' | 'total';
+  peakTime: Date;
+  magnitude: number;
+  isVisible: boolean;
+  penumbralStart?: Date;
+  partialStart?: Date;
+  totalStart?: Date;
+  totalEnd?: Date;
+  partialEnd?: Date;
+  penumbralEnd?: Date;
+}
+
+export interface SolarEclipse {
+  kind: 'partial' | 'annular' | 'total';
+  peakTime: Date;
+  obscuration: number;
+  altitude: number;
+}
+
+// Jupiter Moons
+export interface GalileanMoonPosition {
+  name: 'Io' | 'Europa' | 'Ganymede' | 'Callisto';
+  x: number;
+  y: number;
+  z: number;
+  isTransiting: boolean;
+  shadowOnJupiter: boolean;
+}
+
+export interface GalileanMoonEvent {
+  moon: string;
+  type: 'transit_start' | 'transit_end' | 'shadow_start' | 'shadow_end';
+  time: Date;
+}
+
+// Planetary Events
+export interface OppositionEvent {
+  planet: string;
+  date: Date;
+  daysUntil: number;
+  isActive: boolean; // within 14 days
+}
+
+export interface MaxElongation {
+  planet: 'Mercury' | 'Venus';
+  elongationDeg: number;
+  isEastern: boolean;
+  date: Date;
+  daysUntil: number;
+}
+
+// Lunar
+export interface LunarApsis {
+  type: 'perigee' | 'apogee';
+  date: Date;
+  distanceKm: number;
+  isSupermoon: boolean;
+}
+
+export interface LunarLibration {
+  longitudeDeg: number;
+  latitudeDeg: number;
+  description: string;
+}
+
+// Seasonal marker
+export interface SeasonalMarker {
+  type: 'march_equinox' | 'june_solstice' | 'september_equinox' | 'december_solstice';
+  time: Date;
+  daysUntil: number;
+}
+
+// Container for all astronomical events
+export interface AstronomicalEvents {
+  lunarEclipse: LunarEclipse | null;
+  solarEclipse: SolarEclipse | null;
+  jupiterMoons: { positions: GalileanMoonPosition[]; events: GalileanMoonEvent[] } | null;
+  lunarApsis: LunarApsis | null;
+  oppositions: OppositionEvent[];
+  maxElongations: MaxElongation[];
+  seasonalMarker: SeasonalMarker | null;
 }

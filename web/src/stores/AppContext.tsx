@@ -30,7 +30,7 @@ const DEFAULT_SETTINGS: Settings = {
   forecastDays: 7,
   maxObjects: 8,
   cometMagnitude: 12.0,
-  dsoMagnitude: 14.0,
+  dsoMagnitude: 16.0,  // Support deep astrophotography setups
   theme: 'dark',
 };
 
