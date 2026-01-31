@@ -12,12 +12,14 @@ import {
   getWeatherDescription,
   getWeatherEmoji,
 } from '@/lib/utils/format';
-import type { NightForecast } from '@/types';
+import { getDewRiskLevel, getSeeingForecastColorClass } from '@/lib/utils/quality-helpers';
+import type { NightForecast, NightInfo, NightWeather } from '@/types';
 
 interface NightDetailsProps {
   forecast: NightForecast;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: UI component with multiple conditional sections
 export default function NightDetails({ forecast }: NightDetailsProps) {
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const { nightInfo, weather } = forecast;
@@ -99,34 +101,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
 
             {/* Seeing Forecast */}
             {nightInfo.seeingForecast && (
-              <div className="mt-4 p-3 bg-night-800 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Telescope className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm font-medium text-white">Seeing Forecast</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`text-sm font-medium ${
-                      nightInfo.seeingForecast.rating === 'excellent'
-                        ? 'text-green-400'
-                        : nightInfo.seeingForecast.rating === 'good'
-                          ? 'text-blue-400'
-                          : nightInfo.seeingForecast.rating === 'fair'
-                            ? 'text-yellow-400'
-                            : 'text-red-400'
-                    }`}
-                  >
-                    {nightInfo.seeingForecast.rating.charAt(0).toUpperCase() +
-                      nightInfo.seeingForecast.rating.slice(1)}
-                  </span>
-                  <span className="text-sm text-gray-400">
-                    ~{nightInfo.seeingForecast.estimatedArcsec}" FWHM
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {nightInfo.seeingForecast.recommendation}
-                </p>
-              </div>
+              <SeeingForecastCard seeingForecast={nightInfo.seeingForecast} />
             )}
 
             {/* Expanded Details */}
@@ -245,6 +220,75 @@ function DetailRow({
   );
 }
 
+/**
+ * Seeing Forecast card component
+ */
+function SeeingForecastCard({
+  seeingForecast,
+}: {
+  seeingForecast: NonNullable<NightInfo['seeingForecast']>;
+}) {
+  const colorClass = getSeeingForecastColorClass(seeingForecast.rating);
+  const ratingLabel =
+    seeingForecast.rating.charAt(0).toUpperCase() + seeingForecast.rating.slice(1);
+
+  return (
+    <div className="mt-4 p-3 bg-night-800 rounded-lg">
+      <div className="flex items-center gap-2 mb-2">
+        <Telescope className="w-4 h-4 text-cyan-400" />
+        <span className="text-sm font-medium text-white">Seeing Forecast</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className={`text-sm font-medium ${colorClass}`}>{ratingLabel}</span>
+        <span className="text-sm text-gray-400">~{seeingForecast.estimatedArcsec}" FWHM</span>
+      </div>
+      <p className="text-xs text-gray-500 mt-1">{seeingForecast.recommendation}</p>
+    </div>
+  );
+}
+
+/**
+ * Get display hour string from actual hour
+ */
+function formatDisplayHour(actualHour: number): string {
+  if (actualHour === 0) return '12';
+  if (actualHour > 12) return `${actualHour - 12}`;
+  return `${actualHour}`;
+}
+
+/**
+ * Get dew risk color class for timeline
+ */
+function getDewRiskColorClass(riskLevel: 'safe' | 'low' | 'moderate' | 'high'): string {
+  switch (riskLevel) {
+    case 'safe':
+      return 'bg-green-500/40';
+    case 'low':
+      return 'bg-yellow-500/40';
+    case 'moderate':
+      return 'bg-orange-500/40';
+    case 'high':
+      return 'bg-red-500/60';
+  }
+}
+
+/**
+ * Calculate dew risk for a single hour
+ */
+function calculateHourDewRisk(
+  weather: NightWeather,
+  actualHour: number
+): 'safe' | 'low' | 'moderate' | 'high' {
+  const hourData = weather.hourlyData.get(actualHour);
+  if (!hourData) return 'safe';
+
+  const temp = hourData.temperature ?? 15;
+  const dewPoint = hourData.dewPoint ?? 10;
+  const margin = temp - dewPoint;
+
+  return getDewRiskLevel(margin);
+}
+
 function DewTimeline({
   weather,
   nightInfo,
@@ -254,9 +298,8 @@ function DewTimeline({
 }) {
   if (!weather || !weather.hourlyData) return null;
 
-  // Get hours from sunset to sunrise
   const startHour = nightInfo.sunset.getHours();
-  const endHour = nightInfo.sunrise.getHours() + 24; // Add 24 to handle overnight
+  const endHour = nightInfo.sunrise.getHours() + 24;
 
   const hours: Array<{
     hour: number;
@@ -266,25 +309,10 @@ function DewTimeline({
 
   for (let h = startHour; h <= endHour && hours.length < 12; h++) {
     const actualHour = h % 24;
-    const hourData = weather.hourlyData.get(actualHour);
-
-    let riskLevel: 'safe' | 'low' | 'moderate' | 'high' = 'safe';
-
-    if (hourData) {
-      const temp = hourData.temperature ?? 15;
-      const dewPoint = hourData.dewPoint ?? 10;
-      const margin = temp - dewPoint;
-
-      if (margin < 2) riskLevel = 'high';
-      else if (margin < 4) riskLevel = 'moderate';
-      else if (margin < 6) riskLevel = 'low';
-    }
-
     hours.push({
       hour: actualHour,
-      displayHour:
-        actualHour > 12 ? `${actualHour - 12}` : actualHour === 0 ? '12' : `${actualHour}`,
-      riskLevel,
+      displayHour: formatDisplayHour(actualHour),
+      riskLevel: calculateHourDewRisk(weather, actualHour),
     });
   }
 
@@ -294,15 +322,7 @@ function DewTimeline({
         {hours.map(h => (
           <div key={h.hour} className="flex-1 text-center">
             <div
-              className={`h-3 rounded ${
-                h.riskLevel === 'safe'
-                  ? 'bg-green-500/40'
-                  : h.riskLevel === 'low'
-                    ? 'bg-yellow-500/40'
-                    : h.riskLevel === 'moderate'
-                      ? 'bg-orange-500/40'
-                      : 'bg-red-500/60'
-              }`}
+              className={`h-3 rounded ${getDewRiskColorClass(h.riskLevel)}`}
               title={`${h.hour}:00 - ${h.riskLevel} dew risk`}
             />
             <div className="text-[10px] text-gray-500 mt-1">{h.displayHour}</div>

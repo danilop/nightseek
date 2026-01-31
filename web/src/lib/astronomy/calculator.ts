@@ -208,6 +208,58 @@ export class SkyCalculator {
   }
 
   /**
+   * Sample altitudes for an object throughout the night
+   */
+  private sampleAltitudesForNight(
+    getAltitudeAt: (time: Date) => { altitude: number; azimuth: number },
+    nightInfo: NightInfo
+  ): {
+    samples: [Date, number][];
+    maxAltitude: number;
+    maxAltitudeTime: Date | null;
+    azimuthAtPeak: number;
+  } {
+    const samples: [Date, number][] = [];
+    let maxAltitude = -90;
+    let maxAltitudeTime: Date | null = null;
+    let azimuthAtPeak = 0;
+
+    const startTime = nightInfo.astronomicalDusk.getTime();
+    const endTime = nightInfo.astronomicalDawn.getTime();
+    const interval = 10 * 60 * 1000; // 10 minutes
+
+    for (let t = startTime; t <= endTime; t += interval) {
+      const time = new Date(t);
+      const { altitude, azimuth } = getAltitudeAt(time);
+
+      samples.push([time, altitude]);
+
+      if (altitude > maxAltitude) {
+        maxAltitude = altitude;
+        maxAltitudeTime = time;
+        azimuthAtPeak = azimuth;
+      }
+    }
+
+    return { samples, maxAltitude, maxAltitudeTime, azimuthAtPeak };
+  }
+
+  /**
+   * Find all altitude threshold windows
+   */
+  private findAllAltitudeWindows(samples: [Date, number][]): {
+    above45: [Date, Date] | null;
+    above60: [Date, Date] | null;
+    above75: [Date, Date] | null;
+  } {
+    return {
+      above45: this.findAltitudeWindow(samples, 45),
+      above60: this.findAltitudeWindow(samples, 60),
+      above75: this.findAltitudeWindow(samples, 75),
+    };
+  }
+
+  /**
    * Calculate object visibility throughout the night
    */
   calculateVisibility(
@@ -227,35 +279,13 @@ export class SkyCalculator {
       isMessier?: boolean;
     } = {}
   ): ObjectVisibility {
-    const samples: [Date, number][] = [];
-    let maxAltitude = -90;
-    let maxAltitudeTime: Date | null = null;
-    let azimuthAtPeak = 0;
+    const { samples, maxAltitude, maxAltitudeTime, azimuthAtPeak } = this.sampleAltitudesForNight(
+      time => this.getAltAz(raHours, decDeg, time),
+      nightInfo
+    );
 
-    // Sample every 10 minutes from dusk to dawn
-    const startTime = nightInfo.astronomicalDusk.getTime();
-    const endTime = nightInfo.astronomicalDawn.getTime();
-    const interval = 10 * 60 * 1000; // 10 minutes
+    const windows = this.findAllAltitudeWindows(samples);
 
-    for (let t = startTime; t <= endTime; t += interval) {
-      const time = new Date(t);
-      const { altitude, azimuth } = this.getAltAz(raHours, decDeg, time);
-
-      samples.push([time, altitude]);
-
-      if (altitude > maxAltitude) {
-        maxAltitude = altitude;
-        maxAltitudeTime = time;
-        azimuthAtPeak = azimuth;
-      }
-    }
-
-    // Find altitude threshold windows
-    const above45 = this.findAltitudeWindow(samples, 45);
-    const above60 = this.findAltitudeWindow(samples, 60);
-    const above75 = this.findAltitudeWindow(samples, 75);
-
-    // Calculate moon separation at peak
     const moonSeparation = maxAltitudeTime
       ? this.getMoonSeparation(raHours, decDeg, maxAltitudeTime)
       : null;
@@ -266,12 +296,12 @@ export class SkyCalculator {
       isVisible: maxAltitude >= 30,
       maxAltitude,
       maxAltitudeTime,
-      above45Start: above45?.[0] ?? null,
-      above45End: above45?.[1] ?? null,
-      above60Start: above60?.[0] ?? null,
-      above60End: above60?.[1] ?? null,
-      above75Start: above75?.[0] ?? null,
-      above75End: above75?.[1] ?? null,
+      above45Start: windows.above45?.[0] ?? null,
+      above45End: windows.above45?.[1] ?? null,
+      above60Start: windows.above60?.[0] ?? null,
+      above60End: windows.above60?.[1] ?? null,
+      above75Start: windows.above75?.[0] ?? null,
+      above75End: windows.above75?.[1] ?? null,
       moonSeparation,
       moonWarning: moonSeparation !== null && moonSeparation < 30,
       altitudeSamples: samples,
@@ -295,9 +325,9 @@ export class SkyCalculator {
   }
 
   /**
-   * Calculate planet visibility
+   * Get planet body from name
    */
-  calculatePlanetVisibility(planetName: string, nightInfo: NightInfo): ObjectVisibility {
+  private getPlanetBody(planetName: string): Astronomy.Body {
     const bodyMap: Record<string, Astronomy.Body> = {
       mercury: Astronomy.Body.Mercury,
       venus: Astronomy.Body.Venus,
@@ -312,50 +342,41 @@ export class SkyCalculator {
     if (!body) {
       throw new Error(`Unknown planet: ${planetName}`);
     }
+    return body;
+  }
 
-    const samples: [Date, number][] = [];
-    let maxAltitude = -90;
-    let maxAltitudeTime: Date | null = null;
-    let azimuthAtPeak = 0;
+  /**
+   * Calculate planet visibility
+   */
+  calculatePlanetVisibility(planetName: string, nightInfo: NightInfo): ObjectVisibility {
+    const body = this.getPlanetBody(planetName);
+    const observer = this.observer;
+
     let peakMagnitude: number | null = null;
     let peakDistance: number | null = null;
 
-    const startTime = nightInfo.astronomicalDusk.getTime();
-    const endTime = nightInfo.astronomicalDawn.getTime();
-    const interval = 10 * 60 * 1000;
+    const { samples, maxAltitude, maxAltitudeTime, azimuthAtPeak } = this.sampleAltitudesForNight(
+      time => {
+        const equator = Astronomy.Equator(body, time, observer, true, true);
+        const horizon = Astronomy.Horizon(time, observer, equator.ra * 15, equator.dec, 'normal');
+        return { altitude: horizon.altitude, azimuth: horizon.azimuth };
+      },
+      nightInfo
+    );
 
-    for (let t = startTime; t <= endTime; t += interval) {
-      const time = new Date(t);
-      const equator = Astronomy.Equator(body, time, this.observer, true, true);
-      const horizon = Astronomy.Horizon(
-        time,
-        this.observer,
-        equator.ra * 15,
-        equator.dec,
-        'normal'
-      );
-
-      samples.push([time, horizon.altitude]);
-
-      if (horizon.altitude > maxAltitude) {
-        maxAltitude = horizon.altitude;
-        maxAltitudeTime = time;
-        azimuthAtPeak = horizon.azimuth;
-
-        // Get magnitude at peak
-        const illum = Astronomy.Illumination(body, time);
-        peakMagnitude = illum.mag;
-        peakDistance = equator.dist * 149597870.7; // AU to km
-      }
+    // Get magnitude and distance at peak
+    if (maxAltitudeTime) {
+      const illum = Astronomy.Illumination(body, maxAltitudeTime);
+      const equator = Astronomy.Equator(body, maxAltitudeTime, observer, true, true);
+      peakMagnitude = illum.mag;
+      peakDistance = equator.dist * 149597870.7; // AU to km
     }
 
-    const above45 = this.findAltitudeWindow(samples, 45);
-    const above60 = this.findAltitudeWindow(samples, 60);
-    const above75 = this.findAltitudeWindow(samples, 75);
+    const windows = this.findAllAltitudeWindows(samples);
 
     const moonSeparation = maxAltitudeTime
       ? (() => {
-          const equator = Astronomy.Equator(body, maxAltitudeTime, this.observer, true, true);
+          const equator = Astronomy.Equator(body, maxAltitudeTime, observer, true, true);
           return this.getMoonSeparation(equator.ra, equator.dec, maxAltitudeTime);
         })()
       : null;
@@ -365,18 +386,20 @@ export class SkyCalculator {
       ? calculateApparentDiameter(planetName, peakDistance)
       : null;
 
+    const displayName = planetName.charAt(0).toUpperCase() + planetName.slice(1);
+
     return {
-      objectName: planetName.charAt(0).toUpperCase() + planetName.slice(1),
+      objectName: displayName,
       objectType: 'planet',
       isVisible: maxAltitude >= 30,
       maxAltitude,
       maxAltitudeTime,
-      above45Start: above45?.[0] ?? null,
-      above45End: above45?.[1] ?? null,
-      above60Start: above60?.[0] ?? null,
-      above60End: above60?.[1] ?? null,
-      above75Start: above75?.[0] ?? null,
-      above75End: above75?.[1] ?? null,
+      above45Start: windows.above45?.[0] ?? null,
+      above45End: windows.above45?.[1] ?? null,
+      above60Start: windows.above60?.[0] ?? null,
+      above60End: windows.above60?.[1] ?? null,
+      above75Start: windows.above75?.[0] ?? null,
+      above75End: windows.above75?.[1] ?? null,
       moonSeparation,
       moonWarning: moonSeparation !== null && moonSeparation < 30,
       altitudeSamples: samples,
@@ -389,7 +412,7 @@ export class SkyCalculator {
       subtype: null,
       angularSizeArcmin: apparentDiameter ? apparentDiameter / 60 : 0,
       surfaceBrightness: null,
-      commonName: planetName.charAt(0).toUpperCase() + planetName.slice(1),
+      commonName: displayName,
       apparentDiameterArcsec: apparentDiameter,
       apparentDiameterMin: ranges?.[0] ?? null,
       apparentDiameterMax: ranges?.[1] ?? null,

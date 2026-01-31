@@ -264,7 +264,9 @@ export function detectEclipses(
         solar = solarResult;
       }
     }
-  } catch (_error) {}
+  } catch {
+    // Silently fail for eclipse detection
+  }
 
   return { lunar, solar };
 }
