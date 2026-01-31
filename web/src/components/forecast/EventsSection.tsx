@@ -1,20 +1,49 @@
-
 import { Sparkles, Orbit, Star } from 'lucide-react';
-import type { Conjunction, MeteorShower } from '@/types';
+import type { Conjunction, MeteorShower, AstronomicalEvents } from '@/types';
 import { getAdjustedHourlyRate } from '@/lib/events/meteor-showers';
+import AstronomicalEventsSection from './AstronomicalEventsSection';
+import JupiterMoonsCard from './JupiterMoonsCard';
 
 interface EventsSectionProps {
   conjunctions: Conjunction[];
   meteorShowers: MeteorShower[];
+  astronomicalEvents?: AstronomicalEvents;
 }
 
-export default function EventsSection({ conjunctions, meteorShowers }: EventsSectionProps) {
-  if (conjunctions.length === 0 && meteorShowers.length === 0) {
+export default function EventsSection({ conjunctions, meteorShowers, astronomicalEvents }: EventsSectionProps) {
+  const hasBasicEvents = conjunctions.length > 0 || meteorShowers.length > 0;
+  const hasAstroEvents = astronomicalEvents && (
+    astronomicalEvents.lunarEclipse ||
+    astronomicalEvents.solarEclipse ||
+    astronomicalEvents.lunarApsis?.isSupermoon ||
+    astronomicalEvents.seasonalMarker ||
+    astronomicalEvents.oppositions.some(o => o.isActive) ||
+    astronomicalEvents.maxElongations.some(e => Math.abs(e.daysUntil) <= 3)
+  );
+  const hasJupiterMoons = astronomicalEvents?.jupiterMoons;
+
+  if (!hasBasicEvents && !hasAstroEvents && !hasJupiterMoons) {
     return null;
   }
 
   return (
-    <div className="grid sm:grid-cols-2 gap-4">
+    <div className="space-y-4">
+      {/* Astronomical Events (eclipses, oppositions, etc.) */}
+      {hasAstroEvents && astronomicalEvents && (
+        <AstronomicalEventsSection events={astronomicalEvents} />
+      )}
+
+      {/* Jupiter Moons */}
+      {hasJupiterMoons && astronomicalEvents?.jupiterMoons && (
+        <JupiterMoonsCard
+          positions={astronomicalEvents.jupiterMoons.positions}
+          events={astronomicalEvents.jupiterMoons.events}
+        />
+      )}
+
+      {/* Conjunctions and Meteor Showers */}
+      {hasBasicEvents && (
+        <div className="grid sm:grid-cols-2 gap-4">
       {/* Conjunctions */}
       {conjunctions.length > 0 && (
         <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
@@ -106,6 +135,8 @@ export default function EventsSection({ conjunctions, meteorShowers }: EventsSec
               );
             })}
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>
