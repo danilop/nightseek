@@ -1,5 +1,23 @@
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
 import type { DSOSubtype, NightInfo, NightWeather, ScoredObject } from '@/types';
 import CategorySection from './CategorySection';
 
@@ -136,7 +154,62 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
   },
 ];
 
+// Sortable wrapper for CategorySection
+function SortableCategorySection({
+  config,
+  categoryObjects,
+  nightInfo,
+  weather,
+}: {
+  config: CategoryConfig;
+  categoryObjects: ScoredObject[];
+  nightInfo: NightInfo;
+  weather: NightWeather | null;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: config.key,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <CategorySection
+        categoryKey={config.key}
+        title={config.title}
+        icon={config.icon}
+        objects={categoryObjects}
+        nightInfo={nightInfo}
+        weather={weather}
+        defaultExpanded={config.defaultExpanded}
+        defaultShowCount={config.defaultShowCount}
+        showSubtypeInPreview={config.showSubtypeInPreview}
+        isDragging={isDragging}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
+    </div>
+  );
+}
+
 export default function TonightHighlights({ objects, nightInfo, weather }: TonightHighlightsProps) {
+  const { categoryOrder, setCategoryOrder } = useUIState();
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  // Configure sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Start drag after moving 8px
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   // Calculate magnitude range from loaded objects
   const { minMag, maxMag } = useMemo(() => {
     let min = Infinity;
@@ -209,9 +282,47 @@ export default function TonightHighlights({ objects, nightInfo, weather }: Tonig
   // Count total objects
   const totalCount = filteredObjects.length;
   const totalLoaded = objects.length;
-  const categoriesWithObjects = CATEGORY_CONFIGS.filter(
+
+  // Get ordered categories (respecting user's custom order)
+  const orderedConfigs = useMemo(
+    () => getOrderedCategories(CATEGORY_CONFIGS, categoryOrder),
+    [categoryOrder]
+  );
+
+  // Filter to categories with objects
+  const categoriesWithObjects = orderedConfigs.filter(
     config => groupedObjects[config.key].length > 0
   );
+
+  // Drag handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = categoriesWithObjects.findIndex(c => c.key === active.id);
+    const newIndex = categoriesWithObjects.findIndex(c => c.key === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Build new order by moving the active key to its new position
+    const activeKey = active.id as string;
+    const overKey = over.id as string;
+    const newOrder = categoryOrder.filter(k => k !== activeKey);
+    const overIdx = newOrder.indexOf(overKey);
+    const insertIdx = oldIndex < newIndex ? overIdx + 1 : overIdx;
+    newOrder.splice(insertIdx, 0, activeKey);
+
+    setCategoryOrder(newOrder);
+  };
+
+  const activeDragConfig = activeDragId
+    ? categoriesWithObjects.find(c => c.key === activeDragId)
+    : null;
 
   if (objects.length === 0) {
     return (
@@ -299,25 +410,49 @@ export default function TonightHighlights({ objects, nightInfo, weather }: Tonig
         </div>
       </div>
 
-      {/* Category Sections */}
-      {CATEGORY_CONFIGS.map(config => {
-        const categoryObjects = groupedObjects[config.key];
-        if (categoryObjects.length === 0) return null;
+      {/* Category Sections with Drag-and-Drop */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={categoriesWithObjects.map(c => c.key)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-4">
+            {categoriesWithObjects.map(config => (
+              <SortableCategorySection
+                key={config.key}
+                config={config}
+                categoryObjects={groupedObjects[config.key]}
+                nightInfo={nightInfo}
+                weather={weather}
+              />
+            ))}
+          </div>
+        </SortableContext>
 
-        return (
-          <CategorySection
-            key={config.key}
-            title={config.title}
-            icon={config.icon}
-            objects={categoryObjects}
-            nightInfo={nightInfo}
-            weather={weather}
-            defaultExpanded={config.defaultExpanded}
-            defaultShowCount={config.defaultShowCount}
-            showSubtypeInPreview={config.showSubtypeInPreview}
-          />
-        );
-      })}
+        {/* Drag overlay for smooth animation */}
+        <DragOverlay>
+          {activeDragConfig ? (
+            <div className="opacity-80">
+              <CategorySection
+                categoryKey={activeDragConfig.key}
+                title={activeDragConfig.title}
+                icon={activeDragConfig.icon}
+                objects={groupedObjects[activeDragConfig.key]}
+                nightInfo={nightInfo}
+                weather={weather}
+                defaultExpanded={false}
+                defaultShowCount={activeDragConfig.defaultShowCount}
+                showSubtypeInPreview={activeDragConfig.showSubtypeInPreview}
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* Show message if all filtered out */}
       {totalCount === 0 && totalLoaded > 0 && (

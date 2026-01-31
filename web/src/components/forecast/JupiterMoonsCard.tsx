@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Circle } from 'lucide-react';
-import { useState } from 'react';
+import { useUIState } from '@/hooks/useUIState';
 import { describeGalileanMoonEvent } from '@/lib/astronomy/galilean-moons';
 import { formatTime } from '@/lib/utils/format';
 import type { GalileanMoonEvent, GalileanMoonPosition } from '@/types';
@@ -11,7 +11,8 @@ interface JupiterMoonsCardProps {
 }
 
 export default function JupiterMoonsCard({ positions, events, latitude }: JupiterMoonsCardProps) {
-  const [expanded, setExpanded] = useState(false);
+  const { jupiterMoonsExpanded, setJupiterMoonsExpanded } = useUIState();
+  const expanded = jupiterMoonsExpanded;
 
   const hasActiveEvents =
     events.length > 0 || positions.some(p => p.isTransiting || p.shadowOnJupiter);
@@ -20,7 +21,7 @@ export default function JupiterMoonsCard({ positions, events, latitude }: Jupite
     <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => setJupiterMoonsExpanded(!expanded)}
         className="w-full px-4 py-3 border-b border-night-700 flex items-center justify-between hover:bg-night-800 transition-colors"
       >
         <h3 className="font-semibold text-white flex items-center gap-2">
