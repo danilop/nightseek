@@ -1,0 +1,150 @@
+import { useState } from 'react';
+import { RefreshCw, Star, Sparkles } from 'lucide-react';
+import type { NightForecast, ScoredObject, Location } from '@/types';
+import { formatDateRange, formatDate } from '@/lib/utils/format';
+import NightSummaryTable from './NightSummaryTable';
+import TonightHighlights from './TonightHighlights';
+import EventsSection from './EventsSection';
+import NightDetails from './NightDetails';
+
+interface ForecastViewProps {
+  forecasts: NightForecast[];
+  scoredObjects: Map<string, ScoredObject[]> | null;
+  bestNights: string[];
+  location: Location;
+  onRefresh: () => void;
+}
+
+export default function ForecastView({
+  forecasts,
+  scoredObjects,
+  bestNights,
+  location: _location,
+  onRefresh,
+}: ForecastViewProps) {
+  const [selectedNightIndex, setSelectedNightIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState<'tonight' | 'week'>('tonight');
+
+  if (forecasts.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center text-gray-400">
+        No forecast data available.
+      </div>
+    );
+  }
+
+  const firstNight = forecasts[0];
+  const lastNight = forecasts[forecasts.length - 1];
+  const selectedNight = forecasts[selectedNightIndex];
+  const selectedDateKey = selectedNight.nightInfo.date.toISOString().split('T')[0];
+  const selectedObjects = scoredObjects?.get(selectedDateKey) ?? [];
+
+  return (
+    <main className="container mx-auto px-4 py-6 safe-area-inset">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-sky-400" />
+            Sky Observation Forecast
+          </h2>
+          <p className="text-gray-400 text-sm mt-1">
+            {formatDateRange(firstNight.nightInfo.date, lastNight.nightInfo.date)}
+          </p>
+        </div>
+
+        <button
+          onClick={onRefresh}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-night-800 hover:bg-night-700 text-white rounded-lg transition-colors self-start sm:self-auto"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Tab Navigation (Mobile) */}
+      <div className="flex sm:hidden gap-2 mb-6">
+        <button
+          onClick={() => setActiveTab('tonight')}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === 'tonight'
+              ? 'bg-sky-600 text-white'
+              : 'bg-night-800 text-gray-400 hover:text-white'
+          }`}
+        >
+          Tonight
+        </button>
+        <button
+          onClick={() => setActiveTab('week')}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === 'week'
+              ? 'bg-sky-600 text-white'
+              : 'bg-night-800 text-gray-400 hover:text-white'
+          }`}
+        >
+          {forecasts.length}-Day View
+        </button>
+      </div>
+
+      {/* Best Nights Indicator */}
+      {bestNights.length > 0 && (
+        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-2 text-green-400 text-sm font-medium mb-1">
+            <Star className="w-4 h-4" />
+            Best Nights for Observation
+          </div>
+          <p className="text-gray-300 text-sm">
+            {bestNights.slice(0, 3).map((dateStr, i) => {
+              const date = new Date(dateStr);
+              return (
+                <span key={dateStr}>
+                  {i > 0 && ', '}
+                  <span className="text-green-300 font-medium">
+                    {formatDate(date)}
+                  </span>
+                </span>
+              );
+            })}
+          </p>
+        </div>
+      )}
+
+      {/* Night Summary Table (Desktop always, Mobile in week view) */}
+      <div className={`mb-6 ${activeTab === 'tonight' ? 'hidden sm:block' : ''}`}>
+        <NightSummaryTable
+          forecasts={forecasts}
+          selectedIndex={selectedNightIndex}
+          onSelectNight={setSelectedNightIndex}
+          bestNights={bestNights}
+        />
+      </div>
+
+      {/* Events Section (Conjunctions, Meteor Showers) */}
+      {(selectedNight.conjunctions.length > 0 || selectedNight.meteorShowers.length > 0) && (
+        <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+          <EventsSection
+            conjunctions={selectedNight.conjunctions}
+            meteorShowers={selectedNight.meteorShowers}
+          />
+        </div>
+      )}
+
+      {/* Tonight's Highlights (Mobile in tonight view, Desktop always) */}
+      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+        <TonightHighlights
+          objects={selectedObjects}
+          nightInfo={selectedNight.nightInfo}
+          weather={selectedNight.weather}
+        />
+      </div>
+
+      {/* Detailed Night View */}
+      <div className={activeTab === 'tonight' ? 'hidden sm:block' : ''}>
+        <NightDetails
+          forecast={selectedNight}
+          objects={selectedObjects}
+        />
+      </div>
+    </main>
+  );
+}
