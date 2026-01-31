@@ -19,7 +19,7 @@ export default function ForecastView({
   forecasts,
   scoredObjects,
   bestNights,
-  location: _location,
+  location,
   onRefresh,
 }: ForecastViewProps) {
   const [selectedNightIndex, setSelectedNightIndex] = useState(0);
@@ -126,6 +126,7 @@ export default function ForecastView({
           conjunctions={selectedNight.conjunctions}
           meteorShowers={selectedNight.meteorShowers}
           astronomicalEvents={selectedNight.astronomicalEvents}
+          latitude={location.latitude}
         />
       </div>
 
