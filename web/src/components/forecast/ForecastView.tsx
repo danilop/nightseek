@@ -102,7 +102,7 @@ export default function ForecastView({
               const date = new Date(dateStr);
               return (
                 <span key={dateStr}>
-                  {i > 0 && ', '}
+                  {i > 0 && <span className="text-gray-500 mx-2">·</span>}
                   <span className="text-green-300 font-medium">{formatDate(date)}</span>
                 </span>
               );
