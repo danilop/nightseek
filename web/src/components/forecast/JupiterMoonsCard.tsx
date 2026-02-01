@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Circle } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useUIState } from '@/hooks/useUIState';
 import { describeGalileanMoonEvent } from '@/lib/astronomy/galilean-moons';
 import { formatTime } from '@/lib/utils/format';
@@ -93,12 +93,25 @@ function MoonPositionDiagram({
   const rightLabel = isNorthernHemisphere ? 'W' : 'E';
   const viewDirection = isNorthernHemisphere ? 'looking south' : 'looking north';
 
-  // Moon colors
+  // Moon colors - realistic and distinguishable
+  // Io: volcanic sulfur (golden orange)
+  // Europa: icy surface (pale ice blue)
+  // Ganymede: mixed rock/ice (tan)
+  // Callisto: dark cratered surface (dark brown)
   const moonColors: Record<string, string> = {
-    Io: '#ffcc00',
-    Europa: '#c0c0c0',
-    Ganymede: '#d4a373',
-    Callisto: '#8b8b8b',
+    Io: '#e8a020',
+    Europa: '#d0e8f8',
+    Ganymede: '#c9a86c',
+    Callisto: '#5a4d40',
+  };
+
+  // Moon sizes - proportional to real diameters
+  // Ganymede: 5268km, Callisto: 4821km, Io: 3643km, Europa: 3122km
+  const moonSizes: Record<string, number> = {
+    Io: 3.5,
+    Europa: 3,
+    Ganymede: 5,
+    Callisto: 4.5,
   };
 
   return (
@@ -147,6 +160,7 @@ function MoonPositionDiagram({
           const moonX = centerX + moon.x * scale * xMultiplier;
           const moonY = centerY - moon.y * scale;
           const color = moonColors[moon.name];
+          const radius = moonSizes[moon.name];
           const isBehind = moon.z > 0;
           const isTransiting = moon.isTransiting;
 
@@ -156,7 +170,7 @@ function MoonPositionDiagram({
               <circle
                 cx={moonX}
                 cy={moonY}
-                r={4}
+                r={radius}
                 fill={color}
                 opacity={isBehind ? 0.4 : 1}
                 stroke={isTransiting ? '#fff' : 'none'}
@@ -198,22 +212,30 @@ function MoonPositionDiagram({
   );
 }
 
+// Moon colors for status display - matches diagram
+const statusMoonColors: Record<string, string> = {
+  Io: '#e8a020',
+  Europa: '#d0e8f8',
+  Ganymede: '#c9a86c',
+  Callisto: '#5a4d40',
+};
+
 function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
   const distance = Math.sqrt(moon.x * moon.x + moon.y * moon.y).toFixed(1);
   const direction = moon.x > 0 ? 'west' : 'east';
   const isBehind = moon.z > 0;
+  const moonColor = statusMoonColors[moon.name];
 
   return (
     <div className="bg-night-800 rounded-lg p-2">
       <div className="flex items-center gap-2">
-        <Circle
-          className={`w-3 h-3 ${
-            moon.isTransiting
-              ? 'fill-yellow-400 text-yellow-400'
-              : moon.shadowOnJupiter
-                ? 'fill-orange-400 text-orange-400'
-                : 'fill-gray-400 text-gray-400'
-          }`}
+        <span
+          className="w-3 h-3 rounded-full inline-block"
+          style={{
+            backgroundColor: moonColor,
+            boxShadow: moon.isTransiting ? '0 0 4px #fff' : undefined,
+            border: moon.shadowOnJupiter ? '1px solid #f97316' : undefined,
+          }}
         />
         <span className="text-sm text-white">{moon.name}</span>
       </div>
