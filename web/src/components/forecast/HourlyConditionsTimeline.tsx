@@ -1,6 +1,5 @@
 import { Cloud, Droplets, Eye } from 'lucide-react';
 import { useMemo } from 'react';
-import Tooltip from '@/components/ui/Tooltip';
 import { formatTemperature } from '@/lib/utils/units';
 import type { HourlyWeather, NightInfo, NightWeather, TemperatureUnit } from '@/types';
 
@@ -160,24 +159,22 @@ export default function HourlyConditionsTimeline({
           <Cloud className="w-3 h-3" />
         </div>
         {displayData.map(d => (
-          <div key={`c-${d.hour}`}>
-            <Tooltip content={`${formatHour(d.hour)}: ${Math.round(d.clouds.value)}% clouds`}>
-              <div className={`h-5 rounded-sm ${getLevelColorClass(d.clouds.level)} cursor-help`} />
-            </Tooltip>
-          </div>
+          <div
+            key={`c-${d.hour}`}
+            className={`h-5 rounded-sm ${getLevelColorClass(d.clouds.level)} cursor-help`}
+            title={`${formatHour(d.hour)}: ${Math.round(d.clouds.value)}% clouds`}
+          />
         ))}
         {/* Dew row */}
         <div className="flex items-center text-gray-400 pr-2">
           <Droplets className="w-3 h-3" />
         </div>
         {displayData.map(d => (
-          <div key={`d-${d.hour}`}>
-            <Tooltip
-              content={`${formatHour(d.hour)}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${d.dew.margin.toFixed(1)}° margin)`}
-            >
-              <div className={`h-5 rounded-sm ${getLevelColorClass(d.dew.level)} cursor-help`} />
-            </Tooltip>
-          </div>
+          <div
+            key={`d-${d.hour}`}
+            className={`h-5 rounded-sm ${getLevelColorClass(d.dew.level)} cursor-help`}
+            title={`${formatHour(d.hour)}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${d.dew.margin.toFixed(1)}° margin)`}
+          />
         ))}
         {/* Seeing row (only if data available) */}
         {hasSeeing && (
@@ -186,21 +183,17 @@ export default function HourlyConditionsTimeline({
               <Eye className="w-3 h-3" />
             </div>
             {displayData.map(d => (
-              <div key={`s-${d.hour}`}>
-                <Tooltip
-                  content={
-                    d.seeing
-                      ? `${formatHour(d.hour)}: Seeing ${d.seeing.value}%`
-                      : `${formatHour(d.hour)}: No seeing data`
-                  }
-                >
-                  <div
-                    className={`h-5 rounded-sm cursor-help ${
-                      d.seeing ? getLevelColorClass(d.seeing.level) : 'bg-night-600'
-                    }`}
-                  />
-                </Tooltip>
-              </div>
+              <div
+                key={`s-${d.hour}`}
+                className={`h-5 rounded-sm cursor-help ${
+                  d.seeing ? getLevelColorClass(d.seeing.level) : 'bg-night-600'
+                }`}
+                title={
+                  d.seeing
+                    ? `${formatHour(d.hour)}: Seeing ${d.seeing.value}%`
+                    : `${formatHour(d.hour)}: No seeing data`
+                }
+              />
             ))}
           </>
         )}
