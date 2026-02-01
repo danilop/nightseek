@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TooltipProps {
   content: string;
@@ -11,8 +12,15 @@ interface TooltipProps {
   maxWidth?: number;
 }
 
+interface TooltipPosition {
+  top: number;
+  left: number;
+  placement: 'top' | 'bottom';
+}
+
 /**
  * Tooltip component that works on both desktop (hover) and mobile (tap).
+ * Uses a portal to render at body level, avoiding overflow clipping issues.
  * Tap anywhere outside to dismiss on mobile.
  */
 export default function Tooltip({
@@ -23,28 +31,45 @@ export default function Tooltip({
   maxWidth = 250,
 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const [actualPosition, setActualPosition] = useState(position);
+  const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
   const triggerRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Calculate position to avoid going off-screen
+  // Calculate position based on trigger element's viewport coordinates
   const updatePosition = useCallback(() => {
-    if (!triggerRef.current || !tooltipRef.current) return;
+    if (!triggerRef.current) return;
 
     const triggerRect = triggerRef.current.getBoundingClientRect();
-    const tooltipHeight = tooltipRef.current.offsetHeight;
+    const tooltipHeight = tooltipRef.current?.offsetHeight ?? 40;
+    const tooltipWidth = tooltipRef.current?.offsetWidth ?? maxWidth;
+
     const spaceAbove = triggerRect.top;
     const spaceBelow = window.innerHeight - triggerRect.bottom;
 
+    // Determine vertical placement
+    let placement: 'top' | 'bottom' = position;
     if (position === 'top' && spaceAbove < tooltipHeight + 8) {
-      setActualPosition('bottom');
+      placement = 'bottom';
     } else if (position === 'bottom' && spaceBelow < tooltipHeight + 8) {
-      setActualPosition('top');
-    } else {
-      setActualPosition(position);
+      placement = 'top';
     }
-  }, [position]);
+
+    // Calculate top position
+    let top: number;
+    if (placement === 'top') {
+      top = triggerRect.top - tooltipHeight - 8;
+    } else {
+      top = triggerRect.bottom + 8;
+    }
+
+    // Calculate left position (centered on trigger, but clamped to viewport)
+    let left = triggerRect.left + triggerRect.width / 2 - tooltipWidth / 2;
+    const padding = 8;
+    left = Math.max(padding, Math.min(left, window.innerWidth - tooltipWidth - padding));
+
+    setTooltipPosition({ top, left, placement });
+  }, [position, maxWidth]);
 
   const show = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -90,6 +115,20 @@ export default function Tooltip({
     };
   }, [isVisible]);
 
+  // Update position on scroll/resize
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleUpdate = () => updatePosition();
+    window.addEventListener('scroll', handleUpdate, true);
+    window.addEventListener('resize', handleUpdate);
+
+    return () => {
+      window.removeEventListener('scroll', handleUpdate, true);
+      window.removeEventListener('resize', handleUpdate);
+    };
+  }, [isVisible, updatePosition]);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -97,45 +136,62 @@ export default function Tooltip({
     };
   }, []);
 
-  const positionClasses =
-    actualPosition === 'top'
-      ? 'bottom-full left-1/2 -translate-x-1/2 mb-2'
-      : 'top-full left-1/2 -translate-x-1/2 mt-2';
-
-  const arrowClasses =
-    actualPosition === 'top'
-      ? 'top-full left-1/2 -translate-x-1/2 border-t-night-700 border-x-transparent border-b-transparent'
-      : 'bottom-full left-1/2 -translate-x-1/2 border-b-night-700 border-x-transparent border-t-transparent';
+  // Calculate arrow position relative to trigger
+  const getArrowLeft = () => {
+    if (!triggerRef.current || !tooltipPosition) return '50%';
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const arrowLeft = triggerRect.left + triggerRect.width / 2 - tooltipPosition.left;
+    return `${arrowLeft}px`;
+  };
 
   return (
-    <span className="relative inline-flex" ref={triggerRef}>
-      <span
-        className={`cursor-help ${showIndicator ? 'border-b border-dotted border-gray-500' : ''}`}
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        onClick={toggle}
-        onKeyDown={e => e.key === 'Enter' && toggle()}
-        role="button"
-        tabIndex={0}
-        aria-describedby={isVisible ? 'tooltip' : undefined}
-      >
-        {children}
-      </span>
-      {isVisible && (
-        <div
-          ref={tooltipRef}
-          id="tooltip"
-          role="tooltip"
-          className={`absolute z-50 ${positionClasses}`}
-          style={{ maxWidth }}
+    <>
+      <span className="relative inline-flex" ref={triggerRef}>
+        <span
+          className={`cursor-help ${showIndicator ? 'border-b border-dotted border-gray-500' : ''}`}
+          onMouseEnter={show}
+          onMouseLeave={hide}
+          onClick={toggle}
+          onKeyDown={e => e.key === 'Enter' && toggle()}
+          role="button"
+          tabIndex={0}
+          aria-describedby={isVisible ? 'tooltip' : undefined}
         >
-          <div className="bg-night-700 text-gray-200 text-xs px-3 py-2 rounded-lg shadow-lg border border-night-600">
-            {content}
-          </div>
-          <span className={`absolute w-0 h-0 border-4 ${arrowClasses}`} />
-        </div>
-      )}
-    </span>
+          {children}
+        </span>
+      </span>
+      {isVisible &&
+        tooltipPosition &&
+        createPortal(
+          <div
+            ref={tooltipRef}
+            id="tooltip"
+            role="tooltip"
+            className="fixed z-[9999] pointer-events-none"
+            style={{
+              top: tooltipPosition.top,
+              left: tooltipPosition.left,
+              maxWidth,
+            }}
+          >
+            <div className="bg-night-700 text-gray-200 text-xs px-3 py-2 rounded-lg shadow-lg border border-night-600 pointer-events-auto">
+              {content}
+            </div>
+            <span
+              className={`absolute w-0 h-0 border-4 ${
+                tooltipPosition.placement === 'top'
+                  ? 'top-full border-t-night-700 border-x-transparent border-b-transparent'
+                  : 'bottom-full border-b-night-700 border-x-transparent border-t-transparent'
+              }`}
+              style={{
+                left: getArrowLeft(),
+                transform: 'translateX(-50%)',
+              }}
+            />
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 
