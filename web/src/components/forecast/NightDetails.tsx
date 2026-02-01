@@ -50,6 +50,11 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
             <div>
               <h3 className="font-semibold text-white">Tonight's Rating</h3>
               <p className="text-sm text-gray-400">{nightQuality.summary}</p>
+              {weather?.bestTime && (
+                <p className="text-sm text-green-400 mt-1">
+                  Best: {formatTime(weather.bestTime.start)} – {formatTime(weather.bestTime.end)}
+                </p>
+              )}
             </div>
           </div>
           <div className="text-right">
