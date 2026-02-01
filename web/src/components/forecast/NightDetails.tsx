@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, CloudSun, Droplets, Eye, Telescope, Wind } from 'lucide-react';
 import type React from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   getMoonPhaseEmoji as getExactMoonPhaseEmoji,
   getMoonPhaseName as getExactMoonPhaseName,
@@ -329,6 +329,26 @@ function getHourDewData(
   return { temp, dewPoint, margin, riskLevel };
 }
 
+/**
+ * Hook to get responsive hour count for dew timeline
+ */
+function useResponsiveHourCount(): number {
+  const [hourCount, setHourCount] = useState(8); // Default to mobile
+
+  useEffect(() => {
+    const updateHourCount = () => {
+      // 640px is Tailwind's 'sm' breakpoint
+      setHourCount(window.innerWidth >= 640 ? 12 : 8);
+    };
+
+    updateHourCount();
+    window.addEventListener('resize', updateHourCount);
+    return () => window.removeEventListener('resize', updateHourCount);
+  }, []);
+
+  return hourCount;
+}
+
 function DewTimeline({
   weather,
   nightInfo,
@@ -336,6 +356,8 @@ function DewTimeline({
   weather: NightForecast['weather'];
   nightInfo: NightForecast['nightInfo'];
 }) {
+  const maxHours = useResponsiveHourCount();
+
   if (!weather || !weather.hourlyData) return null;
 
   const startHour = nightInfo.sunset.getHours();
@@ -350,7 +372,7 @@ function DewTimeline({
     riskLevel: 'safe' | 'low' | 'moderate' | 'high';
   }> = [];
 
-  for (let h = startHour; h <= endHour && hours.length < 12; h++) {
+  for (let h = startHour; h <= endHour && hours.length < maxHours; h++) {
     const actualHour = h % 24;
     const dewData = getHourDewData(weather, actualHour);
     hours.push({
