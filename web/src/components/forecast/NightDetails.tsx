@@ -36,14 +36,16 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
       {/* Overall Night Quality Rating */}
       <div className="bg-night-900 rounded-xl border border-night-700 p-4">
         <div className="space-y-2">
-          {/* Line 1: Stars and rating label */}
+          {/* Title */}
+          <h3 className="font-semibold text-white">Tonight's Rating</h3>
+          {/* Stars and rating label */}
           <div className={`flex items-center gap-2 text-xl font-bold ${nightQuality.rating.color}`}>
             <span>{nightQuality.rating.starString}</span>
             <span>{nightQuality.rating.label}</span>
           </div>
-          {/* Line 2: Summary description */}
+          {/* Summary description */}
           <p className="text-sm text-gray-400">{nightQuality.summary}</p>
-          {/* Line 3: Best observation time */}
+          {/* Best observation time */}
           {weather?.bestTime && (
             <p className="text-sm text-green-400">
               Best: <span className="whitespace-nowrap">{formatTime(weather.bestTime.start)}</span>
