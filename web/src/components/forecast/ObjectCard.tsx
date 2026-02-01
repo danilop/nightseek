@@ -8,6 +8,7 @@ import {
   formatMagnitude,
   formatMoonSeparation,
   formatTime,
+  formatTimeRange,
   getAltitudeQualityClass,
   getCategoryIcon,
 } from '@/lib/utils/format';
@@ -309,9 +310,9 @@ export default function ObjectCard({
             <Clock className="w-4 h-4" />
             <span>
               {visibility.above60Start && visibility.above60End
-                ? `Above 60°: ${formatTime(visibility.above60Start)} - ${formatTime(visibility.above60End)}`
+                ? `Above 60°: ${formatTimeRange(visibility.above60Start, visibility.above60End)}`
                 : visibility.above45Start && visibility.above45End
-                  ? `Above 45°: ${formatTime(visibility.above45Start)} - ${formatTime(visibility.above45End)}`
+                  ? `Above 45°: ${formatTimeRange(visibility.above45Start, visibility.above45End)}`
                   : 'Brief visibility window'}
             </span>
           </div>
@@ -443,21 +444,13 @@ function ObjectDetails({ visibility }: { visibility: ScoredObject['visibility'] 
   return (
     <div className="space-y-1 text-xs text-gray-400">
       {visibility.above75Start && visibility.above75End && (
-        <p>
-          Excellent (75°+): {formatTime(visibility.above75Start)} -{' '}
-          {formatTime(visibility.above75End)}
-        </p>
+        <p>Excellent (75°+): {formatTimeRange(visibility.above75Start, visibility.above75End)}</p>
       )}
       {visibility.above60Start && visibility.above60End && (
-        <p>
-          Very good (60°+): {formatTime(visibility.above60Start)} -{' '}
-          {formatTime(visibility.above60End)}
-        </p>
+        <p>Very good (60°+): {formatTimeRange(visibility.above60Start, visibility.above60End)}</p>
       )}
       {visibility.above45Start && visibility.above45End && (
-        <p>
-          Good (45°+): {formatTime(visibility.above45Start)} - {formatTime(visibility.above45End)}
-        </p>
+        <p>Good (45°+): {formatTimeRange(visibility.above45Start, visibility.above45End)}</p>
       )}
       <p>Airmass at peak: {visibility.minAirmass.toFixed(2)}</p>
     </div>
