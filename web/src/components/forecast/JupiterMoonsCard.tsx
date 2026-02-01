@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import Tooltip from '@/components/ui/Tooltip';
 import { useUIState } from '@/hooks/useUIState';
 import { describeGalileanMoonEvent } from '@/lib/astronomy/galilean-moons';
 import { formatTime } from '@/lib/utils/format';
@@ -207,7 +208,11 @@ function MoonPositionDiagram({
           {rightLabel}
         </text>
       </svg>
-      <p className="text-xs text-gray-500 text-center mt-2">Direct view ({viewDirection})</p>
+      <p className="text-xs text-gray-500 text-center mt-2">
+        <Tooltip content="How Jupiter appears through a telescope or binoculars. The orientation matches what you see when looking at the sky.">
+          <span>Direct view ({viewDirection})</span>
+        </Tooltip>
+      </p>
     </div>
   );
 }
@@ -240,11 +245,34 @@ function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
         <span className="text-sm text-white">{moon.name}</span>
       </div>
       <p className="text-xs text-gray-400 mt-1">
-        {distance} Rj {direction}
-        {isBehind && ' (behind)'}
+        {distance}{' '}
+        <Tooltip content="Rj = Jupiter Radii. Distance from Jupiter's center measured in units of Jupiter's radius (71,492 km).">
+          <span className="border-b border-dotted border-gray-500">Rj</span>
+        </Tooltip>{' '}
+        {direction}
+        {isBehind && (
+          <>
+            {' '}
+            <Tooltip content="Moon is on the far side of Jupiter, partially or fully hidden from view.">
+              <span className="border-b border-dotted border-gray-500">(behind)</span>
+            </Tooltip>
+          </>
+        )}
       </p>
-      {moon.isTransiting && <span className="text-xs text-yellow-400">Transit in progress</span>}
-      {moon.shadowOnJupiter && <span className="text-xs text-orange-400">Shadow visible</span>}
+      {moon.isTransiting && (
+        <Tooltip content="The moon is crossing in front of Jupiter's disk as seen from Earth.">
+          <span className="text-xs text-yellow-400 border-b border-dotted border-yellow-400/50">
+            Transit in progress
+          </span>
+        </Tooltip>
+      )}
+      {moon.shadowOnJupiter && (
+        <Tooltip content="The moon's shadow is visible on Jupiter's cloud tops.">
+          <span className="text-xs text-orange-400 border-b border-dotted border-orange-400/50">
+            Shadow visible
+          </span>
+        </Tooltip>
+      )}
     </div>
   );
 }
