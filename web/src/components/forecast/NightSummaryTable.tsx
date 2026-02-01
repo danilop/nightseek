@@ -1,12 +1,6 @@
 import { Star } from 'lucide-react';
-import {
-  calculateNightRating,
-  formatDate,
-  formatTime,
-  getMoonPhaseEmoji,
-  getStarRating,
-  getWeatherEmoji,
-} from '@/lib/utils/format';
+import { formatDate, formatTime, getMoonPhaseEmoji, getWeatherEmoji } from '@/lib/utils/format';
+import { calculateNightQuality } from '@/lib/weather/night-quality';
 import type { NightForecast, NightWeather } from '@/types';
 
 /**
@@ -80,10 +74,7 @@ export default function NightSummaryTable({
               const dateKey = nightInfo.date.toISOString().split('T')[0];
               const isBestNight = bestNightSet.has(dateKey);
               const isSelected = index === selectedIndex;
-              const rating = calculateNightRating(
-                nightInfo.moonIllumination,
-                weather?.avgCloudCover
-              );
+              const nightQuality = calculateNightQuality(weather, nightInfo);
 
               return (
                 <tr
@@ -125,7 +116,9 @@ export default function NightSummaryTable({
                     {getBestTimeDisplay(weather) || '—'}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className="star-rating text-sm">{getStarRating(rating)}</span>
+                    <span className={`star-rating text-sm ${nightQuality.rating.color}`}>
+                      {nightQuality.rating.starString}
+                    </span>
                   </td>
                 </tr>
               );
@@ -141,7 +134,7 @@ export default function NightSummaryTable({
           const dateKey = nightInfo.date.toISOString().split('T')[0];
           const isBestNight = bestNightSet.has(dateKey);
           const isSelected = index === selectedIndex;
-          const rating = calculateNightRating(nightInfo.moonIllumination, weather?.avgCloudCover);
+          const nightQuality = calculateNightQuality(weather, nightInfo);
 
           return (
             <div
@@ -164,7 +157,9 @@ export default function NightSummaryTable({
                   {isBestNight && <Star className="w-4 h-4 text-green-400" />}
                   <span className="text-white font-medium">{formatDate(nightInfo.date)}</span>
                 </div>
-                <span className="star-rating text-sm">{getStarRating(rating)}</span>
+                <span className={`star-rating text-sm ${nightQuality.rating.color}`}>
+                  {nightQuality.rating.starString}
+                </span>
               </div>
 
               <div className="flex items-center gap-4 text-sm text-gray-400">

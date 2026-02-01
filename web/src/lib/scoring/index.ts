@@ -742,18 +742,33 @@ export function getScoreTier(totalScore: number): ScoreTier {
 
 /**
  * Get tier display info
+ *
+ * Color Scale (Worst → Best):
+ * - Poor: blue-400
+ * - Fair: red-400
+ * - Good: orange-400
+ * - Very Good: yellow-400
+ * - Excellent: green-400
  */
 export function getTierDisplay(tier: ScoreTier): { stars: number; label: string; color: string } {
   switch (tier) {
     case 'excellent':
-      return { stars: 5, label: 'Excellent', color: 'text-yellow-400' };
+      return { stars: 5, label: 'Excellent', color: 'text-green-400' };
     case 'very_good':
-      return { stars: 4, label: 'Very Good', color: 'text-green-400' };
+      return { stars: 4, label: 'Very Good', color: 'text-yellow-400' };
     case 'good':
-      return { stars: 3, label: 'Good', color: 'text-blue-400' };
+      return { stars: 3, label: 'Good', color: 'text-orange-400' };
     case 'fair':
-      return { stars: 2, label: 'Fair', color: 'text-orange-400' };
+      return { stars: 2, label: 'Fair', color: 'text-red-400' };
     case 'poor':
-      return { stars: 1, label: 'Poor', color: 'text-red-400' };
+      return { stars: 1, label: 'Poor', color: 'text-blue-400' };
   }
+}
+
+/**
+ * Normalize a score to 0-100 scale
+ */
+export function normalizeScore(score: number, maxScore: number = 200): number {
+  if (maxScore <= 0) return 0;
+  return Math.max(0, Math.min(100, (score / maxScore) * 100));
 }
