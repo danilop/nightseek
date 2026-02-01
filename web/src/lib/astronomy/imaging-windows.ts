@@ -6,6 +6,7 @@ import type {
   ObjectVisibility,
 } from '@/types';
 import { avg } from '../utils/array-math';
+import { formatTimeRange } from '../utils/format';
 import { calculateAirmass } from './airmass';
 
 /**
@@ -315,21 +316,10 @@ export function getBestImagingWindow(
  * Format imaging window for display
  */
 export function formatImagingWindow(window: ImagingWindow): string {
-  const startTime = window.start.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-  const endTime = window.end.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-
   // Capitalize first letter only (e.g., "acceptable" -> "Acceptable")
   const qualityLabel = window.quality.charAt(0).toUpperCase() + window.quality.slice(1);
 
-  return `${startTime}-${endTime} • ${qualityLabel}`;
+  return `${formatTimeRange(window.start, window.end)} • ${qualityLabel}`;
 }
 
 /**

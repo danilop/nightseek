@@ -12,6 +12,13 @@ export function formatTime(date: Date, timezone?: string): string {
 }
 
 /**
+ * Format time range with en-dash separator (e.g., "10:30 PM – 2:45 AM")
+ */
+export function formatTimeRange(start: Date, end: Date, timezone?: string): string {
+  return `${formatTime(start, timezone)} – ${formatTime(end, timezone)}`;
+}
+
+/**
  * Format date for display
  */
 export function formatDate(date: Date, timezone?: string): string {

@@ -8,6 +8,7 @@ import {
 } from '@/lib/astronomy/moon-phases';
 import {
   formatTime,
+  formatTimeRange,
   getMoonPhaseEmoji,
   getMoonPhaseName,
   getWeatherDescription,
@@ -68,9 +69,9 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
               <Tooltip content="Optimal window with lowest cloud cover, best transparency, and minimal dew risk.">
                 <span>
                   Best:{' '}
-                  <span className="whitespace-nowrap">{formatTime(weather.bestTime.start)}</span>
-                  {' – '}
-                  <span className="whitespace-nowrap">{formatTime(weather.bestTime.end)}</span>
+                  <span className="whitespace-nowrap">
+                    {formatTimeRange(weather.bestTime.start, weather.bestTime.end)}
+                  </span>
                 </span>
               </Tooltip>
             </p>
@@ -246,7 +247,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                           key={`${window.start.getTime()}-${window.end.getTime()}`}
                           className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs"
                         >
-                          {formatTime(window.start)} - {formatTime(window.end)}
+                          {formatTimeRange(window.start, window.end)}
                         </span>
                       ))}
                     </div>

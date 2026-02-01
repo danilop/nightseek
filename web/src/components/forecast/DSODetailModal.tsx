@@ -9,6 +9,7 @@ import {
   formatMagnitude,
   formatMoonSeparation,
   formatTime,
+  formatTimeRange,
   getAltitudeQualityClass,
   getCategoryIcon,
 } from '@/lib/utils/format';
@@ -251,8 +252,7 @@ export default function DSODetailModal({
                 <span className="text-gray-400">Best Imaging Window</span>
               </div>
               <div className="text-white">
-                {formatTime(visibility.imagingWindow.start)} —{' '}
-                {formatTime(visibility.imagingWindow.end)}
+                {formatTimeRange(visibility.imagingWindow.start, visibility.imagingWindow.end)}
               </div>
               <div className="text-xs text-gray-500 mt-1">
                 Quality: {visibility.imagingWindow.quality} (score:{' '}
@@ -268,7 +268,7 @@ export default function DSODetailModal({
                 <div className="flex justify-between">
                   <span className="text-gray-400">Excellent (75°+)</span>
                   <span className="text-gray-300">
-                    {formatTime(visibility.above75Start)} — {formatTime(visibility.above75End)}
+                    {formatTimeRange(visibility.above75Start, visibility.above75End)}
                   </span>
                 </div>
               )}
@@ -276,7 +276,7 @@ export default function DSODetailModal({
                 <div className="flex justify-between">
                   <span className="text-gray-400">Very Good (60°+)</span>
                   <span className="text-gray-300">
-                    {formatTime(visibility.above60Start)} — {formatTime(visibility.above60End)}
+                    {formatTimeRange(visibility.above60Start, visibility.above60End)}
                   </span>
                 </div>
               )}
@@ -284,7 +284,7 @@ export default function DSODetailModal({
                 <div className="flex justify-between">
                   <span className="text-gray-400">Good (45°+)</span>
                   <span className="text-gray-300">
-                    {formatTime(visibility.above45Start)} — {formatTime(visibility.above45End)}
+                    {formatTimeRange(visibility.above45Start, visibility.above45End)}
                   </span>
                 </div>
               )}

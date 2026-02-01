@@ -1,6 +1,11 @@
 import { Star } from 'lucide-react';
 import Tooltip from '@/components/ui/Tooltip';
-import { formatDate, formatTime, getMoonPhaseEmoji, getWeatherEmoji } from '@/lib/utils/format';
+import {
+  formatDate,
+  formatTimeRange,
+  getMoonPhaseEmoji,
+  getWeatherEmoji,
+} from '@/lib/utils/format';
 import { calculateNightQuality } from '@/lib/weather/night-quality';
 import type { NightForecast, NightWeather } from '@/types';
 
@@ -13,7 +18,7 @@ function getBestTimeDisplay(weather: NightWeather | null): string | null {
 
   // Prefer bestTime if available (calculated from scoring)
   if (weather.bestTime) {
-    return `${formatTime(weather.bestTime.start)} - ${formatTime(weather.bestTime.end)}`;
+    return formatTimeRange(weather.bestTime.start, weather.bestTime.end);
   }
 
   // Fall back to the longest clear window
@@ -28,7 +33,7 @@ function getBestTimeDisplay(weather: NightWeather | null): string | null {
     const best = sorted[0];
     const hours = Math.round((best.end.getTime() - best.start.getTime()) / (60 * 60 * 1000));
     if (hours >= 1) {
-      return `${formatTime(best.start)} - ${formatTime(best.end)}`;
+      return formatTimeRange(best.start, best.end);
     }
   }
 
@@ -112,8 +117,7 @@ export default function NightSummaryTable({
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-400 text-sm">
-                    {formatTime(nightInfo.astronomicalDusk)} -{' '}
-                    {formatTime(nightInfo.astronomicalDawn)}
+                    {formatTimeRange(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="text-lg">{getMoonPhaseEmoji(nightInfo.moonPhase)}</span>
@@ -195,8 +199,7 @@ export default function NightSummaryTable({
                   </span>
                 )}
                 <span className="text-gray-500">
-                  {formatTime(nightInfo.astronomicalDusk)} -{' '}
-                  {formatTime(nightInfo.astronomicalDawn)}
+                  {formatTimeRange(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
                 </span>
               </div>
             </div>
