@@ -40,7 +40,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
           {/* Title */}
           <h3 className="font-semibold text-white">
             <Tooltip content="Overall rating based on cloud cover, moon phase, transparency, seeing conditions, and dew risk.">
-              Tonight's Rating
+              <span>Tonight's Rating</span>
             </Tooltip>
           </h3>
           {/* Stars and rating label */}
@@ -90,62 +90,72 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
           <div className="p-4">
             {/* Summary */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-              <Tooltip content="Average cloud cover during the night. Lower is better for observing. 0-25% is ideal.">
-                <div>
-                  <div className="text-3xl mb-1">{getWeatherEmoji(weather.avgCloudCover)}</div>
-                  <div className="text-sm text-gray-400">
-                    {getWeatherDescription(weather.avgCloudCover)}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {Math.round(weather.avgCloudCover)}% clouds
-                  </div>
-                </div>
-              </Tooltip>
+              <div className="cursor-help">
+                <Tooltip content="Average cloud cover during the night. Lower is better for observing. 0-25% is ideal.">
+                  <span className="block">
+                    <div className="text-3xl mb-1">{getWeatherEmoji(weather.avgCloudCover)}</div>
+                    <div className="text-sm text-gray-400">
+                      {getWeatherDescription(weather.avgCloudCover)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {Math.round(weather.avgCloudCover)}% clouds
+                    </div>
+                  </span>
+                </Tooltip>
+              </div>
 
-              <Tooltip content="Moon phase affects sky brightness. New moon is best for deep-sky objects. Full moon is good for lunar and planetary observation.">
-                <div>
-                  <div className="text-3xl mb-1">
-                    {nightInfo.moonPhaseExact
-                      ? getExactMoonPhaseEmoji(nightInfo.moonPhaseExact.phase)
-                      : getMoonPhaseEmoji(nightInfo.moonPhase)}
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    {nightInfo.moonPhaseExact
-                      ? getExactMoonPhaseName(nightInfo.moonPhaseExact.phase)
-                      : getMoonPhaseName(nightInfo.moonPhase)}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {nightInfo.moonPhaseExact?.isTonight
-                      ? `at ${formatTime(nightInfo.moonPhaseExact.time)}`
-                      : `${Math.round(nightInfo.moonIllumination)}% illuminated`}
-                  </div>
-                </div>
-              </Tooltip>
-
-              {weather.avgWindSpeedKmh !== null && (
-                <Tooltip content="Average wind speed. High winds (>20 km/h) cause telescope shake and poor seeing. Calm conditions are ideal.">
-                  <div>
-                    <div className="flex items-center justify-center text-2xl text-sky-400 mb-1">
-                      <Wind className="w-8 h-8" />
+              <div className="cursor-help">
+                <Tooltip content="Moon phase affects sky brightness. New moon is best for deep-sky objects. Full moon is good for lunar and planetary observation.">
+                  <span className="block">
+                    <div className="text-3xl mb-1">
+                      {nightInfo.moonPhaseExact
+                        ? getExactMoonPhaseEmoji(nightInfo.moonPhaseExact.phase)
+                        : getMoonPhaseEmoji(nightInfo.moonPhase)}
                     </div>
                     <div className="text-sm text-gray-400">
-                      {Math.round(weather.avgWindSpeedKmh)} km/h
+                      {nightInfo.moonPhaseExact
+                        ? getExactMoonPhaseName(nightInfo.moonPhaseExact.phase)
+                        : getMoonPhaseName(nightInfo.moonPhase)}
                     </div>
-                    <div className="text-xs text-gray-500">Avg wind</div>
-                  </div>
+                    <div className="text-xs text-gray-500">
+                      {nightInfo.moonPhaseExact?.isTonight
+                        ? `at ${formatTime(nightInfo.moonPhaseExact.time)}`
+                        : `${Math.round(nightInfo.moonIllumination)}% illuminated`}
+                    </div>
+                  </span>
                 </Tooltip>
+              </div>
+
+              {weather.avgWindSpeedKmh !== null && (
+                <div className="cursor-help">
+                  <Tooltip content="Average wind speed. High winds cause telescope shake and poor seeing. Calm conditions are ideal.">
+                    <span className="block">
+                      <div className="flex items-center justify-center text-2xl text-sky-400 mb-1">
+                        <Wind className="w-8 h-8" />
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {Math.round(weather.avgWindSpeedKmh)} km/h
+                      </div>
+                      <div className="text-xs text-gray-500">Avg wind</div>
+                    </span>
+                  </Tooltip>
+                </div>
               )}
 
               {weather.avgHumidity !== null && (
-                <Tooltip content="Average humidity. High humidity (>80%) increases dew risk and can affect transparency.">
-                  <div>
-                    <div className="flex items-center justify-center text-2xl text-blue-400 mb-1">
-                      <Droplets className="w-8 h-8" />
-                    </div>
-                    <div className="text-sm text-gray-400">{Math.round(weather.avgHumidity)}%</div>
-                    <div className="text-xs text-gray-500">Humidity</div>
-                  </div>
-                </Tooltip>
+                <div className="cursor-help">
+                  <Tooltip content="Average humidity. High humidity increases dew risk and can affect transparency.">
+                    <span className="block">
+                      <div className="flex items-center justify-center text-2xl text-blue-400 mb-1">
+                        <Droplets className="w-8 h-8" />
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {Math.round(weather.avgHumidity)}%
+                      </div>
+                      <div className="text-xs text-gray-500">Humidity</div>
+                    </span>
+                  </Tooltip>
+                </div>
               )}
             </div>
 
@@ -485,7 +495,7 @@ function DewTimeline({
       <div className="flex justify-between items-center mt-1">
         <span className="text-[10px] text-gray-500">PM</span>
         <Tooltip content="Margin = Temp minus Dew point. Below 2°C: high dew risk, use a dew heater. Above 6°C: safe.">
-          <div className="flex items-center gap-2 text-[9px] text-gray-500">
+          <span className="flex items-center gap-2 text-[9px] text-gray-500">
             <span className="flex items-center gap-0.5">
               <span className="w-2 h-2 rounded bg-green-500/40" /> &gt;6°
             </span>
@@ -498,7 +508,7 @@ function DewTimeline({
             <span className="flex items-center gap-0.5">
               <span className="w-2 h-2 rounded bg-red-500/60" /> &lt;2°
             </span>
-          </div>
+          </span>
         </Tooltip>
         <span className="text-[10px] text-gray-500">AM</span>
       </div>
