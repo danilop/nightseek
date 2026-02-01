@@ -5,6 +5,7 @@ import {
   MapPin,
   RotateCcw,
   Ruler,
+  Satellite,
   Thermometer,
   Trash2,
   Wind,
@@ -13,6 +14,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useApp } from '@/stores/AppContext';
 import type { DistanceUnit, PressureUnit, SpeedUnit, TemperatureUnit } from '@/types';
+import TelescopeSettings from './TelescopeSettings';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -278,6 +280,43 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Telescope Section */}
+          <div className="pt-4 border-t border-night-700">
+            <TelescopeSettings
+              telescope={settings.telescope}
+              customFOV={settings.customFOV}
+              onUpdate={updateSettings}
+            />
+          </div>
+
+          {/* Satellite Passes Section */}
+          <div className="pt-4 border-t border-night-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
+                <Satellite className="w-4 h-4" />
+                <span>Satellite Passes</span>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  updateSettings({ showSatellitePasses: !settings.showSatellitePasses })
+                }
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  settings.showSatellitePasses ? 'bg-sky-600' : 'bg-night-700'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.showSatellitePasses ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Show ISS and satellite pass predictions in the forecast
+            </p>
           </div>
 
           {/* Reset Section */}

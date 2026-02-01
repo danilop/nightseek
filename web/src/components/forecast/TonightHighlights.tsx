@@ -19,6 +19,7 @@ import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
 import { getRatingFromScore } from '@/lib/utils/rating';
+import { useApp } from '@/stores/AppContext';
 import type {
   AstronomicalEvents,
   DSOSubtype,
@@ -27,6 +28,7 @@ import type {
   ScoredObject,
 } from '@/types';
 import CategorySection from './CategorySection';
+import DSODetailModal from './DSODetailModal';
 import JupiterMoonsCard from './JupiterMoonsCard';
 
 interface TonightHighlightsProps {
@@ -170,11 +172,13 @@ function SortableCategorySection({
   categoryObjects,
   nightInfo,
   weather,
+  onObjectClick,
 }: {
   config: CategoryConfig;
   categoryObjects: ScoredObject[];
   nightInfo: NightInfo;
   weather: NightWeather | null;
+  onObjectClick?: (object: ScoredObject) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: config.key,
@@ -199,6 +203,7 @@ function SortableCategorySection({
         showSubtypeInPreview={config.showSubtypeInPreview}
         isDragging={isDragging}
         dragHandleProps={{ ...attributes, ...listeners }}
+        onObjectClick={onObjectClick}
       />
     </div>
   );
@@ -211,8 +216,16 @@ export default function TonightHighlights({
   astronomicalEvents,
   latitude = 0,
 }: TonightHighlightsProps) {
+  const { state } = useApp();
+  const { settings } = state;
   const { categoryOrder, setCategoryOrder } = useUIState();
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [selectedDSO, setSelectedDSO] = useState<ScoredObject | null>(null);
+
+  // Handle DSO card click
+  const handleDSOClick = (object: ScoredObject) => {
+    setSelectedDSO(object);
+  };
 
   // Configure sensors for drag and drop
   const sensors = useSensors(
@@ -446,6 +459,7 @@ export default function TonightHighlights({
                   categoryObjects={groupedObjects[config.key]}
                   nightInfo={nightInfo}
                   weather={weather}
+                  onObjectClick={handleDSOClick}
                 />
               );
 
@@ -512,6 +526,17 @@ export default function TonightHighlights({
             Show all objects
           </button>
         </div>
+      )}
+
+      {/* DSO Detail Modal */}
+      {selectedDSO && (
+        <DSODetailModal
+          object={selectedDSO}
+          nightInfo={nightInfo}
+          telescope={settings.telescope}
+          customFOV={settings.customFOV}
+          onClose={() => setSelectedDSO(null)}
+        />
       )}
     </div>
   );

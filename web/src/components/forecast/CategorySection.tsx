@@ -17,6 +17,7 @@ interface CategorySectionProps {
   showSubtypeInPreview?: boolean;
   isDragging?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+  onObjectClick?: (object: ScoredObject) => void;
 }
 
 const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(function CategorySection(
@@ -32,6 +33,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
     showSubtypeInPreview = false,
     isDragging = false,
     dragHandleProps,
+    onObjectClick,
   },
   ref
 ) {
@@ -112,6 +114,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
                   object={obj}
                   nightInfo={nightInfo}
                   weather={weather}
+                  onDSOClick={onObjectClick}
                 />
               ))}
             </div>
@@ -125,6 +128,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
                   nightInfo={nightInfo}
                   weather={weather}
                   compact
+                  onDSOClick={onObjectClick}
                 />
               ))}
             </div>

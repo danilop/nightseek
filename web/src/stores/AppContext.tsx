@@ -47,6 +47,9 @@ const DEFAULT_SETTINGS: Settings = {
     pressure: 'hpa',
     distance: 'km',
   },
+  showSatellitePasses: true,
+  telescope: 'dwarf_mini',
+  customFOV: null,
 };
 
 /** Get default settings with locale-appropriate unit preferences */
