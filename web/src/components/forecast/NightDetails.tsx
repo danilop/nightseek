@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, CloudSun, Droplets, Eye, Telescope, Wind } from 'lucide-react';
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Tooltip from '@/components/ui/Tooltip';
 import {
   getMoonPhaseEmoji as getExactMoonPhaseEmoji,
@@ -13,19 +13,17 @@ import {
   getWeatherDescription,
   getWeatherEmoji,
 } from '@/lib/utils/format';
-import { getDewRiskLevel, getSeeingForecastColorClass } from '@/lib/utils/quality-helpers';
+import { getSeeingForecastColorClass } from '@/lib/utils/quality-helpers';
 import {
   formatPressure,
   formatSpeed,
   formatTemperature,
-  formatTemperatureDelta,
-  formatTemperatureValue,
   getPressureUnitLabel,
-  getTemperatureUnitLabel,
 } from '@/lib/utils/units';
 import { calculateNightQuality } from '@/lib/weather/night-quality';
 import { useApp } from '@/stores/AppContext';
-import type { NightForecast, NightInfo, NightWeather } from '@/types';
+import type { NightForecast, NightInfo } from '@/types';
+import HourlyConditionsTimeline from './HourlyConditionsTimeline';
 
 interface NightDetailsProps {
   forecast: NightForecast;
@@ -176,24 +174,12 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
               <SeeingForecastCard seeingForecast={nightInfo.seeingForecast} />
             )}
 
-            {/* Dew Risk - Always visible */}
-            <div className="mt-4 pt-4 border-t border-night-700">
-              <DetailRow
-                icon={<span className="text-sm">💧</span>}
-                label="Dew Risk"
-                value={weather.dewRiskHours > 0 ? `${weather.dewRiskHours}h at risk` : 'Safe'}
-                subtext={
-                  weather.minDewMargin !== null
-                    ? `Min margin: ${formatTemperatureDelta(weather.minDewMargin, units.temperature)}`
-                    : undefined
-                }
-                warning={weather.dewRiskHours > 0}
-                safe={weather.dewRiskHours === 0}
-                tooltip={`Margin is the gap between air temp and dew point. Use a dew heater when margin drops below ${units.temperature === 'fahrenheit' ? '7°F' : '4°C'}. Above ${units.temperature === 'fahrenheit' ? '11°F' : '6°C'} is safe.`}
-              />
-              {/* Dew Timeline */}
-              <DewTimeline weather={weather} nightInfo={nightInfo} units={units} />
-            </div>
+            {/* Hourly Conditions Timeline - Always visible */}
+            <HourlyConditionsTimeline
+              weather={weather}
+              nightInfo={nightInfo}
+              temperatureUnit={units.temperature}
+            />
 
             {/* Expanded Details */}
             {showWeatherDetails && (
@@ -344,199 +330,6 @@ function SeeingForecastCard({
         </Tooltip>
       </div>
       <p className="text-xs text-gray-500 mt-1">{seeingForecast.recommendation}</p>
-    </div>
-  );
-}
-
-/**
- * Get display hour string from actual hour
- */
-function formatDisplayHour(actualHour: number): string {
-  if (actualHour === 0) return '12';
-  if (actualHour > 12) return `${actualHour - 12}`;
-  return `${actualHour}`;
-}
-
-/**
- * Get dew risk color class for timeline
- */
-function getDewRiskColorClass(riskLevel: 'safe' | 'low' | 'moderate' | 'high'): string {
-  switch (riskLevel) {
-    case 'safe':
-      return 'bg-green-500/40';
-    case 'low':
-      return 'bg-yellow-500/40';
-    case 'moderate':
-      return 'bg-orange-500/40';
-    case 'high':
-      return 'bg-red-500/60';
-  }
-}
-
-/**
- * Get hourly dew data for timeline
- */
-function getHourDewData(
-  weather: NightWeather,
-  actualHour: number
-): {
-  temp: number | null;
-  dewPoint: number | null;
-  margin: number | null;
-  riskLevel: 'safe' | 'low' | 'moderate' | 'high';
-} {
-  const hourData = weather.hourlyData.get(actualHour);
-  if (!hourData) return { temp: null, dewPoint: null, margin: null, riskLevel: 'safe' };
-
-  const temp = hourData.temperature;
-  const dewPoint = hourData.dewPoint;
-  const margin = temp !== null && dewPoint !== null ? temp - dewPoint : null;
-  const riskLevel = margin !== null ? getDewRiskLevel(margin) : 'safe';
-
-  return { temp, dewPoint, margin, riskLevel };
-}
-
-/**
- * Hook to get responsive hour count for dew timeline
- */
-function useResponsiveHourCount(): number {
-  const [hourCount, setHourCount] = useState(8); // Default to mobile
-
-  useEffect(() => {
-    const updateHourCount = () => {
-      // 640px is Tailwind's 'sm' breakpoint
-      setHourCount(window.innerWidth >= 640 ? 12 : 8);
-    };
-
-    updateHourCount();
-    window.addEventListener('resize', updateHourCount);
-    return () => window.removeEventListener('resize', updateHourCount);
-  }, []);
-
-  return hourCount;
-}
-
-function DewTimeline({
-  weather,
-  nightInfo,
-  units,
-}: {
-  weather: NightForecast['weather'];
-  nightInfo: NightForecast['nightInfo'];
-  units: { temperature: 'celsius' | 'fahrenheit' };
-}) {
-  const maxHours = useResponsiveHourCount();
-
-  if (!weather || !weather.hourlyData) return null;
-
-  const startHour = nightInfo.sunset.getHours();
-  const endHour = nightInfo.sunrise.getHours() + 24;
-
-  const hours: Array<{
-    hour: number;
-    displayHour: string;
-    temp: number | null;
-    dewPoint: number | null;
-    margin: number | null;
-    riskLevel: 'safe' | 'low' | 'moderate' | 'high';
-  }> = [];
-
-  for (let h = startHour; h <= endHour && hours.length < maxHours; h++) {
-    const actualHour = h % 24;
-    const dewData = getHourDewData(weather, actualHour);
-    hours.push({
-      hour: actualHour,
-      displayHour: formatDisplayHour(actualHour),
-      ...dewData,
-    });
-  }
-
-  const tempUnit = getTemperatureUnitLabel(units.temperature);
-  const isFahrenheit = units.temperature === 'fahrenheit';
-
-  return (
-    <div className="mt-2">
-      {/* Timeline bars */}
-      <div className="flex items-center gap-1">
-        <span className="w-4" />
-        {hours.map(h => (
-          <div key={h.hour} className="flex-1 text-center">
-            <div
-              className={`h-3 rounded ${getDewRiskColorClass(h.riskLevel)}`}
-              title={
-                h.temp !== null && h.dewPoint !== null
-                  ? `${h.hour}:00 – Temp: ${formatTemperatureValue(h.temp, units.temperature)}, Dew: ${formatTemperatureValue(h.dewPoint, units.temperature)} (${h.margin !== null ? `${formatTemperatureDelta(h.margin, units.temperature)} margin` : ''})`
-                  : `${h.hour}:00 - ${h.riskLevel} dew risk`
-              }
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Temp row */}
-      <div className="flex items-center gap-1 mt-1">
-        <Tooltip
-          content={`Air temperature in ${tempUnit}. Dew forms when this drops close to the dew point.`}
-        >
-          <span className="w-4 text-[10px]">🌡️</span>
-        </Tooltip>
-        {hours.map(h => (
-          <div key={`temp-${h.hour}`} className="flex-1 text-center">
-            <div className="text-[9px] text-gray-400">
-              {formatTemperatureValue(h.temp, units.temperature)}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Dew point row */}
-      <div className="flex items-center gap-1">
-        <Tooltip content="Dew point: temperature at which moisture condenses. When air temp approaches this, dew forms on equipment.">
-          <span className="w-4 text-[10px]">💧</span>
-        </Tooltip>
-        {hours.map(h => (
-          <div key={`dew-${h.hour}`} className="flex-1 text-center">
-            <div className="text-[9px] text-blue-400/70">
-              {formatTemperatureValue(h.dewPoint, units.temperature)}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Hour labels */}
-      <div className="flex items-center gap-1 mt-0.5">
-        <span className="w-4" />
-        {hours.map(h => (
-          <div key={`hour-${h.hour}`} className="flex-1 text-center">
-            <div className="text-[10px] text-gray-500">{h.displayHour}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* PM/AM and Legend */}
-      <div className="flex justify-between items-center mt-1">
-        <span className="text-[10px] text-gray-500">PM</span>
-        <Tooltip
-          content={`Margin = Temp minus Dew point. Below ${isFahrenheit ? '4°F' : '2°C'}: high dew risk, use a dew heater. Above ${isFahrenheit ? '11°F' : '6°C'}: safe.`}
-        >
-          <span className="flex items-center gap-2 text-[9px] text-gray-500">
-            <span className="flex items-center gap-0.5">
-              <span className="w-2 h-2 rounded bg-green-500/40" /> &gt;{isFahrenheit ? '11°' : '6°'}
-            </span>
-            <span className="flex items-center gap-0.5">
-              <span className="w-2 h-2 rounded bg-yellow-500/40" />{' '}
-              {isFahrenheit ? '7-11°' : '4-6°'}
-            </span>
-            <span className="flex items-center gap-0.5">
-              <span className="w-2 h-2 rounded bg-orange-500/40" /> {isFahrenheit ? '4-7°' : '2-4°'}
-            </span>
-            <span className="flex items-center gap-0.5">
-              <span className="w-2 h-2 rounded bg-red-500/60" /> &lt;{isFahrenheit ? '4°' : '2°'}
-            </span>
-          </span>
-        </Tooltip>
-        <span className="text-[10px] text-gray-500">AM</span>
-      </div>
     </div>
   );
 }
