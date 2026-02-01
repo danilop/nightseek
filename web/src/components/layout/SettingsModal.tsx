@@ -10,7 +10,7 @@ import {
   Wind,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '@/stores/AppContext';
 import type { DistanceUnit, PressureUnit, SpeedUnit, TemperatureUnit } from '@/types';
 
@@ -22,6 +22,15 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const { state, updateSettings, resetSettings, resetAllData, dispatch } = useApp();
   const { settings, location } = state;
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
 
   const handleForecastDaysChange = (value: number) => {
     updateSettings({ forecastDays: Math.max(1, Math.min(30, value)) });
@@ -44,10 +53,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-night-900 rounded-xl shadow-xl w-full max-w-md border border-night-700">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-hidden">
+      <div className="bg-night-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col border border-night-700">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-night-700">
+        <div className="flex items-center justify-between p-4 border-b border-night-700 flex-shrink-0">
           <h2 className="text-lg font-semibold text-white">Settings</h2>
           <button
             type="button"
@@ -59,7 +68,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-6 overflow-y-auto flex-1">
           {/* Location */}
           {location && (
             <div>
@@ -335,7 +344,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-night-700">
+        <div className="p-4 border-t border-night-700 flex-shrink-0">
           <button
             type="button"
             onClick={onClose}
