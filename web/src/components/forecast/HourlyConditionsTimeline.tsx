@@ -160,24 +160,24 @@ export default function HourlyConditionsTimeline({
           <Cloud className="w-3 h-3" />
         </div>
         {displayData.map(d => (
-          <Tooltip
-            key={`c-${d.hour}`}
-            content={`${formatHour(d.hour)}: ${Math.round(d.clouds.value)}% clouds`}
-          >
-            <div className={`h-5 rounded-sm ${getLevelColorClass(d.clouds.level)} cursor-help`} />
-          </Tooltip>
+          <div key={`c-${d.hour}`}>
+            <Tooltip content={`${formatHour(d.hour)}: ${Math.round(d.clouds.value)}% clouds`}>
+              <div className={`h-5 rounded-sm ${getLevelColorClass(d.clouds.level)} cursor-help`} />
+            </Tooltip>
+          </div>
         ))}
         {/* Dew row */}
         <div className="flex items-center text-gray-400 pr-2">
           <Droplets className="w-3 h-3" />
         </div>
         {displayData.map(d => (
-          <Tooltip
-            key={`d-${d.hour}`}
-            content={`${formatHour(d.hour)}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${d.dew.margin.toFixed(1)}° margin)`}
-          >
-            <div className={`h-5 rounded-sm ${getLevelColorClass(d.dew.level)} cursor-help`} />
-          </Tooltip>
+          <div key={`d-${d.hour}`}>
+            <Tooltip
+              content={`${formatHour(d.hour)}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${d.dew.margin.toFixed(1)}° margin)`}
+            >
+              <div className={`h-5 rounded-sm ${getLevelColorClass(d.dew.level)} cursor-help`} />
+            </Tooltip>
+          </div>
         ))}
         {/* Seeing row (only if data available) */}
         {hasSeeing && (
@@ -186,20 +186,21 @@ export default function HourlyConditionsTimeline({
               <Eye className="w-3 h-3" />
             </div>
             {displayData.map(d => (
-              <Tooltip
-                key={`s-${d.hour}`}
-                content={
-                  d.seeing
-                    ? `${formatHour(d.hour)}: Seeing ${d.seeing.value}%`
-                    : `${formatHour(d.hour)}: No seeing data`
-                }
-              >
-                <div
-                  className={`h-5 rounded-sm cursor-help ${
-                    d.seeing ? getLevelColorClass(d.seeing.level) : 'bg-night-600'
-                  }`}
-                />
-              </Tooltip>
+              <div key={`s-${d.hour}`}>
+                <Tooltip
+                  content={
+                    d.seeing
+                      ? `${formatHour(d.hour)}: Seeing ${d.seeing.value}%`
+                      : `${formatHour(d.hour)}: No seeing data`
+                  }
+                >
+                  <div
+                    className={`h-5 rounded-sm cursor-help ${
+                      d.seeing ? getLevelColorClass(d.seeing.level) : 'bg-night-600'
+                    }`}
+                  />
+                </Tooltip>
+              </div>
             ))}
           </>
         )}
