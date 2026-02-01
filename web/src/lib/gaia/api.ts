@@ -1,7 +1,8 @@
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '@/lib/utils/cache';
 import type { GaiaStar, GaiaStarField } from '@/types';
 
-const GAIA_TAP_URL = 'https://gea.esac.esa.int/tap-server/tap/sync';
+// Use VizieR TAP service which supports CORS (ESA Gaia TAP does not)
+const GAIA_TAP_URL = 'https://tapvizier.cds.unistra.fr/TAPVizieR/tap/sync';
 
 // Max stars to return (keeps response size manageable)
 const MAX_STARS = 500;
@@ -10,22 +11,21 @@ const MAG_LIMIT = 14;
 
 /**
  * Build ADQL query for cone search around coordinates
+ * Uses VizieR's Gaia DR3 mirror (I/355/gaiadr3)
  */
 function buildADQLQuery(raDeg: number, decDeg: number, radiusDeg: number): string {
-  // Use Gaia DR3 source table with cone search
-  // phot_g_mean_mag is the G-band magnitude
-  // parallax in mas (milliarcseconds), null for distant objects
-  // bp_rp is the color index (blue - red photometry)
+  // VizieR column names differ slightly from ESA:
+  // RAJ2000, DEJ2000, Gmag, Plx, "BP-RP"
   return `
     SELECT TOP ${MAX_STARS}
-      ra, dec, phot_g_mean_mag as magnitude, parallax, bp_rp
-    FROM gaiadr3.gaia_source
+      RAJ2000 as ra, DEJ2000 as dec, Gmag as magnitude, Plx as parallax, "BP-RP" as bp_rp
+    FROM "I/355/gaiadr3"
     WHERE 1=CONTAINS(
-      POINT('ICRS', ra, dec),
+      POINT('ICRS', RAJ2000, DEJ2000),
       CIRCLE('ICRS', ${raDeg}, ${decDeg}, ${radiusDeg})
     )
-    AND phot_g_mean_mag < ${MAG_LIMIT}
-    ORDER BY phot_g_mean_mag ASC
+    AND Gmag < ${MAG_LIMIT}
+    ORDER BY Gmag ASC
   `.trim();
 }
 
