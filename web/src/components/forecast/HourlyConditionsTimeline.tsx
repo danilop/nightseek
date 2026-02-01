@@ -161,9 +161,17 @@ export default function HourlyConditionsTimeline({
         {displayData.map(d => (
           <div
             key={`c-${d.hour}`}
-            className={`h-5 rounded-sm ${getLevelColorClass(d.clouds.level)} cursor-help`}
+            className={`h-5 rounded-sm ${getLevelColorClass(d.clouds.level)} cursor-help flex items-center justify-center`}
             title={`${formatHour(d.hour)}: ${Math.round(d.clouds.value)}% clouds`}
-          />
+          >
+            {/* Mobile: abbreviated, Desktop: with % */}
+            <span className="text-[9px] font-medium text-white/90 sm:hidden">
+              {Math.round(d.clouds.value)}
+            </span>
+            <span className="text-[10px] font-medium text-white/90 hidden sm:inline">
+              {Math.round(d.clouds.value)}%
+            </span>
+          </div>
         ))}
         {/* Dew row */}
         <div className="flex items-center text-gray-400 pr-2">
@@ -172,11 +180,19 @@ export default function HourlyConditionsTimeline({
         {displayData.map(d => (
           <div
             key={`d-${d.hour}`}
-            className={`h-5 rounded-sm ${getLevelColorClass(d.dew.level)} cursor-help`}
+            className={`h-5 rounded-sm ${getLevelColorClass(d.dew.level)} cursor-help flex items-center justify-center`}
             title={`${formatHour(d.hour)}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${d.dew.margin.toFixed(1)}° margin)`}
-          />
+          >
+            {/* Mobile: rounded margin, Desktop: with degree */}
+            <span className="text-[9px] font-medium text-white/90 sm:hidden">
+              {Math.round(d.dew.margin)}
+            </span>
+            <span className="text-[10px] font-medium text-white/90 hidden sm:inline">
+              {d.dew.margin.toFixed(1)}°
+            </span>
+          </div>
         ))}
-        {/* Seeing row (only if data available) */}
+        {/* Seeing row (only if data available) - no numbers since same for all hours */}
         {hasSeeing && (
           <>
             <div className="flex items-center text-gray-400 pr-2">
