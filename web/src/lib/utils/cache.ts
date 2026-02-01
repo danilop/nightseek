@@ -138,6 +138,11 @@ export const CACHE_KEYS = {
   TLE_ISS: 'nightseek:tle:iss',
   GAIA_PREFIX: 'nightseek:gaia:',
   BORTLE_PREFIX: 'nightseek:bortle:',
+  // New API cache keys
+  NEOWS_PREFIX: 'nightseek:neows:',
+  SBDB_PREFIX: 'nightseek:sbdb:',
+  IAU_METEORS: 'nightseek:iau:showers',
+  GAIA_ENHANCED_PREFIX: 'nightseek:gaia:enhanced:',
 };
 
 // Cache TTLs (in milliseconds)
@@ -150,4 +155,9 @@ export const CACHE_TTLS = {
   TLE: 24 * 60 * 60 * 1000, // 24 hours
   GAIA: 7 * 24 * 60 * 60 * 1000, // 7 days
   BORTLE: 30 * 24 * 60 * 60 * 1000, // 30 days
+  // New API cache TTLs
+  NEOWS: 12 * 60 * 60 * 1000, // 12 hours
+  SBDB: 30 * 24 * 60 * 60 * 1000, // 30 days
+  IAU_METEORS: 48 * 60 * 60 * 1000, // 48 hours
+  GAIA_ENHANCED: 7 * 24 * 60 * 60 * 1000, // 7 days
 };

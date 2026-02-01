@@ -1,8 +1,10 @@
 import type { MeteorShower, NightInfo } from '@/types';
 import { angularSeparation, type SkyCalculator } from '../astronomy/calculator';
+import { getRadiantConstellation, IAU_METEOR_SHOWERS } from './iau-meteor-data';
 
 /**
- * Major meteor showers data
+ * Major meteor showers data (legacy - now using IAU_METEOR_SHOWERS for more complete data)
+ * Kept for backwards compatibility
  */
 export const METEOR_SHOWERS: Omit<
   MeteorShower,
@@ -230,6 +232,7 @@ function isShowerActive(
 
 /**
  * Detect active meteor showers for a given night
+ * Uses the expanded IAU Meteor Data Center catalog
  */
 export function detectMeteorShowers(
   calculator: SkyCalculator,
@@ -242,7 +245,8 @@ export function detectMeteorShowers(
     (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
   );
 
-  for (const shower of METEOR_SHOWERS) {
+  // Use IAU catalog for comprehensive meteor shower data
+  for (const shower of IAU_METEOR_SHOWERS) {
     const { isActive, daysFromPeak } = isShowerActive(shower, nightInfo.date);
 
     if (!isActive) continue;
@@ -275,6 +279,29 @@ export function detectMeteorShowers(
 
   // Sort by ZHR (highest first)
   return results.sort((a, b) => b.zhr - a.zhr);
+}
+
+/**
+ * Get detailed IAU meteor shower info including constellation
+ */
+export function getIAUMeteorShowerInfo(shower: MeteorShower): {
+  constellation: string;
+  solarLongitude: number | null;
+} {
+  // Find the IAU data for this shower
+  const iauData = IAU_METEOR_SHOWERS.find(s => s.code === shower.code);
+
+  if (!iauData) {
+    return {
+      constellation: getRadiantConstellation(shower.radiantRaDeg, shower.radiantDecDeg),
+      solarLongitude: null,
+    };
+  }
+
+  return {
+    constellation: getRadiantConstellation(shower.radiantRaDeg, shower.radiantDecDeg),
+    solarLongitude: iauData.solarLongitudePeak,
+  };
 }
 
 /**
