@@ -222,6 +222,7 @@ export default function ObjectCard({
                 <span>@ {formatTime(visibility.maxAltitudeTime)}</span>
               )}
               {magnitude !== null && <span>mag {formatMagnitude(magnitude)}</span>}
+              {subtype && <span className="text-gray-500">• {formatSubtype(subtype)}</span>}
             </div>
           </div>
           {isDSO && onDSOClick ? (
@@ -237,6 +238,9 @@ export default function ObjectCard({
           <div className="mt-3 pt-3 border-t border-night-700 space-y-2">
             <ScoreDetails breakdown={scoreBreakdown} />
             <ObjectDetails visibility={visibility} />
+            <div className="flex flex-wrap gap-2 pt-2">
+              <AstronomicalBadges visibility={visibility} magnitude={magnitude} subtype={subtype} />
+            </div>
           </div>
         )}
       </div>
