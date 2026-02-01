@@ -168,11 +168,21 @@ export default function StarFieldCanvas({
       const objectSizeDeg = objectSizeArcmin / 60;
       const objectRadiusPx = ((objectSizeDeg / fovWidthDeg) * canvasWidth) / 2;
 
+      // Check if object is larger than FOV
+      const maxVisibleRadius = Math.min(canvasWidth, canvasHeight) / 2 - 15;
+      const isLargerThanFOV = objectRadiusPx > maxVisibleRadius;
+
       ctx.strokeStyle = '#ef4444'; // red-500
       ctx.lineWidth = 1.5;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
-      ctx.arc(canvasWidth / 2, canvasHeight / 2, objectRadiusPx, 0, Math.PI * 2);
+
+      if (isLargerThanFOV) {
+        // Draw a partial arc at the edge to indicate large object
+        ctx.arc(canvasWidth / 2, canvasHeight / 2, maxVisibleRadius, 0, Math.PI * 2);
+      } else {
+        ctx.arc(canvasWidth / 2, canvasHeight / 2, objectRadiusPx, 0, Math.PI * 2);
+      }
       ctx.stroke();
       ctx.setLineDash([]);
 
@@ -186,6 +196,27 @@ export default function StarFieldCanvas({
       ctx.moveTo(canvasWidth / 2, canvasHeight / 2 - crossSize);
       ctx.lineTo(canvasWidth / 2, canvasHeight / 2 + crossSize);
       ctx.stroke();
+
+      // Show object size label
+      const sizeLabel =
+        objectSizeArcmin >= 60
+          ? `${(objectSizeArcmin / 60).toFixed(1)}°`
+          : `${objectSizeArcmin.toFixed(0)}'`;
+
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+
+      if (isLargerThanFOV) {
+        // Show "larger than FOV" indicator
+        ctx.fillText(`⬤ ${sizeLabel} (larger than FOV)`, canvasWidth / 2, canvasHeight - 25);
+      } else {
+        // Show size below the circle
+        const labelY = canvasHeight / 2 + objectRadiusPx + 15;
+        if (labelY < canvasHeight - 20) {
+          ctx.fillText(sizeLabel, canvasWidth / 2, labelY);
+        }
+      }
     }
 
     // Draw cardinal directions
