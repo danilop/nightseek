@@ -200,24 +200,23 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                   />
                 )}
 
-                {weather.dewRiskHours > 0 && (
-                  <div className="sm:col-span-2">
-                    <DetailRow
-                      icon={<span className="text-sm">💧</span>}
-                      label="Dew Risk"
-                      value={`${weather.dewRiskHours}h`}
-                      subtext={
-                        weather.minDewMargin !== null
-                          ? `Min margin: ${weather.minDewMargin.toFixed(1)}°C`
-                          : 'Hours with dew risk'
-                      }
-                      warning
-                      tooltip="Hours when dew may form on equipment. Margin is the gap between air temp and dew point. Use a dew heater when margin drops below 4°C."
-                    />
-                    {/* Dew Timeline */}
-                    <DewTimeline weather={weather} nightInfo={nightInfo} />
-                  </div>
-                )}
+                <div className="sm:col-span-2">
+                  <DetailRow
+                    icon={<span className="text-sm">💧</span>}
+                    label="Dew Risk"
+                    value={weather.dewRiskHours > 0 ? `${weather.dewRiskHours}h at risk` : 'Safe'}
+                    subtext={
+                      weather.minDewMargin !== null
+                        ? `Min margin: ${weather.minDewMargin.toFixed(1)}°C`
+                        : undefined
+                    }
+                    warning={weather.dewRiskHours > 0}
+                    safe={weather.dewRiskHours === 0}
+                    tooltip="Margin is the gap between air temp and dew point. Use a dew heater when margin drops below 4°C. Above 6°C is safe."
+                  />
+                  {/* Dew Timeline */}
+                  <DewTimeline weather={weather} nightInfo={nightInfo} />
+                </div>
 
                 {weather.pressureTrend && (
                   <DetailRow
@@ -271,6 +270,7 @@ function DetailRow({
   value,
   subtext,
   warning = false,
+  safe = false,
   tooltip,
 }: {
   icon: React.ReactNode;
@@ -278,6 +278,7 @@ function DetailRow({
   value: string;
   subtext?: string;
   warning?: boolean;
+  safe?: boolean;
   tooltip?: string;
 }) {
   const labelContent = tooltip ? (
@@ -288,12 +289,15 @@ function DetailRow({
     label
   );
 
+  const valueColor = warning ? 'text-amber-400' : safe ? 'text-green-400' : 'text-white';
+  const iconColor = warning ? 'text-amber-400' : safe ? 'text-green-400' : 'text-gray-400';
+
   return (
     <div className="flex items-start gap-3">
-      <div className={`text-gray-400 ${warning ? 'text-amber-400' : ''}`}>{icon}</div>
+      <div className={iconColor}>{icon}</div>
       <div>
         <div className="text-sm text-gray-400">{labelContent}</div>
-        <div className={`text-white ${warning ? 'text-amber-400' : ''}`}>{value}</div>
+        <div className={valueColor}>{value}</div>
         {subtext && <div className="text-xs text-gray-500">{subtext}</div>}
       </div>
     </div>
