@@ -226,7 +226,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                       weather.avgPressureHpa ? `${Math.round(weather.avgPressureHpa)} hPa` : '—'
                     }
                     subtext={`Trend: ${weather.pressureTrend}`}
-                    tooltip="Atmospheric pressure. Stable or rising pressure usually means clearer, more stable skies. Falling pressure often indicates incoming weather."
+                    tooltip="Atmospheric pressure in hPa (hectopascals, same as millibars). Stable or rising pressure usually means clearer skies. Falling pressure often indicates incoming weather."
                   />
                 )}
 
