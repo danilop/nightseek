@@ -56,11 +56,13 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
           {weather?.bestTime && (
             <p className="text-sm text-green-400">
               <Tooltip content="Optimal window with lowest cloud cover, best transparency, and minimal dew risk.">
-                Best:
-              </Tooltip>{' '}
-              <span className="whitespace-nowrap">{formatTime(weather.bestTime.start)}</span>
-              {' – '}
-              <span className="whitespace-nowrap">{formatTime(weather.bestTime.end)}</span>
+                <span>
+                  Best:{' '}
+                  <span className="whitespace-nowrap">{formatTime(weather.bestTime.start)}</span>
+                  {' – '}
+                  <span className="whitespace-nowrap">{formatTime(weather.bestTime.end)}</span>
+                </span>
+              </Tooltip>
             </p>
           )}
         </div>
