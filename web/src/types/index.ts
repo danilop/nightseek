@@ -244,12 +244,25 @@ export interface Location {
   timezone?: string;
 }
 
+export type TemperatureUnit = 'celsius' | 'fahrenheit';
+export type SpeedUnit = 'kmh' | 'mph';
+export type PressureUnit = 'hpa' | 'inhg';
+export type DistanceUnit = 'km' | 'mi';
+
+export interface UnitPreferences {
+  temperature: TemperatureUnit;
+  speed: SpeedUnit;
+  pressure: PressureUnit;
+  distance: DistanceUnit;
+}
+
 export interface Settings {
   forecastDays: number;
   maxObjects: number;
   cometMagnitude: number;
   dsoMagnitude: number;
   theme: 'light' | 'dark' | 'system';
+  units: UnitPreferences;
 }
 
 export interface DSOCatalogEntry {

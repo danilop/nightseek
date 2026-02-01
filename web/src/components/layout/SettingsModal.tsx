@@ -1,5 +1,6 @@
-import { Calendar, CircleDot, Eye, MapPin, X } from 'lucide-react';
+import { Calendar, CircleDot, Eye, MapPin, Ruler, Thermometer, Wind, X } from 'lucide-react';
 import { useApp } from '@/stores/AppContext';
+import type { DistanceUnit, PressureUnit, SpeedUnit, TemperatureUnit } from '@/types';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -146,6 +147,116 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             </div>
             <p className="text-xs text-gray-500 mt-1">Lower values show brighter objects only</p>
           </div>
+
+          {/* Units Section */}
+          <div className="pt-4 border-t border-night-700">
+            <h3 className="text-sm font-medium text-gray-300 mb-4 flex items-center gap-2">
+              <Ruler className="w-4 h-4" />
+              Units
+            </h3>
+
+            {/* Temperature Unit */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                <Thermometer className="w-4 h-4" />
+                <span>Temperature</span>
+              </div>
+              <div className="flex gap-2">
+                <UnitButton
+                  active={settings.units.temperature === 'celsius'}
+                  onClick={() =>
+                    updateSettings({ units: { ...settings.units, temperature: 'celsius' } })
+                  }
+                  label="°C"
+                />
+                <UnitButton
+                  active={settings.units.temperature === 'fahrenheit'}
+                  onClick={() =>
+                    updateSettings({
+                      units: { ...settings.units, temperature: 'fahrenheit' as TemperatureUnit },
+                    })
+                  }
+                  label="°F"
+                />
+              </div>
+            </div>
+
+            {/* Speed Unit */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                <Wind className="w-4 h-4" />
+                <span>Wind Speed</span>
+              </div>
+              <div className="flex gap-2">
+                <UnitButton
+                  active={settings.units.speed === 'kmh'}
+                  onClick={() =>
+                    updateSettings({ units: { ...settings.units, speed: 'kmh' as SpeedUnit } })
+                  }
+                  label="km/h"
+                />
+                <UnitButton
+                  active={settings.units.speed === 'mph'}
+                  onClick={() =>
+                    updateSettings({ units: { ...settings.units, speed: 'mph' as SpeedUnit } })
+                  }
+                  label="mph"
+                />
+              </div>
+            </div>
+
+            {/* Pressure Unit */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                <CircleDot className="w-4 h-4" />
+                <span>Pressure</span>
+              </div>
+              <div className="flex gap-2">
+                <UnitButton
+                  active={settings.units.pressure === 'hpa'}
+                  onClick={() =>
+                    updateSettings({
+                      units: { ...settings.units, pressure: 'hpa' as PressureUnit },
+                    })
+                  }
+                  label="hPa"
+                />
+                <UnitButton
+                  active={settings.units.pressure === 'inhg'}
+                  onClick={() =>
+                    updateSettings({
+                      units: { ...settings.units, pressure: 'inhg' as PressureUnit },
+                    })
+                  }
+                  label="inHg"
+                />
+              </div>
+            </div>
+
+            {/* Distance Unit */}
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                <Ruler className="w-4 h-4" />
+                <span>Distance</span>
+              </div>
+              <div className="flex gap-2">
+                <UnitButton
+                  active={settings.units.distance === 'km'}
+                  onClick={() =>
+                    updateSettings({ units: { ...settings.units, distance: 'km' as DistanceUnit } })
+                  }
+                  label="km"
+                />
+                <UnitButton
+                  active={settings.units.distance === 'mi'}
+                  onClick={() =>
+                    updateSettings({ units: { ...settings.units, distance: 'mi' as DistanceUnit } })
+                  }
+                  label="mi"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
@@ -160,5 +271,29 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+function UnitButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+        active
+          ? 'bg-sky-600 text-white'
+          : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white'
+      }`}
+    >
+      {label}
+    </button>
   );
 }

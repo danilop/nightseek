@@ -118,10 +118,13 @@ export function useUIState() {
     notifyListeners();
   }, []);
 
-  const toggleCategoryExpanded = useCallback((categoryKey: string) => {
-    const current = globalState.expandedCategories[categoryKey] ?? false;
-    setCategoryExpanded(categoryKey, !current);
-  }, [setCategoryExpanded]);
+  const toggleCategoryExpanded = useCallback(
+    (categoryKey: string) => {
+      const current = globalState.expandedCategories[categoryKey] ?? false;
+      setCategoryExpanded(categoryKey, !current);
+    },
+    [setCategoryExpanded]
+  );
 
   const setJupiterMoonsExpanded = useCallback((expanded: boolean) => {
     globalState = {
@@ -159,19 +162,19 @@ export function useUIState() {
     notifyListeners();
   }, []);
 
-  const reorderCategory = useCallback((fromIndex: number, toIndex: number) => {
-    const newOrder = [...globalState.categoryOrder];
-    const [removed] = newOrder.splice(fromIndex, 1);
-    newOrder.splice(toIndex, 0, removed);
-    setCategoryOrder(newOrder);
-  }, [setCategoryOrder]);
-
-  const isCategoryExpanded = useCallback(
-    (categoryKey: string, defaultExpanded: boolean) => {
-      return globalState.expandedCategories[categoryKey] ?? defaultExpanded;
+  const reorderCategory = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      const newOrder = [...globalState.categoryOrder];
+      const [removed] = newOrder.splice(fromIndex, 1);
+      newOrder.splice(toIndex, 0, removed);
+      setCategoryOrder(newOrder);
     },
-    []
+    [setCategoryOrder]
   );
+
+  const isCategoryExpanded = useCallback((categoryKey: string, defaultExpanded: boolean) => {
+    return globalState.expandedCategories[categoryKey] ?? defaultExpanded;
+  }, []);
 
   return {
     // State

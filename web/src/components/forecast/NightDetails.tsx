@@ -14,7 +14,17 @@ import {
   getWeatherEmoji,
 } from '@/lib/utils/format';
 import { getDewRiskLevel, getSeeingForecastColorClass } from '@/lib/utils/quality-helpers';
+import {
+  formatPressure,
+  formatSpeed,
+  formatTemperature,
+  formatTemperatureDelta,
+  formatTemperatureValue,
+  getPressureUnitLabel,
+  getTemperatureUnitLabel,
+} from '@/lib/utils/units';
 import { calculateNightQuality } from '@/lib/weather/night-quality';
+import { useApp } from '@/stores/AppContext';
 import type { NightForecast, NightInfo, NightWeather } from '@/types';
 
 interface NightDetailsProps {
@@ -25,6 +35,8 @@ interface NightDetailsProps {
 export default function NightDetails({ forecast }: NightDetailsProps) {
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const { nightInfo, weather } = forecast;
+  const { state } = useApp();
+  const { units } = state.settings;
 
   // Calculate overall night quality
   const nightQuality = useMemo(
@@ -134,7 +146,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                         <Wind className="w-8 h-8" />
                       </div>
                       <div className="text-sm text-gray-400">
-                        {Math.round(weather.avgWindSpeedKmh)} km/h
+                        {formatSpeed(weather.avgWindSpeedKmh, units.speed)}
                       </div>
                       <div className="text-xs text-gray-500">Avg wind</div>
                     </span>
@@ -195,7 +207,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                   <DetailRow
                     icon={<span className="text-sm">🌡️</span>}
                     label="Temperature"
-                    value={`${Math.round(weather.avgTemperatureC)}°C`}
+                    value={formatTemperature(weather.avgTemperatureC, units.temperature)}
                     tooltip="Average air temperature during the night. Colder temperatures increase dew risk but can improve seeing."
                   />
                 )}
@@ -207,26 +219,24 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                     value={weather.dewRiskHours > 0 ? `${weather.dewRiskHours}h at risk` : 'Safe'}
                     subtext={
                       weather.minDewMargin !== null
-                        ? `Min margin: ${weather.minDewMargin.toFixed(1)}°C`
+                        ? `Min margin: ${formatTemperatureDelta(weather.minDewMargin, units.temperature)}`
                         : undefined
                     }
                     warning={weather.dewRiskHours > 0}
                     safe={weather.dewRiskHours === 0}
-                    tooltip="Margin is the gap between air temp and dew point. Use a dew heater when margin drops below 4°C. Above 6°C is safe."
+                    tooltip={`Margin is the gap between air temp and dew point. Use a dew heater when margin drops below ${units.temperature === 'fahrenheit' ? '7°F' : '4°C'}. Above ${units.temperature === 'fahrenheit' ? '11°F' : '6°C'} is safe.`}
                   />
                   {/* Dew Timeline */}
-                  <DewTimeline weather={weather} nightInfo={nightInfo} />
+                  <DewTimeline weather={weather} nightInfo={nightInfo} units={units} />
                 </div>
 
                 {weather.pressureTrend && (
                   <DetailRow
                     icon={<span className="text-sm">📊</span>}
                     label="Pressure"
-                    value={
-                      weather.avgPressureHpa ? `${Math.round(weather.avgPressureHpa)} hPa` : '—'
-                    }
+                    value={formatPressure(weather.avgPressureHpa, units.pressure)}
                     subtext={`Trend: ${weather.pressureTrend}`}
-                    tooltip="Atmospheric pressure in hPa (hectopascals, same as millibars). Stable or rising pressure usually means clearer skies. Falling pressure often indicates incoming weather."
+                    tooltip={`Atmospheric pressure in ${getPressureUnitLabel(units.pressure)}. Stable or rising pressure usually means clearer skies. Falling pressure often indicates incoming weather.`}
                   />
                 )}
 
@@ -408,9 +418,11 @@ function useResponsiveHourCount(): number {
 function DewTimeline({
   weather,
   nightInfo,
+  units,
 }: {
   weather: NightForecast['weather'];
   nightInfo: NightForecast['nightInfo'];
+  units: { temperature: 'celsius' | 'fahrenheit' };
 }) {
   const maxHours = useResponsiveHourCount();
 
@@ -438,6 +450,9 @@ function DewTimeline({
     });
   }
 
+  const tempUnit = getTemperatureUnitLabel(units.temperature);
+  const isFahrenheit = units.temperature === 'fahrenheit';
+
   return (
     <div className="mt-2">
       {/* Timeline bars */}
@@ -449,7 +464,7 @@ function DewTimeline({
               className={`h-3 rounded ${getDewRiskColorClass(h.riskLevel)}`}
               title={
                 h.temp !== null && h.dewPoint !== null
-                  ? `${h.hour}:00 – Temp: ${Math.round(h.temp)}°C, Dew: ${Math.round(h.dewPoint)}°C (${h.margin !== null ? `${h.margin.toFixed(1)}°C margin` : ''})`
+                  ? `${h.hour}:00 – Temp: ${formatTemperatureValue(h.temp, units.temperature)}, Dew: ${formatTemperatureValue(h.dewPoint, units.temperature)} (${h.margin !== null ? `${formatTemperatureDelta(h.margin, units.temperature)} margin` : ''})`
                   : `${h.hour}:00 - ${h.riskLevel} dew risk`
               }
             />
@@ -459,13 +474,15 @@ function DewTimeline({
 
       {/* Temp row */}
       <div className="flex items-center gap-1 mt-1">
-        <Tooltip content="Air temperature in °C. Dew forms when this drops close to the dew point.">
+        <Tooltip
+          content={`Air temperature in ${tempUnit}. Dew forms when this drops close to the dew point.`}
+        >
           <span className="w-4 text-[10px]">🌡️</span>
         </Tooltip>
         {hours.map(h => (
           <div key={`temp-${h.hour}`} className="flex-1 text-center">
             <div className="text-[9px] text-gray-400">
-              {h.temp !== null ? `${Math.round(h.temp)}°` : '–'}
+              {formatTemperatureValue(h.temp, units.temperature)}
             </div>
           </div>
         ))}
@@ -479,7 +496,7 @@ function DewTimeline({
         {hours.map(h => (
           <div key={`dew-${h.hour}`} className="flex-1 text-center">
             <div className="text-[9px] text-blue-400/70">
-              {h.dewPoint !== null ? `${Math.round(h.dewPoint)}°` : '–'}
+              {formatTemperatureValue(h.dewPoint, units.temperature)}
             </div>
           </div>
         ))}
@@ -498,19 +515,22 @@ function DewTimeline({
       {/* PM/AM and Legend */}
       <div className="flex justify-between items-center mt-1">
         <span className="text-[10px] text-gray-500">PM</span>
-        <Tooltip content="Margin = Temp minus Dew point. Below 2°C: high dew risk, use a dew heater. Above 6°C: safe.">
+        <Tooltip
+          content={`Margin = Temp minus Dew point. Below ${isFahrenheit ? '4°F' : '2°C'}: high dew risk, use a dew heater. Above ${isFahrenheit ? '11°F' : '6°C'}: safe.`}
+        >
           <span className="flex items-center gap-2 text-[9px] text-gray-500">
             <span className="flex items-center gap-0.5">
-              <span className="w-2 h-2 rounded bg-green-500/40" /> &gt;6°
+              <span className="w-2 h-2 rounded bg-green-500/40" /> &gt;{isFahrenheit ? '11°' : '6°'}
             </span>
             <span className="flex items-center gap-0.5">
-              <span className="w-2 h-2 rounded bg-yellow-500/40" /> 4-6°
+              <span className="w-2 h-2 rounded bg-yellow-500/40" />{' '}
+              {isFahrenheit ? '7-11°' : '4-6°'}
             </span>
             <span className="flex items-center gap-0.5">
-              <span className="w-2 h-2 rounded bg-orange-500/40" /> 2-4°
+              <span className="w-2 h-2 rounded bg-orange-500/40" /> {isFahrenheit ? '4-7°' : '2-4°'}
             </span>
             <span className="flex items-center gap-0.5">
-              <span className="w-2 h-2 rounded bg-red-500/60" /> &lt;2°
+              <span className="w-2 h-2 rounded bg-red-500/60" /> &lt;{isFahrenheit ? '4°' : '2°'}
             </span>
           </span>
         </Tooltip>
