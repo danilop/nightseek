@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useReducer } from 'react';
-import { CACHE_KEYS, getCached, setCache } from '@/lib/utils/cache';
+import { CACHE_KEYS, clearAllCache, getCached, setCache } from '@/lib/utils/cache';
+import { getLocaleUnitDefaults } from '@/lib/utils/units';
 import type { Location, NightForecast, ScoredObject, Settings } from '@/types';
 
 interface AppState {
@@ -19,6 +20,7 @@ interface AppState {
 type Action =
   | { type: 'SET_LOCATION'; payload: Location }
   | { type: 'SET_SETTINGS'; payload: Partial<Settings> }
+  | { type: 'RESET_SETTINGS' }
   | {
       type: 'SET_FORECAST';
       payload: {
@@ -47,6 +49,14 @@ const DEFAULT_SETTINGS: Settings = {
   },
 };
 
+/** Get default settings with locale-appropriate unit preferences */
+function getDefaultSettingsWithLocale(): Settings {
+  return {
+    ...DEFAULT_SETTINGS,
+    units: getLocaleUnitDefaults(),
+  };
+}
+
 const initialState: AppState = {
   location: null,
   settings: DEFAULT_SETTINGS,
@@ -67,6 +77,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, location: action.payload, isSetupComplete: true };
     case 'SET_SETTINGS':
       return { ...state, settings: { ...state.settings, ...action.payload } };
+    case 'RESET_SETTINGS':
+      return { ...state, settings: getDefaultSettingsWithLocale() };
     case 'SET_FORECAST':
       return {
         ...state,
@@ -100,6 +112,8 @@ interface AppContextValue {
   dispatch: React.Dispatch<Action>;
   setLocation: (location: Location) => Promise<void>;
   updateSettings: (settings: Partial<Settings>) => void;
+  resetSettings: () => void;
+  resetAllData: () => Promise<void>;
   setProgress: (message: string, percent: number) => void;
 }
 
@@ -122,10 +136,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (savedSettings) {
         try {
           const parsed = JSON.parse(savedSettings);
+          // Merge with defaults to handle any new settings added in updates
           dispatch({ type: 'SET_SETTINGS', payload: parsed });
         } catch {
-          // Ignore parse errors
+          // Ignore parse errors, use locale defaults
+          dispatch({ type: 'RESET_SETTINGS' });
         }
+      } else {
+        // First-time user: apply locale-based unit defaults
+        dispatch({ type: 'RESET_SETTINGS' });
       }
     }
 
@@ -160,6 +179,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_SETTINGS', payload: settings });
   }, []);
 
+  const resetSettings = useCallback(() => {
+    dispatch({ type: 'RESET_SETTINGS' });
+  }, []);
+
+  const resetAllData = useCallback(async () => {
+    // Clear all cached data
+    await clearAllCache();
+    localStorage.removeItem('nightseek:settings');
+    // Reset to defaults with locale units
+    dispatch({ type: 'RESET_SETTINGS' });
+    dispatch({ type: 'CLEAR_FORECAST' });
+    dispatch({ type: 'SET_SETUP_COMPLETE', payload: false });
+  }, []);
+
   const setProgress = useCallback((message: string, percent: number) => {
     dispatch({ type: 'SET_LOADING', payload: { isLoading: true, message, percent } });
   }, []);
@@ -169,6 +202,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch,
     setLocation,
     updateSettings,
+    resetSettings,
+    resetAllData,
     setProgress,
   };
 

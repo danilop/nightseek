@@ -22,6 +22,51 @@ export const DEFAULT_UNIT_PREFERENCES: UnitPreferences = {
   distance: 'km',
 };
 
+/**
+ * Get locale-based unit defaults based on browser locale.
+ * - US: Fahrenheit, mph, inHg, miles
+ * - UK/Ireland: Celsius, mph, hPa, miles (mixed system)
+ * - Rest of world: Metric (Celsius, km/h, hPa, km)
+ */
+export function getLocaleUnitDefaults(): UnitPreferences {
+  // Get browser locale (e.g., "en-US", "en-GB", "de-DE")
+  const locale = typeof navigator !== 'undefined' ? navigator.language : 'en';
+  const countryCode = locale.split('-')[1]?.toUpperCase() || '';
+
+  // US uses imperial for everything
+  if (countryCode === 'US') {
+    return {
+      temperature: 'fahrenheit',
+      speed: 'mph',
+      pressure: 'inhg',
+      distance: 'mi',
+    };
+  }
+
+  // UK, Ireland use miles/mph but Celsius and hPa
+  if (countryCode === 'GB' || countryCode === 'IE') {
+    return {
+      temperature: 'celsius',
+      speed: 'mph',
+      pressure: 'hpa',
+      distance: 'mi',
+    };
+  }
+
+  // Myanmar and Liberia technically use Fahrenheit, but rarely relevant
+  if (countryCode === 'MM' || countryCode === 'LR') {
+    return {
+      temperature: 'fahrenheit',
+      speed: 'kmh',
+      pressure: 'hpa',
+      distance: 'km',
+    };
+  }
+
+  // Rest of the world uses metric
+  return DEFAULT_UNIT_PREFERENCES;
+}
+
 // Conversion functions (pure, no formatting)
 export function celsiusToFahrenheit(celsius: number): number {
   return (celsius * 9) / 5 + 32;
