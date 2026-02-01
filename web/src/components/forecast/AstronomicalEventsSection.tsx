@@ -18,12 +18,15 @@ import { describeSeasonalMarker, getSeasonalMarkerName } from '@/lib/events/seas
 import { getTransitAlertSummary } from '@/lib/events/transits';
 import { formatTime } from '@/lib/utils/format';
 import type { AstronomicalEvents } from '@/types';
+import CloseApproachCard from './CloseApproachCard';
 
 interface AstronomicalEventsSectionProps {
   events: AstronomicalEvents;
 }
 
 export default function AstronomicalEventsSection({ events }: AstronomicalEventsSectionProps) {
+  const hasNeoApproaches = events.neoCloseApproaches && events.neoCloseApproaches.length > 0;
+
   const hasEvents =
     events.lunarEclipse ||
     events.solarEclipse ||
@@ -35,7 +38,8 @@ export default function AstronomicalEventsSection({ events }: AstronomicalEvents
     events.eclipseSeason?.isActive ||
     events.venusPeak?.isNearPeak ||
     events.planetPerihelia?.length > 0 ||
-    (events.planetaryTransit && events.planetaryTransit.yearsUntil <= 2);
+    (events.planetaryTransit && events.planetaryTransit.yearsUntil <= 2) ||
+    hasNeoApproaches;
 
   if (!hasEvents) {
     return null;
@@ -204,6 +208,13 @@ export default function AstronomicalEventsSection({ events }: AstronomicalEvents
           />
         )}
       </div>
+
+      {/* NEO Close Approaches - Separate card for asteroid data */}
+      {hasNeoApproaches && (
+        <div className="mt-4">
+          <CloseApproachCard approaches={events.neoCloseApproaches} />
+        </div>
+      )}
     </div>
   );
 }
