@@ -1,7 +1,7 @@
-import { Orbit, Sparkles, Star } from 'lucide-react';
-import { getAdjustedHourlyRate } from '@/lib/events/meteor-showers';
+import { Orbit, Star } from 'lucide-react';
 import type { AstronomicalEvents, Conjunction, MeteorShower } from '@/types';
 import AstronomicalEventsSection from './AstronomicalEventsSection';
+import MeteorShowerCard from './MeteorShowerCard';
 
 interface EventsSectionProps {
   conjunctions: Conjunction[];
@@ -76,52 +76,8 @@ export default function EventsSection({
             </div>
           )}
 
-          {/* Meteor Showers */}
-          {meteorShowers.length > 0 && (
-            <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
-              <div className="px-4 py-3 border-b border-night-700">
-                <h3 className="font-semibold text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  Active Meteor Showers
-                </h3>
-              </div>
-              <div className="p-4 space-y-3">
-                {meteorShowers.map(shower => {
-                  const adjustedRate = getAdjustedHourlyRate(shower);
-                  const daysFromPeak = shower.daysFromPeak ?? 0;
-                  const isNearPeak = Math.abs(daysFromPeak) <= 2;
-
-                  return (
-                    <div
-                      key={shower.code}
-                      className={`p-3 rounded-lg ${
-                        isNearPeak ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-night-800'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-white font-medium">{shower.name}</span>
-                        <span className="text-sm text-amber-400">~{adjustedRate}/hr</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-gray-400">
-                        <span>ZHR: {shower.zhr}</span>
-                        {shower.radiantAltitude !== null && (
-                          <span>Radiant: {Math.round(shower.radiantAltitude)}°</span>
-                        )}
-                        <span>
-                          {daysFromPeak === 0
-                            ? 'Peak tonight!'
-                            : daysFromPeak > 0
-                              ? `${Math.abs(daysFromPeak).toFixed(0)}d past peak`
-                              : `${Math.abs(daysFromPeak).toFixed(0)}d to peak`}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">Parent: {shower.parentObject}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* Meteor Showers - Enhanced with IAU data */}
+          {meteorShowers.length > 0 && <MeteorShowerCard showers={meteorShowers} />}
         </div>
       )}
     </div>

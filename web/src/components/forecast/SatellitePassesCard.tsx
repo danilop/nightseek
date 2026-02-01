@@ -1,14 +1,21 @@
-import { ChevronDown, ChevronRight, Rocket, Satellite } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ChevronDown, ChevronRight, Globe, MapPin, Rocket, Satellite, Zap } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   azimuthToCompass,
   calculateSatellitePasses,
   fetchISSTLE,
   formatPassDuration,
 } from '@/lib/satellites';
+import {
+  fetchISSPosition,
+  formatISSAltitude,
+  formatISSVelocity,
+  getISSLocationName,
+  getVisibilityDescription,
+} from '@/lib/satellites/iss-position';
 import { formatTime } from '@/lib/utils/format';
 import { useApp } from '@/stores/AppContext';
-import type { Location, NightInfo, SatellitePass } from '@/types';
+import type { ISSPosition, Location, NightInfo, SatellitePass } from '@/types';
 
 interface SatellitePassesCardProps {
   nightInfo: NightInfo;
@@ -22,6 +29,12 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
   const [passes, setPasses] = useState<SatellitePass[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Real-time ISS position state
+  const [issPosition, setIssPosition] = useState<ISSPosition | null>(null);
+  const [issLocationName, setIssLocationName] = useState<string | null>(null);
+  const [issPositionLoading, setIssPositionLoading] = useState(false);
+  const positionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const showSatellitePasses = settings.showSatellitePasses;
 
@@ -70,6 +83,43 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
       cancelled = true;
     };
   }, [nightInfo.date.toISOString(), location.latitude, location.longitude, showSatellitePasses]);
+
+  // Fetch ISS position when card is expanded
+  const fetchPosition = useCallback(async () => {
+    setIssPositionLoading(true);
+    const position = await fetchISSPosition();
+    setIssPosition(position);
+
+    if (position) {
+      const locationName = await getISSLocationName(position.latitude, position.longitude);
+      setIssLocationName(locationName);
+    }
+    setIssPositionLoading(false);
+  }, []);
+
+  // Set up polling when expanded
+  useEffect(() => {
+    if (expanded && showSatellitePasses) {
+      // Fetch immediately
+      fetchPosition();
+
+      // Set up 30-second interval
+      positionIntervalRef.current = setInterval(fetchPosition, 30000);
+
+      return () => {
+        if (positionIntervalRef.current) {
+          clearInterval(positionIntervalRef.current);
+          positionIntervalRef.current = null;
+        }
+      };
+    }
+
+    // Clear interval when collapsed
+    if (positionIntervalRef.current) {
+      clearInterval(positionIntervalRef.current);
+      positionIntervalRef.current = null;
+    }
+  }, [expanded, showSatellitePasses, fetchPosition]);
 
   // Don't show if satellite passes are disabled
   if (!showSatellitePasses) {
@@ -150,6 +200,13 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
               </p>
             </div>
           )}
+
+          {/* Real-time ISS Position */}
+          <ISSPositionDisplay
+            position={issPosition}
+            locationName={issLocationName}
+            loading={issPositionLoading}
+          />
         </div>
       )}
     </div>
@@ -202,6 +259,92 @@ function PassItem({ pass }: { pass: SatellitePass }) {
           <span className="text-yellow-400">Good visibility</span>
         )}
         {pass.maxAltitude < 30 && <span className="text-orange-400">Low pass</span>}
+      </div>
+    </div>
+  );
+}
+
+interface ISSPositionDisplayProps {
+  position: ISSPosition | null;
+  locationName: string | null;
+  loading: boolean;
+}
+
+function ISSPositionDisplay({ position, locationName, loading }: ISSPositionDisplayProps) {
+  if (loading && !position) {
+    return (
+      <div className="mt-4 pt-4 border-t border-night-700">
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <Globe className="w-4 h-4 animate-spin" />
+          <span>Loading ISS position...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!position) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-night-700">
+      <div className="flex items-center gap-2 mb-3">
+        <Globe className="w-4 h-4 text-sky-400" />
+        <span className="text-sm font-medium text-white">Current ISS Position</span>
+        {loading && <span className="text-xs text-gray-500 ml-auto">Updating...</span>}
+      </div>
+
+      <div className="bg-night-800 rounded-lg p-3 space-y-2">
+        {/* Location */}
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-green-400" />
+          <span className="text-sm text-gray-300">
+            Currently over: <span className="text-white font-medium">{locationName}</span>
+          </span>
+        </div>
+
+        {/* Coordinates */}
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <span className="text-gray-500">Latitude: </span>
+            <span className="text-gray-300">
+              {Math.abs(position.latitude).toFixed(2)}°{position.latitude >= 0 ? 'N' : 'S'}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-500">Longitude: </span>
+            <span className="text-gray-300">
+              {Math.abs(position.longitude).toFixed(2)}°{position.longitude >= 0 ? 'E' : 'W'}
+            </span>
+          </div>
+        </div>
+
+        {/* Altitude and Velocity */}
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <span className="text-gray-500">Altitude: </span>
+            <span className="text-gray-300">{formatISSAltitude(position.altitude)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Zap className="w-3 h-3 text-amber-400" />
+            <span className="text-gray-300">{formatISSVelocity(position.velocity)}</span>
+          </div>
+        </div>
+
+        {/* Visibility Status */}
+        <div className="flex items-center gap-2 pt-2 border-t border-night-700">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              position.visibility === 'daylight' ? 'bg-yellow-400' : 'bg-gray-500'
+            }`}
+          />
+          <span className="text-xs text-gray-400">
+            {getVisibilityDescription(position.visibility)}
+          </span>
+          <span className="text-xs text-gray-500 ml-auto">
+            Updated {position.timestamp.toLocaleTimeString()}
+          </span>
+        </div>
       </div>
     </div>
   );

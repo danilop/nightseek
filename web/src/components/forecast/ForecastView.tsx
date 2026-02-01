@@ -8,6 +8,7 @@ import EventsSection from './EventsSection';
 import NightDetails from './NightDetails';
 import NightSummaryTable from './NightSummaryTable';
 import SatellitePassesCard from './SatellitePassesCard';
+import SkyChart from './SkyChart';
 import TonightHighlights from './TonightHighlights';
 
 interface ForecastViewProps {
@@ -161,6 +162,16 @@ export default function ForecastView({
       {/* Weather Conditions (Mobile in tonight view, Desktop always) - Now first in Tonight tab */}
       <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
         <NightDetails forecast={selectedNight} />
+      </div>
+
+      {/* Sky Chart - Interactive sky map */}
+      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+        <SkyChart
+          nightInfo={selectedNight.nightInfo}
+          location={location}
+          planets={selectedNight.planets}
+          scoredObjects={selectedObjects}
+        />
       </div>
 
       {/* Tonight's Highlights - Second in Tonight tab */}

@@ -2,7 +2,8 @@ import { Camera, Clock, Compass, Focus, Moon, Mountain, Ruler, Star, X } from 'l
 import { useEffect, useState } from 'react';
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
-import { fetchGaiaStarField, formatDistance } from '@/lib/gaia';
+import { formatDistance } from '@/lib/gaia';
+import { fetchEnhancedGaiaStarField } from '@/lib/gaia/enhanced-queries';
 import { formatFOV, getEffectiveFOV } from '@/lib/telescopes';
 import {
   formatAltitude,
@@ -14,8 +15,14 @@ import {
   getCategoryIcon,
 } from '@/lib/utils/format';
 import { formatSubtype } from '@/lib/utils/format-subtype';
-import type { CustomFOV, GaiaStarField, NightInfo, ScoredObject, TelescopePresetId } from '@/types';
-import StarFieldCanvas from './StarFieldCanvas';
+import type {
+  CustomFOV,
+  EnhancedGaiaStarField,
+  NightInfo,
+  ScoredObject,
+  TelescopePresetId,
+} from '@/types';
+import EnhancedStarFieldCanvas from './EnhancedStarFieldCanvas';
 
 interface DSODetailModalProps {
   object: ScoredObject;
@@ -33,7 +40,7 @@ export default function DSODetailModal({
   customFOV,
   onClose,
 }: DSODetailModalProps) {
-  const [starField, setStarField] = useState<GaiaStarField | null>(null);
+  const [starField, setStarField] = useState<EnhancedGaiaStarField | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,7 +69,8 @@ export default function DSODetailModal({
         // Use larger of FOV dimensions for search radius
         const searchRadiusDeg = Math.max(fov.width, fov.height) / 60 / 2;
 
-        const field = await fetchGaiaStarField(
+        // Fetch enhanced star field with variable stars and galaxies
+        const field = await fetchEnhancedGaiaStarField(
           visibility.raHours,
           visibility.decDegrees,
           searchRadiusDeg,
@@ -189,13 +197,11 @@ export default function DSODetailModal({
             )}
 
             {!loading && !error && starField && (
-              <StarFieldCanvas
-                stars={starField.stars}
+              <EnhancedStarFieldCanvas
+                starField={starField}
                 fovWidth={fov.width}
                 fovHeight={fov.height}
                 objectSizeArcmin={visibility.angularSizeArcmin}
-                centerRa={starField.centerRa}
-                centerDec={starField.centerDec}
               />
             )}
           </div>

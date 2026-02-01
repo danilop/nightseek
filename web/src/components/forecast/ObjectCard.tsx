@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Rating, { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
 import { formatImagingWindow } from '@/lib/astronomy/imaging-windows';
+import { formatAsteroidDiameter, formatRotationPeriod } from '@/lib/jpl/sbdb';
 import {
   formatAltitude,
   formatMagnitude,
@@ -129,6 +130,44 @@ function buildBadgeConfigs(
       textClass: 'text-orange-400',
       text: `${visibility.heliocentricDistanceAU.toFixed(2)} AU from Sun`,
     });
+  }
+
+  // Asteroid physical data from JPL SBDB
+  if (visibility.physicalData) {
+    const { diameter, spectralType, rotationPeriod } = visibility.physicalData;
+
+    if (spectralType) {
+      badges.push({
+        id: 'spectral-type',
+        bgClass: 'bg-cyan-500/20',
+        textClass: 'text-cyan-400',
+        text: spectralType,
+      });
+    }
+
+    if (diameter !== null) {
+      const formattedDiam = formatAsteroidDiameter(diameter);
+      if (formattedDiam) {
+        badges.push({
+          id: 'diameter',
+          bgClass: 'bg-teal-500/20',
+          textClass: 'text-teal-400',
+          text: formattedDiam,
+        });
+      }
+    }
+
+    if (rotationPeriod !== null) {
+      const formattedRot = formatRotationPeriod(rotationPeriod);
+      if (formattedRot) {
+        badges.push({
+          id: 'rotation',
+          bgClass: 'bg-violet-500/20',
+          textClass: 'text-violet-400',
+          text: `${formattedRot} rotation`,
+        });
+      }
+    }
   }
 
   return badges;

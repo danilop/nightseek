@@ -46,6 +46,8 @@ import { detectEclipses } from './events/eclipses';
 import { detectMeteorShowers } from './events/meteor-showers';
 import { detectSeasonalMarkers } from './events/seasons';
 import { getTransitForDisplay } from './events/transits';
+import { fetchAsteroidPhysicalData } from './jpl/sbdb';
+import { fetchNeoCloseApproaches } from './nasa/neows';
 import { calculateTotalScore } from './scoring';
 import { fetchAirQuality, fetchWeather, parseNightWeather } from './weather/open-meteo';
 
@@ -342,6 +344,11 @@ export async function generateForecast(
         settings.cometMagnitude
       );
       if (visibility) {
+        // Fetch physical data from JPL SBDB (cached for 30 days)
+        const physicalData = await fetchAsteroidPhysicalData(asteroid.name);
+        if (physicalData) {
+          visibility.physicalData = physicalData;
+        }
         asteroidVisibility.push(visibility);
       }
     }
@@ -386,6 +393,9 @@ export async function generateForecast(
     // Get planetary transit info (rare events)
     const planetaryTransit = getTransitForDisplay(nightDate);
 
+    // Fetch NEO close approaches
+    const neoCloseApproaches = await fetchNeoCloseApproaches(nightDate);
+
     // Build astronomical events object
     const astronomicalEvents: AstronomicalEvents = {
       lunarEclipse: eclipses.lunar,
@@ -409,6 +419,7 @@ export async function generateForecast(
       eclipseSeason: eclipseSeason?.isActive ? eclipseSeason : null,
       venusPeak,
       planetaryTransit,
+      neoCloseApproaches,
     };
 
     // Create forecast

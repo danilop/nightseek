@@ -89,6 +89,7 @@ export interface ObjectVisibility {
   perihelionBoostPercent?: number; // Brightness boost from perihelion
   imagingWindow?: ImagingWindow; // Best imaging slot
   saturnRings?: SaturnRingInfo; // Saturn ring geometry (Saturn only)
+  physicalData?: AsteroidPhysicalData; // JPL SBDB physical data (asteroids)
 }
 
 export interface NightWeather {
@@ -479,6 +480,8 @@ export interface AstronomicalEvents {
   eclipseSeason: EclipseSeason | null;
   venusPeak: VenusPeakInfo | null;
   planetaryTransit: PlanetaryTransit | null;
+  // NASA NeoWs close approaches
+  neoCloseApproaches: NeoCloseApproach[];
 }
 
 // Bortle Scale for Light Pollution
@@ -557,4 +560,73 @@ export interface TelescopePreset {
 export interface CustomFOV {
   width: number;
   height: number;
+}
+
+// NASA NeoWs - Near Earth Object Close Approaches
+export interface NeoCloseApproach {
+  name: string;
+  neoId: string;
+  isPotentiallyHazardous: boolean;
+  estimatedDiameterKm: { min: number; max: number };
+  closeApproachDate: Date;
+  missDistanceLunarDistances: number;
+  relativeVelocityKmh: number;
+  absoluteMagnitude: number;
+}
+
+// JPL SBDB - Asteroid Physical Data
+export interface AsteroidPhysicalData {
+  diameter: number | null; // km
+  albedo: number | null; // 0-1
+  spectralType: string | null; // C, S, M, V, etc.
+  rotationPeriod: number | null; // hours
+}
+
+// ISS Real-time Position
+export interface ISSPosition {
+  latitude: number;
+  longitude: number;
+  altitude: number; // km
+  velocity: number; // km/h
+  visibility: 'daylight' | 'eclipsed';
+  timestamp: Date;
+  footprint: number; // km radius of visibility
+}
+
+// IAU Meteor Data Center - Enhanced Meteor Shower
+export interface IAUMeteorShower extends MeteorShower {
+  iauNumber: number; // Official IAU number
+  solarLongitudePeak: number; // More precise than calendar date
+  radiantRaDrift: number | null; // degrees per day
+  radiantDecDrift: number | null;
+  status: 'established' | 'working';
+}
+
+// Gaia DR3 Enhanced - Variable Stars
+export interface GaiaVariableStar {
+  sourceId: string;
+  ra: number;
+  dec: number;
+  magnitude: number;
+  variabilityType: 'RR_LYR' | 'CEPH' | 'ECL' | 'MIRA' | 'DSCT' | 'OTHER';
+  period: number | null; // days
+  amplitude: number | null; // magnitude range
+  isNearMaximum: boolean; // calculated from epoch
+}
+
+// Gaia DR3 Enhanced - Extragalactic Objects
+export interface GaiaExtragalactic {
+  sourceId: string;
+  ra: number;
+  dec: number;
+  magnitude: number;
+  type: 'galaxy' | 'qso';
+  probability: number; // 0-1 classification confidence
+  redshift: number | null; // for QSOs
+}
+
+// Gaia DR3 Enhanced Star Field
+export interface EnhancedGaiaStarField extends GaiaStarField {
+  variableStars: GaiaVariableStar[];
+  extragalacticObjects: GaiaExtragalactic[];
 }
