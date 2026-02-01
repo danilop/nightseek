@@ -176,11 +176,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
             )}
 
             {/* Hourly Conditions Timeline - Always visible */}
-            <HourlyConditionsTimeline
-              weather={weather}
-              nightInfo={nightInfo}
-              temperatureUnit={units.temperature}
-            />
+            <HourlyConditionsTimeline weather={weather} temperatureUnit={units.temperature} />
 
             {/* Expanded Details */}
             {showWeatherDetails && (
