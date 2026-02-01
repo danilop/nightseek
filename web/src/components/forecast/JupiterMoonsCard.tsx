@@ -162,7 +162,6 @@ function MoonPositionDiagram({
           const moonY = centerY - moon.y * scale;
           const color = moonColors[moon.name];
           const radius = moonSizes[moon.name];
-          const isBehind = moon.z > 0;
           const isTransiting = moon.isTransiting;
 
           return (
@@ -173,7 +172,7 @@ function MoonPositionDiagram({
                 cy={moonY}
                 r={radius}
                 fill={color}
-                opacity={isBehind ? 0.4 : 1}
+                opacity={moon.isOccluded ? 0.4 : 1}
                 stroke={isTransiting ? '#fff' : 'none'}
                 strokeWidth={isTransiting ? 1 : 0}
               />
@@ -228,7 +227,6 @@ const statusMoonColors: Record<string, string> = {
 function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
   const distance = Math.sqrt(moon.x * moon.x + moon.y * moon.y).toFixed(1);
   const direction = moon.x > 0 ? 'west' : 'east';
-  const isBehind = moon.z > 0;
   const moonColor = statusMoonColors[moon.name];
 
   return (
@@ -240,6 +238,7 @@ function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
             backgroundColor: moonColor,
             boxShadow: moon.isTransiting ? '0 0 4px #fff' : undefined,
             border: moon.shadowOnJupiter ? '1px solid #f97316' : undefined,
+            opacity: moon.isOccluded ? 0.4 : 1,
           }}
         />
         <span className="text-sm text-white">{moon.name}</span>
@@ -250,11 +249,11 @@ function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
           <span className="border-b border-dotted border-gray-500">Rj</span>
         </Tooltip>{' '}
         {direction}
-        {isBehind && (
+        {moon.isOccluded && (
           <>
             {' '}
-            <Tooltip content="Moon is on the far side of Jupiter, partially or fully hidden from view.">
-              <span className="border-b border-dotted border-gray-500">(behind)</span>
+            <Tooltip content="Moon is currently hidden behind Jupiter's disk (occultation).">
+              <span className="border-b border-dotted border-gray-500">(occluded)</span>
             </Tooltip>
           </>
         )}

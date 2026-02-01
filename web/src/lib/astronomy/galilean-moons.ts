@@ -47,6 +47,11 @@ export function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
       const shadowOnJupiter =
         z < 0 && distFromCenter < 1.5 && distFromCenter > 0.5 && !isTransiting;
 
+      // Check if moon is actually occluded (hidden behind Jupiter's disk)
+      // Occultation occurs when z > 0 (moon farther from Earth than Jupiter)
+      // AND the projected distance is within Jupiter's disk
+      const isOccluded = z > 0 && distFromCenter < 1.0;
+
       positions.push({
         name,
         x,
@@ -54,6 +59,7 @@ export function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
         z,
         isTransiting,
         shadowOnJupiter,
+        isOccluded,
       });
     }
 
@@ -181,10 +187,10 @@ export function formatMoonPositions(positions: GalileanMoonPosition[]): string[]
   return positions.map(pos => {
     const distance = Math.sqrt(pos.x * pos.x + pos.y * pos.y).toFixed(1);
     const direction = pos.x > 0 ? 'W' : 'E';
-    const behind = pos.z > 0 ? ' (behind)' : '';
+    const occluded = pos.isOccluded ? ' (occluded)' : '';
     const transit = pos.isTransiting ? ' [TRANSIT]' : '';
     const shadow = pos.shadowOnJupiter ? ' [SHADOW]' : '';
 
-    return `${pos.name}: ${distance}Rj ${direction}${behind}${transit}${shadow}`;
+    return `${pos.name}: ${distance}Rj ${direction}${occluded}${transit}${shadow}`;
   });
 }
