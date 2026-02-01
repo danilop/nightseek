@@ -1,6 +1,7 @@
 import { Camera, Clock, Compass, Focus, Moon, Mountain, Ruler, Star, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { RatingStars } from '@/components/ui/Rating';
+import Tooltip from '@/components/ui/Tooltip';
 import { fetchGaiaStarField, formatDistance } from '@/lib/gaia';
 import { formatFOV, getEffectiveFOV } from '@/lib/telescopes';
 import {
@@ -238,6 +239,7 @@ export default function DSODetailModal({
               value={
                 visibility.meridianTransitTime ? formatTime(visibility.meridianTransitTime) : '—'
               }
+              tooltip="Meridian transit is when the object crosses the north-south line and reaches its highest point. Best time to observe as it passes through the least atmosphere."
             />
           </div>
 
@@ -316,19 +318,26 @@ function DetailItem({
   label,
   value,
   valueClass = '',
+  tooltip,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   valueClass?: string;
+  tooltip?: string;
 }) {
-  return (
-    <div className="bg-night-800 rounded-lg p-2">
+  const content = (
+    <div className={`bg-night-800 rounded-lg p-2 ${tooltip ? 'cursor-help' : ''}`}>
       <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
         {icon}
-        <span>{label}</span>
+        <span className={tooltip ? 'border-b border-dotted border-gray-500' : ''}>{label}</span>
       </div>
       <div className={`text-sm font-medium ${valueClass || 'text-white'}`}>{value}</div>
     </div>
   );
+
+  if (tooltip) {
+    return <Tooltip content={tooltip}>{content}</Tooltip>;
+  }
+  return content;
 }
