@@ -18,6 +18,7 @@ import {
   calculateWeatherScore,
   getScoreTier,
   getTierDisplay,
+  normalizeScore,
 } from './index';
 
 describe('scoring', () => {
@@ -456,17 +457,40 @@ describe('scoring', () => {
       const display = getTierDisplay('excellent');
       expect(display.stars).toBe(5);
       expect(display.label).toBe('Excellent');
+      expect(display.color).toBe('text-green-400');
     });
 
     it('should return correct display for poor', () => {
       const display = getTierDisplay('poor');
       expect(display.stars).toBe(1);
       expect(display.label).toBe('Poor');
+      expect(display.color).toBe('text-blue-400');
     });
 
-    it('should include color class', () => {
-      const display = getTierDisplay('very_good');
-      expect(display.color).toMatch(/text-/);
+    it('should include correct color class for each tier', () => {
+      // New color scale: blue (poor) → red (fair) → orange (good) → yellow (very_good) → green (excellent)
+      expect(getTierDisplay('excellent').color).toBe('text-green-400');
+      expect(getTierDisplay('very_good').color).toBe('text-yellow-400');
+      expect(getTierDisplay('good').color).toBe('text-orange-400');
+      expect(getTierDisplay('fair').color).toBe('text-red-400');
+      expect(getTierDisplay('poor').color).toBe('text-blue-400');
+    });
+  });
+
+  describe('normalizeScore', () => {
+    it('should normalize score to 0-100 range', () => {
+      expect(normalizeScore(100, 200)).toBe(50);
+      expect(normalizeScore(150, 200)).toBe(75);
+      expect(normalizeScore(200, 200)).toBe(100);
+    });
+
+    it('should clamp values', () => {
+      expect(normalizeScore(250, 200)).toBe(100);
+      expect(normalizeScore(-50, 200)).toBe(0);
+    });
+
+    it('should handle maxScore of 0', () => {
+      expect(normalizeScore(50, 0)).toBe(0);
     });
   });
 });

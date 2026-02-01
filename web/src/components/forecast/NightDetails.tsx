@@ -1,6 +1,15 @@
-import { ChevronDown, ChevronUp, CloudSun, Droplets, Eye, Telescope, Wind } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  CloudSun,
+  Droplets,
+  Eye,
+  Star,
+  Telescope,
+  Wind,
+} from 'lucide-react';
 import type React from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   getMoonPhaseEmoji as getExactMoonPhaseEmoji,
   getMoonPhaseName as getExactMoonPhaseName,
@@ -13,6 +22,7 @@ import {
   getWeatherEmoji,
 } from '@/lib/utils/format';
 import { getDewRiskLevel, getSeeingForecastColorClass } from '@/lib/utils/quality-helpers';
+import { calculateNightQuality } from '@/lib/weather/night-quality';
 import type { NightForecast, NightInfo, NightWeather } from '@/types';
 
 interface NightDetailsProps {
@@ -24,8 +34,35 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const { nightInfo, weather } = forecast;
 
+  // Calculate overall night quality
+  const nightQuality = useMemo(
+    () => calculateNightQuality(weather, nightInfo),
+    [weather, nightInfo]
+  );
+
   return (
     <div className="space-y-4">
+      {/* Overall Night Quality Rating */}
+      <div className="bg-night-900 rounded-xl border border-night-700 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Star className="w-5 h-5 text-yellow-400" />
+            <div>
+              <h3 className="font-semibold text-white">Tonight's Rating</h3>
+              <p className="text-sm text-gray-400">{nightQuality.summary}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className={`text-2xl font-bold ${nightQuality.rating.color}`}>
+              {nightQuality.rating.starString}
+            </div>
+            <div className={`text-sm ${nightQuality.rating.color}`}>
+              {nightQuality.rating.label}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Weather Details Card */}
       {weather && (
         <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">

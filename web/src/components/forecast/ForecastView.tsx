@@ -121,27 +121,29 @@ export default function ForecastView({
         />
       </div>
 
-      {/* Events Section (Conjunctions, Meteor Showers, Astronomical Events) */}
+      {/* Weather Conditions (Mobile in tonight view, Desktop always) - Now first in Tonight tab */}
+      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+        <NightDetails forecast={selectedNight} />
+      </div>
+
+      {/* Tonight's Highlights - Second in Tonight tab */}
+      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+        <TonightHighlights
+          objects={selectedObjects}
+          nightInfo={selectedNight.nightInfo}
+          weather={selectedNight.weather}
+          astronomicalEvents={selectedNight.astronomicalEvents}
+          latitude={location.latitude}
+        />
+      </div>
+
+      {/* Events Section (Conjunctions, Meteor Showers) - Last in Tonight tab */}
       <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
         <EventsSection
           conjunctions={selectedNight.conjunctions}
           meteorShowers={selectedNight.meteorShowers}
           astronomicalEvents={selectedNight.astronomicalEvents}
           latitude={location.latitude}
-        />
-      </div>
-
-      {/* Weather Conditions (Mobile in tonight view, Desktop always) */}
-      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
-        <NightDetails forecast={selectedNight} />
-      </div>
-
-      {/* Tonight's Highlights */}
-      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
-        <TonightHighlights
-          objects={selectedObjects}
-          nightInfo={selectedNight.nightInfo}
-          weather={selectedNight.weather}
         />
       </div>
     </main>

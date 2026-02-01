@@ -1,7 +1,7 @@
 import { Camera, ChevronDown, ChevronUp, Clock, Compass, Moon, Mountain } from 'lucide-react';
 import { useState } from 'react';
+import Rating, { RatingStars } from '@/components/ui/Rating';
 import { formatImagingWindow } from '@/lib/astronomy/imaging-windows';
-import { getScoreTier, getTierDisplay } from '@/lib/scoring';
 import {
   formatAltitude,
   formatMagnitude,
@@ -9,7 +9,6 @@ import {
   formatTime,
   getAltitudeQualityClass,
   getCategoryIcon,
-  getStarRating,
 } from '@/lib/utils/format';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
 import type { NightInfo, NightWeather, ObjectVisibility, ScoredObject } from '@/types';
@@ -169,8 +168,6 @@ export default function ObjectCard({
   const [expanded, setExpanded] = useState(false);
   const { visibility, scoreBreakdown, totalScore, category, subtype, magnitude } = object;
 
-  const tier = getScoreTier(totalScore);
-  const tierDisplay = getTierDisplay(tier);
   const icon = getCategoryIcon(category, subtype);
 
   if (compact) {
@@ -194,7 +191,7 @@ export default function ObjectCard({
               <h4 className="text-white font-medium truncate">
                 {visibility.commonName || visibility.objectName}
               </h4>
-              <span className={`text-sm font-medium ${tierDisplay.color}`}>{totalScore}/200</span>
+              <RatingStars score={totalScore} maxScore={200} size="sm" />
             </div>
             <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
               <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
@@ -229,9 +226,7 @@ export default function ObjectCard({
         <span className="text-3xl">{icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className={`text-sm font-medium ${tierDisplay.color}`}>
-              {getStarRating(tierDisplay.stars)}
-            </span>
+            <RatingStars score={totalScore} maxScore={200} size="sm" />
           </div>
           <h4 className="text-white font-medium">
             {visibility.commonName || visibility.objectName}
@@ -241,8 +236,7 @@ export default function ObjectCard({
           )}
         </div>
         <div className="text-right">
-          <div className={`text-lg font-bold ${tierDisplay.color}`}>{totalScore}</div>
-          <div className="text-xs text-gray-500">/200</div>
+          <Rating score={totalScore} maxScore={200} showStars={false} size="lg" />
         </div>
       </div>
 
