@@ -1,6 +1,7 @@
 import { Camera, ChevronDown, ChevronUp, Clock, Compass, Moon, Mountain } from 'lucide-react';
 import { useState } from 'react';
 import Rating, { RatingStars } from '@/components/ui/Rating';
+import Tooltip from '@/components/ui/Tooltip';
 import { formatImagingWindow } from '@/lib/astronomy/imaging-windows';
 import {
   formatAltitude,
@@ -332,11 +333,13 @@ export default function ObjectCard({
 
       {/* Meridian Transit */}
       {visibility.meridianTransitTime && (
-        <div className="mt-2 flex items-center gap-2 text-sm">
-          <Compass className="w-4 h-4 text-indigo-400" />
-          <span className="text-gray-400">Meridian:</span>
-          <span className="text-gray-300">{formatTime(visibility.meridianTransitTime)}</span>
-        </div>
+        <Tooltip content="Meridian transit is when the object crosses the north-south line and reaches its highest point in the sky. This is the best time to observe as it passes through the least atmosphere.">
+          <div className="mt-2 flex items-center gap-2 text-sm cursor-help">
+            <Compass className="w-4 h-4 text-indigo-400" />
+            <span className="text-gray-400 border-b border-dotted border-gray-500">Meridian:</span>
+            <span className="text-gray-300">{formatTime(visibility.meridianTransitTime)}</span>
+          </div>
+        </Tooltip>
       )}
 
       <div className="mt-3 pt-3 border-t border-night-700 flex flex-wrap gap-2">
