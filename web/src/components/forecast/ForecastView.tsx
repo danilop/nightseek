@@ -1,5 +1,6 @@
 import { RefreshCw, Sparkles, Star } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
+import Tooltip from '@/components/ui/Tooltip';
 import { useUIState } from '@/hooks/useUIState';
 import { formatDate, formatDateRange } from '@/lib/utils/format';
 import type { Location, NightForecast, ScoredObject } from '@/types';
@@ -117,7 +118,11 @@ export default function ForecastView({
         <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-6">
           <div className="flex items-center gap-2 text-green-400 text-sm font-medium mb-1">
             <Star className="w-4 h-4" />
-            Best Nights for Observation
+            <Tooltip content="Nights ranked highest based on cloud cover, moon phase, transparency, and seeing conditions. Tap a date to see details.">
+              <span className="border-b border-dotted border-green-500/50">
+                Best Nights for Observation
+              </span>
+            </Tooltip>
           </div>
           <p className="text-gray-300 text-sm">
             {bestNights.slice(0, 3).map((dateStr, i) => {

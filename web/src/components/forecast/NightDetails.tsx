@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, CloudSun, Droplets, Eye, Telescope, Wind } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import Tooltip from '@/components/ui/Tooltip';
 import {
   getMoonPhaseEmoji as getExactMoonPhaseEmoji,
   getMoonPhaseName as getExactMoonPhaseName,
@@ -37,10 +38,16 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
       <div className="bg-night-900 rounded-xl border border-night-700 p-4">
         <div className="space-y-2">
           {/* Title */}
-          <h3 className="font-semibold text-white">Tonight's Rating</h3>
+          <h3 className="font-semibold text-white">
+            <Tooltip content="Overall rating based on cloud cover, moon phase, transparency, seeing conditions, and dew risk.">
+              Tonight's Rating
+            </Tooltip>
+          </h3>
           {/* Stars and rating label */}
           <div className={`flex items-center gap-2 text-xl font-bold ${nightQuality.rating.color}`}>
-            <span>{nightQuality.rating.starString}</span>
+            <Tooltip content="5 stars = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor. Based on weighted scoring of all conditions.">
+              <span>{nightQuality.rating.starString}</span>
+            </Tooltip>
             <span>{nightQuality.rating.label}</span>
           </div>
           {/* Summary description */}
@@ -48,7 +55,10 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
           {/* Best observation time */}
           {weather?.bestTime && (
             <p className="text-sm text-green-400">
-              Best: <span className="whitespace-nowrap">{formatTime(weather.bestTime.start)}</span>
+              <Tooltip content="Optimal window with lowest cloud cover, best transparency, and minimal dew risk.">
+                Best:
+              </Tooltip>{' '}
+              <span className="whitespace-nowrap">{formatTime(weather.bestTime.start)}</span>
               {' – '}
               <span className="whitespace-nowrap">{formatTime(weather.bestTime.end)}</span>
             </p>
@@ -78,54 +88,62 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
           <div className="p-4">
             {/* Summary */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-              <div>
-                <div className="text-3xl mb-1">{getWeatherEmoji(weather.avgCloudCover)}</div>
-                <div className="text-sm text-gray-400">
-                  {getWeatherDescription(weather.avgCloudCover)}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {Math.round(weather.avgCloudCover)}% clouds
-                </div>
-              </div>
-
-              <div>
-                <div className="text-3xl mb-1">
-                  {nightInfo.moonPhaseExact
-                    ? getExactMoonPhaseEmoji(nightInfo.moonPhaseExact.phase)
-                    : getMoonPhaseEmoji(nightInfo.moonPhase)}
-                </div>
-                <div className="text-sm text-gray-400">
-                  {nightInfo.moonPhaseExact
-                    ? getExactMoonPhaseName(nightInfo.moonPhaseExact.phase)
-                    : getMoonPhaseName(nightInfo.moonPhase)}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {nightInfo.moonPhaseExact?.isTonight
-                    ? `at ${formatTime(nightInfo.moonPhaseExact.time)}`
-                    : `${Math.round(nightInfo.moonIllumination)}% illuminated`}
-                </div>
-              </div>
-
-              {weather.avgWindSpeedKmh !== null && (
+              <Tooltip content="Average cloud cover during the night. Lower is better for observing. 0-25% is ideal.">
                 <div>
-                  <div className="flex items-center justify-center text-2xl text-sky-400 mb-1">
-                    <Wind className="w-8 h-8" />
+                  <div className="text-3xl mb-1">{getWeatherEmoji(weather.avgCloudCover)}</div>
+                  <div className="text-sm text-gray-400">
+                    {getWeatherDescription(weather.avgCloudCover)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {Math.round(weather.avgCloudCover)}% clouds
+                  </div>
+                </div>
+              </Tooltip>
+
+              <Tooltip content="Moon phase affects sky brightness. New moon is best for deep-sky objects. Full moon is good for lunar and planetary observation.">
+                <div>
+                  <div className="text-3xl mb-1">
+                    {nightInfo.moonPhaseExact
+                      ? getExactMoonPhaseEmoji(nightInfo.moonPhaseExact.phase)
+                      : getMoonPhaseEmoji(nightInfo.moonPhase)}
                   </div>
                   <div className="text-sm text-gray-400">
-                    {Math.round(weather.avgWindSpeedKmh)} km/h
+                    {nightInfo.moonPhaseExact
+                      ? getExactMoonPhaseName(nightInfo.moonPhaseExact.phase)
+                      : getMoonPhaseName(nightInfo.moonPhase)}
                   </div>
-                  <div className="text-xs text-gray-500">Avg wind</div>
+                  <div className="text-xs text-gray-500">
+                    {nightInfo.moonPhaseExact?.isTonight
+                      ? `at ${formatTime(nightInfo.moonPhaseExact.time)}`
+                      : `${Math.round(nightInfo.moonIllumination)}% illuminated`}
+                  </div>
                 </div>
+              </Tooltip>
+
+              {weather.avgWindSpeedKmh !== null && (
+                <Tooltip content="Average wind speed. High winds (>20 km/h) cause telescope shake and poor seeing. Calm conditions are ideal.">
+                  <div>
+                    <div className="flex items-center justify-center text-2xl text-sky-400 mb-1">
+                      <Wind className="w-8 h-8" />
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      {Math.round(weather.avgWindSpeedKmh)} km/h
+                    </div>
+                    <div className="text-xs text-gray-500">Avg wind</div>
+                  </div>
+                </Tooltip>
               )}
 
               {weather.avgHumidity !== null && (
-                <div>
-                  <div className="flex items-center justify-center text-2xl text-blue-400 mb-1">
-                    <Droplets className="w-8 h-8" />
+                <Tooltip content="Average humidity. High humidity (>80%) increases dew risk and can affect transparency.">
+                  <div>
+                    <div className="flex items-center justify-center text-2xl text-blue-400 mb-1">
+                      <Droplets className="w-8 h-8" />
+                    </div>
+                    <div className="text-sm text-gray-400">{Math.round(weather.avgHumidity)}%</div>
+                    <div className="text-xs text-gray-500">Humidity</div>
                   </div>
-                  <div className="text-sm text-gray-400">{Math.round(weather.avgHumidity)}%</div>
-                  <div className="text-xs text-gray-500">Humidity</div>
-                </div>
+                </Tooltip>
               )}
             </div>
 
@@ -147,6 +165,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                         ? `AOD: ${weather.avgAerosolOpticalDepth.toFixed(3)}`
                         : undefined
                     }
+                    tooltip="How clear the atmosphere is. Higher = less haze, dust, and aerosols. AOD (Aerosol Optical Depth) measures particles in the air; lower is better."
                   />
                 )}
 
@@ -156,6 +175,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                     label="Precipitation"
                     value={`${weather.maxPrecipProbability}%`}
                     subtext="Max probability"
+                    tooltip="Maximum chance of rain or snow during the night. Any precipitation will prevent observing."
                   />
                 )}
 
@@ -164,6 +184,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                     icon={<span className="text-sm">🌡️</span>}
                     label="Temperature"
                     value={`${Math.round(weather.avgTemperatureC)}°C`}
+                    tooltip="Average air temperature during the night. Colder temperatures increase dew risk but can improve seeing."
                   />
                 )}
 
@@ -179,6 +200,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                           : 'Hours with dew risk'
                       }
                       warning
+                      tooltip="Hours when dew may form on equipment. Margin is the gap between air temp and dew point. Use a dew heater when margin drops below 4°C."
                     />
                     {/* Dew Timeline */}
                     <DewTimeline weather={weather} nightInfo={nightInfo} />
@@ -193,6 +215,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                       weather.avgPressureHpa ? `${Math.round(weather.avgPressureHpa)} hPa` : '—'
                     }
                     subtext={`Trend: ${weather.pressureTrend}`}
+                    tooltip="Atmospheric pressure. Stable or rising pressure usually means clearer, more stable skies. Falling pressure often indicates incoming weather."
                   />
                 )}
 
@@ -202,6 +225,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                     label="LST at Midnight"
                     value={nightInfo.localSiderealTimeAtMidnight}
                     subtext="Local Sidereal Time"
+                    tooltip="Local Sidereal Time at midnight. Objects with this Right Ascension will be at their highest point (transit) at midnight."
                   />
                 )}
 
@@ -235,18 +259,28 @@ function DetailRow({
   value,
   subtext,
   warning = false,
+  tooltip,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   subtext?: string;
   warning?: boolean;
+  tooltip?: string;
 }) {
+  const labelContent = tooltip ? (
+    <Tooltip content={tooltip}>
+      <span className="border-b border-dotted border-gray-500">{label}</span>
+    </Tooltip>
+  ) : (
+    label
+  );
+
   return (
     <div className="flex items-start gap-3">
       <div className={`text-gray-400 ${warning ? 'text-amber-400' : ''}`}>{icon}</div>
       <div>
-        <div className="text-sm text-gray-400">{label}</div>
+        <div className="text-sm text-gray-400">{labelContent}</div>
         <div className={`text-white ${warning ? 'text-amber-400' : ''}`}>{value}</div>
         {subtext && <div className="text-xs text-gray-500">{subtext}</div>}
       </div>
@@ -270,11 +304,17 @@ function SeeingForecastCard({
     <div className="mt-4 p-3 bg-night-800 rounded-lg">
       <div className="flex items-center gap-2 mb-2">
         <Telescope className="w-4 h-4 text-cyan-400" />
-        <span className="text-sm font-medium text-white">Seeing Forecast</span>
+        <Tooltip content="Seeing measures atmospheric steadiness. Good seeing = sharp stars, poor seeing = blurry, twinkling stars. Critical for planetary and high-magnification work.">
+          <span className="text-sm font-medium text-white border-b border-dotted border-gray-500">
+            Seeing Forecast
+          </span>
+        </Tooltip>
       </div>
       <div className="flex items-center justify-between">
         <span className={`text-sm font-medium ${colorClass}`}>{ratingLabel}</span>
-        <span className="text-sm text-gray-400">~{seeingForecast.estimatedArcsec}" FWHM</span>
+        <Tooltip content='FWHM (Full Width at Half Maximum) in arcseconds. Smaller = sharper stars. Under 2" is excellent, 2-3" is good, over 4" is poor.'>
+          <span className="text-sm text-gray-400">~{seeingForecast.estimatedArcsec}" FWHM</span>
+        </Tooltip>
       </div>
       <p className="text-xs text-gray-500 mt-1">{seeingForecast.recommendation}</p>
     </div>
@@ -403,9 +443,9 @@ function DewTimeline({
 
       {/* Temp row */}
       <div className="flex items-center gap-1 mt-1">
-        <span className="w-4 text-[10px]" title="Temperature">
-          🌡️
-        </span>
+        <Tooltip content="Air temperature in °C. Dew forms when this drops close to the dew point.">
+          <span className="w-4 text-[10px]">🌡️</span>
+        </Tooltip>
         {hours.map(h => (
           <div key={`temp-${h.hour}`} className="flex-1 text-center">
             <div className="text-[9px] text-gray-400">
@@ -417,9 +457,9 @@ function DewTimeline({
 
       {/* Dew point row */}
       <div className="flex items-center gap-1">
-        <span className="w-4 text-[10px]" title="Dew point">
-          💧
-        </span>
+        <Tooltip content="Dew point: temperature at which moisture condenses. When air temp approaches this, dew forms on equipment.">
+          <span className="w-4 text-[10px]">💧</span>
+        </Tooltip>
         {hours.map(h => (
           <div key={`dew-${h.hour}`} className="flex-1 text-center">
             <div className="text-[9px] text-blue-400/70">
@@ -442,20 +482,22 @@ function DewTimeline({
       {/* PM/AM and Legend */}
       <div className="flex justify-between items-center mt-1">
         <span className="text-[10px] text-gray-500">PM</span>
-        <div className="flex items-center gap-2 text-[9px] text-gray-500">
-          <span className="flex items-center gap-0.5">
-            <span className="w-2 h-2 rounded bg-green-500/40" /> &gt;6°
-          </span>
-          <span className="flex items-center gap-0.5">
-            <span className="w-2 h-2 rounded bg-yellow-500/40" /> 4-6°
-          </span>
-          <span className="flex items-center gap-0.5">
-            <span className="w-2 h-2 rounded bg-orange-500/40" /> 2-4°
-          </span>
-          <span className="flex items-center gap-0.5">
-            <span className="w-2 h-2 rounded bg-red-500/60" /> &lt;2°
-          </span>
-        </div>
+        <Tooltip content="Margin = Temp minus Dew point. Below 2°C: high dew risk, use a dew heater. Above 6°C: safe.">
+          <div className="flex items-center gap-2 text-[9px] text-gray-500">
+            <span className="flex items-center gap-0.5">
+              <span className="w-2 h-2 rounded bg-green-500/40" /> &gt;6°
+            </span>
+            <span className="flex items-center gap-0.5">
+              <span className="w-2 h-2 rounded bg-yellow-500/40" /> 4-6°
+            </span>
+            <span className="flex items-center gap-0.5">
+              <span className="w-2 h-2 rounded bg-orange-500/40" /> 2-4°
+            </span>
+            <span className="flex items-center gap-0.5">
+              <span className="w-2 h-2 rounded bg-red-500/60" /> &lt;2°
+            </span>
+          </div>
+        </Tooltip>
         <span className="text-[10px] text-gray-500">AM</span>
       </div>
     </div>
