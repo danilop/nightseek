@@ -335,6 +335,7 @@ export interface GalileanMoonPosition {
   z: number;
   isTransiting: boolean;
   shadowOnJupiter: boolean;
+  isOccluded: boolean; // Moon is hidden behind Jupiter's disk
 }
 
 export interface GalileanMoonEvent {

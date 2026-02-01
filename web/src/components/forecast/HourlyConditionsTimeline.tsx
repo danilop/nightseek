@@ -2,7 +2,7 @@ import { Cloud, Droplets, Eye } from 'lucide-react';
 import { useMemo } from 'react';
 import Tooltip from '@/components/ui/Tooltip';
 import { formatTemperature } from '@/lib/utils/units';
-import type { NightInfo, NightWeather, TemperatureUnit } from '@/types';
+import type { HourlyWeather, NightInfo, NightWeather, TemperatureUnit } from '@/types';
 
 interface HourlyConditionsTimelineProps {
   weather: NightWeather;
@@ -64,7 +64,13 @@ export default function HourlyConditionsTimeline({
     const data: HourlyData[] = [];
     const hourlyWeather = weather.hourlyData;
 
-    if (!hourlyWeather || hourlyWeather.size === 0) return data;
+    // Handle both Map and object formats (in case of serialization)
+    if (!hourlyWeather) return data;
+
+    // Check if it's a Map or a plain object
+    const isMap = hourlyWeather instanceof Map;
+    const size = isMap ? hourlyWeather.size : Object.keys(hourlyWeather).length;
+    if (size === 0) return data;
 
     const duskTime = nightInfo.astronomicalDusk.getTime();
     const dawnTime = nightInfo.astronomicalDawn.getTime();
@@ -91,13 +97,20 @@ export default function HourlyConditionsTimeline({
     }
 
     // Sort timestamps and filter to night hours only
-    const timestamps = Array.from(hourlyWeather.keys()).sort((a, b) => a - b);
+    // Handle both Map and plain object formats
+    const timestamps = isMap
+      ? Array.from(hourlyWeather.keys()).sort((a, b) => a - b)
+      : Object.keys(hourlyWeather)
+          .map(k => Number(k))
+          .sort((a, b) => a - b);
 
     for (const timestamp of timestamps) {
       // Only include hours during astronomical night
       if (timestamp < duskTime || timestamp > dawnTime) continue;
 
-      const hourData = hourlyWeather.get(timestamp);
+      const hourData = isMap
+        ? hourlyWeather.get(timestamp)
+        : (hourlyWeather as Record<number, HourlyWeather>)[timestamp];
       if (!hourData) continue;
 
       const date = new Date(timestamp);
@@ -131,7 +144,7 @@ export default function HourlyConditionsTimeline({
   const displayData = hourlyData;
 
   return (
-    <div className="mt-4 pt-4 border-t border-night-700">
+    <div className="mt-4">
       <h4 className="text-sm font-medium text-gray-300 mb-3">Hourly Conditions</h4>
 
       {/* Grid: first column for labels, rest for hours */}
