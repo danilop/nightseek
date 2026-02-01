@@ -1,13 +1,13 @@
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import {
+  closestCenter,
   DndContext,
   DragOverlay,
   KeyboardSensor,
   PointerSensor,
-  closestCenter,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import {
   SortableContext,
   sortableKeyboardCoordinates,
@@ -18,13 +18,23 @@ import { CSS } from '@dnd-kit/utilities';
 import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
-import type { DSOSubtype, NightInfo, NightWeather, ScoredObject } from '@/types';
+import { getRatingFromScore } from '@/lib/utils/rating';
+import type {
+  AstronomicalEvents,
+  DSOSubtype,
+  NightInfo,
+  NightWeather,
+  ScoredObject,
+} from '@/types';
 import CategorySection from './CategorySection';
+import JupiterMoonsCard from './JupiterMoonsCard';
 
 interface TonightHighlightsProps {
   objects: ScoredObject[];
   nightInfo: NightInfo;
   weather: NightWeather | null;
+  astronomicalEvents?: AstronomicalEvents;
+  latitude?: number;
 }
 
 interface CategoryConfig {
@@ -194,7 +204,13 @@ function SortableCategorySection({
   );
 }
 
-export default function TonightHighlights({ objects, nightInfo, weather }: TonightHighlightsProps) {
+export default function TonightHighlights({
+  objects,
+  nightInfo,
+  weather,
+  astronomicalEvents,
+  latitude = 0,
+}: TonightHighlightsProps) {
   const { categoryOrder, setCategoryOrder } = useUIState();
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
@@ -422,15 +438,40 @@ export default function TonightHighlights({ objects, nightInfo, weather }: Tonig
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-4">
-            {categoriesWithObjects.map(config => (
-              <SortableCategorySection
-                key={config.key}
-                config={config}
-                categoryObjects={groupedObjects[config.key]}
-                nightInfo={nightInfo}
-                weather={weather}
-              />
-            ))}
+            {categoriesWithObjects.map(config => {
+              const section = (
+                <SortableCategorySection
+                  key={config.key}
+                  config={config}
+                  categoryObjects={groupedObjects[config.key]}
+                  nightInfo={nightInfo}
+                  weather={weather}
+                />
+              );
+
+              // Add Jupiter Moons card after Planets category if Jupiter is visible
+              if (config.key === 'planets') {
+                const jupiterInPlanets = groupedObjects.planets?.some(
+                  p => p.objectName.toLowerCase() === 'jupiter'
+                );
+                const jupiterMoons = astronomicalEvents?.jupiterMoons;
+
+                if (jupiterInPlanets && jupiterMoons) {
+                  return (
+                    <div key={config.key} className="space-y-4">
+                      {section}
+                      <JupiterMoonsCard
+                        positions={jupiterMoons.positions}
+                        events={jupiterMoons.events}
+                        latitude={latitude}
+                      />
+                    </div>
+                  );
+                }
+              }
+
+              return section;
+            })}
           </div>
         </SortableContext>
 
@@ -488,24 +529,16 @@ function SummaryItem({ emoji, count, label }: { emoji: string; count: number; la
 
 function MilkyWayItem({ milkyWay }: { milkyWay: ScoredObject | null }) {
   const isVisible = milkyWay !== null;
-  // Convert score (0-200) to percentage for display
-  const qualityPercent = milkyWay ? Math.round((milkyWay.totalScore / 200) * 100) : 0;
-
-  // Determine quality label based on score
-  const getQualityLabel = (percent: number): string => {
-    if (percent >= 70) return 'Excellent';
-    if (percent >= 50) return 'Good';
-    if (percent >= 30) return 'Fair';
-    return 'Poor';
-  };
+  // Get rating from score using unified rating system
+  const rating = milkyWay ? getRatingFromScore(milkyWay.totalScore, 200) : null;
 
   return (
     <div className={isVisible ? '' : 'opacity-50'}>
       <div className="text-2xl mb-1">🌌</div>
-      {isVisible ? (
+      {isVisible && rating ? (
         <>
-          <div className="text-lg font-bold text-white">{qualityPercent}%</div>
-          <div className="text-xs text-gray-500">Milky Way ({getQualityLabel(qualityPercent)})</div>
+          <div className={`text-lg font-bold ${rating.color}`}>{rating.starString}</div>
+          <div className="text-xs text-gray-500">Milky Way ({rating.label})</div>
         </>
       ) : (
         <>
