@@ -176,6 +176,25 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
               <SeeingForecastCard seeingForecast={nightInfo.seeingForecast} />
             )}
 
+            {/* Dew Risk - Always visible */}
+            <div className="mt-4 pt-4 border-t border-night-700">
+              <DetailRow
+                icon={<span className="text-sm">💧</span>}
+                label="Dew Risk"
+                value={weather.dewRiskHours > 0 ? `${weather.dewRiskHours}h at risk` : 'Safe'}
+                subtext={
+                  weather.minDewMargin !== null
+                    ? `Min margin: ${formatTemperatureDelta(weather.minDewMargin, units.temperature)}`
+                    : undefined
+                }
+                warning={weather.dewRiskHours > 0}
+                safe={weather.dewRiskHours === 0}
+                tooltip={`Margin is the gap between air temp and dew point. Use a dew heater when margin drops below ${units.temperature === 'fahrenheit' ? '7°F' : '4°C'}. Above ${units.temperature === 'fahrenheit' ? '11°F' : '6°C'} is safe.`}
+              />
+              {/* Dew Timeline */}
+              <DewTimeline weather={weather} nightInfo={nightInfo} units={units} />
+            </div>
+
             {/* Expanded Details */}
             {showWeatherDetails && (
               <div className="mt-4 pt-4 border-t border-night-700 grid sm:grid-cols-2 gap-4">
@@ -211,24 +230,6 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                     tooltip="Average air temperature during the night. Colder temperatures increase dew risk but can improve seeing."
                   />
                 )}
-
-                <div className="sm:col-span-2">
-                  <DetailRow
-                    icon={<span className="text-sm">💧</span>}
-                    label="Dew Risk"
-                    value={weather.dewRiskHours > 0 ? `${weather.dewRiskHours}h at risk` : 'Safe'}
-                    subtext={
-                      weather.minDewMargin !== null
-                        ? `Min margin: ${formatTemperatureDelta(weather.minDewMargin, units.temperature)}`
-                        : undefined
-                    }
-                    warning={weather.dewRiskHours > 0}
-                    safe={weather.dewRiskHours === 0}
-                    tooltip={`Margin is the gap between air temp and dew point. Use a dew heater when margin drops below ${units.temperature === 'fahrenheit' ? '7°F' : '4°C'}. Above ${units.temperature === 'fahrenheit' ? '11°F' : '6°C'} is safe.`}
-                  />
-                  {/* Dew Timeline */}
-                  <DewTimeline weather={weather} nightInfo={nightInfo} units={units} />
-                </div>
 
                 {weather.pressureTrend && (
                   <DetailRow

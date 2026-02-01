@@ -10,7 +10,11 @@ import type {
   Settings,
 } from '@/types';
 import { SkyCalculator } from './astronomy/calculator';
-import { getConstellation, getPlanetConstellation } from './astronomy/constellations';
+import {
+  getConstellation,
+  getConstellationFullName,
+  getPlanetConstellation,
+} from './astronomy/constellations';
 import {
   detectMaxElongations,
   getElongationForPlanet,
@@ -255,8 +259,10 @@ export async function generateForecast(
         formattedCommonName = baseCommonName ?? dso.name;
       }
 
-      // Use constellation from catalog, or calculate if not available
-      const constellation = dso.constellation || getConstellation(dso.raHours, dso.decDegrees);
+      // Use constellation from catalog (convert abbreviation to full name), or calculate if not available
+      const constellation = dso.constellation
+        ? getConstellationFullName(dso.constellation)
+        : getConstellation(dso.raHours, dso.decDegrees);
 
       const visibility = calculator.calculateVisibility(
         dso.raHours,

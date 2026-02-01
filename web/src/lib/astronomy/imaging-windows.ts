@@ -326,9 +326,10 @@ export function formatImagingWindow(window: ImagingWindow): string {
     hour12: true,
   });
 
-  const qualityLabel = window.quality.toUpperCase();
+  // Capitalize first letter only (e.g., "acceptable" -> "Acceptable")
+  const qualityLabel = window.quality.charAt(0).toUpperCase() + window.quality.slice(1);
 
-  return `${startTime}-${endTime} [${qualityLabel}]`;
+  return `${startTime}-${endTime} • ${qualityLabel}`;
 }
 
 /**
