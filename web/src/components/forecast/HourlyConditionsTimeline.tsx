@@ -72,9 +72,6 @@ export default function HourlyConditionsTimeline({
     const size = isMap ? hourlyWeather.size : Object.keys(hourlyWeather).length;
     if (size === 0) return data;
 
-    const duskTime = nightInfo.astronomicalDusk.getTime();
-    const dawnTime = nightInfo.astronomicalDawn.getTime();
-
     // Get seeing data - use overall night rating (same for all hours)
     let seeingData: { level: QualityLevel; value: number } | null = null;
     if (nightInfo.seeingForecast) {
@@ -96,7 +93,7 @@ export default function HourlyConditionsTimeline({
       };
     }
 
-    // Sort timestamps and filter to night hours only
+    // Get all timestamps from the hourly data (already filtered to night hours in parseNightWeather)
     // Handle both Map and plain object formats
     const timestamps = isMap
       ? Array.from(hourlyWeather.keys()).sort((a, b) => a - b)
@@ -105,9 +102,6 @@ export default function HourlyConditionsTimeline({
           .sort((a, b) => a - b);
 
     for (const timestamp of timestamps) {
-      // Only include hours during astronomical night
-      if (timestamp < duskTime || timestamp > dawnTime) continue;
-
       const hourData = isMap
         ? hourlyWeather.get(timestamp)
         : (hourlyWeather as Record<number, HourlyWeather>)[timestamp];
