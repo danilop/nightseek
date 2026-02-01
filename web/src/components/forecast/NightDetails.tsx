@@ -385,7 +385,8 @@ function DewTimeline({
   return (
     <div className="mt-2">
       {/* Timeline bars */}
-      <div className="flex gap-1">
+      <div className="flex items-center gap-1">
+        <span className="w-4" />
         {hours.map(h => (
           <div key={h.hour} className="flex-1 text-center">
             <div
@@ -401,7 +402,10 @@ function DewTimeline({
       </div>
 
       {/* Temp row */}
-      <div className="flex gap-1 mt-1">
+      <div className="flex items-center gap-1 mt-1">
+        <span className="w-4 text-[10px]" title="Temperature">
+          🌡️
+        </span>
         {hours.map(h => (
           <div key={`temp-${h.hour}`} className="flex-1 text-center">
             <div className="text-[9px] text-gray-400">
@@ -412,7 +416,10 @@ function DewTimeline({
       </div>
 
       {/* Dew point row */}
-      <div className="flex gap-1">
+      <div className="flex items-center gap-1">
+        <span className="w-4 text-[10px]" title="Dew point">
+          💧
+        </span>
         {hours.map(h => (
           <div key={`dew-${h.hour}`} className="flex-1 text-center">
             <div className="text-[9px] text-blue-400/70">
@@ -423,7 +430,8 @@ function DewTimeline({
       </div>
 
       {/* Hour labels */}
-      <div className="flex gap-1 mt-0.5">
+      <div className="flex items-center gap-1 mt-0.5">
+        <span className="w-4" />
         {hours.map(h => (
           <div key={`hour-${h.hour}`} className="flex-1 text-center">
             <div className="text-[10px] text-gray-500">{h.displayHour}</div>
@@ -449,12 +457,6 @@ function DewTimeline({
           </span>
         </div>
         <span className="text-[10px] text-gray-500">AM</span>
-      </div>
-
-      {/* Row labels */}
-      <div className="flex justify-end gap-3 mt-1 text-[9px]">
-        <span className="text-gray-400">Temp</span>
-        <span className="text-blue-400/70">Dew pt</span>
       </div>
     </div>
   );
