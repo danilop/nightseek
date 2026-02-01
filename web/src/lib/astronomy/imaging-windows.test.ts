@@ -229,7 +229,8 @@ describe('imaging-windows', () => {
 
       const result = formatImagingWindow(window);
 
-      expect(result).toContain('EXCELLENT');
+      expect(result).toContain('Excellent');
+      expect(result).toContain('•'); // Bullet separator
       expect(result).toMatch(/\d{1,2}:\d{2}/); // Time format
     });
   });
