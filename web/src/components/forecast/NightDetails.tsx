@@ -1,13 +1,4 @@
-import {
-  ChevronDown,
-  ChevronUp,
-  CloudSun,
-  Droplets,
-  Eye,
-  Star,
-  Telescope,
-  Wind,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, CloudSun, Droplets, Eye, Telescope, Wind } from 'lucide-react';
 import type React from 'react';
 import { useMemo, useState } from 'react';
 import {
@@ -44,30 +35,22 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
     <div className="space-y-4">
       {/* Overall Night Quality Rating */}
       <div className="bg-night-900 rounded-xl border border-night-700 p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Star className="w-5 h-5 text-yellow-400" />
-            <div>
-              <h3 className="font-semibold text-white">Tonight's Rating</h3>
-              <p className="text-sm text-gray-400">{nightQuality.summary}</p>
-              {weather?.bestTime && (
-                <p className="text-sm text-green-400 mt-1">
-                  Best:{' '}
-                  <span className="whitespace-nowrap">{formatTime(weather.bestTime.start)}</span>
-                  {' – '}
-                  <span className="whitespace-nowrap">{formatTime(weather.bestTime.end)}</span>
-                </p>
-              )}
-            </div>
+        <div className="space-y-2">
+          {/* Line 1: Stars and rating label */}
+          <div className={`flex items-center gap-2 text-xl font-bold ${nightQuality.rating.color}`}>
+            <span>{nightQuality.rating.starString}</span>
+            <span>{nightQuality.rating.label}</span>
           </div>
-          <div className="text-right">
-            <div className={`text-2xl font-bold ${nightQuality.rating.color}`}>
-              {nightQuality.rating.starString}
-            </div>
-            <div className={`text-sm ${nightQuality.rating.color}`}>
-              {nightQuality.rating.label}
-            </div>
-          </div>
+          {/* Line 2: Summary description */}
+          <p className="text-sm text-gray-400">{nightQuality.summary}</p>
+          {/* Line 3: Best observation time */}
+          {weather?.bestTime && (
+            <p className="text-sm text-green-400">
+              Best: <span className="whitespace-nowrap">{formatTime(weather.bestTime.start)}</span>
+              {' – '}
+              <span className="whitespace-nowrap">{formatTime(weather.bestTime.end)}</span>
+            </p>
+          )}
         </div>
       </div>
 
