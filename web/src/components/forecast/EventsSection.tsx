@@ -38,48 +38,43 @@ export default function EventsSection({
         <AstronomicalEventsSection events={astronomicalEvents} />
       )}
 
-      {/* Conjunctions and Meteor Showers */}
-      {hasBasicEvents && (
-        <div className="grid sm:grid-cols-2 gap-4">
-          {/* Conjunctions */}
-          {conjunctions.length > 0 && (
-            <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
-              <div className="px-4 py-3 border-b border-night-700">
-                <h3 className="font-semibold text-white flex items-center gap-2">
-                  <Orbit className="w-4 h-4 text-purple-400" />
-                  Planetary Events
-                </h3>
+      {/* Conjunctions */}
+      {conjunctions.length > 0 && (
+        <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
+          <div className="px-4 py-3 border-b border-night-700">
+            <h3 className="font-semibold text-white flex items-center gap-2">
+              <Orbit className="w-4 h-4 text-purple-400" />
+              Planetary Events
+            </h3>
+          </div>
+          <div className="p-4 space-y-3">
+            {conjunctions.map(conjunction => (
+              <div
+                key={`${conjunction.object1Name}-${conjunction.object2Name}-${conjunction.time.getTime()}`}
+                className={`p-3 rounded-lg ${
+                  conjunction.isNotable
+                    ? 'bg-purple-500/10 border border-purple-500/30'
+                    : 'bg-night-800'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  {conjunction.isNotable && <Star className="w-4 h-4 text-yellow-400" />}
+                  <span className="text-white font-medium">
+                    {conjunction.object1Name} - {conjunction.object2Name}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-400">{conjunction.description}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Separation: {conjunction.separationDegrees.toFixed(1)}°
+                </p>
               </div>
-              <div className="p-4 space-y-3">
-                {conjunctions.map(conjunction => (
-                  <div
-                    key={`${conjunction.object1Name}-${conjunction.object2Name}-${conjunction.time.getTime()}`}
-                    className={`p-3 rounded-lg ${
-                      conjunction.isNotable
-                        ? 'bg-purple-500/10 border border-purple-500/30'
-                        : 'bg-night-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      {conjunction.isNotable && <Star className="w-4 h-4 text-yellow-400" />}
-                      <span className="text-white font-medium">
-                        {conjunction.object1Name} - {conjunction.object2Name}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-400">{conjunction.description}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Separation: {conjunction.separationDegrees.toFixed(1)}°
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Meteor Showers - Enhanced with IAU data */}
-          {meteorShowers.length > 0 && <MeteorShowerCard showers={meteorShowers} />}
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Meteor Showers - Enhanced with IAU data */}
+      {meteorShowers.length > 0 && <MeteorShowerCard showers={meteorShowers} />}
     </div>
   );
 }
