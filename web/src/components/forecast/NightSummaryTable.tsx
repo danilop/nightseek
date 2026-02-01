@@ -1,4 +1,5 @@
 import { Star } from 'lucide-react';
+import Tooltip from '@/components/ui/Tooltip';
 import { formatDate, formatTime, getMoonPhaseEmoji, getWeatherEmoji } from '@/lib/utils/format';
 import { calculateNightQuality } from '@/lib/weather/night-quality';
 import type { NightForecast, NightWeather } from '@/types';
@@ -61,11 +62,31 @@ export default function NightSummaryTable({
           <thead>
             <tr className="bg-night-800/50 text-left text-sm text-gray-400">
               <th className="px-4 py-3 font-medium">Date</th>
-              <th className="px-4 py-3 font-medium">Night</th>
-              <th className="px-4 py-3 font-medium text-center">Moon</th>
-              <th className="px-4 py-3 font-medium text-center">Weather</th>
-              <th className="px-4 py-3 font-medium">Best Time</th>
-              <th className="px-4 py-3 font-medium text-center">Rating</th>
+              <th className="px-4 py-3 font-medium">
+                <Tooltip content="Astronomical night: when the sun is 18° or more below the horizon. Darkest period for deep-sky observation.">
+                  <span className="border-b border-dotted border-gray-500">Night</span>
+                </Tooltip>
+              </th>
+              <th className="px-4 py-3 font-medium text-center">
+                <Tooltip content="Moon phase and illumination percentage. Less illumination = darker skies for deep-sky objects.">
+                  <span className="border-b border-dotted border-gray-500">Moon</span>
+                </Tooltip>
+              </th>
+              <th className="px-4 py-3 font-medium text-center">
+                <Tooltip content="Cloud cover percentage. Lower is better. 0-25% is ideal for observing.">
+                  <span className="border-b border-dotted border-gray-500">Weather</span>
+                </Tooltip>
+              </th>
+              <th className="px-4 py-3 font-medium">
+                <Tooltip content="Optimal observation window based on cloud cover, transparency, and other conditions.">
+                  <span className="border-b border-dotted border-gray-500">Best Time</span>
+                </Tooltip>
+              </th>
+              <th className="px-4 py-3 font-medium text-center">
+                <Tooltip content="Overall rating from 1-5 stars based on all conditions. 5 stars = excellent night for observing.">
+                  <span className="border-b border-dotted border-gray-500">Rating</span>
+                </Tooltip>
+              </th>
             </tr>
           </thead>
           <tbody>
