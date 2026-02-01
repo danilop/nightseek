@@ -23,10 +23,10 @@ export default function Header() {
 
             {/* Location (desktop) */}
             {location && (
-              <div className="hidden sm:flex items-center gap-3 text-sm text-gray-400">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  <span>
+              <div className="hidden sm:flex items-center gap-3 text-sm text-gray-400 min-w-0 flex-1 mx-4">
+                <div className="flex items-center gap-2 min-w-0">
+                  <MapPin className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate max-w-[300px] lg:max-w-[400px]">
                     {location.name || formatCoordinates(location.latitude, location.longitude)}
                   </span>
                 </div>
