@@ -44,7 +44,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
     <div className="space-y-4">
       {/* Overall Night Quality Rating */}
       <div className="bg-night-900 rounded-xl border border-night-700 p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Star className="w-5 h-5 text-yellow-400" />
             <div>
@@ -52,7 +52,10 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
               <p className="text-sm text-gray-400">{nightQuality.summary}</p>
               {weather?.bestTime && (
                 <p className="text-sm text-green-400 mt-1">
-                  Best: {formatTime(weather.bestTime.start)} – {formatTime(weather.bestTime.end)}
+                  Best:{' '}
+                  <span className="whitespace-nowrap">{formatTime(weather.bestTime.start)}</span>
+                  {' – '}
+                  <span className="whitespace-nowrap">{formatTime(weather.bestTime.end)}</span>
                 </p>
               )}
             </div>
@@ -185,7 +188,11 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                       icon={<span className="text-sm">💧</span>}
                       label="Dew Risk"
                       value={`${weather.dewRiskHours}h`}
-                      subtext="Hours with dew risk"
+                      subtext={
+                        weather.minDewMargin !== null
+                          ? `Min margin: ${weather.minDewMargin.toFixed(1)}°C`
+                          : 'Hours with dew risk'
+                      }
                       warning
                     />
                     {/* Dew Timeline */}
@@ -315,20 +322,26 @@ function getDewRiskColorClass(riskLevel: 'safe' | 'low' | 'moderate' | 'high'): 
 }
 
 /**
- * Calculate dew risk for a single hour
+ * Get hourly dew data for timeline
  */
-function calculateHourDewRisk(
+function getHourDewData(
   weather: NightWeather,
   actualHour: number
-): 'safe' | 'low' | 'moderate' | 'high' {
+): {
+  temp: number | null;
+  dewPoint: number | null;
+  margin: number | null;
+  riskLevel: 'safe' | 'low' | 'moderate' | 'high';
+} {
   const hourData = weather.hourlyData.get(actualHour);
-  if (!hourData) return 'safe';
+  if (!hourData) return { temp: null, dewPoint: null, margin: null, riskLevel: 'safe' };
 
-  const temp = hourData.temperature ?? 15;
-  const dewPoint = hourData.dewPoint ?? 10;
-  const margin = temp - dewPoint;
+  const temp = hourData.temperature;
+  const dewPoint = hourData.dewPoint;
+  const margin = temp !== null && dewPoint !== null ? temp - dewPoint : null;
+  const riskLevel = margin !== null ? getDewRiskLevel(margin) : 'safe';
 
-  return getDewRiskLevel(margin);
+  return { temp, dewPoint, margin, riskLevel };
 }
 
 function DewTimeline({
@@ -346,34 +359,95 @@ function DewTimeline({
   const hours: Array<{
     hour: number;
     displayHour: string;
+    temp: number | null;
+    dewPoint: number | null;
+    margin: number | null;
     riskLevel: 'safe' | 'low' | 'moderate' | 'high';
   }> = [];
 
   for (let h = startHour; h <= endHour && hours.length < 12; h++) {
     const actualHour = h % 24;
+    const dewData = getHourDewData(weather, actualHour);
     hours.push({
       hour: actualHour,
       displayHour: formatDisplayHour(actualHour),
-      riskLevel: calculateHourDewRisk(weather, actualHour),
+      ...dewData,
     });
   }
 
   return (
     <div className="mt-2">
+      {/* Timeline bars */}
       <div className="flex gap-1">
         {hours.map(h => (
           <div key={h.hour} className="flex-1 text-center">
             <div
               className={`h-3 rounded ${getDewRiskColorClass(h.riskLevel)}`}
-              title={`${h.hour}:00 - ${h.riskLevel} dew risk`}
+              title={
+                h.temp !== null && h.dewPoint !== null
+                  ? `${h.hour}:00 – Temp: ${Math.round(h.temp)}°C, Dew: ${Math.round(h.dewPoint)}°C (${h.margin !== null ? `${h.margin.toFixed(1)}°C margin` : ''})`
+                  : `${h.hour}:00 - ${h.riskLevel} dew risk`
+              }
             />
-            <div className="text-[10px] text-gray-500 mt-1">{h.displayHour}</div>
           </div>
         ))}
       </div>
-      <div className="flex justify-between mt-1 text-[10px] text-gray-500">
-        <span>PM</span>
-        <span>AM</span>
+
+      {/* Temp row */}
+      <div className="flex gap-1 mt-1">
+        {hours.map(h => (
+          <div key={`temp-${h.hour}`} className="flex-1 text-center">
+            <div className="text-[9px] text-gray-400">
+              {h.temp !== null ? `${Math.round(h.temp)}°` : '–'}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Dew point row */}
+      <div className="flex gap-1">
+        {hours.map(h => (
+          <div key={`dew-${h.hour}`} className="flex-1 text-center">
+            <div className="text-[9px] text-blue-400/70">
+              {h.dewPoint !== null ? `${Math.round(h.dewPoint)}°` : '–'}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Hour labels */}
+      <div className="flex gap-1 mt-0.5">
+        {hours.map(h => (
+          <div key={`hour-${h.hour}`} className="flex-1 text-center">
+            <div className="text-[10px] text-gray-500">{h.displayHour}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* PM/AM and Legend */}
+      <div className="flex justify-between items-center mt-1">
+        <span className="text-[10px] text-gray-500">PM</span>
+        <div className="flex items-center gap-2 text-[9px] text-gray-500">
+          <span className="flex items-center gap-0.5">
+            <span className="w-2 h-2 rounded bg-green-500/40" /> &gt;6°
+          </span>
+          <span className="flex items-center gap-0.5">
+            <span className="w-2 h-2 rounded bg-yellow-500/40" /> 4-6°
+          </span>
+          <span className="flex items-center gap-0.5">
+            <span className="w-2 h-2 rounded bg-orange-500/40" /> 2-4°
+          </span>
+          <span className="flex items-center gap-0.5">
+            <span className="w-2 h-2 rounded bg-red-500/60" /> &lt;2°
+          </span>
+        </div>
+        <span className="text-[10px] text-gray-500">AM</span>
+      </div>
+
+      {/* Row labels */}
+      <div className="flex justify-end gap-3 mt-1 text-[9px]">
+        <span className="text-gray-400">Temp</span>
+        <span className="text-blue-400/70">Dew pt</span>
       </div>
     </div>
   );
