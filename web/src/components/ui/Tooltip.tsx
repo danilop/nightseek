@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface TooltipProps {
@@ -21,6 +21,7 @@ interface TooltipPosition {
 /**
  * Tooltip component that works on both desktop (hover) and mobile (tap).
  * Uses a portal to render at body level, avoiding overflow clipping issues.
+ * Renders invisibly first to measure, then shows in correct position.
  * Tap anywhere outside to dismiss on mobile.
  */
 export default function Tooltip({
@@ -31,6 +32,7 @@ export default function Tooltip({
   maxWidth = 250,
 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const [isPositioned, setIsPositioned] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
   const triggerRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -38,11 +40,11 @@ export default function Tooltip({
 
   // Calculate position based on trigger element's viewport coordinates
   const updatePosition = useCallback(() => {
-    if (!triggerRef.current) return;
+    if (!triggerRef.current || !tooltipRef.current) return;
 
     const triggerRect = triggerRef.current.getBoundingClientRect();
-    const tooltipHeight = tooltipRef.current?.offsetHeight ?? 40;
-    const tooltipWidth = tooltipRef.current?.offsetWidth ?? maxWidth;
+    const tooltipHeight = tooltipRef.current.offsetHeight;
+    const tooltipWidth = tooltipRef.current.offsetWidth;
 
     const spaceAbove = triggerRect.top;
     const spaceBelow = window.innerHeight - triggerRect.bottom;
@@ -69,27 +71,40 @@ export default function Tooltip({
     left = Math.max(padding, Math.min(left, window.innerWidth - tooltipWidth - padding));
 
     setTooltipPosition({ top, left, placement });
-  }, [position, maxWidth]);
+    setIsPositioned(true);
+  }, [position]);
 
   const show = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsPositioned(false);
     setIsVisible(true);
-    // Update position after render
-    requestAnimationFrame(updatePosition);
-  }, [updatePosition]);
+  }, []);
 
   const hide = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setIsVisible(false), 100);
+    timeoutRef.current = setTimeout(() => {
+      setIsVisible(false);
+      setIsPositioned(false);
+      setTooltipPosition(null);
+    }, 100);
   }, []);
 
   const toggle = useCallback(() => {
     if (isVisible) {
       setIsVisible(false);
+      setIsPositioned(false);
+      setTooltipPosition(null);
     } else {
       show();
     }
   }, [isVisible, show]);
+
+  // Measure and position after tooltip renders (before paint)
+  useLayoutEffect(() => {
+    if (isVisible && !isPositioned && tooltipRef.current) {
+      updatePosition();
+    }
+  }, [isVisible, isPositioned, updatePosition]);
 
   // Handle click outside to dismiss (mobile)
   useEffect(() => {
@@ -103,6 +118,8 @@ export default function Tooltip({
         !tooltipRef.current.contains(e.target as Node)
       ) {
         setIsVisible(false);
+        setIsPositioned(false);
+        setTooltipPosition(null);
       }
     };
 
@@ -117,7 +134,7 @@ export default function Tooltip({
 
   // Update position on scroll/resize
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || !isPositioned) return;
 
     const handleUpdate = () => updatePosition();
     window.addEventListener('scroll', handleUpdate, true);
@@ -127,7 +144,7 @@ export default function Tooltip({
       window.removeEventListener('scroll', handleUpdate, true);
       window.removeEventListener('resize', handleUpdate);
     };
-  }, [isVisible, updatePosition]);
+  }, [isVisible, isPositioned, updatePosition]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -161,33 +178,36 @@ export default function Tooltip({
         </span>
       </span>
       {isVisible &&
-        tooltipPosition &&
         createPortal(
           <div
             ref={tooltipRef}
             id="tooltip"
             role="tooltip"
-            className="fixed z-[9999] pointer-events-none"
+            className="fixed z-[9999] pointer-events-none transition-opacity duration-150"
             style={{
-              top: tooltipPosition.top,
-              left: tooltipPosition.left,
+              top: tooltipPosition?.top ?? 0,
+              left: tooltipPosition?.left ?? 0,
               maxWidth,
+              opacity: isPositioned ? 1 : 0,
+              visibility: isPositioned ? 'visible' : 'hidden',
             }}
           >
             <div className="bg-night-700 text-gray-200 text-xs px-3 py-2 rounded-lg shadow-lg border border-night-600 pointer-events-auto">
               {content}
             </div>
-            <span
-              className={`absolute w-0 h-0 border-4 ${
-                tooltipPosition.placement === 'top'
-                  ? 'top-full border-t-night-700 border-x-transparent border-b-transparent'
-                  : 'bottom-full border-b-night-700 border-x-transparent border-t-transparent'
-              }`}
-              style={{
-                left: getArrowLeft(),
-                transform: 'translateX(-50%)',
-              }}
-            />
+            {isPositioned && tooltipPosition && (
+              <span
+                className={`absolute w-0 h-0 border-4 ${
+                  tooltipPosition.placement === 'top'
+                    ? 'top-full border-t-night-700 border-x-transparent border-b-transparent'
+                    : 'bottom-full border-b-night-700 border-x-transparent border-t-transparent'
+                }`}
+                style={{
+                  left: getArrowLeft(),
+                  transform: 'translateX(-50%)',
+                }}
+              />
+            )}
           </div>,
           document.body
         )}
