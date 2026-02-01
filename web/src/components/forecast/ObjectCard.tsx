@@ -10,6 +10,7 @@ import {
   getAltitudeQualityClass,
   getCategoryIcon,
 } from '@/lib/utils/format';
+import { formatSubtype } from '@/lib/utils/format-subtype';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
 import type { NightInfo, NightWeather, ObjectVisibility, ScoredObject } from '@/types';
 
@@ -51,8 +52,8 @@ function buildBadgeConfigs(
     badges.push({
       id: 'subtype',
       bgClass: 'bg-night-700',
-      textClass: 'text-gray-300 capitalize',
-      text: subtype.replace(/_/g, ' '),
+      textClass: 'text-gray-300',
+      text: formatSubtype(subtype),
     });
   }
 
