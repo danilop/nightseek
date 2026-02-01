@@ -19,6 +19,7 @@ interface ObjectCardProps {
   nightInfo: NightInfo;
   weather: NightWeather | null;
   compact?: boolean;
+  onDSOClick?: (object: ScoredObject) => void;
 }
 
 interface BadgeConfig {
@@ -165,9 +166,18 @@ export default function ObjectCard({
   nightInfo: _nightInfo,
   weather: _weather,
   compact = false,
+  onDSOClick,
 }: ObjectCardProps) {
   const [expanded, setExpanded] = useState(false);
   const { visibility, scoreBreakdown, totalScore, category, subtype, magnitude } = object;
+
+  // DSO objects can be clicked to open detail modal
+  const isDSO = category === 'dso';
+  const handleCardClick = () => {
+    if (isDSO && onDSOClick) {
+      onDSOClick(object);
+    }
+  };
 
   const icon = getCategoryIcon(category, subtype);
 
@@ -176,12 +186,22 @@ export default function ObjectCard({
       <div
         role="button"
         tabIndex={0}
-        className="bg-night-800 rounded-lg p-3 cursor-pointer card-hover"
-        onClick={() => setExpanded(!expanded)}
+        className={`bg-night-800 rounded-lg p-3 cursor-pointer card-hover ${isDSO && onDSOClick ? 'ring-1 ring-transparent hover:ring-sky-500/30' : ''}`}
+        onClick={() => {
+          if (isDSO && onDSOClick) {
+            handleCardClick();
+          } else {
+            setExpanded(!expanded);
+          }
+        }}
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            setExpanded(!expanded);
+            if (isDSO && onDSOClick) {
+              handleCardClick();
+            } else {
+              setExpanded(!expanded);
+            }
           }
         }}
       >
@@ -204,14 +224,16 @@ export default function ObjectCard({
               {magnitude !== null && <span>mag {formatMagnitude(magnitude)}</span>}
             </div>
           </div>
-          {expanded ? (
+          {isDSO && onDSOClick ? (
+            <span className="text-xs text-sky-400">View</span>
+          ) : expanded ? (
             <ChevronUp className="w-4 h-4 text-gray-400" />
           ) : (
             <ChevronDown className="w-4 h-4 text-gray-400" />
           )}
         </div>
 
-        {expanded && (
+        {expanded && !isDSO && (
           <div className="mt-3 pt-3 border-t border-night-700 space-y-2">
             <ScoreDetails breakdown={scoreBreakdown} />
             <ObjectDetails visibility={visibility} />
@@ -222,7 +244,23 @@ export default function ObjectCard({
   }
 
   return (
-    <div className="bg-night-800 rounded-lg p-4 card-hover">
+    // biome-ignore lint/a11y/noStaticElementInteractions: role and tabIndex are conditionally applied
+    <div
+      className={`bg-night-800 rounded-lg p-4 card-hover ${isDSO && onDSOClick ? 'cursor-pointer ring-1 ring-transparent hover:ring-sky-500/30' : ''}`}
+      onClick={isDSO && onDSOClick ? handleCardClick : undefined}
+      onKeyDown={
+        isDSO && onDSOClick
+          ? e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleCardClick();
+              }
+            }
+          : undefined
+      }
+      role={isDSO && onDSOClick ? 'button' : undefined}
+      tabIndex={isDSO && onDSOClick ? 0 : undefined}
+    >
       <div className="flex items-start gap-3">
         <span className="text-3xl">{icon}</span>
         <div className="flex-1 min-w-0">

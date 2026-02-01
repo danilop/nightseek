@@ -263,6 +263,11 @@ export interface Settings {
   dsoMagnitude: number;
   theme: 'light' | 'dark' | 'system';
   units: UnitPreferences;
+  // Satellite passes
+  showSatellitePasses: boolean;
+  // Telescope settings
+  telescope: TelescopePresetId;
+  customFOV: CustomFOV | null;
 }
 
 export interface DSOCatalogEntry {
@@ -473,4 +478,82 @@ export interface AstronomicalEvents {
   eclipseSeason: EclipseSeason | null;
   venusPeak: VenusPeakInfo | null;
   planetaryTransit: PlanetaryTransit | null;
+}
+
+// Bortle Scale for Light Pollution
+export interface BortleScore {
+  value: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  label: string;
+  nakedEyeLimitingMag: number;
+  description: string;
+}
+
+// Satellite Pass Prediction
+export interface TLEData {
+  name: string;
+  line1: string;
+  line2: string;
+  noradId: number;
+}
+
+export interface SatellitePass {
+  satelliteName: string;
+  noradId: number;
+  riseTime: Date;
+  riseAzimuth: number;
+  maxTime: Date;
+  maxAltitude: number;
+  maxAzimuth: number;
+  setTime: Date;
+  setAzimuth: number;
+  magnitude: number | null;
+  duration: number;
+  isVisible: boolean;
+}
+
+// Gaia Star Field
+export interface GaiaStar {
+  ra: number;
+  dec: number;
+  magnitude: number;
+  parallax: number | null;
+  bpRp: number | null;
+}
+
+export interface GaiaStarField {
+  stars: GaiaStar[];
+  centerRa: number;
+  centerDec: number;
+  radiusDeg: number;
+  distanceLy: number | null;
+  fetchedAt: Date;
+}
+
+// Telescope Presets
+export type TelescopePresetId =
+  | 'dwarf_mini'
+  | 'dwarf_ii'
+  | 'dwarf_3'
+  | 'seestar_s30'
+  | 'seestar_s30_pro'
+  | 'seestar_s50'
+  | 'unistellar_evscope'
+  | 'unistellar_evscope2'
+  | 'unistellar_odyssey'
+  | 'vaonis_stellina'
+  | 'vaonis_vespera_ii'
+  | 'vaonis_vespera_pro'
+  | 'celestron_origin'
+  | 'custom';
+
+export interface TelescopePreset {
+  id: TelescopePresetId;
+  name: string;
+  fovWidth: number;
+  fovHeight: number;
+}
+
+export interface CustomFOV {
+  width: number;
+  height: number;
 }
