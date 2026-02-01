@@ -64,50 +64,49 @@ export default function HourlyConditionsTimeline({
     const data: HourlyData[] = [];
     const hourlyWeather = weather.hourlyData;
 
-    if (!hourlyWeather) return data;
+    if (!hourlyWeather || hourlyWeather.size === 0) return data;
 
-    // Get hours from astronomical dusk to dawn
-    const duskHour = nightInfo.astronomicalDusk.getHours();
-    const dawnHour = nightInfo.astronomicalDawn.getHours();
+    const duskTime = nightInfo.astronomicalDusk.getTime();
+    const dawnTime = nightInfo.astronomicalDawn.getTime();
 
-    // Build list of night hours (handle midnight crossing)
-    const nightHours: number[] = [];
-    let h = duskHour;
-    while (nightHours.length < 12) {
-      nightHours.push(h);
-      h = (h + 1) % 24;
-      if (h === dawnHour) break;
+    // Get seeing data - use overall night rating (same for all hours)
+    let seeingData: { level: QualityLevel; value: number } | null = null;
+    if (nightInfo.seeingForecast) {
+      const ratingToLevel: Record<string, QualityLevel> = {
+        excellent: 'excellent',
+        good: 'good',
+        fair: 'fair',
+        poor: 'poor',
+      };
+      const ratingToScore: Record<string, number> = {
+        excellent: 90,
+        good: 70,
+        fair: 50,
+        poor: 25,
+      };
+      seeingData = {
+        level: ratingToLevel[nightInfo.seeingForecast.rating] || 'fair',
+        value: ratingToScore[nightInfo.seeingForecast.rating] || 50,
+      };
     }
 
-    for (const hour of nightHours) {
-      const hourData = hourlyWeather.get(hour);
+    // Sort timestamps and filter to night hours only
+    const timestamps = Array.from(hourlyWeather.keys()).sort((a, b) => a - b);
+
+    for (const timestamp of timestamps) {
+      // Only include hours during astronomical night
+      if (timestamp < duskTime || timestamp > dawnTime) continue;
+
+      const hourData = hourlyWeather.get(timestamp);
       if (!hourData) continue;
+
+      const date = new Date(timestamp);
+      const hour = date.getHours();
 
       const cloudCover = hourData.cloudCover ?? 50;
       const temp = hourData.temperature ?? 10;
       const dewPoint = hourData.dewPoint ?? 5;
       const margin = temp - dewPoint;
-
-      // Get seeing data - use overall night rating (not hourly)
-      let seeingData: { level: QualityLevel; value: number } | null = null;
-      if (nightInfo.seeingForecast) {
-        const ratingToLevel: Record<string, QualityLevel> = {
-          excellent: 'excellent',
-          good: 'good',
-          fair: 'fair',
-          poor: 'poor',
-        };
-        const ratingToScore: Record<string, number> = {
-          excellent: 90,
-          good: 70,
-          fair: 50,
-          poor: 25,
-        };
-        seeingData = {
-          level: ratingToLevel[nightInfo.seeingForecast.rating] || 'fair',
-          value: ratingToScore[nightInfo.seeingForecast.rating] || 50,
-        };
-      }
 
       data.push({
         hour,
