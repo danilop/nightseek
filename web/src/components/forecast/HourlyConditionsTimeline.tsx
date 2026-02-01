@@ -1,11 +1,10 @@
-import { Cloud, Droplets, Eye } from 'lucide-react';
+import { Cloud, Droplets } from 'lucide-react';
 import { useMemo } from 'react';
 import { formatTemperature } from '@/lib/utils/units';
-import type { HourlyWeather, NightInfo, NightWeather, TemperatureUnit } from '@/types';
+import type { HourlyWeather, NightWeather, TemperatureUnit } from '@/types';
 
 interface HourlyConditionsTimelineProps {
   weather: NightWeather;
-  nightInfo: NightInfo;
   temperatureUnit: TemperatureUnit;
 }
 
@@ -16,7 +15,6 @@ interface HourlyData {
   label: string;
   clouds: { level: QualityLevel; value: number };
   dew: { level: QualityLevel; margin: number; temp: number; dewPoint: number };
-  seeing: { level: QualityLevel; value: number } | null;
 }
 
 function getCloudLevel(cloudCover: number): QualityLevel {
@@ -55,7 +53,6 @@ function formatHour(hour: number): string {
 
 export default function HourlyConditionsTimeline({
   weather,
-  nightInfo,
   temperatureUnit,
 }: HourlyConditionsTimelineProps) {
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Processing hourly data requires multiple conditions
@@ -70,27 +67,6 @@ export default function HourlyConditionsTimeline({
     const isMap = hourlyWeather instanceof Map;
     const size = isMap ? hourlyWeather.size : Object.keys(hourlyWeather).length;
     if (size === 0) return data;
-
-    // Get seeing data - use overall night rating (same for all hours)
-    let seeingData: { level: QualityLevel; value: number } | null = null;
-    if (nightInfo.seeingForecast) {
-      const ratingToLevel: Record<string, QualityLevel> = {
-        excellent: 'excellent',
-        good: 'good',
-        fair: 'fair',
-        poor: 'poor',
-      };
-      const ratingToScore: Record<string, number> = {
-        excellent: 90,
-        good: 70,
-        fair: 50,
-        poor: 25,
-      };
-      seeingData = {
-        level: ratingToLevel[nightInfo.seeingForecast.rating] || 'fair',
-        value: ratingToScore[nightInfo.seeingForecast.rating] || 50,
-      };
-    }
 
     // Get all timestamps from the hourly data (already filtered to night hours in parseNightWeather)
     // Handle both Map and plain object formats
@@ -119,21 +95,16 @@ export default function HourlyConditionsTimeline({
         label: formatHour(hour),
         clouds: { level: getCloudLevel(cloudCover), value: cloudCover },
         dew: { level: getDewLevel(margin), margin, temp, dewPoint },
-        seeing: seeingData,
       });
     }
 
     return data;
-  }, [weather, nightInfo]);
+  }, [weather]);
 
   if (hourlyData.length === 0) {
     return null;
   }
 
-  // Check if we have seeing data
-  const hasSeeing = hourlyData.some(d => d.seeing !== null);
-
-  // On mobile, show fewer hours
   const displayData = hourlyData;
 
   return (
@@ -192,27 +163,6 @@ export default function HourlyConditionsTimeline({
             </span>
           </div>
         ))}
-        {/* Seeing row (only if data available) - no numbers since same for all hours */}
-        {hasSeeing && (
-          <>
-            <div className="flex items-center text-gray-400 pr-2">
-              <Eye className="w-3 h-3" />
-            </div>
-            {displayData.map(d => (
-              <div
-                key={`s-${d.hour}`}
-                className={`h-5 rounded-sm cursor-help ${
-                  d.seeing ? getLevelColorClass(d.seeing.level) : 'bg-night-600'
-                }`}
-                title={
-                  d.seeing
-                    ? `${formatHour(d.hour)}: Seeing ${d.seeing.value}%`
-                    : `${formatHour(d.hour)}: No seeing data`
-                }
-              />
-            ))}
-          </>
-        )}
       </div>
 
       {/* Legend */}
@@ -243,11 +193,6 @@ export default function HourlyConditionsTimeline({
         <span className="flex items-center gap-1">
           <Droplets className="w-3 h-3" /> Dew Risk
         </span>
-        {hasSeeing && (
-          <span className="flex items-center gap-1">
-            <Eye className="w-3 h-3" /> Seeing
-          </span>
-        )}
       </div>
     </div>
   );
