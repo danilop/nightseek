@@ -39,6 +39,12 @@ const DEFAULT_SETTINGS: Settings = {
   cometMagnitude: 12.0,
   dsoMagnitude: 16.0, // Support deep astrophotography setups
   theme: 'dark',
+  units: {
+    temperature: 'celsius',
+    speed: 'kmh',
+    pressure: 'hpa',
+    distance: 'km',
+  },
 };
 
 const initialState: AppState = {
