@@ -1,5 +1,5 @@
 import { RefreshCw, Sparkles, Star } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useUIState } from '@/hooks/useUIState';
 import { formatDate, formatDateRange } from '@/lib/utils/format';
 import type { Location, NightForecast, ScoredObject } from '@/types';
@@ -25,6 +25,28 @@ export default function ForecastView({
 }: ForecastViewProps) {
   const [selectedNightIndex, setSelectedNightIndex] = useState(0);
   const { activeTab, setActiveTab } = useUIState();
+  const nightTableRef = useRef<HTMLDivElement>(null);
+
+  // Navigate to a specific night by date string
+  const navigateToNight = useCallback(
+    (dateStr: string) => {
+      const index = forecasts.findIndex(
+        f => f.nightInfo.date.toISOString().split('T')[0] === dateStr
+      );
+      if (index !== -1) {
+        setSelectedNightIndex(index);
+        // Switch to week view on mobile so the table is visible
+        if (activeTab === 'tonight') {
+          setActiveTab('week');
+        }
+        // Scroll the table into view after a brief delay for view switch
+        setTimeout(() => {
+          nightTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    },
+    [forecasts, activeTab, setActiveTab]
+  );
 
   if (forecasts.length === 0) {
     return (
@@ -103,7 +125,13 @@ export default function ForecastView({
               return (
                 <span key={dateStr}>
                   {i > 0 && <span className="text-gray-500 mx-2">·</span>}
-                  <span className="text-green-300 font-medium">{formatDate(date)}</span>
+                  <button
+                    type="button"
+                    onClick={() => navigateToNight(dateStr)}
+                    className="text-green-300 font-medium hover:text-green-200 hover:underline cursor-pointer transition-colors"
+                  >
+                    {formatDate(date)}
+                  </button>
                 </span>
               );
             })}
@@ -112,7 +140,10 @@ export default function ForecastView({
       )}
 
       {/* Night Summary Table (Desktop always, Mobile in week view) */}
-      <div className={`mb-6 ${activeTab === 'tonight' ? 'hidden sm:block' : ''}`}>
+      <div
+        ref={nightTableRef}
+        className={`mb-6 ${activeTab === 'tonight' ? 'hidden sm:block' : ''}`}
+      >
         <NightSummaryTable
           forecasts={forecasts}
           selectedIndex={selectedNightIndex}
