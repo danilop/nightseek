@@ -1,5 +1,6 @@
 import { MapPin, RefreshCw, Settings, Telescope } from 'lucide-react';
 import { useState } from 'react';
+import BortleIndicator from '@/components/forecast/BortleIndicator';
 import { formatCoordinates } from '@/lib/geo/location';
 import { useApp } from '@/stores/AppContext';
 import SettingsModal from './SettingsModal';
@@ -22,11 +23,14 @@ export default function Header() {
 
             {/* Location (desktop) */}
             {location && (
-              <div className="hidden sm:flex items-center gap-2 text-sm text-gray-400">
-                <MapPin className="w-4 h-4" />
-                <span>
-                  {location.name || formatCoordinates(location.latitude, location.longitude)}
-                </span>
+              <div className="hidden sm:flex items-center gap-3 text-sm text-gray-400">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  <span>
+                    {location.name || formatCoordinates(location.latitude, location.longitude)}
+                  </span>
+                </div>
+                <BortleIndicator latitude={location.latitude} longitude={location.longitude} />
               </div>
             )}
 
@@ -46,11 +50,14 @@ export default function Header() {
 
           {/* Location (mobile) */}
           {location && (
-            <div className="sm:hidden flex items-center gap-2 mt-2 text-xs text-gray-400">
-              <MapPin className="w-3 h-3" />
-              <span className="truncate">
-                {location.name || formatCoordinates(location.latitude, location.longitude)}
-              </span>
+            <div className="sm:hidden flex items-center justify-between mt-2">
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <MapPin className="w-3 h-3" />
+                <span className="truncate">
+                  {location.name || formatCoordinates(location.latitude, location.longitude)}
+                </span>
+              </div>
+              <BortleIndicator latitude={location.latitude} longitude={location.longitude} />
             </div>
           )}
         </div>

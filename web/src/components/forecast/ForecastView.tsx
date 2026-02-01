@@ -7,6 +7,7 @@ import type { Location, NightForecast, ScoredObject } from '@/types';
 import EventsSection from './EventsSection';
 import NightDetails from './NightDetails';
 import NightSummaryTable from './NightSummaryTable';
+import SatellitePassesCard from './SatellitePassesCard';
 import TonightHighlights from './TonightHighlights';
 
 interface ForecastViewProps {
@@ -173,7 +174,7 @@ export default function ForecastView({
         />
       </div>
 
-      {/* Events Section (Conjunctions, Meteor Showers) - Last in Tonight tab */}
+      {/* Events Section (Conjunctions, Meteor Showers) */}
       <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
         <EventsSection
           conjunctions={selectedNight.conjunctions}
@@ -181,6 +182,11 @@ export default function ForecastView({
           astronomicalEvents={selectedNight.astronomicalEvents}
           latitude={location.latitude}
         />
+      </div>
+
+      {/* Satellite Passes Section */}
+      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+        <SatellitePassesCard nightInfo={selectedNight.nightInfo} location={location} />
       </div>
     </main>
   );

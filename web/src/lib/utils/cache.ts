@@ -135,6 +135,9 @@ export const CACHE_KEYS = {
   FORECAST: 'nightseek:forecast',
   OPENGC: 'nightseek:opengc',
   WEATHER_PREFIX: 'nightseek:weather:',
+  TLE_ISS: 'nightseek:tle:iss',
+  GAIA_PREFIX: 'nightseek:gaia:',
+  BORTLE_PREFIX: 'nightseek:bortle:',
 };
 
 // Cache TTLs (in milliseconds)
@@ -144,4 +147,7 @@ export const CACHE_TTLS = {
   FORECAST: 60 * 60 * 1000, // 1 hour
   OPENGC: 7 * 24 * 60 * 60 * 1000, // 7 days
   WEATHER: 60 * 60 * 1000, // 1 hour
+  TLE: 24 * 60 * 60 * 1000, // 24 hours
+  GAIA: 7 * 24 * 60 * 60 * 1000, // 7 days
+  BORTLE: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
