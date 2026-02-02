@@ -1,5 +1,5 @@
 import * as Astronomy from 'astronomy-engine';
-import { ChevronDown, ChevronRight, Compass, Map as MapIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight, Compass, Map as MapIcon, Navigation } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SkyCalculator } from '@/lib/astronomy/calculator';
 import type { Location, NightInfo, ObjectVisibility, ScoredObject } from '@/types';
@@ -14,6 +14,8 @@ interface SkyChartProps {
 interface ChartSettings {
   showMilkyWay: boolean;
   showGrid: boolean;
+  showEcliptic: boolean;
+  useCompass: boolean;
 }
 
 interface ChartObject {
@@ -40,6 +42,8 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
   const [settings, setSettings] = useState<ChartSettings>({
     showMilkyWay: true,
     showGrid: false,
+    showEcliptic: true,
+    useCompass: false,
   });
   const [selectedTime, setSelectedTime] = useState<number>(50); // 0-100 slider position
   const [tooltip, setTooltip] = useState<TooltipState>({
@@ -48,6 +52,8 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     y: 0,
     object: null,
   });
+  const [compassHeading, setCompassHeading] = useState<number>(0);
+  const [compassAvailable, setCompassAvailable] = useState<boolean | null>(null); // null = not checked yet
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,6 +87,114 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
   const toggleSetting = (key: keyof ChartSettings) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
+
+  // Check compass availability on mount
+  useEffect(() => {
+    // Check if DeviceOrientationEvent is available
+    if (!('DeviceOrientationEvent' in window)) {
+      setCompassAvailable(false);
+      return;
+    }
+
+    // On iOS, we need to check if requestPermission exists (iOS 13+)
+    // On other devices, we need to test if we actually receive events
+    const hasRequestPermission =
+      typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> })
+        .requestPermission === 'function';
+
+    if (hasRequestPermission) {
+      // iOS 13+ - compass might be available, user needs to grant permission
+      setCompassAvailable(true);
+    } else {
+      // Other devices - test by listening for an event
+      let receivedEvent = false;
+      const testHandler = (event: DeviceOrientationEvent) => {
+        if (event.alpha !== null) {
+          receivedEvent = true;
+          setCompassAvailable(true);
+        }
+        window.removeEventListener('deviceorientation', testHandler);
+      };
+
+      window.addEventListener('deviceorientation', testHandler, true);
+
+      // After 1 second, if no event received, compass is not available
+      setTimeout(() => {
+        if (!receivedEvent) {
+          setCompassAvailable(false);
+        }
+        window.removeEventListener('deviceorientation', testHandler);
+      }, 1000);
+    }
+  }, []);
+
+  // Handle compass/device orientation when enabled
+  useEffect(() => {
+    if (!settings.useCompass) {
+      setCompassHeading(0);
+      return;
+    }
+
+    if (compassAvailable === false) {
+      // Turn off if not available
+      setSettings(prev => ({ ...prev, useCompass: false }));
+      return;
+    }
+
+    let mounted = true;
+
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      if (!mounted) return;
+
+      // alpha is the compass heading (0-360, 0 = North)
+      // On iOS, webkitCompassHeading is more accurate
+      const heading =
+        (event as DeviceOrientationEvent & { webkitCompassHeading?: number })
+          .webkitCompassHeading ??
+        event.alpha ??
+        0;
+
+      if (heading !== null) {
+        setCompassHeading(heading);
+      }
+    };
+
+    // iOS 13+ requires permission request
+    const startCompass = async () => {
+      try {
+        if (
+          typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof (
+            DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }
+          ).requestPermission === 'function'
+        ) {
+          const permission = await (
+            DeviceOrientationEvent as unknown as { requestPermission: () => Promise<string> }
+          ).requestPermission();
+          if (permission === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation, true);
+          } else {
+            // Permission denied - just turn off compass
+            setSettings(prev => ({ ...prev, useCompass: false }));
+          }
+        } else {
+          // Non-iOS - just add listener
+          window.addEventListener('deviceorientation', handleOrientation, true);
+        }
+      } catch {
+        // Could not access compass - just turn off
+        setSettings(prev => ({ ...prev, useCompass: false }));
+      }
+    };
+
+    startCompass();
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('deviceorientation', handleOrientation, true);
+    };
+  }, [settings.useCompass, compassAvailable]);
 
   // Handle canvas click/tap for tooltips
   const handleCanvasClick = useCallback(
@@ -156,6 +270,10 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     // Clear objects array
     const objects: ChartObject[] = [];
 
+    // Compass offset for rotating the entire chart
+    // When facing East (heading=90), rotate chart so East is at top
+    const compassOffset = settings.useCompass ? compassHeading : 0;
+
     // Clear and draw background
     ctx.fillStyle = '#0a0a14';
     ctx.fillRect(0, 0, size, size);
@@ -169,7 +287,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
     // Draw altitude circles (30°, 60°)
     if (settings.showGrid) {
-      ctx.strokeStyle = '#1e3a5f40';
+      ctx.strokeStyle = '#4a90c280'; // Brighter blue with 50% opacity
       ctx.lineWidth = 1;
       for (const alt of [30, 60]) {
         const r = radius * (1 - alt / 90);
@@ -180,7 +298,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
       // Draw azimuth lines
       for (let az = 0; az < 360; az += 45) {
-        const angle = ((az - 90) * Math.PI) / 180;
+        const angle = ((az - compassOffset - 90) * Math.PI) / 180;
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
         ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
@@ -188,40 +306,224 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
       }
     }
 
-    // Draw Milky Way band (simplified ellipse - position varies by time/season)
+    // Draw Milky Way band - only visible parts above horizon
     if (settings.showMilkyWay) {
-      // Get galactic center position at current time
-      const gcRa = 17.761; // Galactic center RA in hours
-      const gcDec = -29.0; // Galactic center Dec in degrees
-      const gcPos = calculator.getAltAz(gcRa, gcDec, currentTime);
+      // Sample the galactic equator at regular intervals
+      // Galactic coordinates (l, b) where b=0 is the galactic equator
+      // Convert galactic longitude to RA/Dec using standard transformation
+      const galNorthPoleRA = 12.85; // hours (192.86° / 15)
+      const galNorthPoleDec = 27.13; // degrees
+      const galCenterRA = 17.76; // hours (Sgr A*)
 
-      if (gcPos.altitude > -20) {
-        ctx.fillStyle = '#ffffff08';
+      // Convert galactic (l, 0) to equatorial (RA, Dec)
+      const galToEquatorial = (galLon: number) => {
+        const l = (galLon * Math.PI) / 180;
+        const b = 0; // galactic equator
+
+        // Galactic pole position
+        const alphaNGP = (galNorthPoleRA * 15 * Math.PI) / 180; // 192.86°
+        const deltaNGP = (galNorthPoleDec * Math.PI) / 180;
+        const lNCP = (122.93 * Math.PI) / 180; // l of north celestial pole
+
+        // Transform
+        const sinDec =
+          Math.sin(b) * Math.sin(deltaNGP) + Math.cos(b) * Math.cos(deltaNGP) * Math.sin(l - lNCP);
+        const dec = Math.asin(sinDec);
+
+        const y = Math.cos(b) * Math.cos(l - lNCP);
+        const x =
+          Math.sin(b) * Math.cos(deltaNGP) - Math.cos(b) * Math.sin(deltaNGP) * Math.sin(l - lNCP);
+        const ra = alphaNGP + Math.atan2(y, x);
+
+        return {
+          ra: ((ra * 180) / Math.PI / 15 + 24) % 24, // hours
+          dec: (dec * 180) / Math.PI, // degrees
+        };
+      };
+
+      // Sample galactic equator and collect ONLY visible points
+      const visibleSegments: { x: number; y: number }[][] = [];
+      let currentSegment: { x: number; y: number }[] = [];
+
+      for (let galLon = 0; galLon <= 360; galLon += 5) {
+        const eq = galToEquatorial(galLon);
+        const { altitude, azimuth } = calculator.getAltAz(eq.ra, eq.dec, currentTime);
+
+        // Check if point is above horizon
+        if (altitude > 0) {
+          const r = radius * (1 - altitude / 90);
+          const angle = ((azimuth - compassOffset - 90) * Math.PI) / 180;
+          currentSegment.push({
+            x: centerX + r * Math.cos(angle),
+            y: centerY + r * Math.sin(angle),
+          });
+        } else if (currentSegment.length > 0) {
+          // End of visible segment - save it and start fresh
+          visibleSegments.push(currentSegment);
+          currentSegment = [];
+        }
+      }
+
+      // Don't forget the last segment
+      if (currentSegment.length > 0) {
+        visibleSegments.push(currentSegment);
+      }
+
+      // Draw each visible segment
+      if (visibleSegments.length > 0) {
+        // Brightness based on galactic center visibility
+        const gcPos = calculator.getAltAz(galCenterRA, -29.0, currentTime);
+        const opacity = gcPos.altitude > 0 ? Math.min(0.2, 0.08 + gcPos.altitude / 300) : 0.08;
+        const opacityHex = Math.round(opacity * 255)
+          .toString(16)
+          .padStart(2, '0');
+
         ctx.save();
-        ctx.translate(centerX, centerY);
-        // Rotate based on galactic center azimuth
-        ctx.rotate(((gcPos.azimuth - 90) * Math.PI) / 180);
-        ctx.beginPath();
-        ctx.ellipse(0, 0, radius * 0.25, radius * 0.85, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.strokeStyle = `#4a5568${opacityHex}`;
+        ctx.lineWidth = radius * 0.1;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        for (const segment of visibleSegments) {
+          if (segment.length < 2) continue;
+
+          ctx.beginPath();
+          ctx.moveTo(segment[0].x, segment[0].y);
+
+          // Draw smooth curve through points using quadratic curves
+          for (let i = 1; i < segment.length - 1; i++) {
+            const midX = (segment[i].x + segment[i + 1].x) / 2;
+            const midY = (segment[i].y + segment[i + 1].y) / 2;
+            ctx.quadraticCurveTo(segment[i].x, segment[i].y, midX, midY);
+          }
+
+          // Line to last point
+          const last = segment[segment.length - 1];
+          ctx.lineTo(last.x, last.y);
+
+          ctx.stroke();
+        }
+
         ctx.restore();
       }
     }
 
-    // Draw cardinal directions
+    // Draw ecliptic line (path of Sun, planets, and Moon)
+    if (settings.showEcliptic) {
+      const obliquity = 23.44;
+      const obliquityRad = (obliquity * Math.PI) / 180;
+      const sinObl = Math.sin(obliquityRad);
+      const cosObl = Math.cos(obliquityRad);
+
+      // Helper to get ecliptic point position
+      const getEclipticPoint = (eclLon: number) => {
+        const lonRad = (eclLon * Math.PI) / 180;
+        const sinLon = Math.sin(lonRad);
+        const cosLon = Math.cos(lonRad);
+        const decRad = Math.asin(sinObl * sinLon);
+        const raRad = Math.atan2(sinLon * cosObl, cosLon);
+        let raHours = (raRad * 12) / Math.PI;
+        if (raHours < 0) raHours += 24;
+        const decDegrees = (decRad * 180) / Math.PI;
+        const { altitude, azimuth } = calculator.getAltAz(raHours, decDegrees, currentTime);
+        return { altitude, azimuth };
+      };
+
+      // Helper to convert alt/az to canvas coordinates (with compass offset)
+      const toCanvas = (altitude: number, azimuth: number) => {
+        const r = radius * (1 - altitude / 90);
+        const angle = ((azimuth - compassOffset - 90) * Math.PI) / 180;
+        return {
+          x: centerX + r * Math.cos(angle),
+          y: centerY + r * Math.sin(angle),
+        };
+      };
+
+      // Find horizon crossings and collect the visible arc
+      const horizonCrossings: { azimuth: number; rising: boolean }[] = [];
+      let prevAlt = getEclipticPoint(0).altitude;
+      let midPoint: { x: number; y: number } | null = null;
+      let maxAlt = -90;
+
+      for (let eclLon = 1; eclLon <= 360; eclLon += 1) {
+        const { altitude, azimuth } = getEclipticPoint(eclLon % 360);
+
+        // Detect horizon crossing
+        if ((prevAlt <= 0 && altitude > 0) || (prevAlt > 0 && altitude <= 0)) {
+          // Interpolate to find exact crossing azimuth
+          const prevPos = getEclipticPoint(eclLon - 1);
+          const t = Math.abs(prevAlt) / (Math.abs(prevAlt) + Math.abs(altitude));
+          const crossAz = prevPos.azimuth + t * (azimuth - prevPos.azimuth);
+          horizonCrossings.push({
+            azimuth: crossAz,
+            rising: altitude > 0,
+          });
+        }
+
+        // Track the highest point for the middle of the arc
+        if (altitude > maxAlt) {
+          maxAlt = altitude;
+          midPoint = toCanvas(altitude, azimuth);
+        }
+
+        prevAlt = altitude;
+      }
+
+      // Draw if we have at least one horizon crossing and a midpoint
+      if (horizonCrossings.length >= 2 && midPoint && maxAlt > 0) {
+        // Find rising and setting points
+        const risingCross = horizonCrossings.find(c => c.rising);
+        const settingCross = horizonCrossings.find(c => !c.rising);
+
+        if (risingCross && settingCross) {
+          // Endpoints are ON the horizon circle (altitude = 0, r = radius)
+          const p0 = toCanvas(0, risingCross.azimuth);
+          const p1 = midPoint;
+          const p2 = toCanvas(0, settingCross.azimuth);
+
+          // Calculate control point for quadratic Bézier passing through p1 at t=0.5
+          const cp = {
+            x: 2 * p1.x - 0.5 * p0.x - 0.5 * p2.x,
+            y: 2 * p1.y - 0.5 * p0.y - 0.5 * p2.y,
+          };
+
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.moveTo(p0.x, p0.y);
+          ctx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+    }
+
+    // Draw cardinal directions (rotated with compass)
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('N', centerX, 15);
-    ctx.fillText('S', centerX, size - 15);
-    ctx.fillText('E', 15, centerY);
-    ctx.fillText('W', size - 15, centerY);
 
-    // Helper to convert alt/az to canvas coordinates
+    const cardinalDirs = [
+      { label: 'N', az: 0 },
+      { label: 'E', az: 90 },
+      { label: 'S', az: 180 },
+      { label: 'W', az: 270 },
+    ];
+
+    for (const dir of cardinalDirs) {
+      const angle = ((dir.az - compassOffset - 90) * Math.PI) / 180;
+      const labelRadius = radius + 15;
+      const x = centerX + labelRadius * Math.cos(angle);
+      const y = centerY + labelRadius * Math.sin(angle);
+      ctx.fillText(dir.label, x, y);
+    }
+
+    // Helper to convert alt/az to canvas coordinates (includes compass rotation)
     const altAzToXY = (altitude: number, azimuth: number) => {
       const r = radius * (1 - altitude / 90);
-      const angle = ((azimuth - 90) * Math.PI) / 180;
+      const angle = ((azimuth - compassOffset - 90) * Math.PI) / 180;
       return {
         x: centerX + r * Math.cos(angle),
         y: centerY + r * Math.sin(angle),
@@ -402,9 +704,20 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
     // Store objects for click detection
     objectsRef.current = objects;
-  }, [expanded, settings, nightInfo, planets, topDSOs, currentTime, calculator, location]);
+  }, [
+    expanded,
+    settings,
+    nightInfo,
+    planets,
+    topDSOs,
+    currentTime,
+    calculator,
+    location,
+    compassHeading,
+  ]);
 
-  // Close tooltip when time changes
+  // Close tooltip when time changes - selectedTime is intentionally a trigger dependency
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedTime is used as a trigger, not inside the effect
   useEffect(() => {
     setTooltip(prev => ({ ...prev, visible: false }));
   }, [selectedTime]);
@@ -458,6 +771,11 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
           {/* Toggle buttons */}
           <div className="flex flex-wrap gap-2 mb-4">
             <ToggleButton
+              label="Ecliptic"
+              active={settings.showEcliptic}
+              onClick={() => toggleSetting('showEcliptic')}
+            />
+            <ToggleButton
               label="Milky Way"
               active={settings.showMilkyWay}
               onClick={() => toggleSetting('showMilkyWay')}
@@ -467,6 +785,24 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
               active={settings.showGrid}
               onClick={() => toggleSetting('showGrid')}
             />
+            {compassAvailable === true && (
+              <button
+                type="button"
+                onClick={() => toggleSetting('useCompass')}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                  settings.useCompass
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    : 'bg-night-800 text-gray-500 border border-night-700'
+                }`}
+                title={`Heading: ${Math.round(compassHeading)}°`}
+              >
+                <Navigation className={`w-3 h-3 ${settings.useCompass ? 'animate-pulse' : ''}`} />
+                Compass
+                {settings.useCompass && (
+                  <span className="text-[10px] opacity-75">{Math.round(compassHeading)}°</span>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Canvas with tooltip */}
@@ -518,6 +854,12 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
               <span className="w-3 h-3 rounded-full bg-yellow-100" />
               <span>Moon</span>
             </div>
+            {settings.showEcliptic && (
+              <div className="flex items-center gap-1">
+                <span className="w-4 border-t-2 border-dashed border-amber-500/50" />
+                <span>Ecliptic</span>
+              </div>
+            )}
           </div>
 
           {/* Hint */}
