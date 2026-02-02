@@ -1,5 +1,5 @@
 import * as Astronomy from 'astronomy-engine';
-import { ChevronDown, ChevronRight, Compass, Map as MapIcon, Navigation } from 'lucide-react';
+import { ChevronDown, ChevronRight, Map as MapIcon, Navigation } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Location, NightInfo, ObjectVisibility, ScoredObject } from '@/types';
 
@@ -505,9 +505,9 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
           equatorial: { show: false },
           ecliptic: {
             show: settings.showEcliptic,
-            stroke: '#f59e0b',
-            width: 1.5,
-            opacity: 0.7,
+            stroke: '#fbbf24',
+            width: 2.5,
+            opacity: 1,
           },
           galactic: { show: false },
           supergalactic: { show: false },
@@ -554,28 +554,124 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     }
   }, [currentTime]);
 
-  // Update d3-celestial when settings change
+  // Update d3-celestial when settings change - must reinitialize for some settings
   useEffect(() => {
     if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
 
-    try {
-      Celestial.apply({
-        mw: { show: settings.showMilkyWay },
-        lines: {
-          graticule: { show: settings.showGrid },
-          ecliptic: { show: settings.showEcliptic },
+    // Celestial.apply() doesn't work well for nested config, so we reinitialize
+    const mapDiv = document.getElementById('celestial-map');
+    if (!mapDiv) return;
+
+    // Clear and reinitialize
+    mapDiv.innerHTML = '';
+    celestialInitialized.current = false;
+
+    const dataPath = 'https://unpkg.com/d3-celestial/data/';
+    const config = {
+      container: 'celestial-map',
+      datapath: dataPath,
+      width: CELESTIAL_CANVAS_SIZE,
+      projection: 'stereographic',
+      transform: 'horizontal',
+      center: null,
+      geopos: [locationRef.current.latitude, locationRef.current.longitude] as [number, number],
+      follow: 'zenith',
+      zoomlevel: null,
+      zoomextend: 10,
+      interactive: false,
+      form: false,
+      controls: false,
+      lang: '',
+      culture: '',
+      daterange: [],
+      orientationfixed: true,
+      background: {
+        fill: '#0a0a14',
+        opacity: 1,
+        stroke: '#1e293b',
+        width: 1.5,
+      },
+      horizon: {
+        show: true,
+        stroke: '#3b82f6',
+        width: 2,
+        fill: '#0a0a14',
+        opacity: 0.8,
+      },
+      daylight: { show: false },
+      planets: { show: false },
+      stars: {
+        show: true,
+        limit: 5,
+        colors: true,
+        style: { fill: '#ffffff', opacity: 0.85 },
+        designation: false,
+        propername: false,
+        size: 5,
+        exponent: -0.28,
+        data: 'stars.6.json',
+      },
+      dsos: { show: false },
+      constellations: {
+        show: settings.showConstellations,
+        names: true,
+        namesType: 'iau',
+        nameStyle: {
+          fill: '#6366f1',
+          align: 'center',
+          baseline: 'middle',
+          font: [
+            '12px Helvetica, Arial, sans-serif',
+            '11px Helvetica, Arial, sans-serif',
+            '10px Helvetica, Arial, sans-serif',
+          ],
         },
-        constellations: { show: settings.showConstellations },
+        lines: true,
+        lineStyle: { stroke: '#6366f140', width: 1 },
+        bounds: false,
+      },
+      mw: {
+        show: settings.showMilkyWay,
+        style: { fill: '#8090a0', opacity: 0.12 },
+      },
+      lines: {
+        graticule: {
+          show: settings.showGrid,
+          stroke: '#4a90c2',
+          width: 0.5,
+          opacity: 0.4,
+        },
+        equatorial: { show: false },
+        ecliptic: {
+          show: settings.showEcliptic,
+          stroke: '#fbbf24',
+          width: 2.5,
+          opacity: 1,
+        },
+        galactic: { show: false },
+        supergalactic: { show: false },
+      },
+    };
+
+    try {
+      Celestial.display(config);
+      Celestial.date(currentTimeRef.current);
+      Celestial.add({
+        type: 'raw',
+        callback: () => {},
+        redraw: drawCustomOverlays,
       });
+      celestialInitialized.current = true;
       Celestial.redraw();
     } catch {
-      // Celestial not ready
+      // Reinit failed
     }
   }, [
     settings.showMilkyWay,
     settings.showGrid,
     settings.showEcliptic,
     settings.showConstellations,
+    drawCustomOverlays,
   ]);
 
   // Update when compass heading changes
@@ -745,7 +841,20 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
               >
                 W
               </div>
-              {/* Circular chart container - clips to circle */}
+              {/* North arrow indicator - always visible, rotates with chart when compass is active */}
+              <div
+                className="absolute z-20"
+                style={{
+                  top: '6px',
+                  right: '6px',
+                  transform: settings.useCompass ? `rotate(${-compassHeading}deg)` : 'rotate(0deg)',
+                  transition: settings.useCompass ? 'transform 0.15s ease-out' : 'none',
+                }}
+                title={settings.useCompass ? `Heading: ${Math.round(compassHeading)}°` : 'North'}
+              >
+                <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-b-[10px] border-l-transparent border-r-transparent border-b-red-500" />
+              </div>
+              {/* Circular chart container - clips to circle using clip-path for Safari compatibility */}
               <div
                 style={{
                   position: 'absolute',
@@ -753,8 +862,8 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
                   left: '20px',
                   width: `${chartSize}px`,
                   height: `${chartSize}px`,
-                  overflow: 'hidden',
-                  borderRadius: '50%',
+                  clipPath: 'circle(50%)',
+                  WebkitClipPath: 'circle(50%)',
                 }}
               >
                 {/* Inner wrapper to center the scaled canvas */}
@@ -801,15 +910,6 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
                 <span>Milky Way</span>
               </div>
             )}
-          </div>
-
-          {/* Location info */}
-          <div className="flex items-center justify-center gap-2 mt-3 text-xs text-gray-500">
-            <Compass className="w-3 h-3" />
-            <span>
-              {location.latitude.toFixed(2)}°{location.latitude >= 0 ? 'N' : 'S'},{' '}
-              {location.longitude.toFixed(2)}°{location.longitude >= 0 ? 'E' : 'W'}
-            </span>
           </div>
         </div>
       )}
