@@ -43,8 +43,8 @@ const PLANET_COLORS: Record<string, string> = {
   Neptune: '#4169e1',
 };
 
-// d3-celestial renders canvas at this approximate size
-const CELESTIAL_CANVAS_SIZE = 560;
+// d3-celestial canvas size - we render at this fixed size for good quality, then scale to fit
+const CELESTIAL_CANVAS_SIZE = 500;
 
 export default function SkyChart({ nightInfo, location, planets, scoredObjects }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
@@ -407,7 +407,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
       const config = {
         container: 'celestial-map',
         datapath: dataPath,
-        width: 280, // Fixed width for circular projection (smaller for better fit)
+        width: CELESTIAL_CANVAS_SIZE, // Fixed canvas size for good quality
         projection: 'stereographic', // Stereographic projection - good for all-sky circular view
         transform: 'horizontal', // Horizontal (alt-az) coordinates - shows sky as observer sees it
         center: null,
@@ -703,14 +703,18 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
                 height: `${chartSize}px`,
                 overflow: 'hidden',
                 borderRadius: '50%',
+                position: 'relative',
               }}
             >
               <div
                 ref={containerRef}
                 id="celestial-map"
                 style={{
-                  transform: `scale(${chartSize / CELESTIAL_CANVAS_SIZE})`,
-                  transformOrigin: 'top left',
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: `translate(-50%, -50%) scale(${chartSize / CELESTIAL_CANVAS_SIZE})`,
+                  transformOrigin: 'center center',
                 }}
               />
             </div>
