@@ -505,7 +505,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
           equatorial: { show: false },
           ecliptic: {
             show: settings.showEcliptic,
-            stroke: '#fbbf24',
+            stroke: '#facc15',
             width: 2.5,
             opacity: 1,
           },
@@ -540,7 +540,8 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     };
 
     initCelestial();
-  }, [expanded, location.latitude, location.longitude, currentTime, settings, drawCustomOverlays]);
+    // Note: settings not in deps - settings changes handled by separate effect below
+  }, [expanded, location.latitude, location.longitude, currentTime, drawCustomOverlays]);
 
   // Update d3-celestial when time changes (use skyview for proper updates)
   useEffect(() => {
@@ -644,7 +645,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
         equatorial: { show: false },
         ecliptic: {
           show: settings.showEcliptic,
-          stroke: '#fbbf24',
+          stroke: '#facc15',
           width: 2.5,
           opacity: 1,
         },
