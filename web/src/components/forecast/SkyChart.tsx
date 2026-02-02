@@ -43,6 +43,9 @@ const PLANET_COLORS: Record<string, string> = {
   Neptune: '#4169e1',
 };
 
+// d3-celestial renders canvas at this approximate size
+const CELESTIAL_CANVAS_SIZE = 560;
+
 export default function SkyChart({ nightInfo, location, planets, scoredObjects }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
   const [settings, setSettings] = useState<ChartSettings>({
@@ -55,9 +58,11 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
   const [selectedTime, setSelectedTime] = useState<number>(50);
   const [compassHeading, setCompassHeading] = useState<number>(0);
   const [compassAvailable, setCompassAvailable] = useState<boolean | null>(null);
+  const [chartSize, setChartSize] = useState<number>(280); // Default size, will be computed
 
   // Refs for d3-celestial integration
   const containerRef = useRef<HTMLDivElement>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
   const celestialInitialized = useRef(false);
 
   // Refs to hold current data for the redraw callback (avoids stale closures)
@@ -103,6 +108,34 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     compassHeadingRef.current = compassHeading;
     useCompassRef.current = settings.useCompass;
   }, [compassHeading, settings.useCompass]);
+
+  // Compute chart size based on container width (80% of available width)
+  useEffect(() => {
+    if (!expanded) return;
+
+    const updateChartSize = () => {
+      const container = chartContainerRef.current;
+      if (!container) return;
+
+      const containerWidth = container.clientWidth;
+      // Use 80% of container width, with min 200px and max 500px
+      const newSize = Math.min(500, Math.max(200, Math.floor(containerWidth * 0.8)));
+      setChartSize(newSize);
+    };
+
+    // Initial size calculation
+    updateChartSize();
+
+    // Set up ResizeObserver for responsive updates
+    const resizeObserver = new ResizeObserver(updateChartSize);
+    if (chartContainerRef.current) {
+      resizeObserver.observe(chartContainerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [expanded]);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -662,20 +695,21 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
             )}
           </div>
 
-          {/* Celestial map container - scale down the d3-celestial canvas (renders at ~560px, scaled to 280px) */}
-          <div ref={containerRef} className="flex justify-center items-center w-full">
+          {/* Celestial map container - responsive sizing based on container width */}
+          <div ref={chartContainerRef} className="w-full flex justify-center items-center">
             <div
               style={{
-                width: '280px',
-                height: '280px',
+                width: `${chartSize}px`,
+                height: `${chartSize}px`,
                 overflow: 'hidden',
                 borderRadius: '50%',
               }}
             >
               <div
+                ref={containerRef}
                 id="celestial-map"
                 style={{
-                  transform: 'scale(0.5)',
+                  transform: `scale(${chartSize / CELESTIAL_CANVAS_SIZE})`,
                   transformOrigin: 'top left',
                 }}
               />
