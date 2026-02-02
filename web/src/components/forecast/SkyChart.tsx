@@ -374,14 +374,14 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
       const config = {
         container: 'celestial-map',
         datapath: dataPath,
-        width: 0, // auto-size
-        projection: 'orthographic', // Standard sky projection
-        transform: 'equatorial',
+        width: 280, // Fixed width for circular projection (smaller for better fit)
+        projection: 'stereographic', // Stereographic projection - good for all-sky circular view
+        transform: 'horizontal', // Horizontal (alt-az) coordinates - shows sky as observer sees it
         center: null,
         geopos: [location.latitude, location.longitude] as [number, number],
         follow: 'zenith',
         zoomlevel: null,
-        zoomextend: 1,
+        zoomextend: 10, // Allow full sky view
         interactive: false,
         form: false,
         controls: false,
@@ -662,13 +662,24 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
             )}
           </div>
 
-          {/* Celestial map container */}
-          <div ref={containerRef} className="flex justify-center">
+          {/* Celestial map container - scale down the d3-celestial canvas (renders at ~560px, scaled to 280px) */}
+          <div ref={containerRef} className="flex justify-center items-center w-full">
             <div
-              id="celestial-map"
-              className="rounded-lg overflow-hidden"
-              style={{ maxWidth: '400px', width: '100%' }}
-            />
+              style={{
+                width: '280px',
+                height: '280px',
+                overflow: 'hidden',
+                borderRadius: '50%',
+              }}
+            >
+              <div
+                id="celestial-map"
+                style={{
+                  transform: 'scale(0.5)',
+                  transformOrigin: 'top left',
+                }}
+              />
+            </div>
           </div>
 
           {/* Legend */}
