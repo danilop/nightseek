@@ -567,6 +567,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
         },
         constellations: { show: settings.showConstellations },
       });
+      Celestial.redraw();
     } catch {
       // Celestial not ready
     }
@@ -584,6 +585,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
     try {
       Celestial.rotate({ center: [-compassHeading, 0, 0] });
+      Celestial.redraw();
     } catch {
       // Celestial not ready
     }
@@ -696,27 +698,84 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
           </div>
 
           {/* Celestial map container - responsive sizing based on container width */}
-          <div ref={chartContainerRef} className="w-full flex justify-center items-center">
+          <div ref={chartContainerRef} className="w-full flex flex-col items-center">
+            {/* Wrapper with cardinal directions */}
             <div
-              style={{
-                width: `${chartSize}px`,
-                height: `${chartSize}px`,
-                overflow: 'hidden',
-                borderRadius: '50%',
-                position: 'relative',
-              }}
+              className="relative"
+              style={{ width: `${chartSize + 40}px`, height: `${chartSize + 40}px` }}
             >
+              {/* Cardinal direction markers - N highlighted in blue */}
               <div
-                ref={containerRef}
-                id="celestial-map"
+                className="absolute text-xs font-bold text-blue-400 z-10"
+                style={{
+                  top: 0,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                }}
+              >
+                N
+              </div>
+              <div
+                className="absolute text-xs font-medium text-gray-500 z-10"
+                style={{
+                  bottom: 0,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                }}
+              >
+                S
+              </div>
+              <div
+                className="absolute text-xs font-medium text-gray-500 z-10"
+                style={{
+                  left: 0,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                }}
+              >
+                E
+              </div>
+              <div
+                className="absolute text-xs font-medium text-gray-500 z-10"
+                style={{
+                  right: 0,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                }}
+              >
+                W
+              </div>
+              {/* Circular chart container - clips to circle */}
+              <div
                 style={{
                   position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  transform: `translate(-50%, -50%) scale(${chartSize / CELESTIAL_CANVAS_SIZE})`,
-                  transformOrigin: 'center center',
+                  top: '20px',
+                  left: '20px',
+                  width: `${chartSize}px`,
+                  height: `${chartSize}px`,
+                  overflow: 'hidden',
+                  borderRadius: '50%',
                 }}
-              />
+              >
+                {/* Inner wrapper to center the scaled canvas */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  <div
+                    ref={containerRef}
+                    id="celestial-map"
+                    style={{
+                      transform: `scale(${chartSize / CELESTIAL_CANVAS_SIZE})`,
+                      transformOrigin: 'center center',
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
