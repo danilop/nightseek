@@ -1,8 +1,11 @@
 import * as Astronomy from 'astronomy-engine';
-import Celestial from 'd3-celestial';
 import { ChevronDown, ChevronRight, Compass, Map as MapIcon, Navigation } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Location, NightInfo, ObjectVisibility, ScoredObject } from '@/types';
+
+// d3-celestial must be loaded via script tag because it uses old D3 v3 that expects browser globals
+// biome-ignore lint/suspicious/noExplicitAny: d3-celestial loaded via global script
+declare const Celestial: any;
 
 interface SkyChartProps {
   nightInfo: NightInfo;
@@ -205,6 +208,8 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
   // Custom redraw function for planets and DSOs - uses refs to access current data
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: canvas drawing requires sequential operations
   const drawCustomOverlays = useCallback(() => {
+    if (typeof Celestial === 'undefined') return;
+
     const canvas = document.querySelector('#celestial-map canvas') as HTMLCanvasElement;
     if (!canvas) return;
 
@@ -291,149 +296,222 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     const container = containerRef.current;
     if (!container) return;
 
-    // Ensure container is empty before initializing
-    const mapDiv = document.getElementById('celestial-map');
-    if (mapDiv) {
-      mapDiv.innerHTML = '';
-    }
+    // Helper to load a script and wait for it
+    const loadScript = (src: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        // Check if script already exists
+        if (document.querySelector(`script[src="${src}"]`)) {
+          resolve();
+          return;
+        }
 
-    const config = {
-      container: 'celestial-map',
-      width: 0, // auto-size
-      projection: 'airy', // Good for horizon-centered sky view
-      transform: 'equatorial',
-      center: null,
-      geopos: [location.latitude, location.longitude] as [number, number],
-      follow: 'zenith',
-      zoomlevel: null,
-      zoomextend: 1,
-      interactive: false,
-      form: false,
-      controls: false,
-      lang: '',
-      culture: '',
-      daterange: [],
-      orientationfixed: true,
-      background: {
-        fill: '#0a0a14',
-        opacity: 1,
-        stroke: '#1e293b',
-        width: 1.5,
-      },
-      horizon: {
-        show: true,
-        stroke: '#3b82f6',
-        width: 2,
-        fill: '#0a0a14',
-        opacity: 0.8,
-      },
-      daylight: {
-        show: false,
-      },
-      planets: {
-        show: false, // We draw our own
-      },
-      stars: {
-        show: true,
-        limit: 5,
-        colors: true,
-        style: { fill: '#ffffff', opacity: 0.85 },
-        designation: false,
-        designationType: 'name',
-        designationStyle: {
-          fill: '#ddddbb',
-          font: "10px 'Lucida Sans Unicode', Georgia, Times, 'Times Roman', serif",
-          align: 'left',
-          baseline: 'top',
-        },
-        designationLimit: 2.5,
-        propername: false,
-        propernameType: 'name',
-        propernameStyle: {
-          fill: '#ddddbb',
-          font: "11px 'Lucida Sans Unicode', Georgia, Times, 'Times Roman', serif",
-          align: 'right',
-          baseline: 'bottom',
-        },
-        propernameLimit: 1.5,
-        size: 5,
-        exponent: -0.28,
-        data: 'stars.6.json',
-      },
-      dsos: {
-        show: false, // We draw our own
-      },
-      constellations: {
-        show: settings.showConstellations,
-        names: true,
-        namesType: 'iau',
-        nameStyle: {
-          fill: '#6366f1',
-          align: 'center',
-          baseline: 'middle',
-          font: [
-            '12px Helvetica, Arial, sans-serif',
-            '11px Helvetica, Arial, sans-serif',
-            '10px Helvetica, Arial, sans-serif',
-          ],
-        },
-        lines: true,
-        lineStyle: { stroke: '#6366f140', width: 1 },
-        bounds: false,
-      },
-      mw: {
-        show: settings.showMilkyWay,
-        style: { fill: '#8090a0', opacity: 0.12 },
-      },
-      lines: {
-        graticule: {
-          show: settings.showGrid,
-          stroke: '#4a90c2',
-          width: 0.5,
-          opacity: 0.4,
-          lon: { pos: [''], fill: '#4a90c2', font: '9px Helvetica, Arial, sans-serif' },
-          lat: { pos: [''], fill: '#4a90c2', font: '9px Helvetica, Arial, sans-serif' },
-        },
-        equatorial: { show: false },
-        ecliptic: {
-          show: settings.showEcliptic,
-          stroke: '#f59e0b',
-          width: 1.5,
-          opacity: 0.7,
-        },
-        galactic: { show: false },
-        supergalactic: { show: false },
-      },
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = false; // Load in order
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(script);
+      });
     };
 
-    try {
-      Celestial.display(config);
+    // Load d3 v3 first, then d3-celestial (it uses old D3 v3 that requires browser globals)
+    const loadCelestialScript = async (): Promise<void> => {
+      // Check if already loaded
+      if (typeof Celestial !== 'undefined') {
+        return;
+      }
 
-      // Set initial date and location
-      Celestial.date(currentTime);
-      Celestial.location([location.latitude, location.longitude]);
+      // Load d3 v3 first (d3-celestial depends on it)
+      // biome-ignore lint/suspicious/noExplicitAny: d3 loaded via global script
+      if (typeof (window as any).d3 === 'undefined') {
+        await loadScript('https://unpkg.com/d3@3/d3.min.js');
+      }
 
-      // Register custom overlay callback - this redraw function is called on every redraw
-      Celestial.add({
-        type: 'raw',
-        callback: () => {
-          // Initial callback - nothing to do here for raw type
-        },
-        redraw: drawCustomOverlays,
+      // Then load d3-celestial
+      await loadScript('https://unpkg.com/d3-celestial/celestial.min.js');
+
+      // Wait for Celestial to be available
+      await new Promise<void>(resolve => {
+        const checkLoaded = setInterval(() => {
+          if (typeof Celestial !== 'undefined') {
+            clearInterval(checkLoaded);
+            resolve();
+          }
+        }, 50);
+      });
+    };
+
+    const initCelestial = async () => {
+      try {
+        await loadCelestialScript();
+      } catch {
+        return; // Failed to load script
+      }
+
+      // Wait for DOM to be ready and container to exist
+      await new Promise<void>(resolve => {
+        const checkReady = () => {
+          const mapDiv = document.getElementById('celestial-map');
+          if (mapDiv) {
+            // Use requestAnimationFrame to ensure DOM is painted
+            requestAnimationFrame(() => {
+              mapDiv.innerHTML = '';
+              resolve();
+            });
+          } else {
+            requestAnimationFrame(checkReady);
+          }
+        };
+        checkReady();
       });
 
-      celestialInitialized.current = true;
+      const mapDiv = document.getElementById('celestial-map');
+      if (!mapDiv) return;
 
-      // Initial redraw to show overlays
-      Celestial.redraw();
-    } catch {
-      // Initialization failed - container may not be ready
-    }
+      // d3-celestial data files are hosted on unpkg CDN
+      const dataPath = 'https://unpkg.com/d3-celestial/data/';
+
+      const config = {
+        container: 'celestial-map',
+        datapath: dataPath,
+        width: 0, // auto-size
+        projection: 'orthographic', // Standard sky projection
+        transform: 'equatorial',
+        center: null,
+        geopos: [location.latitude, location.longitude] as [number, number],
+        follow: 'zenith',
+        zoomlevel: null,
+        zoomextend: 1,
+        interactive: false,
+        form: false,
+        controls: false,
+        lang: '',
+        culture: '',
+        daterange: [],
+        orientationfixed: true,
+        background: {
+          fill: '#0a0a14',
+          opacity: 1,
+          stroke: '#1e293b',
+          width: 1.5,
+        },
+        horizon: {
+          show: true,
+          stroke: '#3b82f6',
+          width: 2,
+          fill: '#0a0a14',
+          opacity: 0.8,
+        },
+        daylight: {
+          show: false,
+        },
+        planets: {
+          show: false, // We draw our own
+        },
+        stars: {
+          show: true,
+          limit: 5,
+          colors: true,
+          style: { fill: '#ffffff', opacity: 0.85 },
+          designation: false,
+          designationType: 'name',
+          designationStyle: {
+            fill: '#ddddbb',
+            font: "10px 'Lucida Sans Unicode', Georgia, Times, 'Times Roman', serif",
+            align: 'left',
+            baseline: 'top',
+          },
+          designationLimit: 2.5,
+          propername: false,
+          propernameType: 'name',
+          propernameStyle: {
+            fill: '#ddddbb',
+            font: "11px 'Lucida Sans Unicode', Georgia, Times, 'Times Roman', serif",
+            align: 'right',
+            baseline: 'bottom',
+          },
+          propernameLimit: 1.5,
+          size: 5,
+          exponent: -0.28,
+          data: 'stars.6.json',
+        },
+        dsos: {
+          show: false, // We draw our own
+        },
+        constellations: {
+          show: settings.showConstellations,
+          names: true,
+          namesType: 'iau',
+          nameStyle: {
+            fill: '#6366f1',
+            align: 'center',
+            baseline: 'middle',
+            font: [
+              '12px Helvetica, Arial, sans-serif',
+              '11px Helvetica, Arial, sans-serif',
+              '10px Helvetica, Arial, sans-serif',
+            ],
+          },
+          lines: true,
+          lineStyle: { stroke: '#6366f140', width: 1 },
+          bounds: false,
+        },
+        mw: {
+          show: settings.showMilkyWay,
+          style: { fill: '#8090a0', opacity: 0.12 },
+        },
+        lines: {
+          graticule: {
+            show: settings.showGrid,
+            stroke: '#4a90c2',
+            width: 0.5,
+            opacity: 0.4,
+            lon: { pos: [''], fill: '#4a90c2', font: '9px Helvetica, Arial, sans-serif' },
+            lat: { pos: [''], fill: '#4a90c2', font: '9px Helvetica, Arial, sans-serif' },
+          },
+          equatorial: { show: false },
+          ecliptic: {
+            show: settings.showEcliptic,
+            stroke: '#f59e0b',
+            width: 1.5,
+            opacity: 0.7,
+          },
+          galactic: { show: false },
+          supergalactic: { show: false },
+        },
+      };
+
+      try {
+        Celestial.display(config);
+
+        // Set initial date and location
+        Celestial.date(currentTime);
+        Celestial.location([location.latitude, location.longitude]);
+
+        // Register custom overlay callback - this redraw function is called on every redraw
+        Celestial.add({
+          type: 'raw',
+          callback: () => {
+            // Initial callback - nothing to do here for raw type
+          },
+          redraw: drawCustomOverlays,
+        });
+
+        celestialInitialized.current = true;
+
+        // Initial redraw to show overlays
+        Celestial.redraw();
+      } catch {
+        // Initialization failed - container may not be ready
+      }
+    };
+
+    initCelestial();
   }, [expanded, location.latitude, location.longitude, currentTime, settings, drawCustomOverlays]);
 
   // Update d3-celestial when time changes (use skyview for proper updates)
   useEffect(() => {
-    if (!celestialInitialized.current) return;
+    if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
 
     try {
       // Use skyview to update date and trigger proper recalculation
@@ -445,7 +523,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
   // Update d3-celestial when settings change
   useEffect(() => {
-    if (!celestialInitialized.current) return;
+    if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
 
     try {
       Celestial.apply({
@@ -468,7 +546,8 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
   // Update when compass heading changes
   useEffect(() => {
-    if (!celestialInitialized.current || !settings.useCompass) return;
+    if (!celestialInitialized.current || !settings.useCompass || typeof Celestial === 'undefined')
+      return;
 
     try {
       Celestial.rotate({ center: [-compassHeading, 0, 0] });
@@ -480,7 +559,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (celestialInitialized.current) {
+      if (celestialInitialized.current && typeof Celestial !== 'undefined') {
         // Clear custom callbacks
         Celestial.clear();
 
