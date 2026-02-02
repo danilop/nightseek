@@ -1,7 +1,7 @@
 import * as Astronomy from 'astronomy-engine';
 import Celestial from 'd3-celestial';
 import { ChevronDown, ChevronRight, Compass, Map as MapIcon, Navigation } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Location, NightInfo, ObjectVisibility, ScoredObject } from '@/types';
 
 interface SkyChartProps {
@@ -19,6 +19,27 @@ interface ChartSettings {
   useCompass: boolean;
 }
 
+// Planet body mappings (static, defined outside component)
+const PLANET_BODIES: Record<string, Astronomy.Body> = {
+  Mercury: Astronomy.Body.Mercury,
+  Venus: Astronomy.Body.Venus,
+  Mars: Astronomy.Body.Mars,
+  Jupiter: Astronomy.Body.Jupiter,
+  Saturn: Astronomy.Body.Saturn,
+  Uranus: Astronomy.Body.Uranus,
+  Neptune: Astronomy.Body.Neptune,
+};
+
+const PLANET_COLORS: Record<string, string> = {
+  Mercury: '#b8b8b8',
+  Venus: '#ffd700',
+  Mars: '#ff6347',
+  Jupiter: '#daa520',
+  Saturn: '#f4d03f',
+  Uranus: '#87ceeb',
+  Neptune: '#4169e1',
+};
+
 export default function SkyChart({ nightInfo, location, planets, scoredObjects }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
   const [settings, setSettings] = useState<ChartSettings>({
@@ -28,13 +49,21 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     showConstellations: true,
     useCompass: false,
   });
-  const [selectedTime, setSelectedTime] = useState<number>(50); // 0-100 slider position
+  const [selectedTime, setSelectedTime] = useState<number>(50);
   const [compassHeading, setCompassHeading] = useState<number>(0);
   const [compassAvailable, setCompassAvailable] = useState<boolean | null>(null);
-  const [celestialReady, setCelestialReady] = useState(false);
 
+  // Refs for d3-celestial integration
   const containerRef = useRef<HTMLDivElement>(null);
   const celestialInitialized = useRef(false);
+
+  // Refs to hold current data for the redraw callback (avoids stale closures)
+  const currentTimeRef = useRef<Date>(new Date());
+  const planetsRef = useRef<ObjectVisibility[]>([]);
+  const topDSOsRef = useRef<ScoredObject[]>([]);
+  const locationRef = useRef<Location>(location);
+  const compassHeadingRef = useRef<number>(0);
+  const useCompassRef = useRef<boolean>(false);
 
   // Calculate the actual time from slider position
   const currentTime = useMemo(() => {
@@ -44,16 +73,37 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     return new Date(startTime + (selectedTime / 100) * timeRange);
   }, [nightInfo.sunset, nightInfo.sunrise, selectedTime]);
 
-  // Format time for display
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   // Get top DSOs for display
   const topDSOs = useMemo(
     () => scoredObjects.filter(obj => obj.category === 'dso').slice(0, 8),
     [scoredObjects]
   );
+
+  // Keep refs in sync with current values
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
+  useEffect(() => {
+    planetsRef.current = planets;
+  }, [planets]);
+
+  useEffect(() => {
+    topDSOsRef.current = topDSOs;
+  }, [topDSOs]);
+
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
+
+  useEffect(() => {
+    compassHeadingRef.current = compassHeading;
+    useCompassRef.current = settings.useCompass;
+  }, [compassHeading, settings.useCompass]);
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   const toggleSetting = (key: keyof ChartSettings) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
@@ -94,7 +144,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     }
   }, []);
 
-  // Handle compass/device orientation when enabled
+  // Handle compass orientation
   useEffect(() => {
     if (!settings.useCompass) {
       setCompassHeading(0);
@@ -110,13 +160,11 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (!mounted) return;
-
       const heading =
         (event as DeviceOrientationEvent & { webkitCompassHeading?: number })
           .webkitCompassHeading ??
         event.alpha ??
         0;
-
       if (heading !== null) {
         setCompassHeading(heading);
       }
@@ -154,43 +202,107 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     };
   }, [settings.useCompass, compassAvailable]);
 
-  // Initialize d3-celestial
+  // Custom redraw function for planets and DSOs - uses refs to access current data
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: canvas drawing requires sequential operations
+  const drawCustomOverlays = useCallback(() => {
+    const canvas = document.querySelector('#celestial-map canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const loc = locationRef.current;
+    const time = currentTimeRef.current;
+    const currentPlanets = planetsRef.current;
+    const currentDSOs = topDSOsRef.current;
+
+    const observer = new Astronomy.Observer(loc.latitude, loc.longitude, 0);
+
+    // Draw planets
+    for (const planet of currentPlanets) {
+      if (!planet.isVisible) continue;
+
+      const body = PLANET_BODIES[planet.objectName];
+      if (!body) continue;
+
+      const equator = Astronomy.Equator(body, time, observer, true, true);
+      const color = PLANET_COLORS[planet.objectName] ?? '#ffffff';
+
+      // Check if above horizon first
+      const horizon = Astronomy.Horizon(time, observer, equator.ra * 15, equator.dec, 'normal');
+      if (horizon.altitude < 0) continue;
+
+      // Convert RA/Dec to canvas position using Celestial's projection
+      const pos = Celestial.mapProjection([equator.ra * 15, equator.dec]);
+      if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) continue;
+
+      // Draw planet
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(pos[0], pos[1], 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Add glow for bright planets
+      if (planet.magnitude !== null && planet.magnitude < 0) {
+        const gradient = ctx.createRadialGradient(pos[0], pos[1], 0, pos[0], pos[1], 10);
+        gradient.addColorStop(0, `${color}60`);
+        gradient.addColorStop(1, `${color}00`);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(pos[0], pos[1], 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Label
+      ctx.fillStyle = color;
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(planet.objectName, pos[0], pos[1] - 10);
+    }
+
+    // Draw top DSOs
+    for (const dso of currentDSOs) {
+      const { visibility } = dso;
+      if (!visibility.isVisible) continue;
+
+      const pos = Celestial.mapProjection([visibility.raHours * 15, visibility.decDegrees]);
+      if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) continue;
+
+      // Draw DSO marker
+      ctx.fillStyle = '#10b981';
+      ctx.beginPath();
+      ctx.arc(pos[0], pos[1], 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ring
+      ctx.strokeStyle = '#10b98180';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(pos[0], pos[1], 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }, []);
+
+  // Initialize d3-celestial once when expanded
   useEffect(() => {
-    if (!expanded || celestialInitialized.current) return;
+    if (!expanded) return;
+    if (celestialInitialized.current) return;
 
     const container = containerRef.current;
     if (!container) return;
 
-    // Calculate rotation based on compass heading
-    const baseRotation = settings.useCompass ? -compassHeading : 0;
-
-    // Planet data for overlay
-    const planetBodies: Record<string, Astronomy.Body> = {
-      Mercury: Astronomy.Body.Mercury,
-      Venus: Astronomy.Body.Venus,
-      Mars: Astronomy.Body.Mars,
-      Jupiter: Astronomy.Body.Jupiter,
-      Saturn: Astronomy.Body.Saturn,
-      Uranus: Astronomy.Body.Uranus,
-      Neptune: Astronomy.Body.Neptune,
-    };
-
-    const planetColors: Record<string, string> = {
-      Mercury: '#b8b8b8',
-      Venus: '#ffd700',
-      Mars: '#ff6347',
-      Jupiter: '#daa520',
-      Saturn: '#f4d03f',
-      Uranus: '#87ceeb',
-      Neptune: '#4169e1',
-    };
+    // Ensure container is empty before initializing
+    const mapDiv = document.getElementById('celestial-map');
+    if (mapDiv) {
+      mapDiv.innerHTML = '';
+    }
 
     const config = {
       container: 'celestial-map',
       width: 0, // auto-size
-      projection: 'airy', // Airy projection - good for horizon-centered view
+      projection: 'airy', // Good for horizon-centered sky view
       transform: 'equatorial',
-      center: null, // Will be set by horizon
+      center: null,
       geopos: [location.latitude, location.longitude] as [number, number],
       follow: 'zenith',
       zoomlevel: null,
@@ -219,7 +331,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
         show: false,
       },
       planets: {
-        show: false, // We'll draw our own planets with custom styling
+        show: false, // We draw our own
       },
       stars: {
         show: true,
@@ -249,7 +361,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
         data: 'stars.6.json',
       },
       dsos: {
-        show: false, // We'll draw our own DSOs
+        show: false, // We draw our own
       },
       constellations: {
         show: settings.showConstellations,
@@ -297,135 +409,45 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     try {
       Celestial.display(config);
 
-      // Set the date and location
+      // Set initial date and location
       Celestial.date(currentTime);
       Celestial.location([location.latitude, location.longitude]);
 
-      // Apply compass rotation if enabled
-      if (settings.useCompass && compassHeading !== 0) {
-        Celestial.rotate({ center: [baseRotation, 0, 0] });
-      }
-
-      celestialInitialized.current = true;
-      setCelestialReady(true);
-
-      // Add custom callback for drawing planets and DSOs
+      // Register custom overlay callback - this redraw function is called on every redraw
       Celestial.add({
         type: 'raw',
-        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: d3-celestial callback requires sequential canvas operations
-        callback: (error: Error | null) => {
-          if (error) return;
-
-          const canvas = document.querySelector('#celestial-map canvas') as HTMLCanvasElement;
-          if (!canvas) return;
-
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-
-          const observer = new Astronomy.Observer(location.latitude, location.longitude, 0);
-
-          // Draw planets
-          for (const planet of planets) {
-            if (!planet.isVisible) continue;
-
-            const body = planetBodies[planet.objectName];
-            if (!body) continue;
-
-            const equator = Astronomy.Equator(body, currentTime, observer, true, true);
-            const color = planetColors[planet.objectName] ?? '#ffffff';
-
-            // Convert RA/Dec to canvas position using Celestial's projection
-            const pos = Celestial.mapProjection([equator.ra * 15, equator.dec]);
-            if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) continue;
-
-            // Check if above horizon
-            const horizon = Astronomy.Horizon(
-              currentTime,
-              observer,
-              equator.ra * 15,
-              equator.dec,
-              'normal'
-            );
-            if (horizon.altitude < 0) continue;
-
-            // Draw planet
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(pos[0], pos[1], 5, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Add glow for bright planets
-            if (planet.magnitude !== null && planet.magnitude < 0) {
-              const gradient = ctx.createRadialGradient(pos[0], pos[1], 0, pos[0], pos[1], 10);
-              gradient.addColorStop(0, `${color}60`);
-              gradient.addColorStop(1, `${color}00`);
-              ctx.fillStyle = gradient;
-              ctx.beginPath();
-              ctx.arc(pos[0], pos[1], 10, 0, Math.PI * 2);
-              ctx.fill();
-            }
-
-            // Label
-            ctx.fillStyle = color;
-            ctx.font = '10px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(planet.objectName, pos[0], pos[1] - 10);
-          }
-
-          // Draw top DSOs
-          for (const dso of topDSOs) {
-            const { visibility } = dso;
-            if (!visibility.isVisible) continue;
-
-            const pos = Celestial.mapProjection([visibility.raHours * 15, visibility.decDegrees]);
-            if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) continue;
-
-            // Draw DSO marker
-            ctx.fillStyle = '#10b981';
-            ctx.beginPath();
-            ctx.arc(pos[0], pos[1], 3, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Ring
-            ctx.strokeStyle = '#10b98180';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(pos[0], pos[1], 5, 0, Math.PI * 2);
-            ctx.stroke();
-          }
+        callback: () => {
+          // Initial callback - nothing to do here for raw type
         },
-        redraw: () => {
-          // Called when the map is redrawn
-        },
+        redraw: drawCustomOverlays,
       });
 
+      celestialInitialized.current = true;
+
+      // Initial redraw to show overlays
       Celestial.redraw();
     } catch {
-      // Failed to initialize d3-celestial - may happen during SSR or if container not ready
+      // Initialization failed - container may not be ready
     }
-  }, [
-    expanded,
-    location.latitude,
-    location.longitude,
-    currentTime,
-    settings.showMilkyWay,
-    settings.showGrid,
-    settings.showEcliptic,
-    settings.showConstellations,
-    settings.useCompass,
-    compassHeading,
-    planets,
-    topDSOs,
-  ]);
+  }, [expanded, location.latitude, location.longitude, currentTime, settings, drawCustomOverlays]);
 
-  // Update d3-celestial when time/settings change
+  // Update d3-celestial when time changes (use skyview for proper updates)
   useEffect(() => {
-    if (!celestialReady || !celestialInitialized.current) return;
+    if (!celestialInitialized.current) return;
 
     try {
-      Celestial.date(currentTime);
+      // Use skyview to update date and trigger proper recalculation
+      Celestial.skyview({ date: currentTime });
+    } catch {
+      // Celestial not ready
+    }
+  }, [currentTime]);
 
-      // Update visibility settings
+  // Update d3-celestial when settings change
+  useEffect(() => {
+    if (!celestialInitialized.current) return;
+
+    try {
       Celestial.apply({
         mw: { show: settings.showMilkyWay },
         lines: {
@@ -434,23 +456,42 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
         },
         constellations: { show: settings.showConstellations },
       });
-
-      // Apply compass rotation
-      if (settings.useCompass) {
-        Celestial.rotate({ center: [-compassHeading, 0, 0] });
-      }
-
-      Celestial.redraw();
     } catch {
-      // Celestial might not be ready yet
+      // Celestial not ready
     }
-  }, [currentTime, settings, compassHeading, celestialReady]);
+  }, [
+    settings.showMilkyWay,
+    settings.showGrid,
+    settings.showEcliptic,
+    settings.showConstellations,
+  ]);
+
+  // Update when compass heading changes
+  useEffect(() => {
+    if (!celestialInitialized.current || !settings.useCompass) return;
+
+    try {
+      Celestial.rotate({ center: [-compassHeading, 0, 0] });
+    } catch {
+      // Celestial not ready
+    }
+  }, [compassHeading, settings.useCompass]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      celestialInitialized.current = false;
-      setCelestialReady(false);
+      if (celestialInitialized.current) {
+        // Clear custom callbacks
+        Celestial.clear();
+
+        // Clear the container
+        const mapDiv = document.getElementById('celestial-map');
+        if (mapDiv) {
+          mapDiv.innerHTML = '';
+        }
+
+        celestialInitialized.current = false;
+      }
     };
   }, []);
 

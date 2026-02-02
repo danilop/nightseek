@@ -111,6 +111,12 @@ declare module 'd3-celestial' {
     redraw?: () => void;
   }
 
+  interface SkyviewOptions {
+    date?: Date;
+    location?: [number, number];
+    timezone?: number;
+  }
+
   interface Celestial {
     display(config: CelestialConfig): void;
     date(date?: Date, timezone?: number): Date | undefined;
@@ -119,6 +125,8 @@ declare module 'd3-celestial' {
     apply(config: Partial<CelestialConfig>): void;
     redraw(): void;
     add(options: CelestialAddOptions): void;
+    clear(): void;
+    skyview(options?: SkyviewOptions): SkyviewOptions | undefined;
     mapProjection(coords: [number, number]): [number, number] | null;
     container: HTMLElement;
     context: CanvasRenderingContext2D;
