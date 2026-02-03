@@ -8,9 +8,6 @@ interface UIState {
   jupiterMoonsExpanded: boolean;
   weatherDetailsExpanded: boolean;
 
-  // Tab state
-  activeTab: 'tonight' | 'week';
-
   // Category ordering (array of category keys)
   categoryOrder: string[];
 }
@@ -39,7 +36,6 @@ const DEFAULT_UI_STATE: UIState = {
   },
   jupiterMoonsExpanded: false,
   weatherDetailsExpanded: false,
-  activeTab: 'tonight',
   categoryOrder: DEFAULT_CATEGORY_ORDER,
 };
 
@@ -144,15 +140,6 @@ export function useUIState() {
     notifyListeners();
   }, []);
 
-  const setActiveTab = useCallback((tab: 'tonight' | 'week') => {
-    globalState = {
-      ...globalState,
-      activeTab: tab,
-    };
-    saveUIState(globalState);
-    notifyListeners();
-  }, []);
-
   const setCategoryOrder = useCallback((order: string[]) => {
     globalState = {
       ...globalState,
@@ -181,7 +168,6 @@ export function useUIState() {
     expandedCategories: globalState.expandedCategories,
     jupiterMoonsExpanded: globalState.jupiterMoonsExpanded,
     weatherDetailsExpanded: globalState.weatherDetailsExpanded,
-    activeTab: globalState.activeTab,
     categoryOrder: globalState.categoryOrder,
 
     // Actions
@@ -190,7 +176,6 @@ export function useUIState() {
     isCategoryExpanded,
     setJupiterMoonsExpanded,
     setWeatherDetailsExpanded,
-    setActiveTab,
     setCategoryOrder,
     reorderCategory,
   };
