@@ -1,4 +1,6 @@
 import { AlertTriangle, Orbit } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
 import { formatDiameter, getDistanceDescription, getSizeCategory } from '@/lib/nasa/neows';
 import type { NeoCloseApproach } from '@/types';
 
@@ -12,7 +14,7 @@ export default function CloseApproachCard({ approaches }: CloseApproachCardProps
   }
 
   return (
-    <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
+    <Card>
       <div className="px-4 py-3 border-b border-night-700">
         <h3 className="font-semibold text-white flex items-center gap-2">
           <Orbit className="w-4 h-4 text-amber-400" />
@@ -35,7 +37,7 @@ export default function CloseApproachCard({ approaches }: CloseApproachCardProps
       <div className="px-4 py-2 border-t border-night-700 bg-night-800/50">
         <p className="text-xs text-gray-500">1 lunar distance = 384,400 km (distance to Moon)</p>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -69,9 +71,7 @@ function NeoCard({ neo }: NeoCardProps) {
           </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {neo.isPotentiallyHazardous && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">PHA</span>
-          )}
+          {neo.isPotentiallyHazardous && <Badge variant="danger">PHA</Badge>}
           <SizeBadge category={sizeCategory} />
         </div>
       </div>
@@ -111,15 +111,18 @@ interface SizeBadgeProps {
 }
 
 function SizeBadge({ category }: SizeBadgeProps) {
-  const config = {
-    tiny: { label: 'Tiny', className: 'bg-gray-500/20 text-gray-400' },
-    small: { label: 'Small', className: 'bg-blue-500/20 text-blue-400' },
-    medium: { label: 'Medium', className: 'bg-green-500/20 text-green-400' },
-    large: { label: 'Large', className: 'bg-amber-500/20 text-amber-400' },
-    giant: { label: 'Giant', className: 'bg-red-500/20 text-red-400' },
+  const config: Record<
+    string,
+    { label: string; variant: 'default' | 'info' | 'success' | 'warning' | 'danger' }
+  > = {
+    tiny: { label: 'Tiny', variant: 'default' },
+    small: { label: 'Small', variant: 'info' },
+    medium: { label: 'Medium', variant: 'success' },
+    large: { label: 'Large', variant: 'warning' },
+    giant: { label: 'Giant', variant: 'danger' },
   };
 
-  const { label, className } = config[category];
+  const { label, variant } = config[category];
 
-  return <span className={`text-xs px-1.5 py-0.5 rounded ${className}`}>{label}</span>;
+  return <Badge variant={variant}>{label}</Badge>;
 }

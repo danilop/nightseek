@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Map as MapIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Location, NightInfo } from '@/types';
 
 // d3-celestial must be loaded via script tag because it uses old D3 v3 that expects browser globals
@@ -15,6 +15,31 @@ interface SkyChartProps {
 const SMALL_SCREEN_WIDTH = 640; // sm breakpoint
 const MEDIUM_SCREEN_WIDTH = 1024; // lg breakpoint
 
+/** Reusable toggle button for display options */
+function ToggleButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+        active
+          ? 'bg-white/10 text-white border border-white/30'
+          : 'bg-night-800 text-gray-500 border border-night-700'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
   const [selectedTime, setSelectedTime] = useState<number>(50);
@@ -28,6 +53,9 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   const celestialInitialized = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Store initial time for first render - don't add currentTime as init dependency
+  const initialTimeRef = useRef<Date | null>(null);
+
   // Calculate the actual time from slider position
   const currentTime = useMemo(() => {
     const startTime = nightInfo.sunset.getTime();
@@ -36,14 +64,18 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     return new Date(startTime + (selectedTime / 100) * timeRange);
   }, [nightInfo.sunset, nightInfo.sunrise, selectedTime]);
 
-  const formatTime = (date: Date) => {
+  const formatTime = useCallback((date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  }, []);
 
-  // Initialize d3-celestial
+  // Initialize d3-celestial - only runs once when first expanded
+  // Display options use defaults here; the update effect syncs actual state after init
   useEffect(() => {
     if (!expanded) return;
     if (celestialInitialized.current) return;
+
+    // Capture current time at init start
+    initialTimeRef.current = currentTime;
 
     const loadScript = (src: string): Promise<void> => {
       return new Promise((resolve, reject) => {
@@ -170,8 +202,9 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           fill: '#0f172a',
           opacity: 0.8,
         },
+        // Use default values (true) for all display options - the update effect syncs actual state after init
         stars: {
-          show: showStars,
+          show: true,
           limit: starLimit,
           colors: true,
           style: { fill: '#ffffff', opacity: 0.85 },
@@ -186,7 +219,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           },
         },
         dsos: {
-          show: showDSOs,
+          show: true,
           names: true,
           nameLimit: dsoNameLimit,
           colors: true,
@@ -196,9 +229,9 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           },
         },
         constellations: {
-          show: showConstellations,
-          names: showConstellations,
-          lines: showConstellations,
+          show: true,
+          names: true,
+          lines: true,
           namesType: 'iau',
           nameStyle: {
             fill: '#818cf8', // indigo-400
@@ -209,18 +242,18 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           lineStyle: { stroke: '#6366f180', width: isSmall ? 0.5 : isLarge ? 1.5 : 1 },
         },
         mw: {
-          show: showMilkyWay,
+          show: true,
           style: { fill: '#64748b', opacity: 0.12 }, // slate-500
         },
         lines: {
           graticule: { show: false },
           equatorial: { show: false },
-          ecliptic: { show: showLines },
+          ecliptic: { show: true },
           galactic: { show: false },
           supergalactic: { show: false },
         },
         planets: {
-          show: showPlanets,
+          show: true,
           names: !isSmall, // Hide planet names on small screens to reduce clutter
           symbolStyle: {
             font: `bold ${planetFontSize} 'Lucida Sans Unicode', sans-serif`,
@@ -237,8 +270,9 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
       try {
         Celestial.display(config);
 
-        // Set the date/time and location
-        Celestial.date(currentTime);
+        // Set the date/time and location using the captured initial time
+        const initTime = initialTimeRef.current ?? new Date();
+        Celestial.date(initTime);
         Celestial.location([location.latitude, location.longitude]);
 
         // KEY: Use Celestial.zenith() to get proper zenith coordinates and rotate to it
@@ -255,8 +289,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     };
 
     initCelestial();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expanded, location.latitude, location.longitude]);
+  }, [expanded, location.latitude, location.longitude, currentTime]);
 
   // Update when time changes
   useEffect(() => {
@@ -367,72 +400,32 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
           {/* Display Options - matching d3-celestial viewer demo */}
           <div className="flex flex-wrap gap-2 mb-4">
-            <button
-              type="button"
+            <ToggleButton
+              label="Stars"
+              active={showStars}
               onClick={() => setShowStars(!showStars)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                showStars
-                  ? 'bg-white/10 text-white border border-white/30'
-                  : 'bg-night-800 text-gray-500 border border-night-700'
-              }`}
-            >
-              Stars
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowDSOs(!showDSOs)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                showDSOs
-                  ? 'bg-white/10 text-white border border-white/30'
-                  : 'bg-night-800 text-gray-500 border border-night-700'
-              }`}
-            >
-              DSOs
-            </button>
-            <button
-              type="button"
+            />
+            <ToggleButton label="DSOs" active={showDSOs} onClick={() => setShowDSOs(!showDSOs)} />
+            <ToggleButton
+              label="Constellations"
+              active={showConstellations}
               onClick={() => setShowConstellations(!showConstellations)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                showConstellations
-                  ? 'bg-white/10 text-white border border-white/30'
-                  : 'bg-night-800 text-gray-500 border border-night-700'
-              }`}
-            >
-              Constellations
-            </button>
-            <button
-              type="button"
+            />
+            <ToggleButton
+              label="Ecliptic"
+              active={showLines}
               onClick={() => setShowLines(!showLines)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                showLines
-                  ? 'bg-white/10 text-white border border-white/30'
-                  : 'bg-night-800 text-gray-500 border border-night-700'
-              }`}
-            >
-              Ecliptic
-            </button>
-            <button
-              type="button"
+            />
+            <ToggleButton
+              label="Milky Way"
+              active={showMilkyWay}
               onClick={() => setShowMilkyWay(!showMilkyWay)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                showMilkyWay
-                  ? 'bg-white/10 text-white border border-white/30'
-                  : 'bg-night-800 text-gray-500 border border-night-700'
-              }`}
-            >
-              Milky Way
-            </button>
-            <button
-              type="button"
+            />
+            <ToggleButton
+              label="Planets"
+              active={showPlanets}
               onClick={() => setShowPlanets(!showPlanets)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                showPlanets
-                  ? 'bg-white/10 text-white border border-white/30'
-                  : 'bg-night-800 text-gray-500 border border-night-700'
-              }`}
-            >
-              Planets
-            </button>
+            />
           </div>
 
           {/* Sky Chart */}
