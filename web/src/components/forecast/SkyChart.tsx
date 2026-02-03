@@ -146,6 +146,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   const [compassAvailable, setCompassAvailable] = useState(false);
   const [compassEnabled, setCompassEnabled] = useState(false);
   const [compassHeading, setCompassHeading] = useState<number | null>(null);
+  const lastOrientationRef = useRef<number>(0); // Track current orientation for smooth rotation
 
   const celestialInitialized = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -399,7 +400,8 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
       // Rotate to zenith for the new time, preserving compass orientation if enabled
       const zenith = Celestial.zenith();
       if (zenith) {
-        const orientation = compassEnabled && compassHeading !== null ? -compassHeading : 0;
+        // Use tracked orientation when compass is enabled, otherwise 0 (north up)
+        const orientation = compassEnabled ? lastOrientationRef.current : 0;
         Celestial.rotate({ center: [zenith[0], zenith[1], orientation] });
       }
 
@@ -407,7 +409,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     } catch {
       // Celestial not ready
     }
-  }, [currentTime, compassEnabled, compassHeading]);
+  }, [currentTime, compassEnabled]);
 
   // Update display options
   useEffect(() => {
@@ -513,6 +515,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
       // Turn off compass
       setCompassEnabled(false);
       setCompassHeading(null);
+      lastOrientationRef.current = 0; // Reset orientation tracking
       return;
     }
 
@@ -581,10 +584,23 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     try {
       const zenith = Celestial.zenith();
       if (zenith) {
+        // Calculate target orientation (negative of compass heading)
+        const targetOrientation = -compassHeading;
+
+        // Calculate shortest path rotation to avoid going the long way around
+        // e.g., from 350° to 10° should go +20°, not -340°
+        let delta = targetOrientation - lastOrientationRef.current;
+
+        // Normalize delta to [-180, 180] range for shortest path
+        while (delta > 180) delta -= 360;
+        while (delta < -180) delta += 360;
+
+        // Calculate the actual orientation to use (accumulated to avoid jumps)
+        const newOrientation = lastOrientationRef.current + delta;
+        lastOrientationRef.current = newOrientation;
+
         // Rotate view to match device heading
-        // Device heading is degrees from north, so we rotate the view by -heading
-        // to show what's in the direction the device is pointing
-        Celestial.rotate({ center: [zenith[0], zenith[1], -compassHeading] });
+        Celestial.rotate({ center: [zenith[0], zenith[1], newOrientation] });
         Celestial.redraw();
       }
     } catch {
@@ -676,8 +692,8 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                   onClick={handleCompassToggle}
                   className={`p-1.5 rounded text-xs font-medium transition-colors ${
                     compassEnabled
-                      ? 'bg-indigo-500/30 text-indigo-400 border border-indigo-500/50'
-                      : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white'
+                      ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                      : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-gray-300'
                   }`}
                   title={
                     compassEnabled
@@ -685,7 +701,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                       : 'Enable compass mode (rotate device to look around)'
                   }
                 >
-                  <Compass className={`w-4 h-4 ${compassEnabled ? 'animate-pulse' : ''}`} />
+                  <Compass className="w-4 h-4" />
                 </button>
               )}
             </div>
