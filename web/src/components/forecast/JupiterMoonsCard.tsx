@@ -3,18 +3,25 @@ import { Card, ToggleChevron } from '@/components/ui/Card';
 import Tooltip from '@/components/ui/Tooltip';
 import { useUIState } from '@/hooks/useUIState';
 import { describeGalileanMoonEvent } from '@/lib/astronomy/galilean-moons';
-import { formatTime } from '@/lib/utils/format';
+import { formatTime, getNightLabel } from '@/lib/utils/format';
 import type { GalileanMoonEvent, GalileanMoonPosition } from '@/types';
 
 interface JupiterMoonsCardProps {
   positions: GalileanMoonPosition[];
   events: GalileanMoonEvent[];
   latitude: number;
+  nightDate: Date;
 }
 
-export default function JupiterMoonsCard({ positions, events, latitude }: JupiterMoonsCardProps) {
+export default function JupiterMoonsCard({
+  positions,
+  events,
+  latitude,
+  nightDate,
+}: JupiterMoonsCardProps) {
   const { jupiterMoonsExpanded, setJupiterMoonsExpanded } = useUIState();
   const expanded = jupiterMoonsExpanded;
+  const nightLabel = getNightLabel(nightDate);
 
   const hasActiveEvents =
     events.length > 0 || positions.some(p => p.isTransiting || p.shadowOnJupiter);
@@ -31,7 +38,7 @@ export default function JupiterMoonsCard({ positions, events, latitude }: Jupite
           Jupiter's Galilean Moons
           {hasActiveEvents && (
             <Badge variant="warning" className="ml-2 rounded-full">
-              Events Tonight
+              Events {nightLabel}
             </Badge>
           )}
         </h3>
@@ -53,7 +60,9 @@ export default function JupiterMoonsCard({ positions, events, latitude }: Jupite
           {/* Events timeline */}
           {events.length > 0 && (
             <div className="pt-3 border-t border-night-700">
-              <h4 className="text-sm font-medium text-white mb-2">Tonight's Events</h4>
+              <h4 className="text-sm font-medium text-white mb-2">
+                {getNightLabel(nightDate, true)} Events
+              </h4>
               <div className="space-y-2">
                 {events.map(event => (
                   <EventItem

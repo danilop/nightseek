@@ -11,6 +11,7 @@ import {
   formatTimeRange,
   getMoonPhaseEmoji,
   getMoonPhaseName,
+  getNightLabel,
   getWeatherDescription,
   getWeatherEmoji,
 } from '@/lib/utils/format';
@@ -51,7 +52,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
           {/* Title */}
           <h3 className="font-semibold text-white">
             <Tooltip content="Overall rating based on cloud cover, moon phase, transparency, seeing conditions, and dew risk.">
-              <span>Tonight's Rating</span>
+              <span>{getNightLabel(nightInfo.date, true)} Rating</span>
             </Tooltip>
           </h3>
           {/* Stars and rating label */}

@@ -18,6 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
+import { getNightLabel } from '@/lib/utils/format';
 import { getRatingFromScore } from '@/lib/utils/rating';
 import { useApp } from '@/stores/AppContext';
 import type {
@@ -369,7 +370,7 @@ export default function TonightHighlights({
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-white flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-yellow-400" />
-          Tonight's Targets
+          {getNightLabel(nightInfo.date, true)} Targets
         </h3>
         <span className="text-sm text-gray-400">
           {totalCount === totalLoaded
@@ -478,6 +479,7 @@ export default function TonightHighlights({
                         positions={jupiterMoons.positions}
                         events={jupiterMoons.events}
                         latitude={latitude}
+                        nightDate={nightInfo.date}
                       />
                     </div>
                   );
