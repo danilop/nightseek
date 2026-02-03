@@ -22,7 +22,7 @@ export default function CloseApproachCard({ approaches, nightDate }: CloseApproa
           <Orbit className="w-4 h-4 text-amber-400" />
           Asteroid Close Approaches
           <span className="text-xs text-gray-400 font-normal ml-1">
-            ({approaches.length} {getNightLabel(nightDate).toLowerCase()})
+            ({approaches.length} {getNightLabel(nightDate)})
           </span>
         </h3>
       </div>
