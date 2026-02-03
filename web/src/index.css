@@ -92,7 +92,19 @@ html {
 }
 
 /* Hide d3-celestial's built-in form (we use our own UI) */
-#celestial-map form {
+#celestial-map form,
+#celestial-map ~ form,
+#celestial-map + form,
+form:has(input[name="datetime"]),
+form:has(input[name="lat"]),
+div[id="celestial-map"] ~ * form {
+  display: none !important;
+}
+
+/* Also hide any form controls that d3-celestial might add as siblings */
+#celestial-map ~ div:has(> input),
+#celestial-map ~ div:has(> select),
+#celestial-map ~ div:has(> label) {
   display: none !important;
 }
 
