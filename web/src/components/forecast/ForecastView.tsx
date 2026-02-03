@@ -166,12 +166,7 @@ export default function ForecastView({
 
       {/* Sky Chart - Interactive sky map */}
       <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
-        <SkyChart
-          nightInfo={selectedNight.nightInfo}
-          location={location}
-          planets={selectedNight.planets}
-          scoredObjects={selectedObjects}
-        />
+        <SkyChart nightInfo={selectedNight.nightInfo} location={location} />
       </div>
 
       {/* Tonight's Highlights - Second in Tonight tab */}
