@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Clock, Map as MapIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Compass, Map as MapIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Location, NightInfo } from '@/types';
 
@@ -81,13 +81,35 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     return getSliderPositionForTime(new Date(), nightInfo.sunset, nightInfo.sunrise) !== null;
   }, [nightInfo.sunset, nightInfo.sunrise]);
 
+  // Handler for compass/reset button: recenter on zenith with north up (orientation 0)
+  const handleResetView = useCallback(() => {
+    if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
+
+    try {
+      const zenith = Celestial.zenith();
+      if (zenith) {
+        // Reset to zenith with orientation 0 (north up)
+        // zenith returns [longitude, latitude], we add 0 for orientation
+        Celestial.rotate({ center: [zenith[0], zenith[1], 0] });
+      }
+    } catch {
+      // Celestial not ready
+    }
+  }, []);
+
   // Display toggles matching d3-celestial viewer demo
+  // Mobile defaults: reduced clutter (no DSOs, no Milky Way, no Ecliptic, no names)
+  const getIsSmallScreen = useCallback(() => {
+    return (typeof window !== 'undefined' ? window.innerWidth : 1024) < SMALL_SCREEN_WIDTH;
+  }, []);
+
   const [showStars, setShowStars] = useState(true);
-  const [showDSOs, setShowDSOs] = useState(true);
+  const [showDSOs, setShowDSOs] = useState(() => !getIsSmallScreen()); // OFF on mobile
   const [showConstellations, setShowConstellations] = useState(true);
-  const [showLines, setShowLines] = useState(true); // Ecliptic line
-  const [showMilkyWay, setShowMilkyWay] = useState(true);
+  const [showLines, setShowLines] = useState(() => !getIsSmallScreen()); // Ecliptic OFF on mobile
+  const [showMilkyWay, setShowMilkyWay] = useState(() => !getIsSmallScreen()); // OFF on mobile
   const [showPlanets, setShowPlanets] = useState(true);
+  const [showNames, setShowNames] = useState(() => !getIsSmallScreen()); // Names OFF on mobile
   const celestialInitialized = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -180,20 +202,20 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
       const isLarge = containerWidth >= MEDIUM_SCREEN_WIDTH;
 
       // Responsive settings: adjust visual density based on screen size
-      // Small (<640px): minimal labels for mobile
+      // Small (<640px): minimal labels for mobile (smaller fonts)
       // Medium (640-1024px): moderate labels for tablets/small laptops
       // Large (>1024px): full labels for desktop
       const starLimit = isSmall ? 4.5 : isLarge ? 6 : 5.5;
       const starPropernameLimit = isSmall ? 1.5 : isLarge ? 3 : 2.5;
       const dsoNameLimit = isSmall ? 4 : isLarge ? 8 : 6;
       const starSize = isSmall ? 4 : isLarge ? 6 : 5;
-      const starFontSize = isSmall ? '8px' : isLarge ? '11px' : '10px';
-      const dsoFontSize = isSmall ? '8px' : isLarge ? '11px' : '10px';
+      const starFontSize = isSmall ? '7px' : isLarge ? '11px' : '10px';
+      const dsoFontSize = isSmall ? '7px' : isLarge ? '11px' : '10px';
       const constellationFonts = isSmall
         ? [
-            "9px 'Helvetica Neue', Arial, sans-serif",
             "8px 'Helvetica Neue', Arial, sans-serif",
             "7px 'Helvetica Neue', Arial, sans-serif",
+            "6px 'Helvetica Neue', Arial, sans-serif",
           ]
         : isLarge
           ? [
@@ -206,8 +228,8 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
               "11px 'Helvetica Neue', Arial, sans-serif",
               "10px 'Helvetica Neue', Arial, sans-serif",
             ];
-      const planetFontSize = isSmall ? '12px' : isLarge ? '18px' : '17px';
-      const planetNameFontSize = isSmall ? '10px' : isLarge ? '15px' : '14px';
+      const planetFontSize = isSmall ? '11px' : isLarge ? '18px' : '17px';
+      const planetNameFontSize = isSmall ? '9px' : isLarge ? '15px' : '14px';
 
       // Config with app-matching dark theme styling and responsive settings
       const config = {
@@ -240,14 +262,15 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           fill: '#0f172a',
           opacity: 0.8,
         },
-        // Use default values (true) for all display options - the update effect syncs actual state after init
+        // Configure display options based on screen size
+        // Mobile: reduced clutter (no names, no DSOs, no Milky Way, no Ecliptic)
         stars: {
           show: true,
           limit: starLimit,
           colors: true,
           style: { fill: '#ffffff', opacity: 0.85 },
           size: starSize,
-          propername: true,
+          propername: !isSmall, // Names OFF on mobile
           propernameLimit: starPropernameLimit,
           propernameStyle: {
             fill: '#94a3b8', // slate-400
@@ -257,8 +280,8 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           },
         },
         dsos: {
-          show: true,
-          names: true,
+          show: !isSmall, // DSOs OFF on mobile
+          names: !isSmall, // Names OFF on mobile
           nameLimit: dsoNameLimit,
           colors: true,
           size: isSmall ? 4 : null,
@@ -267,8 +290,8 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           },
         },
         constellations: {
-          show: true,
-          names: true,
+          show: true, // Lines always visible
+          names: !isSmall, // Names OFF on mobile
           lines: true,
           namesType: 'iau',
           nameStyle: {
@@ -280,19 +303,19 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           lineStyle: { stroke: '#6366f180', width: isSmall ? 0.5 : isLarge ? 1.5 : 1 },
         },
         mw: {
-          show: true,
+          show: !isSmall, // Milky Way OFF on mobile
           style: { fill: '#64748b', opacity: 0.12 }, // slate-500
         },
         lines: {
           graticule: { show: false },
           equatorial: { show: false },
-          ecliptic: { show: true },
+          ecliptic: { show: !isSmall }, // Ecliptic OFF on mobile
           galactic: { show: false },
           supergalactic: { show: false },
         },
         planets: {
           show: true,
-          names: !isSmall, // Hide planet names on small screens to reduce clutter
+          names: !isSmall, // Planet names OFF on small screens
           symbolStyle: {
             font: `bold ${planetFontSize} 'Lucida Sans Unicode', sans-serif`,
           },
@@ -354,12 +377,18 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
     try {
       Celestial.apply({
-        stars: { show: showStars },
-        dsos: { show: showDSOs },
+        stars: {
+          show: showStars,
+          propername: showStars && showNames, // Names toggle controls star names
+        },
+        dsos: {
+          show: showDSOs,
+          names: showDSOs && showNames, // Names toggle controls DSO names
+        },
         constellations: {
           show: showConstellations,
-          names: showConstellations,
-          lines: showConstellations,
+          names: showConstellations && showNames, // Names toggle controls constellation names
+          lines: showConstellations, // Lines stay visible when constellations enabled
         },
         mw: { show: showMilkyWay },
         lines: {
@@ -369,12 +398,15 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           galactic: { show: false },
           supergalactic: { show: false },
         },
-        planets: { show: showPlanets },
+        planets: {
+          show: showPlanets,
+          names: showPlanets && showNames, // Names toggle controls planet names
+        },
       });
     } catch {
       // Celestial not ready
     }
-  }, [showStars, showDSOs, showConstellations, showLines, showMilkyWay, showPlanets]);
+  }, [showStars, showDSOs, showConstellations, showLines, showMilkyWay, showPlanets, showNames]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -451,6 +483,16 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                 onChange={e => setSelectedTime(Number(e.target.value))}
                 className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
               />
+              {/* Reset/Compass button */}
+              <button
+                type="button"
+                onClick={handleResetView}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white"
+                title="Reset view (zenith, north up)"
+              >
+                <Compass className="w-3 h-3" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
             </div>
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>Sunset</span>
@@ -470,6 +512,11 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
               label="Constellations"
               active={showConstellations}
               onClick={() => setShowConstellations(!showConstellations)}
+            />
+            <ToggleButton
+              label="Names"
+              active={showNames}
+              onClick={() => setShowNames(!showNames)}
             />
             <ToggleButton
               label="Ecliptic"
