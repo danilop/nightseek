@@ -38,6 +38,41 @@ export function formatDateRange(start: Date, end: Date): string {
 }
 
 /**
+ * Get a label for the night relative to today.
+ * Returns "Tonight (Mon 15)" for today, "Tomorrow (Tue 16)" for tomorrow,
+ * or "Wednesday (Wed 17)" for other days.
+ * Can append "'s" for possessive form (e.g., "Tonight's", "Wednesday's")
+ */
+export function getNightLabel(date: Date, possessive = false): string {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const dateStr = date.toISOString().split('T')[0];
+  const todayStr = today.toISOString().split('T')[0];
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+  // Always include short date for clarity (e.g., "Mon 15")
+  const shortDate = format(date, 'EEE d');
+
+  let label: string;
+  if (dateStr === todayStr) {
+    label = `Tonight (${shortDate})`;
+  } else if (dateStr === tomorrowStr) {
+    label = `Tomorrow (${shortDate})`;
+  } else {
+    // For other days, show day name with date
+    label = format(date, 'EEEE (EEE d)'); // "Wednesday (Wed 17)"
+  }
+
+  if (possessive) {
+    // Insert 's before the parenthesis: "Tonight's (Mon 15)"
+    return label.replace(' (', "'s (");
+  }
+  return label;
+}
+
+/**
  * Get moon phase emoji
  */
 export function getMoonPhaseEmoji(phase: number): string {

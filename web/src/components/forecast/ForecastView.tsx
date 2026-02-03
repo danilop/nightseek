@@ -1,7 +1,6 @@
 import { RefreshCw, Sparkles, Star } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import Tooltip from '@/components/ui/Tooltip';
-import { useUIState } from '@/hooks/useUIState';
 import { formatDate, formatDateRange } from '@/lib/utils/format';
 import type { Location, NightForecast, ScoredObject } from '@/types';
 import EventsSection from './EventsSection';
@@ -27,7 +26,6 @@ export default function ForecastView({
   onRefresh,
 }: ForecastViewProps) {
   const [selectedNightIndex, setSelectedNightIndex] = useState(0);
-  const { activeTab, setActiveTab } = useUIState();
   const nightTableRef = useRef<HTMLDivElement>(null);
 
   // Navigate to a specific night by date string
@@ -38,17 +36,13 @@ export default function ForecastView({
       );
       if (index !== -1) {
         setSelectedNightIndex(index);
-        // Switch to week view on mobile so the table is visible
-        if (activeTab === 'tonight') {
-          setActiveTab('week');
-        }
-        // Scroll the table into view after a brief delay for view switch
+        // Scroll the table into view
         setTimeout(() => {
           nightTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
       }
     },
-    [forecasts, activeTab, setActiveTab]
+    [forecasts]
   );
 
   if (forecasts.length === 0) {
@@ -89,32 +83,6 @@ export default function ForecastView({
         </button>
       </div>
 
-      {/* Tab Navigation (Mobile) */}
-      <div className="flex sm:hidden gap-2 mb-6">
-        <button
-          type="button"
-          onClick={() => setActiveTab('tonight')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'tonight'
-              ? 'bg-sky-600 text-white'
-              : 'bg-night-800 text-gray-400 hover:text-white'
-          }`}
-        >
-          Tonight
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('week')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'week'
-              ? 'bg-sky-600 text-white'
-              : 'bg-night-800 text-gray-400 hover:text-white'
-          }`}
-        >
-          {forecasts.length}-Day View
-        </button>
-      </div>
-
       {/* Best Nights Indicator */}
       {bestNights.length > 0 && (
         <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-6">
@@ -146,11 +114,8 @@ export default function ForecastView({
         </div>
       )}
 
-      {/* Night Summary Table (Desktop always, Mobile in week view) */}
-      <div
-        ref={nightTableRef}
-        className={`mb-6 ${activeTab === 'tonight' ? 'hidden sm:block' : ''}`}
-      >
+      {/* Night Summary Table - Always visible, tap a day to see details below */}
+      <div ref={nightTableRef} className="mb-6">
         <NightSummaryTable
           forecasts={forecasts}
           selectedIndex={selectedNightIndex}
@@ -159,18 +124,18 @@ export default function ForecastView({
         />
       </div>
 
-      {/* Weather Conditions (Mobile in tonight view, Desktop always) - Now first in Tonight tab */}
-      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+      {/* Weather Conditions for selected night */}
+      <div className="mb-6">
         <NightDetails forecast={selectedNight} />
       </div>
 
       {/* Sky Chart - Interactive sky map */}
-      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+      <div className="mb-6">
         <SkyChart nightInfo={selectedNight.nightInfo} location={location} />
       </div>
 
-      {/* Tonight's Highlights - Second in Tonight tab */}
-      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+      {/* Targets for selected night */}
+      <div className="mb-6">
         <TonightHighlights
           objects={selectedObjects}
           nightInfo={selectedNight.nightInfo}
@@ -181,7 +146,7 @@ export default function ForecastView({
       </div>
 
       {/* Events Section (Conjunctions, Meteor Showers) */}
-      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+      <div className="mb-6">
         <EventsSection
           conjunctions={selectedNight.conjunctions}
           meteorShowers={selectedNight.meteorShowers}
@@ -191,7 +156,7 @@ export default function ForecastView({
       </div>
 
       {/* Satellite Passes Section */}
-      <div className={`mb-6 ${activeTab === 'week' ? 'hidden sm:block' : ''}`}>
+      <div className="mb-6">
         <SatellitePassesCard nightInfo={selectedNight.nightInfo} location={location} />
       </div>
     </main>
