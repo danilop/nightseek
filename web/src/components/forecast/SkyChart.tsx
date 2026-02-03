@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Clock, Compass, Map as MapIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Crosshair, Map as MapIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Location, NightInfo } from '@/types';
 
@@ -68,29 +68,60 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
   const [selectedTime, setSelectedTime] = useState<number>(getInitialSliderPosition);
 
-  // Handler for "Now" button
+  // Ref for animation frame to allow cancellation
+  const animationRef = useRef<number | null>(null);
+
+  // Handler for "Now" button with smooth animation
   const handleNowClick = useCallback(() => {
     const nowPosition = getSliderPositionForTime(new Date(), nightInfo.sunset, nightInfo.sunrise);
-    if (nowPosition !== null) {
-      setSelectedTime(nowPosition);
+    if (nowPosition === null) return;
+
+    // Cancel any ongoing animation
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
     }
-  }, [nightInfo.sunset, nightInfo.sunrise]);
+
+    const startPosition = selectedTime;
+    const distance = nowPosition - startPosition;
+    const duration = 400; // ms
+    const startTime = performance.now();
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Ease-out cubic for smooth deceleration
+      const eased = 1 - (1 - progress) ** 3;
+      const newPosition = startPosition + distance * eased;
+
+      setSelectedTime(newPosition);
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        animationRef.current = null;
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+  }, [nightInfo.sunset, nightInfo.sunrise, selectedTime]);
 
   // Check if "now" is within the night range (to show/enable the Now button)
   const isNowInNightRange = useMemo(() => {
     return getSliderPositionForTime(new Date(), nightInfo.sunset, nightInfo.sunrise) !== null;
   }, [nightInfo.sunset, nightInfo.sunrise]);
 
-  // Handler for compass/reset button: recenter on zenith with north up (orientation 0)
-  const handleResetView = useCallback(() => {
+  // Handler for center button: recenter on zenith with north up (orientation 0)
+  const handleCenterView = useCallback(() => {
     if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
 
     try {
       const zenith = Celestial.zenith();
       if (zenith) {
-        // Reset to zenith with orientation 0 (north up)
+        // Center on zenith with orientation 0 (north up)
         // zenith returns [longitude, latitude], we add 0 for orientation
         Celestial.rotate({ center: [zenith[0], zenith[1], 0] });
+        Celestial.redraw(); // Force redraw to apply changes (needed on mobile)
       }
     } catch {
       // Celestial not ready
@@ -411,6 +442,11 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Cancel any ongoing slider animation
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+
       if (celestialInitialized.current && typeof Celestial !== 'undefined') {
         try {
           Celestial.clear();
@@ -483,15 +519,15 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                 onChange={e => setSelectedTime(Number(e.target.value))}
                 className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
               />
-              {/* Reset/Compass button */}
+              {/* Center button */}
               <button
                 type="button"
-                onClick={handleResetView}
+                onClick={handleCenterView}
                 className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white"
-                title="Reset view (zenith, north up)"
+                title="Center view (zenith, north up)"
               >
-                <Compass className="w-3 h-3" />
-                <span className="hidden sm:inline">Reset</span>
+                <Crosshair className="w-3 h-3" />
+                <span className="hidden sm:inline">Center</span>
               </button>
             </div>
             <div className="flex justify-between text-xs text-gray-500 mt-1">
