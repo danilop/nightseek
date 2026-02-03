@@ -108,7 +108,7 @@ export default function AstronomicalEventsSection({
               title={`${opposition.planet} at Opposition`}
               description={
                 opposition.daysUntil === 0
-                  ? `Opposition ${getNightLabel(nightDate).toLowerCase()}!`
+                  ? `Opposition ${getNightLabel(nightDate)}!`
                   : opposition.daysUntil < 0
                     ? `${Math.abs(opposition.daysUntil)} days ago`
                     : `In ${opposition.daysUntil} days`
@@ -150,7 +150,7 @@ export default function AstronomicalEventsSection({
           <EventCard
             icon={<span className="text-lg">{getMoonPhaseEmoji(events.moonPhaseEvent.phase)}</span>}
             title={getMoonPhaseName(events.moonPhaseEvent.phase)}
-            description={`Exact ${getMoonPhaseName(events.moonPhaseEvent.phase).toLowerCase()} ${getNightLabel(nightDate).toLowerCase()}`}
+            description={`Exact ${getMoonPhaseName(events.moonPhaseEvent.phase).toLowerCase()} ${getNightLabel(nightDate)}`}
             time={events.moonPhaseEvent.time}
             isHighlight={
               events.moonPhaseEvent.phase === 'full' || events.moonPhaseEvent.phase === 'new'
