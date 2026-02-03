@@ -693,7 +693,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                   className={`p-1.5 rounded text-xs font-medium transition-colors ${
                     compassEnabled
                       ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
-                      : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-gray-300'
+                      : 'bg-night-800/50 text-gray-500 border border-night-700 hover:border-gray-500'
                   }`}
                   title={
                     compassEnabled
