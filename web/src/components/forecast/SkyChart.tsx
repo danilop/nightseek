@@ -420,9 +420,10 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
       // d3-celestial data files are hosted on unpkg CDN
       const dataPath = 'https://unpkg.com/d3-celestial/data/';
 
-      // Calculate zenith position: center on LST (in degrees) and observer's latitude
+      // Calculate zenith position: center on LST (in hours) and observer's latitude
+      // d3-celestial expects center as [hours, degrees, degrees] for equatorial transformation
       const lst = calculateLST(currentTime, location.longitude);
-      const zenithRA = lst * 15; // Convert hours to degrees
+      const zenithRA = lst; // LST in hours (d3-celestial expects hours, not degrees)
       const zenithDec = location.latitude;
 
       const config = {
@@ -569,11 +570,11 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
     try {
       // Calculate new zenith position for the current time
+      // d3-celestial expects center as [hours, degrees, degrees] for equatorial transformation
       const lst = calculateLST(currentTime, location.longitude);
-      const zenithRA = lst * 15; // Convert hours to degrees
+      const zenithRA = lst; // LST in hours (d3-celestial expects hours, not degrees)
 
       // Calculate orientation: when using compass, rotate by heading; otherwise, orient with N at top
-      // For N at top of circular chart, we need orientation = 180 - zenithRA (approximate)
       const orientation = useCompass ? -compassHeading : 0;
 
       // Rotate the map center to the new zenith
