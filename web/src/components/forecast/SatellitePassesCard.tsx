@@ -146,7 +146,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
           {error && <span className="text-xs text-red-400">Unavailable</span>}
           {!loading && !error && passes.length === 0 && (
             <span className="text-xs text-gray-500">
-              No visible passes {getNightLabel(nightInfo.date).toLowerCase()}
+              No visible passes {getNightLabel(nightInfo.date)}
             </span>
           )}
           <ToggleChevron expanded={expanded} />
@@ -175,7 +175,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
             <div className="text-center py-4">
               <Rocket className="w-8 h-8 text-gray-600 mx-auto mb-2" />
               <p className="text-gray-400 text-sm">
-                No ISS passes visible {getNightLabel(nightInfo.date).toLowerCase()} from your
+                No ISS passes visible {getNightLabel(nightInfo.date)} from your
                 location
               </p>
               <p className="text-gray-500 text-xs mt-1">
