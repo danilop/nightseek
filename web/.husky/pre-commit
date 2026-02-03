@@ -18,4 +18,11 @@ npx lint-staged || {
   exit 1
 }
 
+# 3. Dead code check
+echo "🗑️  Checking for dead code..."
+npm run dead-code || {
+  echo "❌ Dead code found. Please remove unused files/exports before committing."
+  exit 1
+}
+
 echo "✅ All pre-commit checks passed!"
