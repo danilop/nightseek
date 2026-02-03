@@ -46,6 +46,15 @@ const CHART_SETTINGS = {
   showConstellations: true,
 };
 
+// Calculate Local Sidereal Time in hours for a given date and longitude
+function calculateLST(date: Date, longitudeDegrees: number): number {
+  // Get Greenwich Mean Sidereal Time using astronomy-engine
+  const gmst = Astronomy.SiderealTime(date);
+  // Convert longitude to hours and add to GMST to get Local Sidereal Time
+  const lst = (gmst + longitudeDegrees / 15 + 24) % 24;
+  return lst;
+}
+
 export default function SkyChart({ nightInfo, location, planets, scoredObjects }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
   const [useCompass, setUseCompass] = useState(false);
@@ -524,13 +533,15 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
       try {
         Celestial.display(config);
 
-        // Set initial date and location - must be before skyview call
+        // Set initial date and location
         Celestial.date(currentTime);
         Celestial.location([location.latitude, location.longitude]);
 
-        // Force skyview to trigger zenith calculation
-        // This should set the view to the local zenith based on geopos and date
-        Celestial.skyview({ date: currentTime, location: [location.latitude, location.longitude] });
+        // Calculate zenith position and explicitly rotate to center on it
+        // LST gives us the RA of the zenith, latitude gives us the Dec
+        const lst = calculateLST(currentTime, location.longitude);
+        // d3-celestial center expects [RA in hours, Dec in degrees, orientation in degrees]
+        Celestial.rotate({ center: [lst, location.latitude, 0] });
 
         // Register custom overlay callback - this redraw function is called on every redraw
         Celestial.add({
@@ -553,23 +564,20 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     initCelestial();
   }, [expanded, location.latitude, location.longitude, currentTime, drawCustomOverlays]);
 
-  // Update d3-celestial when time changes - use skyview to recalculate zenith position
+  // Update d3-celestial when time changes - explicitly rotate to new zenith position
   useEffect(() => {
     if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
 
     try {
-      // Update date and location, then trigger skyview to recalculate zenith
+      // Update date
       Celestial.date(currentTime);
-      Celestial.skyview({ date: currentTime, location: [location.latitude, location.longitude] });
 
-      // If using compass, apply rotation for the orientation
-      if (useCompass) {
-        const currentCenter = Celestial.skyview()?.center;
-        if (currentCenter) {
-          Celestial.rotate({ center: [currentCenter[0], currentCenter[1], -compassHeading] });
-        }
-      }
+      // Calculate new zenith position and rotate to it
+      const lst = calculateLST(currentTime, location.longitude);
+      const orientation = useCompass ? -compassHeading : 0;
 
+      // d3-celestial center expects [RA in hours, Dec in degrees, orientation in degrees]
+      Celestial.rotate({ center: [lst, location.latitude, orientation] });
       Celestial.redraw();
     } catch {
       // Celestial not ready
