@@ -672,10 +672,10 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                 type="button"
                 onClick={handleCenterView}
                 disabled={compassEnabled}
-                className={`p-1.5 rounded text-xs font-medium transition-colors ${
+                className={`p-1.5 rounded text-xs font-medium transition-colors outline-none focus:outline-none active:outline-none ${
                   compassEnabled
                     ? 'bg-night-800/50 text-gray-600 cursor-not-allowed'
-                    : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white'
+                    : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white active:bg-night-600'
                 }`}
                 title={
                   compassEnabled
@@ -690,10 +690,10 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                 <button
                   type="button"
                   onClick={handleCompassToggle}
-                  className={`p-1.5 rounded text-xs font-medium transition-colors ${
+                  className={`p-1.5 rounded text-xs font-medium transition-colors outline-none focus:outline-none active:outline-none ${
                     compassEnabled
                       ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
-                      : 'bg-night-800/50 text-gray-500 border border-night-700 hover:border-gray-500'
+                      : 'bg-night-800/50 text-gray-500 border border-night-700 hover:border-gray-500 active:bg-night-700'
                   }`}
                   title={
                     compassEnabled
