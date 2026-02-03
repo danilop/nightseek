@@ -7,7 +7,24 @@ import {
   getWeatherEmoji,
 } from '@/lib/utils/format';
 import { calculateNightQuality } from '@/lib/weather/night-quality';
-import type { NightForecast, NightWeather } from '@/types';
+import type { NightForecast, NightInfo, NightWeather } from '@/types';
+
+/**
+ * Calculate usable observation hours and total dark hours
+ */
+function getUsableHours(
+  nightInfo: NightInfo,
+  weather: NightWeather | null
+): { usable: number; total: number } {
+  // Calculate total astronomical night duration
+  const totalMs = nightInfo.astronomicalDawn.getTime() - nightInfo.astronomicalDusk.getTime();
+  const total = totalMs / (60 * 60 * 1000);
+
+  // Get usable hours from weather (clear sky duration)
+  const usable = weather?.clearDurationHours ?? 0;
+
+  return { usable: Math.min(usable, total), total };
+}
 
 /**
  * Get best observation time display string
@@ -68,8 +85,8 @@ export default function NightSummaryTable({
             <tr className="bg-night-800/50 text-left text-sm text-gray-400">
               <th className="px-4 py-3 font-medium">Date</th>
               <th className="px-4 py-3 font-medium">
-                <Tooltip content="Astronomical night: when the sun is 18° or more below the horizon. Darkest period for deep-sky observation.">
-                  <span className="border-b border-dotted border-gray-500">Night</span>
+                <Tooltip content="Usable hours: time with dark skies AND acceptable weather. Format: usable / total dark hours.">
+                  <span className="border-b border-dotted border-gray-500">Usable</span>
                 </Tooltip>
               </th>
               <th className="px-4 py-3 font-medium text-center">
@@ -116,8 +133,28 @@ export default function NightSummaryTable({
                       <span className="text-white font-medium">{formatDate(nightInfo.date)}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-sm">
-                    {formatTimeRange(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
+                  <td className="px-4 py-3 text-sm">
+                    {(() => {
+                      const hours = getUsableHours(nightInfo, weather);
+                      const usableColor =
+                        hours.usable === 0
+                          ? 'text-red-400'
+                          : hours.usable < hours.total * 0.3
+                            ? 'text-amber-400'
+                            : hours.usable < hours.total * 0.7
+                              ? 'text-yellow-400'
+                              : 'text-green-400';
+                      return (
+                        <Tooltip
+                          content={`Dark: ${formatTimeRange(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}`}
+                        >
+                          <span>
+                            <span className={usableColor}>{hours.usable.toFixed(1)}</span>
+                            <span className="text-gray-500"> / {hours.total.toFixed(1)}h</span>
+                          </span>
+                        </Tooltip>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="text-lg">{getMoonPhaseEmoji(nightInfo.moonPhase)}</span>
@@ -198,9 +235,21 @@ export default function NightSummaryTable({
                     {Math.round(weather.avgCloudCover)}%
                   </span>
                 )}
-                <span className="text-gray-500">
-                  {formatTimeRange(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
-                </span>
+                {(() => {
+                  const hours = getUsableHours(nightInfo, weather);
+                  const usableColor =
+                    hours.usable === 0
+                      ? 'text-red-400'
+                      : hours.usable < hours.total * 0.3
+                        ? 'text-amber-400'
+                        : 'text-gray-400';
+                  return (
+                    <span>
+                      <span className={usableColor}>{hours.usable.toFixed(1)}</span>
+                      <span className="text-gray-500">/{hours.total.toFixed(1)}h</span>
+                    </span>
+                  );
+                })()}
               </div>
             </div>
           );
