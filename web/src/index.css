@@ -91,8 +91,12 @@ html {
   }
 }
 
-/* Hide d3-celestial's built-in form controls (we use our own UI) */
+/* Hide d3-celestial's built-in form controls (we use our own UI)
+   Use visibility:hidden instead of display:none to keep elements in DOM
+   for d3-celestial's internal value reading */
 #celestial-map form {
-  display: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  visibility: hidden !important;
 }
 
