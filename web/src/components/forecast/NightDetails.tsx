@@ -64,7 +64,7 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
           {/* Summary description */}
           <p className="text-sm text-gray-400">{nightQuality.summary}</p>
           {/* Best observation time */}
-          {weather?.bestTime && (
+          {weather?.bestTime ? (
             <p className="text-sm text-green-400">
               <Tooltip content="Optimal window with lowest cloud cover, best transparency, and minimal dew risk.">
                 <span>
@@ -73,6 +73,12 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
                     {formatTimeRange(weather.bestTime.start, weather.bestTime.end)}
                   </span>
                 </span>
+              </Tooltip>
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500">
+              <Tooltip content="No window with acceptable conditions (low clouds, good transparency, minimal dew risk) found tonight.">
+                <span>No good observation window tonight</span>
               </Tooltip>
             </p>
           )}
