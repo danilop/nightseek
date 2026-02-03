@@ -653,7 +653,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                 title={
                   isNowInNightRange
                     ? 'Jump to current time'
-                    : `Current time is outside ${getNightLabel(nightInfo.date, true).toLowerCase()} range`
+                    : `Current time is outside ${getNightLabel(nightInfo.date, true)} range`
                 }
               >
                 <Clock className="w-3 h-3" />

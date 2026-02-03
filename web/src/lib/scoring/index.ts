@@ -724,7 +724,7 @@ export function calculateTotalScore(
     subtype,
     totalScore: Math.round(totalScore),
     scoreBreakdown,
-    reason: reasons.join(', ') || `Visible ${getNightLabel(nightInfo.date).toLowerCase()}`,
+    reason: reasons.join(', ') || `Visible ${getNightLabel(nightInfo.date)}`,
     visibility,
     magnitude,
   };
