@@ -1,6 +1,23 @@
-import { ChevronDown, ChevronRight, Map as MapIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Map as MapIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Location, NightInfo } from '@/types';
+
+/**
+ * Calculate the slider position (0-100) for a given time within the night range.
+ * Returns null if the time is outside the sunset-sunrise range.
+ */
+function getSliderPositionForTime(time: Date, sunset: Date, sunrise: Date): number | null {
+  const startTime = sunset.getTime();
+  const endTime = sunrise.getTime();
+  const currentMs = time.getTime();
+
+  if (currentMs < startTime || currentMs > endTime) {
+    return null; // Outside night range
+  }
+
+  const timeRange = endTime - startTime;
+  return ((currentMs - startTime) / timeRange) * 100;
+}
 
 // d3-celestial must be loaded via script tag because it uses old D3 v3 that expects browser globals
 // biome-ignore lint/suspicious/noExplicitAny: d3-celestial loaded via global script
@@ -42,7 +59,28 @@ function ToggleButton({
 
 export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
-  const [selectedTime, setSelectedTime] = useState<number>(50);
+
+  // Calculate initial slider position: "now" if within night, otherwise midpoint
+  const getInitialSliderPosition = useCallback(() => {
+    const nowPosition = getSliderPositionForTime(new Date(), nightInfo.sunset, nightInfo.sunrise);
+    return nowPosition ?? 50; // Default to midpoint if outside night range
+  }, [nightInfo.sunset, nightInfo.sunrise]);
+
+  const [selectedTime, setSelectedTime] = useState<number>(getInitialSliderPosition);
+
+  // Handler for "Now" button
+  const handleNowClick = useCallback(() => {
+    const nowPosition = getSliderPositionForTime(new Date(), nightInfo.sunset, nightInfo.sunrise);
+    if (nowPosition !== null) {
+      setSelectedTime(nowPosition);
+    }
+  }, [nightInfo.sunset, nightInfo.sunrise]);
+
+  // Check if "now" is within the night range (to show/enable the Now button)
+  const isNowInNightRange = useMemo(() => {
+    return getSliderPositionForTime(new Date(), nightInfo.sunset, nightInfo.sunrise) !== null;
+  }, [nightInfo.sunset, nightInfo.sunrise]);
+
   // Display toggles matching d3-celestial viewer demo
   const [showStars, setShowStars] = useState(true);
   const [showDSOs, setShowDSOs] = useState(true);
@@ -384,14 +422,36 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
               <span className="text-indigo-400 font-medium">{formatTime(currentTime)}</span>
               <span>{formatTime(nightInfo.sunrise)}</span>
             </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={selectedTime}
-              onChange={e => setSelectedTime(Number(e.target.value))}
-              className="w-full h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-            />
+            <div className="flex items-center gap-2">
+              {/* Now button */}
+              <button
+                type="button"
+                onClick={handleNowClick}
+                disabled={!isNowInNightRange}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                  isNowInNightRange
+                    ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
+                    : 'bg-night-800 text-gray-600 cursor-not-allowed'
+                }`}
+                title={
+                  isNowInNightRange
+                    ? 'Jump to current time'
+                    : "Current time is outside tonight's range"
+                }
+              >
+                <Clock className="w-3 h-3" />
+                Now
+              </button>
+              {/* Slider */}
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={selectedTime}
+                onChange={e => setSelectedTime(Number(e.target.value))}
+                className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              />
+            </div>
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>Sunset</span>
               <span>Sunrise</span>
