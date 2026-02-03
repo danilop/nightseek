@@ -274,18 +274,8 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     };
 
     initCelestial();
-  }, [
-    expanded,
-    location.latitude,
-    location.longitude,
-    currentTime,
-    showStars,
-    showDSOs,
-    showConstellations,
-    showLines,
-    showMilkyWay,
-    showPlanets,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, location.latitude, location.longitude]);
 
   // Update when time changes
   useEffect(() => {
