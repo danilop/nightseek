@@ -11,6 +11,9 @@ interface SkyChartProps {
   location: Location;
 }
 
+// Responsive config thresholds
+const SMALL_SCREEN_WIDTH = 640; // sm breakpoint in Tailwind
+
 export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
   const [selectedTime, setSelectedTime] = useState<number>(50);
@@ -22,6 +25,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   const [showMilkyWay, setShowMilkyWay] = useState(true);
   const [showPlanets, setShowPlanets] = useState(true);
   const celestialInitialized = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Calculate the actual time from slider position
   const currentTime = useMemo(() => {
@@ -98,17 +102,38 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
       const dataPath = 'https://unpkg.com/d3-celestial/data/';
 
-      // Config with app-matching dark theme styling
+      // Check container width for responsive config
+      const containerWidth = containerRef.current?.clientWidth ?? window.innerWidth;
+      const isMobile = containerWidth < SMALL_SCREEN_WIDTH;
+
+      // Responsive settings: reduce visual density on small screens
+      const starLimit = isMobile ? 4.5 : 5.5; // Fewer stars on mobile
+      const starPropernameLimit = isMobile ? 1.5 : 2.5; // Only brightest star names on mobile
+      const dsoNameLimit = isMobile ? 4 : 6; // Fewer DSO names on mobile
+      const starFontSize = isMobile ? '8px' : '10px';
+      const constellationFonts = isMobile
+        ? [
+            "9px 'Helvetica Neue', Arial, sans-serif",
+            "8px 'Helvetica Neue', Arial, sans-serif",
+            "7px 'Helvetica Neue', Arial, sans-serif",
+          ]
+        : [
+            "12px 'Helvetica Neue', Arial, sans-serif",
+            "11px 'Helvetica Neue', Arial, sans-serif",
+            "10px 'Helvetica Neue', Arial, sans-serif",
+          ];
+
+      // Config with app-matching dark theme styling and responsive settings
       const config = {
         container: 'celestial-map',
         datapath: dataPath,
-        width: 0, // Auto-size
+        width: 0, // Auto-size to parent
         projection: 'stereographic', // Good for local sky views
         transform: 'equatorial',
         follow: 'zenith',
         geopos: [location.latitude, location.longitude],
         zoomlevel: null,
-        zoomextend: 10,
+        zoomextend: isMobile ? 5 : 10, // Less zoom on mobile
         interactive: true,
         disableAnimations: false,
         form: false, // We use our own UI
@@ -125,20 +150,21 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
         horizon: {
           show: true,
           stroke: '#475569', // slate-600
-          width: 1.5,
+          width: isMobile ? 1 : 1.5,
           fill: '#0f172a',
           opacity: 0.8,
         },
         stars: {
           show: showStars,
-          limit: 5.5,
+          limit: starLimit,
           colors: true,
           style: { fill: '#ffffff', opacity: 0.85 },
+          size: isMobile ? 4 : 5, // Smaller stars on mobile
           propername: true,
-          propernameLimit: 2.5,
+          propernameLimit: starPropernameLimit,
           propernameStyle: {
             fill: '#94a3b8', // slate-400
-            font: "10px 'Helvetica Neue', Arial, sans-serif",
+            font: `${starFontSize} 'Helvetica Neue', Arial, sans-serif`,
             align: 'right',
             baseline: 'bottom',
           },
@@ -146,8 +172,12 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
         dsos: {
           show: showDSOs,
           names: true,
-          nameLimit: 6,
+          nameLimit: dsoNameLimit,
           colors: true,
+          size: isMobile ? 4 : null, // Smaller DSOs on mobile
+          nameStyle: {
+            font: `${starFontSize} 'Helvetica Neue', Arial, sans-serif`,
+          },
         },
         constellations: {
           show: showConstellations,
@@ -158,13 +188,9 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
             fill: '#818cf8', // indigo-400
             align: 'center',
             baseline: 'middle',
-            font: [
-              "12px 'Helvetica Neue', Arial, sans-serif",
-              "11px 'Helvetica Neue', Arial, sans-serif",
-              "10px 'Helvetica Neue', Arial, sans-serif",
-            ],
+            font: constellationFonts,
           },
-          lineStyle: { stroke: '#6366f180', width: 1 }, // indigo-500 with opacity
+          lineStyle: { stroke: '#6366f180', width: isMobile ? 0.5 : 1 },
         },
         mw: {
           show: showMilkyWay,
@@ -179,7 +205,17 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
         },
         planets: {
           show: showPlanets,
-          names: true,
+          names: !isMobile, // Hide planet names on mobile to reduce clutter
+          symbolStyle: {
+            font: isMobile
+              ? "bold 12px 'Lucida Sans Unicode', sans-serif"
+              : "bold 17px 'Lucida Sans Unicode', sans-serif",
+          },
+          nameStyle: {
+            font: isMobile
+              ? "10px 'Lucida Sans Unicode', sans-serif"
+              : "14px 'Lucida Sans Unicode', sans-serif",
+          },
         },
         daylight: {
           show: false,
@@ -399,8 +435,9 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
           {/* Sky Chart */}
           <div
+            ref={containerRef}
             id="celestial-map"
-            className="w-full min-h-[400px] bg-night-950 rounded-lg overflow-hidden"
+            className="w-full min-h-[300px] sm:min-h-[400px] bg-night-950 rounded-lg overflow-hidden"
           />
         </div>
       )}
