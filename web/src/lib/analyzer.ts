@@ -49,6 +49,7 @@ import { getTransitForDisplay } from './events/transits';
 import { fetchAsteroidPhysicalData } from './jpl/sbdb';
 import { fetchNeoCloseApproaches } from './nasa/neows';
 import { calculateTotalScore } from './scoring';
+import { calculateNightQuality } from './weather/night-quality';
 import { fetchAirQuality, fetchWeather, parseNightWeather } from './weather/open-meteo';
 
 const MIN_SCORE_THRESHOLD = 60;
@@ -494,41 +495,34 @@ export async function generateForecast(
 }
 
 /**
- * Determine the best nights based on moon and weather
+ * Determine the best nights based on night quality score.
+ * Uses the same scoring system as the displayed night rating for consistency.
+ * Only considers nights that have a valid observation window (bestTime).
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Night scoring requires evaluating multiple factors
 function determineBestNights(forecasts: NightForecast[]): string[] {
   const nightScores: Array<{ date: string; score: number }> = [];
 
   for (const forecast of forecasts) {
-    let score = 100;
-
-    // Moon penalty (0-50% illumination is good)
-    const moonPenalty = forecast.nightInfo.moonIllumination * 0.5;
-    score -= moonPenalty;
-
-    // Weather bonus/penalty
-    if (forecast.weather) {
-      // Low clouds are good
-      if (forecast.weather.avgCloudCover < 20) score += 20;
-      else if (forecast.weather.avgCloudCover < 40) score += 10;
-      else if (forecast.weather.avgCloudCover > 70) score -= 30;
-
-      // Low precipitation is good
-      if (forecast.weather.maxPrecipProbability !== null) {
-        if (forecast.weather.maxPrecipProbability < 20) score += 10;
-        else if (forecast.weather.maxPrecipProbability > 50) score -= 20;
-      }
+    // Only consider nights with a valid observation window
+    // This ensures "best nights" always have a usable observation period
+    if (!forecast.weather?.bestTime) {
+      continue;
     }
+
+    // Use the same night quality calculation as displayed in the UI
+    // This ensures the "best nights" badge aligns with the star rating shown
+    const quality = calculateNightQuality(forecast.weather, forecast.nightInfo);
 
     nightScores.push({
       date: forecast.nightInfo.date.toISOString().split('T')[0],
-      score,
+      score: quality.score,
     });
   }
 
-  // Sort by score and return top nights
+  // Sort by score and return top nights (up to 3)
+  // Only include nights with at least a "fair" score (40+)
   return nightScores
+    .filter(n => n.score >= 40)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)
     .map(n => n.date);
