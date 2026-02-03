@@ -7,24 +7,7 @@ import {
   getWeatherEmoji,
 } from '@/lib/utils/format';
 import { calculateNightQuality } from '@/lib/weather/night-quality';
-import type { NightForecast, NightInfo, NightWeather } from '@/types';
-
-/**
- * Calculate usable observation hours and total dark hours
- */
-function getUsableHours(
-  nightInfo: NightInfo,
-  weather: NightWeather | null
-): { usable: number; total: number } {
-  // Calculate total astronomical night duration
-  const totalMs = nightInfo.astronomicalDawn.getTime() - nightInfo.astronomicalDusk.getTime();
-  const total = totalMs / (60 * 60 * 1000);
-
-  // Get usable hours from weather (clear sky duration)
-  const usable = weather?.clearDurationHours ?? 0;
-
-  return { usable: Math.min(usable, total), total };
-}
+import type { NightForecast, NightWeather } from '@/types';
 
 /**
  * Get best observation time display string
@@ -84,24 +67,19 @@ export default function NightSummaryTable({
           <thead>
             <tr className="bg-night-800/50 text-left text-sm text-gray-400">
               <th className="px-4 py-3 font-medium">Date</th>
-              <th className="px-4 py-3 font-medium">
-                <Tooltip content="Usable hours: time with dark skies AND acceptable weather. Format: usable / total dark hours.">
-                  <span className="border-b border-dotted border-gray-500">Usable</span>
-                </Tooltip>
-              </th>
               <th className="px-4 py-3 font-medium text-center">
                 <Tooltip content="Moon phase and illumination percentage. Less illumination = darker skies for deep-sky objects.">
                   <span className="border-b border-dotted border-gray-500">Moon</span>
                 </Tooltip>
               </th>
               <th className="px-4 py-3 font-medium text-center">
-                <Tooltip content="Cloud cover percentage. Lower is better. 0-25% is ideal for observing.">
+                <Tooltip content="Average cloud cover percentage. Lower is better. 0-25% is ideal for observing.">
                   <span className="border-b border-dotted border-gray-500">Weather</span>
                 </Tooltip>
               </th>
               <th className="px-4 py-3 font-medium">
-                <Tooltip content="Optimal observation window based on cloud cover, transparency, and other conditions.">
-                  <span className="border-b border-dotted border-gray-500">Best Time</span>
+                <Tooltip content="Optimal observation window based on cloud cover, transparency, and other conditions. Shows when to observe tonight.">
+                  <span className="border-b border-dotted border-gray-500">Best Window</span>
                 </Tooltip>
               </th>
               <th className="px-4 py-3 font-medium text-center">
@@ -118,6 +96,7 @@ export default function NightSummaryTable({
               const isBestNight = bestNightSet.has(dateKey);
               const isSelected = index === selectedIndex;
               const nightQuality = calculateNightQuality(weather, nightInfo);
+              const bestTimeStr = getBestTimeDisplay(weather);
 
               return (
                 <tr
@@ -132,29 +111,6 @@ export default function NightSummaryTable({
                       {isBestNight && <Star className="w-4 h-4 text-green-400" />}
                       <span className="text-white font-medium">{formatDate(nightInfo.date)}</span>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    {(() => {
-                      const hours = getUsableHours(nightInfo, weather);
-                      const usableColor =
-                        hours.usable === 0
-                          ? 'text-red-400'
-                          : hours.usable < hours.total * 0.3
-                            ? 'text-amber-400'
-                            : hours.usable < hours.total * 0.7
-                              ? 'text-yellow-400'
-                              : 'text-green-400';
-                      return (
-                        <Tooltip
-                          content={`Dark: ${formatTimeRange(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}`}
-                        >
-                          <span>
-                            <span className={usableColor}>{hours.usable.toFixed(1)}</span>
-                            <span className="text-gray-500"> / {hours.total.toFixed(1)}h</span>
-                          </span>
-                        </Tooltip>
-                      );
-                    })()}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="text-lg">{getMoonPhaseEmoji(nightInfo.moonPhase)}</span>
@@ -174,8 +130,12 @@ export default function NightSummaryTable({
                       <span className="text-gray-500">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-400">
-                    {getBestTimeDisplay(weather) || '—'}
+                  <td className="px-4 py-3 text-sm">
+                    {bestTimeStr ? (
+                      <span className="text-green-400">{bestTimeStr}</span>
+                    ) : (
+                      <span className="text-gray-500">No good window</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`star-rating text-sm ${nightQuality.rating.color}`}>
@@ -197,6 +157,7 @@ export default function NightSummaryTable({
           const isBestNight = bestNightSet.has(dateKey);
           const isSelected = index === selectedIndex;
           const nightQuality = calculateNightQuality(weather, nightInfo);
+          const bestTimeStr = getBestTimeDisplay(weather);
 
           return (
             <div
@@ -235,21 +196,11 @@ export default function NightSummaryTable({
                     {Math.round(weather.avgCloudCover)}%
                   </span>
                 )}
-                {(() => {
-                  const hours = getUsableHours(nightInfo, weather);
-                  const usableColor =
-                    hours.usable === 0
-                      ? 'text-red-400'
-                      : hours.usable < hours.total * 0.3
-                        ? 'text-amber-400'
-                        : 'text-gray-400';
-                  return (
-                    <span>
-                      <span className={usableColor}>{hours.usable.toFixed(1)}</span>
-                      <span className="text-gray-500">/{hours.total.toFixed(1)}h</span>
-                    </span>
-                  );
-                })()}
+                {bestTimeStr ? (
+                  <span className="text-green-400">{bestTimeStr}</span>
+                ) : (
+                  <span className="text-gray-500">No window</span>
+                )}
               </div>
             </div>
           );
