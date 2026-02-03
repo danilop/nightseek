@@ -16,15 +16,19 @@ import { getVenusPeakDescription } from '@/lib/astronomy/venus-peak';
 import { describeLunarEclipse, describeSolarEclipse } from '@/lib/events/eclipses';
 import { describeSeasonalMarker, getSeasonalMarkerName } from '@/lib/events/seasons';
 import { getTransitAlertSummary } from '@/lib/events/transits';
-import { formatTime } from '@/lib/utils/format';
+import { formatTime, getNightLabel } from '@/lib/utils/format';
 import type { AstronomicalEvents } from '@/types';
 import CloseApproachCard from './CloseApproachCard';
 
 interface AstronomicalEventsSectionProps {
   events: AstronomicalEvents;
+  nightDate: Date;
 }
 
-export default function AstronomicalEventsSection({ events }: AstronomicalEventsSectionProps) {
+export default function AstronomicalEventsSection({
+  events,
+  nightDate,
+}: AstronomicalEventsSectionProps) {
   const hasNeoApproaches = events.neoCloseApproaches && events.neoCloseApproaches.length > 0;
 
   const hasEvents =
@@ -104,7 +108,7 @@ export default function AstronomicalEventsSection({ events }: AstronomicalEvents
               title={`${opposition.planet} at Opposition`}
               description={
                 opposition.daysUntil === 0
-                  ? 'Opposition tonight!'
+                  ? `Opposition ${getNightLabel(nightDate).toLowerCase()}!`
                   : opposition.daysUntil < 0
                     ? `${Math.abs(opposition.daysUntil)} days ago`
                     : `In ${opposition.daysUntil} days`
@@ -141,12 +145,12 @@ export default function AstronomicalEventsSection({ events }: AstronomicalEvents
           />
         )}
 
-        {/* Moon Phase Tonight */}
+        {/* Moon Phase Event */}
         {events.moonPhaseEvent && (
           <EventCard
             icon={<span className="text-lg">{getMoonPhaseEmoji(events.moonPhaseEvent.phase)}</span>}
             title={getMoonPhaseName(events.moonPhaseEvent.phase)}
-            description={`Exact ${getMoonPhaseName(events.moonPhaseEvent.phase).toLowerCase()} tonight`}
+            description={`Exact ${getMoonPhaseName(events.moonPhaseEvent.phase).toLowerCase()} ${getNightLabel(nightDate).toLowerCase()}`}
             time={events.moonPhaseEvent.time}
             isHighlight={
               events.moonPhaseEvent.phase === 'full' || events.moonPhaseEvent.phase === 'new'
@@ -212,7 +216,7 @@ export default function AstronomicalEventsSection({ events }: AstronomicalEvents
       {/* NEO Close Approaches - Separate card for asteroid data */}
       {hasNeoApproaches && (
         <div className="mt-4">
-          <CloseApproachCard approaches={events.neoCloseApproaches} />
+          <CloseApproachCard approaches={events.neoCloseApproaches} nightDate={nightDate} />
         </div>
       )}
     </div>

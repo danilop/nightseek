@@ -9,6 +9,7 @@ interface EventsSectionProps {
   meteorShowers: MeteorShower[];
   astronomicalEvents?: AstronomicalEvents;
   latitude: number;
+  nightDate: Date;
 }
 
 export default function EventsSection({
@@ -16,6 +17,7 @@ export default function EventsSection({
   meteorShowers,
   astronomicalEvents,
   latitude: _latitude,
+  nightDate,
 }: EventsSectionProps) {
   const hasBasicEvents = conjunctions.length > 0 || meteorShowers.length > 0;
   const hasAstroEvents =
@@ -36,7 +38,7 @@ export default function EventsSection({
     <div className="space-y-4">
       {/* Astronomical Events (eclipses, oppositions, etc.) */}
       {hasAstroEvents && astronomicalEvents && (
-        <AstronomicalEventsSection events={astronomicalEvents} />
+        <AstronomicalEventsSection events={astronomicalEvents} nightDate={nightDate} />
       )}
 
       {/* Conjunctions */}
@@ -75,7 +77,9 @@ export default function EventsSection({
       )}
 
       {/* Meteor Showers - Enhanced with IAU data */}
-      {meteorShowers.length > 0 && <MeteorShowerCard showers={meteorShowers} />}
+      {meteorShowers.length > 0 && (
+        <MeteorShowerCard showers={meteorShowers} nightDate={nightDate} />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, Clock, Compass, Crosshair, Map as MapIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getNightLabel } from '@/lib/utils/format';
 import type { Location, NightInfo } from '@/types';
 
 /**
@@ -652,7 +653,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                 title={
                   isNowInNightRange
                     ? 'Jump to current time'
-                    : "Current time is outside tonight's range"
+                    : `Current time is outside ${getNightLabel(nightInfo.date, true).toLowerCase()} range`
                 }
               >
                 <Clock className="w-3 h-3" />

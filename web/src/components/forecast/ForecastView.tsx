@@ -152,6 +152,7 @@ export default function ForecastView({
           meteorShowers={selectedNight.meteorShowers}
           astronomicalEvents={selectedNight.astronomicalEvents}
           latitude={location.latitude}
+          nightDate={selectedNight.nightInfo.date}
         />
       </div>
 

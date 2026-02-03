@@ -15,7 +15,7 @@ import {
   getVisibilityDescription,
 } from '@/lib/satellites/iss-position';
 import { getAltitudeTextColor } from '@/lib/utils/colors';
-import { formatTime } from '@/lib/utils/format';
+import { formatTime, getNightLabel } from '@/lib/utils/format';
 import { useApp } from '@/stores/AppContext';
 import type { ISSPosition, Location, NightInfo, SatellitePass } from '@/types';
 
@@ -145,7 +145,9 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
           {loading && <span className="text-xs text-gray-500">Loading...</span>}
           {error && <span className="text-xs text-red-400">Unavailable</span>}
           {!loading && !error && passes.length === 0 && (
-            <span className="text-xs text-gray-500">No visible passes tonight</span>
+            <span className="text-xs text-gray-500">
+              No visible passes {getNightLabel(nightInfo.date).toLowerCase()}
+            </span>
           )}
           <ToggleChevron expanded={expanded} />
         </div>
@@ -173,7 +175,8 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
             <div className="text-center py-4">
               <Rocket className="w-8 h-8 text-gray-600 mx-auto mb-2" />
               <p className="text-gray-400 text-sm">
-                No ISS passes visible tonight from your location
+                No ISS passes visible {getNightLabel(nightInfo.date).toLowerCase()} from your
+                location
               </p>
               <p className="text-gray-500 text-xs mt-1">
                 Passes require dark skies and the ISS to be sunlit
