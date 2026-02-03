@@ -78,7 +78,7 @@ export default function NightSummaryTable({
                 </Tooltip>
               </th>
               <th className="px-4 py-3 font-medium">
-                <Tooltip content="Optimal observation window based on cloud cover, transparency, and other conditions. Shows when to observe tonight.">
+                <Tooltip content="Optimal observation window based on cloud cover, transparency, and other conditions. Shows when to observe each night.">
                   <span className="border-b border-dotted border-gray-500">Best Window</span>
                 </Tooltip>
               </th>

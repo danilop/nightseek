@@ -2,13 +2,15 @@ import { AlertTriangle, Orbit } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { formatDiameter, getDistanceDescription, getSizeCategory } from '@/lib/nasa/neows';
+import { getNightLabel } from '@/lib/utils/format';
 import type { NeoCloseApproach } from '@/types';
 
 interface CloseApproachCardProps {
   approaches: NeoCloseApproach[];
+  nightDate: Date;
 }
 
-export default function CloseApproachCard({ approaches }: CloseApproachCardProps) {
+export default function CloseApproachCard({ approaches, nightDate }: CloseApproachCardProps) {
   if (approaches.length === 0) {
     return null;
   }
@@ -20,7 +22,7 @@ export default function CloseApproachCard({ approaches }: CloseApproachCardProps
           <Orbit className="w-4 h-4 text-amber-400" />
           Asteroid Close Approaches
           <span className="text-xs text-gray-400 font-normal ml-1">
-            ({approaches.length} tonight)
+            ({approaches.length} {getNightLabel(nightDate).toLowerCase()})
           </span>
         </h3>
       </div>

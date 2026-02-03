@@ -3,13 +3,15 @@ import { useState } from 'react';
 import { Card, CountBadge, ToggleChevron } from '@/components/ui/Card';
 import { getAdjustedHourlyRate, getIAUMeteorShowerInfo } from '@/lib/events/meteor-showers';
 import { getAltitudeTextColor, getMoonInterference } from '@/lib/utils/colors';
+import { getNightLabel } from '@/lib/utils/format';
 import type { MeteorShower } from '@/types';
 
 interface MeteorShowerCardProps {
   showers: MeteorShower[];
+  nightDate: Date;
 }
 
-export default function MeteorShowerCard({ showers }: MeteorShowerCardProps) {
+export default function MeteorShowerCard({ showers, nightDate }: MeteorShowerCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   if (showers.length === 0) {
@@ -45,7 +47,7 @@ export default function MeteorShowerCard({ showers }: MeteorShowerCardProps) {
       {expanded && (
         <div className="p-4 space-y-3">
           {/* Primary shower details */}
-          <ShowerDetails shower={primaryShower} />
+          <ShowerDetails shower={primaryShower} nightDate={nightDate} />
 
           {/* Additional showers */}
           {additionalShowers.length > 0 && (
@@ -87,9 +89,10 @@ function ShowerSummary({ shower }: ShowerSummaryProps) {
 
 interface ShowerDetailsProps {
   shower: MeteorShower;
+  nightDate: Date;
 }
 
-function ShowerDetails({ shower }: ShowerDetailsProps) {
+function ShowerDetails({ shower, nightDate }: ShowerDetailsProps) {
   const adjustedRate = getAdjustedHourlyRate(shower);
   const { constellation } = getIAUMeteorShowerInfo(shower);
   const moonInterference = getMoonInterference(shower.moonIllumination);
@@ -102,7 +105,7 @@ function ShowerDetails({ shower }: ShowerDetailsProps) {
           <h4 className="text-lg font-medium text-white">{shower.name}</h4>
           <span className="text-sm text-gray-500">({shower.code})</span>
         </div>
-        <PeakBadge daysFromPeak={shower.daysFromPeak} />
+        <PeakBadge daysFromPeak={shower.daysFromPeak} nightDate={nightDate} />
       </div>
 
       {/* Key Stats */}
@@ -212,9 +215,10 @@ function PeakIndicator({ daysFromPeak }: PeakIndicatorProps) {
 
 interface PeakBadgeProps {
   daysFromPeak: number | null;
+  nightDate: Date;
 }
 
-function PeakBadge({ daysFromPeak }: PeakBadgeProps) {
+function PeakBadge({ daysFromPeak, nightDate }: PeakBadgeProps) {
   if (daysFromPeak === null) return null;
 
   const absDays = Math.abs(daysFromPeak);
@@ -222,7 +226,7 @@ function PeakBadge({ daysFromPeak }: PeakBadgeProps) {
   if (absDays < 1) {
     return (
       <span className="text-sm bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-medium">
-        Peak Tonight!
+        Peak {getNightLabel(nightDate)}!
       </span>
     );
   }
