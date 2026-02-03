@@ -237,25 +237,6 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
       try {
         Celestial.display(config);
 
-        // Remove any form elements d3-celestial creates (we use our own UI)
-        const mapDiv = document.getElementById('celestial-map');
-        if (mapDiv) {
-          // Remove form elements inside the container
-          for (const form of mapDiv.querySelectorAll('form')) {
-            form.remove();
-          }
-
-          // Also check for form siblings (d3-celestial sometimes adds forms as siblings)
-          let sibling = mapDiv.nextElementSibling;
-          while (sibling) {
-            const next = sibling.nextElementSibling;
-            if (sibling.tagName === 'FORM' || sibling.querySelector?.('input, select, label')) {
-              sibling.remove();
-            }
-            sibling = next;
-          }
-        }
-
         // Set the date/time and location
         Celestial.date(currentTime);
         Celestial.location([location.latitude, location.longitude]);

@@ -92,13 +92,7 @@ html {
 }
 
 /* Hide d3-celestial's built-in form controls (we use our own UI) */
-#celestial-map form,
-#celestial-map > div:has(input),
-#celestial-map > div:has(select),
-#celestial-map > div:has(label),
-#celestial-map ~ form,
-#celestial-map ~ div:has(input),
-#celestial-map ~ div:has(select) {
+#celestial-map form {
   display: none !important;
 }
 
