@@ -796,14 +796,19 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
           {/* Celestial map container - responsive sizing based on container width */}
           <div ref={chartContainerRef} className="w-full flex flex-col items-center">
-            {/* Wrapper with cardinal directions */}
+            {/* Wrapper with cardinal directions - rotates with compass */}
             <div
               className="relative"
-              style={{ width: `${chartSize + 40}px`, height: `${chartSize + 40}px` }}
+              style={{
+                width: `${chartSize + 40}px`,
+                height: `${chartSize + 40}px`,
+                transform: settings.useCompass ? `rotate(${-compassHeading}deg)` : 'rotate(0deg)',
+                transition: settings.useCompass ? 'transform 0.15s ease-out' : 'none',
+              }}
             >
-              {/* Cardinal direction markers - N highlighted in blue */}
+              {/* Cardinal direction markers - N highlighted in red, rotate with map */}
               <div
-                className="absolute text-xs font-bold text-blue-400 z-10"
+                className="absolute text-xs font-bold text-red-500 z-10"
                 style={{
                   top: 0,
                   left: '50%',
@@ -841,19 +846,6 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
                 }}
               >
                 W
-              </div>
-              {/* North arrow indicator - always visible, rotates with chart when compass is active */}
-              <div
-                className="absolute z-20"
-                style={{
-                  top: '6px',
-                  right: '6px',
-                  transform: settings.useCompass ? `rotate(${-compassHeading}deg)` : 'rotate(0deg)',
-                  transition: settings.useCompass ? 'transform 0.15s ease-out' : 'none',
-                }}
-                title={settings.useCompass ? `Heading: ${Math.round(compassHeading)}°` : 'North'}
-              >
-                <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-b-[10px] border-l-transparent border-r-transparent border-b-red-500" />
               </div>
               {/* Circular chart container - clips to circle using clip-path for Safari compatibility */}
               <div
