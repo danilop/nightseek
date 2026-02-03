@@ -524,9 +524,13 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
       try {
         Celestial.display(config);
 
-        // Set initial date and location
+        // Set initial date and location - must be before skyview call
         Celestial.date(currentTime);
         Celestial.location([location.latitude, location.longitude]);
+
+        // Force skyview to trigger zenith calculation
+        // This should set the view to the local zenith based on geopos and date
+        Celestial.skyview({ date: currentTime, location: [location.latitude, location.longitude] });
 
         // Register custom overlay callback - this redraw function is called on every redraw
         Celestial.add({
@@ -539,7 +543,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
         celestialInitialized.current = true;
 
-        // Initial redraw to show overlays
+        // Force a redraw to apply the zenith centering
         Celestial.redraw();
       } catch {
         // Initialization failed - container may not be ready
@@ -549,17 +553,17 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     initCelestial();
   }, [expanded, location.latitude, location.longitude, currentTime, drawCustomOverlays]);
 
-  // Update d3-celestial when time changes - update date and let follow:zenith recalculate
+  // Update d3-celestial when time changes - use skyview to recalculate zenith position
   useEffect(() => {
     if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
 
     try {
-      // Update the date - with follow:'zenith', d3-celestial will auto-recalculate zenith position
+      // Update date and location, then trigger skyview to recalculate zenith
       Celestial.date(currentTime);
+      Celestial.skyview({ date: currentTime, location: [location.latitude, location.longitude] });
 
       // If using compass, apply rotation for the orientation
       if (useCompass) {
-        // Get current center and apply compass rotation
         const currentCenter = Celestial.skyview()?.center;
         if (currentCenter) {
           Celestial.rotate({ center: [currentCenter[0], currentCenter[1], -compassHeading] });
@@ -570,7 +574,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     } catch {
       // Celestial not ready
     }
-  }, [currentTime, useCompass, compassHeading]);
+  }, [currentTime, location.latitude, location.longitude, useCompass, compassHeading]);
 
   // Cleanup on unmount
   useEffect(() => {
