@@ -36,7 +36,7 @@ export default function Tooltip({
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
   const triggerRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Calculate position based on trigger element's viewport coordinates
   const updatePosition = useCallback(() => {
