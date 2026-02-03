@@ -78,12 +78,8 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
             </p>
           ) : (
             <p className="text-sm text-gray-500">
-              <Tooltip
-                content={`No window with acceptable conditions (low clouds, good transparency, minimal dew risk) found ${getNightLabel(nightInfo.date).toLowerCase()}.`}
-              >
-                <span>
-                  No good observation window {getNightLabel(nightInfo.date).toLowerCase()}
-                </span>
+              <Tooltip content="No window with acceptable conditions (low clouds, good transparency, minimal dew risk) found.">
+                <span>No good observation window</span>
               </Tooltip>
             </p>
           )}
