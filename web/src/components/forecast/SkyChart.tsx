@@ -11,8 +11,9 @@ interface SkyChartProps {
   location: Location;
 }
 
-// Responsive config thresholds
-const SMALL_SCREEN_WIDTH = 640; // sm breakpoint in Tailwind
+// Responsive config thresholds (Tailwind breakpoints)
+const SMALL_SCREEN_WIDTH = 640; // sm breakpoint
+const MEDIUM_SCREEN_WIDTH = 1024; // lg breakpoint
 
 export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
@@ -105,24 +106,38 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
       // Check container width for responsive config
       const containerWidth = containerRef.current?.clientWidth ?? window.innerWidth;
-      const isMobile = containerWidth < SMALL_SCREEN_WIDTH;
+      const isSmall = containerWidth < SMALL_SCREEN_WIDTH;
+      const isLarge = containerWidth >= MEDIUM_SCREEN_WIDTH;
 
-      // Responsive settings: reduce visual density on small screens
-      const starLimit = isMobile ? 4.5 : 5.5; // Fewer stars on mobile
-      const starPropernameLimit = isMobile ? 1.5 : 2.5; // Only brightest star names on mobile
-      const dsoNameLimit = isMobile ? 4 : 6; // Fewer DSO names on mobile
-      const starFontSize = isMobile ? '8px' : '10px';
-      const constellationFonts = isMobile
+      // Responsive settings: adjust visual density based on screen size
+      // Small (<640px): minimal labels for mobile
+      // Medium (640-1024px): moderate labels for tablets/small laptops
+      // Large (>1024px): full labels for desktop
+      const starLimit = isSmall ? 4.5 : isLarge ? 6 : 5.5;
+      const starPropernameLimit = isSmall ? 1.5 : isLarge ? 3 : 2.5;
+      const dsoNameLimit = isSmall ? 4 : isLarge ? 8 : 6;
+      const starSize = isSmall ? 4 : isLarge ? 6 : 5;
+      const starFontSize = isSmall ? '8px' : isLarge ? '11px' : '10px';
+      const dsoFontSize = isSmall ? '8px' : isLarge ? '11px' : '10px';
+      const constellationFonts = isSmall
         ? [
             "9px 'Helvetica Neue', Arial, sans-serif",
             "8px 'Helvetica Neue', Arial, sans-serif",
             "7px 'Helvetica Neue', Arial, sans-serif",
           ]
-        : [
-            "12px 'Helvetica Neue', Arial, sans-serif",
-            "11px 'Helvetica Neue', Arial, sans-serif",
-            "10px 'Helvetica Neue', Arial, sans-serif",
-          ];
+        : isLarge
+          ? [
+              "14px 'Helvetica Neue', Arial, sans-serif",
+              "13px 'Helvetica Neue', Arial, sans-serif",
+              "12px 'Helvetica Neue', Arial, sans-serif",
+            ]
+          : [
+              "12px 'Helvetica Neue', Arial, sans-serif",
+              "11px 'Helvetica Neue', Arial, sans-serif",
+              "10px 'Helvetica Neue', Arial, sans-serif",
+            ];
+      const planetFontSize = isSmall ? '12px' : isLarge ? '18px' : '17px';
+      const planetNameFontSize = isSmall ? '10px' : isLarge ? '15px' : '14px';
 
       // Config with app-matching dark theme styling and responsive settings
       const config = {
@@ -134,7 +149,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
         follow: 'zenith',
         geopos: [location.latitude, location.longitude],
         zoomlevel: null,
-        zoomextend: isMobile ? 5 : 10, // Less zoom on mobile
+        zoomextend: isSmall ? 5 : isLarge ? 12 : 10, // Zoom range by screen size
         interactive: true,
         disableAnimations: false,
         form: false, // We use our own UI
@@ -151,7 +166,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
         horizon: {
           show: true,
           stroke: '#475569', // slate-600
-          width: isMobile ? 1 : 1.5,
+          width: isSmall ? 1 : isLarge ? 2 : 1.5,
           fill: '#0f172a',
           opacity: 0.8,
         },
@@ -160,7 +175,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           limit: starLimit,
           colors: true,
           style: { fill: '#ffffff', opacity: 0.85 },
-          size: isMobile ? 4 : 5, // Smaller stars on mobile
+          size: starSize,
           propername: true,
           propernameLimit: starPropernameLimit,
           propernameStyle: {
@@ -175,9 +190,9 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           names: true,
           nameLimit: dsoNameLimit,
           colors: true,
-          size: isMobile ? 4 : null, // Smaller DSOs on mobile
+          size: isSmall ? 4 : null,
           nameStyle: {
-            font: `${starFontSize} 'Helvetica Neue', Arial, sans-serif`,
+            font: `${dsoFontSize} 'Helvetica Neue', Arial, sans-serif`,
           },
         },
         constellations: {
@@ -191,7 +206,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
             baseline: 'middle',
             font: constellationFonts,
           },
-          lineStyle: { stroke: '#6366f180', width: isMobile ? 0.5 : 1 },
+          lineStyle: { stroke: '#6366f180', width: isSmall ? 0.5 : isLarge ? 1.5 : 1 },
         },
         mw: {
           show: showMilkyWay,
@@ -206,16 +221,12 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
         },
         planets: {
           show: showPlanets,
-          names: !isMobile, // Hide planet names on mobile to reduce clutter
+          names: !isSmall, // Hide planet names on small screens to reduce clutter
           symbolStyle: {
-            font: isMobile
-              ? "bold 12px 'Lucida Sans Unicode', sans-serif"
-              : "bold 17px 'Lucida Sans Unicode', sans-serif",
+            font: `bold ${planetFontSize} 'Lucida Sans Unicode', sans-serif`,
           },
           nameStyle: {
-            font: isMobile
-              ? "10px 'Lucida Sans Unicode', sans-serif"
-              : "14px 'Lucida Sans Unicode', sans-serif",
+            font: `${planetNameFontSize} 'Lucida Sans Unicode', sans-serif`,
           },
         },
         daylight: {
@@ -457,7 +468,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           <div
             ref={containerRef}
             id="celestial-map"
-            className="w-full min-h-[300px] sm:min-h-[400px] bg-night-950 rounded-lg overflow-hidden"
+            className="w-full min-h-[300px] sm:min-h-[400px] lg:min-h-[500px] xl:min-h-[600px] bg-night-950 rounded-lg overflow-hidden"
           />
         </div>
       )}
