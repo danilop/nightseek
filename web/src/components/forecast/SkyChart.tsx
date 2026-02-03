@@ -14,14 +14,6 @@ interface SkyChartProps {
   scoredObjects: ScoredObject[];
 }
 
-interface ChartSettings {
-  showMilkyWay: boolean;
-  showGrid: boolean;
-  showEcliptic: boolean;
-  showConstellations: boolean;
-  useCompass: boolean;
-}
-
 // Planet body mappings (static, defined outside component)
 const PLANET_BODIES: Record<string, Astronomy.Body> = {
   Mercury: Astronomy.Body.Mercury,
@@ -46,15 +38,17 @@ const PLANET_COLORS: Record<string, string> = {
 // d3-celestial canvas size - we render at this fixed size for good quality, then scale to fit
 const CELESTIAL_CANVAS_SIZE = 500;
 
+// Fixed display settings - d3-celestial doesn't support dynamic config changes
+const CHART_SETTINGS = {
+  showMilkyWay: true,
+  showGrid: false,
+  showEcliptic: true,
+  showConstellations: true,
+};
+
 export default function SkyChart({ nightInfo, location, planets, scoredObjects }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
-  const [settings, setSettings] = useState<ChartSettings>({
-    showMilkyWay: true,
-    showGrid: false,
-    showEcliptic: true,
-    showConstellations: true,
-    useCompass: false,
-  });
+  const [useCompass, setUseCompass] = useState(false);
   const [selectedTime, setSelectedTime] = useState<number>(50);
   const [compassHeading, setCompassHeading] = useState<number>(0);
   const [compassAvailable, setCompassAvailable] = useState<boolean | null>(null);
@@ -72,6 +66,8 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
   const locationRef = useRef<Location>(location);
   const compassHeadingRef = useRef<number>(0);
   const useCompassRef = useRef<boolean>(false);
+  const prevCompassHeading = useRef<number>(0);
+  const displayHeading = useRef<number>(0); // Smoothed heading for display (avoids 360° jumps)
 
   // Calculate the actual time from slider position
   const currentTime = useMemo(() => {
@@ -106,8 +102,8 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
   useEffect(() => {
     compassHeadingRef.current = compassHeading;
-    useCompassRef.current = settings.useCompass;
-  }, [compassHeading, settings.useCompass]);
+    useCompassRef.current = useCompass;
+  }, [compassHeading, useCompass]);
 
   // Compute chart size based on container width (80% of available width)
   useEffect(() => {
@@ -139,10 +135,6 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const toggleSetting = (key: keyof ChartSettings) => {
-    setSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   // Check compass availability on mount
@@ -182,13 +174,16 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
   // Handle compass orientation
   useEffect(() => {
-    if (!settings.useCompass) {
+    if (!useCompass) {
       setCompassHeading(0);
+      // Reset tracking refs when compass is disabled
+      prevCompassHeading.current = 0;
+      displayHeading.current = 0;
       return;
     }
 
     if (compassAvailable === false) {
-      setSettings(prev => ({ ...prev, useCompass: false }));
+      setUseCompass(false);
       return;
     }
 
@@ -196,14 +191,26 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
 
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (!mounted) return;
-      const heading =
+      const rawHeading =
         (event as DeviceOrientationEvent & { webkitCompassHeading?: number })
           .webkitCompassHeading ??
         event.alpha ??
         0;
-      if (heading !== null) {
-        setCompassHeading(heading);
-      }
+      if (rawHeading === null) return;
+
+      // Calculate shortest rotation path to avoid 360° jumps
+      const prev = prevCompassHeading.current;
+      let delta = rawHeading - prev;
+
+      // Normalize delta to [-180, 180] range for shortest path
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+
+      // Update display heading (cumulative, not wrapped to 0-360)
+      displayHeading.current += delta;
+      prevCompassHeading.current = rawHeading;
+
+      setCompassHeading(displayHeading.current);
     };
 
     const startCompass = async () => {
@@ -220,13 +227,13 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
           if (permission === 'granted') {
             window.addEventListener('deviceorientation', handleOrientation, true);
           } else {
-            setSettings(prev => ({ ...prev, useCompass: false }));
+            setUseCompass(false);
           }
         } else {
           window.addEventListener('deviceorientation', handleOrientation, true);
         }
       } catch {
-        setSettings(prev => ({ ...prev, useCompass: false }));
+        setUseCompass(false);
       }
     };
 
@@ -236,7 +243,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
       mounted = false;
       window.removeEventListener('deviceorientation', handleOrientation, true);
     };
-  }, [settings.useCompass, compassAvailable]);
+  }, [useCompass, compassAvailable]);
 
   // Custom redraw function for planets and DSOs - uses refs to access current data
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: canvas drawing requires sequential operations
@@ -472,7 +479,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
           show: false, // We draw our own
         },
         constellations: {
-          show: settings.showConstellations,
+          show: CHART_SETTINGS.showConstellations,
           names: true,
           namesType: 'iau',
           nameStyle: {
@@ -490,12 +497,12 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
           bounds: false,
         },
         mw: {
-          show: settings.showMilkyWay,
+          show: CHART_SETTINGS.showMilkyWay,
           style: { fill: '#8090a0', opacity: 0.12 },
         },
         lines: {
           graticule: {
-            show: settings.showGrid,
+            show: CHART_SETTINGS.showGrid,
             stroke: '#4a90c2',
             width: 0.5,
             opacity: 0.4,
@@ -504,7 +511,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
           },
           equatorial: { show: false },
           ecliptic: {
-            show: settings.showEcliptic,
+            show: CHART_SETTINGS.showEcliptic,
             stroke: '#facc15',
             width: 2.5,
             opacity: 1,
@@ -540,7 +547,6 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     };
 
     initCelestial();
-    // Note: settings not in deps - settings changes handled by separate effect below
   }, [expanded, location.latitude, location.longitude, currentTime, drawCustomOverlays]);
 
   // Update d3-celestial when time changes (use skyview for proper updates)
@@ -555,130 +561,9 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     }
   }, [currentTime]);
 
-  // Update d3-celestial when settings change - must reinitialize for some settings
-  useEffect(() => {
-    if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
-
-    // Celestial.apply() doesn't work well for nested config, so we reinitialize
-    const mapDiv = document.getElementById('celestial-map');
-    if (!mapDiv) return;
-
-    // Clear and reinitialize
-    mapDiv.innerHTML = '';
-    celestialInitialized.current = false;
-
-    const dataPath = 'https://unpkg.com/d3-celestial/data/';
-    const config = {
-      container: 'celestial-map',
-      datapath: dataPath,
-      width: CELESTIAL_CANVAS_SIZE,
-      projection: 'stereographic',
-      transform: 'horizontal',
-      center: null,
-      geopos: [locationRef.current.latitude, locationRef.current.longitude] as [number, number],
-      follow: 'zenith',
-      zoomlevel: null,
-      zoomextend: 10,
-      interactive: false,
-      form: false,
-      controls: false,
-      lang: '',
-      culture: '',
-      daterange: [],
-      orientationfixed: true,
-      background: {
-        fill: '#0a0a14',
-        opacity: 1,
-        stroke: '#1e293b',
-        width: 1.5,
-      },
-      horizon: {
-        show: true,
-        stroke: '#3b82f6',
-        width: 2,
-        fill: '#0a0a14',
-        opacity: 0.8,
-      },
-      daylight: { show: false },
-      planets: { show: false },
-      stars: {
-        show: true,
-        limit: 5,
-        colors: true,
-        style: { fill: '#ffffff', opacity: 0.85 },
-        designation: false,
-        propername: false,
-        size: 5,
-        exponent: -0.28,
-        data: 'stars.6.json',
-      },
-      dsos: { show: false },
-      constellations: {
-        show: settings.showConstellations,
-        names: true,
-        namesType: 'iau',
-        nameStyle: {
-          fill: '#6366f1',
-          align: 'center',
-          baseline: 'middle',
-          font: [
-            '12px Helvetica, Arial, sans-serif',
-            '11px Helvetica, Arial, sans-serif',
-            '10px Helvetica, Arial, sans-serif',
-          ],
-        },
-        lines: true,
-        lineStyle: { stroke: '#6366f140', width: 1 },
-        bounds: false,
-      },
-      mw: {
-        show: settings.showMilkyWay,
-        style: { fill: '#8090a0', opacity: 0.12 },
-      },
-      lines: {
-        graticule: {
-          show: settings.showGrid,
-          stroke: '#4a90c2',
-          width: 0.5,
-          opacity: 0.4,
-        },
-        equatorial: { show: false },
-        ecliptic: {
-          show: settings.showEcliptic,
-          stroke: '#facc15',
-          width: 2.5,
-          opacity: 1,
-        },
-        galactic: { show: false },
-        supergalactic: { show: false },
-      },
-    };
-
-    try {
-      Celestial.display(config);
-      Celestial.date(currentTimeRef.current);
-      Celestial.add({
-        type: 'raw',
-        callback: () => {},
-        redraw: drawCustomOverlays,
-      });
-      celestialInitialized.current = true;
-      Celestial.redraw();
-    } catch {
-      // Reinit failed
-    }
-  }, [
-    settings.showMilkyWay,
-    settings.showGrid,
-    settings.showEcliptic,
-    settings.showConstellations,
-    drawCustomOverlays,
-  ]);
-
   // Update when compass heading changes
   useEffect(() => {
-    if (!celestialInitialized.current || !settings.useCompass || typeof Celestial === 'undefined')
-      return;
+    if (!celestialInitialized.current || !useCompass || typeof Celestial === 'undefined') return;
 
     try {
       Celestial.rotate({ center: [-compassHeading, 0, 0] });
@@ -686,7 +571,7 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     } catch {
       // Celestial not ready
     }
-  }, [compassHeading, settings.useCompass]);
+  }, [compassHeading, useCompass]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -752,47 +637,27 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
             </div>
           </div>
 
-          {/* Toggle buttons */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <ToggleButton
-              label="Ecliptic"
-              active={settings.showEcliptic}
-              onClick={() => toggleSetting('showEcliptic')}
-            />
-            <ToggleButton
-              label="Milky Way"
-              active={settings.showMilkyWay}
-              onClick={() => toggleSetting('showMilkyWay')}
-            />
-            <ToggleButton
-              label="Constellations"
-              active={settings.showConstellations}
-              onClick={() => toggleSetting('showConstellations')}
-            />
-            <ToggleButton
-              label="Grid"
-              active={settings.showGrid}
-              onClick={() => toggleSetting('showGrid')}
-            />
-            {compassAvailable === true && (
+          {/* Compass toggle (only on devices that support it) */}
+          {compassAvailable === true && (
+            <div className="flex flex-wrap gap-2 mb-4">
               <button
                 type="button"
-                onClick={() => toggleSetting('useCompass')}
+                onClick={() => setUseCompass(!useCompass)}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                  settings.useCompass
+                  useCompass
                     ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                     : 'bg-night-800 text-gray-500 border border-night-700'
                 }`}
                 title={`Heading: ${Math.round(compassHeading)}°`}
               >
-                <Navigation className={`w-3 h-3 ${settings.useCompass ? 'animate-pulse' : ''}`} />
+                <Navigation className={`w-3 h-3 ${useCompass ? 'animate-pulse' : ''}`} />
                 Compass
-                {settings.useCompass && (
+                {useCompass && (
                   <span className="text-[10px] opacity-75">{Math.round(compassHeading)}°</span>
                 )}
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Celestial map container - responsive sizing based on container width */}
           <div ref={chartContainerRef} className="w-full flex flex-col items-center">
@@ -802,8 +667,8 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
               style={{
                 width: `${chartSize + 40}px`,
                 height: `${chartSize + 40}px`,
-                transform: settings.useCompass ? `rotate(${-compassHeading}deg)` : 'rotate(0deg)',
-                transition: settings.useCompass ? 'transform 0.15s ease-out' : 'none',
+                transform: useCompass ? `rotate(${-compassHeading}deg)` : 'rotate(0deg)',
+                transition: useCompass ? 'transform 0.15s ease-out' : 'none',
               }}
             >
               {/* Cardinal direction markers - N highlighted in red, rotate with map */}
@@ -891,43 +756,17 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
               <span className="w-3 h-3 rounded-full bg-green-500" />
               <span>Top DSOs</span>
             </div>
-            {settings.showEcliptic && (
-              <div className="flex items-center gap-1">
-                <span className="w-4 border-t-2 border-amber-500/70" />
-                <span>Ecliptic</span>
-              </div>
-            )}
-            {settings.showMilkyWay && (
-              <div className="flex items-center gap-1">
-                <span className="w-4 h-2 bg-gray-500/30 rounded" />
-                <span>Milky Way</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1">
+              <span className="w-4 border-t-2 border-amber-500/70" />
+              <span>Ecliptic</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-4 h-2 bg-gray-500/30 rounded" />
+              <span>Milky Way</span>
+            </div>
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-interface ToggleButtonProps {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}
-
-function ToggleButton({ label, active, onClick }: ToggleButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-        active
-          ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-          : 'bg-night-800 text-gray-500 border border-night-700'
-      }`}
-    >
-      {label}
-    </button>
   );
 }
