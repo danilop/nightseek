@@ -46,15 +46,6 @@ const CHART_SETTINGS = {
   showConstellations: true,
 };
 
-// Calculate Local Sidereal Time in hours for a given date and longitude
-function calculateLST(date: Date, longitudeDegrees: number): number {
-  // Get Greenwich Mean Sidereal Time using astronomy-engine
-  const gmst = Astronomy.SiderealTime(date);
-  // Convert longitude to hours and add to GMST to get Local Sidereal Time
-  const lst = (gmst + longitudeDegrees / 15 + 24) % 24;
-  return lst;
-}
-
 export default function SkyChart({ nightInfo, location, planets, scoredObjects }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
   const [useCompass, setUseCompass] = useState(false);
@@ -420,20 +411,14 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
       // d3-celestial data files are hosted on unpkg CDN
       const dataPath = 'https://unpkg.com/d3-celestial/data/';
 
-      // Calculate zenith position: center on LST (in hours) and observer's latitude
-      // d3-celestial expects center as [hours, degrees, degrees] for equatorial transformation
-      const lst = calculateLST(currentTime, location.longitude);
-      const zenithRA = lst; // LST in hours (d3-celestial expects hours, not degrees)
-      const zenithDec = location.latitude;
-
       const config = {
         container: 'celestial-map',
         datapath: dataPath,
         width: CELESTIAL_CANVAS_SIZE, // Fixed canvas size for good quality
         projection: 'stereographic', // Stereographic projection - good for all-sky circular view
-        // Note: transform defaults to 'equatorial' which is correct
-        // We center on the zenith (LST, latitude) to show "what's overhead"
-        center: [zenithRA, zenithDec, 0] as [number, number, number],
+        // Use 'follow: zenith' to automatically center on local zenith based on geopos and date
+        follow: 'zenith',
+        center: null, // Let d3-celestial calculate from follow setting
         geopos: [location.latitude, location.longitude] as [number, number],
         zoomlevel: null,
         zoomextend: 10, // Allow full sky view
@@ -564,25 +549,28 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     initCelestial();
   }, [expanded, location.latitude, location.longitude, currentTime, drawCustomOverlays]);
 
-  // Update d3-celestial when time changes - rotate to new zenith position
+  // Update d3-celestial when time changes - update date and let follow:zenith recalculate
   useEffect(() => {
     if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
 
     try {
-      // Calculate new zenith position for the current time
-      // d3-celestial expects center as [hours, degrees, degrees] for equatorial transformation
-      const lst = calculateLST(currentTime, location.longitude);
-      const zenithRA = lst; // LST in hours (d3-celestial expects hours, not degrees)
+      // Update the date - with follow:'zenith', d3-celestial will auto-recalculate zenith position
+      Celestial.date(currentTime);
 
-      // Calculate orientation: when using compass, rotate by heading; otherwise, orient with N at top
-      const orientation = useCompass ? -compassHeading : 0;
+      // If using compass, apply rotation for the orientation
+      if (useCompass) {
+        // Get current center and apply compass rotation
+        const currentCenter = Celestial.skyview()?.center;
+        if (currentCenter) {
+          Celestial.rotate({ center: [currentCenter[0], currentCenter[1], -compassHeading] });
+        }
+      }
 
-      // Rotate the map center to the new zenith
-      Celestial.rotate({ center: [zenithRA, location.latitude, orientation] });
+      Celestial.redraw();
     } catch {
       // Celestial not ready
     }
-  }, [currentTime, location.longitude, location.latitude, useCompass, compassHeading]);
+  }, [currentTime, useCompass, compassHeading]);
 
   // Cleanup on unmount
   useEffect(() => {
