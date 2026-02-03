@@ -1,5 +1,6 @@
 import { Cloud, Droplets } from 'lucide-react';
 import { useMemo } from 'react';
+import { getQualityBgColor, type QualityLevel } from '@/lib/utils/colors';
 import { formatTemperature } from '@/lib/utils/units';
 import type { HourlyWeather, NightWeather, TemperatureUnit } from '@/types';
 
@@ -7,8 +8,6 @@ interface HourlyConditionsTimelineProps {
   weather: NightWeather;
   temperatureUnit: TemperatureUnit;
 }
-
-type QualityLevel = 'excellent' | 'good' | 'fair' | 'poor';
 
 interface HourlyData {
   hour: number;
@@ -29,19 +28,6 @@ function getDewLevel(margin: number): QualityLevel {
   if (margin >= 4) return 'good';
   if (margin >= 2) return 'fair';
   return 'poor';
-}
-
-function getLevelColorClass(level: QualityLevel): string {
-  switch (level) {
-    case 'excellent':
-      return 'bg-green-500';
-    case 'good':
-      return 'bg-yellow-500';
-    case 'fair':
-      return 'bg-orange-500';
-    case 'poor':
-      return 'bg-red-500';
-  }
 }
 
 function formatHour(hour: number): string {
@@ -132,7 +118,7 @@ export default function HourlyConditionsTimeline({
         {displayData.map(d => (
           <div
             key={`c-${d.hour}`}
-            className={`h-5 rounded-sm ${getLevelColorClass(d.clouds.level)} cursor-help flex items-center justify-center`}
+            className={`h-5 rounded-sm ${getQualityBgColor(d.clouds.level)} cursor-help flex items-center justify-center`}
             title={`${formatHour(d.hour)}: ${Math.round(d.clouds.value)}% clouds`}
           >
             {/* Mobile: abbreviated, Desktop: with % */}
@@ -151,7 +137,7 @@ export default function HourlyConditionsTimeline({
         {displayData.map(d => (
           <div
             key={`d-${d.hour}`}
-            className={`h-5 rounded-sm ${getLevelColorClass(d.dew.level)} cursor-help flex items-center justify-center`}
+            className={`h-5 rounded-sm ${getQualityBgColor(d.dew.level)} cursor-help flex items-center justify-center`}
             title={`${formatHour(d.hour)}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${d.dew.margin.toFixed(1)}° margin)`}
           >
             {/* Mobile: rounded margin, Desktop: with degree */}

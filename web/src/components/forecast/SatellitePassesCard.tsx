@@ -1,5 +1,6 @@
-import { ChevronDown, ChevronRight, Globe, MapPin, Rocket, Satellite, Zap } from 'lucide-react';
+import { Globe, MapPin, Rocket, Satellite, Zap } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Card, CountBadge, ToggleChevron } from '@/components/ui/Card';
 import {
   azimuthToCompass,
   calculateSatellitePasses,
@@ -13,6 +14,7 @@ import {
   getISSLocationName,
   getVisibilityDescription,
 } from '@/lib/satellites/iss-position';
+import { getAltitudeTextColor } from '@/lib/utils/colors';
 import { formatTime } from '@/lib/utils/format';
 import { useApp } from '@/stores/AppContext';
 import type { ISSPosition, Location, NightInfo, SatellitePass } from '@/types';
@@ -127,7 +129,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
   }
 
   return (
-    <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
+    <Card>
       {/* Header */}
       <button
         type="button"
@@ -135,15 +137,9 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
         className="w-full px-4 py-3 flex items-center justify-between hover:bg-night-800 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="text-2xl">
-            <Satellite className="w-6 h-6 text-sky-400" />
-          </span>
+          <Satellite className="w-6 h-6 text-sky-400" />
           <h3 className="font-semibold text-white">ISS Passes</h3>
-          {passes.length > 0 && (
-            <span className="text-sm text-gray-400 bg-night-700 px-2 py-0.5 rounded-full">
-              {passes.length}
-            </span>
-          )}
+          {passes.length > 0 && <CountBadge count={passes.length} />}
         </div>
         <div className="flex items-center gap-2">
           {loading && <span className="text-xs text-gray-500">Loading...</span>}
@@ -151,11 +147,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
           {!loading && !error && passes.length === 0 && (
             <span className="text-xs text-gray-500">No visible passes tonight</span>
           )}
-          {expanded ? (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronRight className="w-5 h-5 text-gray-400" />
-          )}
+          <ToggleChevron expanded={expanded} />
         </div>
       </button>
 
@@ -209,7 +201,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
           />
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -254,11 +246,13 @@ function PassItem({ pass }: { pass: SatellitePass }) {
 
       <div className="mt-2 pt-2 border-t border-night-700 flex items-center justify-between text-xs text-gray-500">
         <span>Duration: {formatPassDuration(pass.duration)}</span>
-        {pass.maxAltitude >= 60 && <span className="text-green-400">Excellent visibility</span>}
-        {pass.maxAltitude >= 30 && pass.maxAltitude < 60 && (
-          <span className="text-yellow-400">Good visibility</span>
-        )}
-        {pass.maxAltitude < 30 && <span className="text-orange-400">Low pass</span>}
+        <span className={getAltitudeTextColor(pass.maxAltitude)}>
+          {pass.maxAltitude >= 60
+            ? 'Excellent visibility'
+            : pass.maxAltitude >= 30
+              ? 'Good visibility'
+              : 'Low pass'}
+        </span>
       </div>
     </div>
   );

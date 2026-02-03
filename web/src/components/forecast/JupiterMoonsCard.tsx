@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Card, ToggleChevron } from '@/components/ui/Card';
 import Tooltip from '@/components/ui/Tooltip';
 import { useUIState } from '@/hooks/useUIState';
 import { describeGalileanMoonEvent } from '@/lib/astronomy/galilean-moons';
@@ -19,7 +20,7 @@ export default function JupiterMoonsCard({ positions, events, latitude }: Jupite
     events.length > 0 || positions.some(p => p.isTransiting || p.shadowOnJupiter);
 
   return (
-    <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
+    <Card>
       <button
         type="button"
         onClick={() => setJupiterMoonsExpanded(!expanded)}
@@ -29,16 +30,12 @@ export default function JupiterMoonsCard({ positions, events, latitude }: Jupite
           <span className="text-xl">&#x2643;</span>
           Jupiter's Galilean Moons
           {hasActiveEvents && (
-            <span className="ml-2 px-2 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded-full">
+            <Badge variant="warning" className="ml-2 rounded-full">
               Events Tonight
-            </span>
+            </Badge>
           )}
         </h3>
-        {expanded ? (
-          <ChevronUp className="w-4 h-4 text-gray-400" />
-        ) : (
-          <ChevronDown className="w-4 h-4 text-gray-400" />
-        )}
+        <ToggleChevron expanded={expanded} className="w-4 h-4 text-gray-400" />
       </button>
 
       {expanded && (
@@ -69,7 +66,7 @@ export default function JupiterMoonsCard({ positions, events, latitude }: Jupite
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

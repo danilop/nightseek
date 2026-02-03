@@ -1,6 +1,8 @@
-import { ChevronDown, ChevronRight, Moon, Star } from 'lucide-react';
+import { Moon, Star } from 'lucide-react';
 import { useState } from 'react';
+import { Card, CountBadge, ToggleChevron } from '@/components/ui/Card';
 import { getAdjustedHourlyRate, getIAUMeteorShowerInfo } from '@/lib/events/meteor-showers';
+import { getAltitudeTextColor, getMoonInterference } from '@/lib/utils/colors';
 import type { MeteorShower } from '@/types';
 
 interface MeteorShowerCardProps {
@@ -19,7 +21,7 @@ export default function MeteorShowerCard({ showers }: MeteorShowerCardProps) {
   const additionalShowers = showers.slice(1);
 
   return (
-    <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
+    <Card>
       {/* Header */}
       <button
         type="button"
@@ -29,17 +31,9 @@ export default function MeteorShowerCard({ showers }: MeteorShowerCardProps) {
         <div className="flex items-center gap-3">
           <span className="text-2xl">☄️</span>
           <h3 className="font-semibold text-white">Meteor Showers</h3>
-          <span className="text-sm text-gray-400 bg-night-700 px-2 py-0.5 rounded-full">
-            {showers.length} active
-          </span>
+          <CountBadge count={showers.length} />
         </div>
-        <div className="flex items-center gap-2">
-          {expanded ? (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronRight className="w-5 h-5 text-gray-400" />
-          )}
-        </div>
+        <ToggleChevron expanded={expanded} />
       </button>
 
       {/* Primary shower summary (always visible) */}
@@ -66,7 +60,7 @@ export default function MeteorShowerCard({ showers }: MeteorShowerCardProps) {
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -98,6 +92,7 @@ interface ShowerDetailsProps {
 function ShowerDetails({ shower }: ShowerDetailsProps) {
   const adjustedRate = getAdjustedHourlyRate(shower);
   const { constellation } = getIAUMeteorShowerInfo(shower);
+  const moonInterference = getMoonInterference(shower.moonIllumination);
 
   return (
     <div className="bg-night-800 rounded-lg p-4 space-y-3">
@@ -127,7 +122,7 @@ function ShowerDetails({ shower }: ShowerDetailsProps) {
         </div>
         <div>
           <span className="text-gray-500">Altitude: </span>
-          <span className={getAltitudeColor(shower.radiantAltitude)}>
+          <span className={getAltitudeTextColor(shower.radiantAltitude ?? -1)}>
             {shower.radiantAltitude !== null
               ? `${shower.radiantAltitude.toFixed(0)}° at midnight`
               : 'Below horizon'}
@@ -146,8 +141,8 @@ function ShowerDetails({ shower }: ShowerDetailsProps) {
             ({shower.moonSeparationDeg.toFixed(0)}° from radiant)
           </span>
         )}
-        <span className={`text-sm ml-auto ${getMoonInterferenceColor(shower.moonIllumination)}`}>
-          {getMoonInterferenceText(shower.moonIllumination)}
+        <span className={`text-sm ml-auto ${moonInterference.textColor}`}>
+          {moonInterference.text}
         </span>
       </div>
 
@@ -262,27 +257,4 @@ function PeakProgressBar({ daysFromPeak }: PeakProgressBarProps) {
       </div>
     </div>
   );
-}
-
-function getAltitudeColor(altitude: number | null): string {
-  if (altitude === null || altitude < 0) return 'text-red-400';
-  if (altitude < 30) return 'text-amber-400';
-  if (altitude < 60) return 'text-green-400';
-  return 'text-cyan-400';
-}
-
-function getMoonInterferenceColor(moonIllumination: number | null): string {
-  if (moonIllumination === null) return 'text-gray-400';
-  if (moonIllumination < 25) return 'text-green-400';
-  if (moonIllumination < 50) return 'text-yellow-400';
-  if (moonIllumination < 75) return 'text-amber-400';
-  return 'text-red-400';
-}
-
-function getMoonInterferenceText(moonIllumination: number | null): string {
-  if (moonIllumination === null) return 'Unknown';
-  if (moonIllumination < 25) return 'Minimal interference';
-  if (moonIllumination < 50) return 'Some interference';
-  if (moonIllumination < 75) return 'Moderate interference';
-  return 'Significant interference';
 }
