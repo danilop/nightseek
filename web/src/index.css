@@ -92,14 +92,13 @@ html {
 }
 
 /* Hide d3-celestial's built-in form controls (we use our own UI) */
-/* d3-celestial creates controls outside <form> tags, so we need to hide all non-SVG children */
-#celestial-map > *:not(svg):not(canvas) {
-  display: none !important;
-}
-
-/* Also target any form-related elements that appear as siblings */
 #celestial-map form,
-#celestial-map ~ form {
+#celestial-map > div:has(input),
+#celestial-map > div:has(select),
+#celestial-map > div:has(label),
+#celestial-map ~ form,
+#celestial-map ~ div:has(input),
+#celestial-map ~ div:has(select) {
   display: none !important;
 }
 
