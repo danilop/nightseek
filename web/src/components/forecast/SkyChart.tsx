@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Clock, Crosshair, Map as MapIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Compass, Crosshair, Map as MapIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Location, NightInfo } from '@/types';
 
@@ -141,6 +141,12 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   const [showMilkyWay, setShowMilkyWay] = useState(() => !getIsSmallScreen()); // OFF on mobile
   const [showPlanets, setShowPlanets] = useState(true);
   const [showNames, setShowNames] = useState(() => !getIsSmallScreen()); // Names OFF on mobile
+
+  // Compass state
+  const [compassAvailable, setCompassAvailable] = useState(false);
+  const [compassEnabled, setCompassEnabled] = useState(false);
+  const [compassHeading, setCompassHeading] = useState<number | null>(null);
+
   const celestialInitialized = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -390,17 +396,18 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     try {
       Celestial.date(currentTime);
 
-      // Rotate to zenith for the new time
+      // Rotate to zenith for the new time, preserving compass orientation if enabled
       const zenith = Celestial.zenith();
       if (zenith) {
-        Celestial.rotate({ center: zenith });
+        const orientation = compassEnabled && compassHeading !== null ? -compassHeading : 0;
+        Celestial.rotate({ center: [zenith[0], zenith[1], orientation] });
       }
 
       Celestial.redraw();
     } catch {
       // Celestial not ready
     }
-  }, [currentTime]);
+  }, [currentTime, compassEnabled, compassHeading]);
 
   // Update display options
   useEffect(() => {
@@ -459,6 +466,131 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
       }
     };
   }, []);
+
+  // Detect compass availability
+  useEffect(() => {
+    // Check if DeviceOrientationEvent is available and has the 'absolute' property
+    // or if we can use webkitCompassHeading (iOS)
+    const hasDeviceOrientation =
+      typeof window !== 'undefined' &&
+      ('DeviceOrientationEvent' in window || 'ondeviceorientationabsolute' in window);
+
+    if (hasDeviceOrientation) {
+      // On iOS 13+, we need to check if permission API exists
+      // biome-ignore lint/suspicious/noExplicitAny: DeviceOrientationEvent permission API
+      const DOE = DeviceOrientationEvent as any;
+      if (typeof DOE.requestPermission === 'function') {
+        // iOS - compass available but needs permission request on toggle
+        setCompassAvailable(true);
+      } else {
+        // Android/other - test if we get orientation events
+        const testHandler = (event: DeviceOrientationEvent) => {
+          // Check if we have a valid heading (alpha or webkitCompassHeading)
+          // biome-ignore lint/suspicious/noExplicitAny: webkitCompassHeading is iOS-specific
+          const heading = (event as any).webkitCompassHeading ?? event.alpha;
+          if (heading !== null && heading !== undefined) {
+            setCompassAvailable(true);
+          }
+          window.removeEventListener('deviceorientation', testHandler);
+        };
+        window.addEventListener('deviceorientation', testHandler, { once: true });
+
+        // Also try absolute orientation
+        const testAbsoluteHandler = (event: DeviceOrientationEvent) => {
+          if (event.alpha !== null) {
+            setCompassAvailable(true);
+          }
+          window.removeEventListener('deviceorientationabsolute', testAbsoluteHandler);
+        };
+        window.addEventListener('deviceorientationabsolute', testAbsoluteHandler, { once: true });
+      }
+    }
+  }, []);
+
+  // Handle compass toggle
+  const handleCompassToggle = useCallback(async () => {
+    if (compassEnabled) {
+      // Turn off compass
+      setCompassEnabled(false);
+      setCompassHeading(null);
+      return;
+    }
+
+    // Turn on compass - may need permission on iOS
+    // biome-ignore lint/suspicious/noExplicitAny: DeviceOrientationEvent permission API
+    const DOE = DeviceOrientationEvent as any;
+    if (typeof DOE.requestPermission === 'function') {
+      try {
+        const permission = await DOE.requestPermission();
+        if (permission === 'granted') {
+          setCompassEnabled(true);
+        }
+      } catch {
+        // Permission denied or error
+      }
+    } else {
+      // No permission needed (Android/desktop)
+      setCompassEnabled(true);
+    }
+  }, [compassEnabled]);
+
+  // Listen to device orientation when compass is enabled
+  useEffect(() => {
+    if (!compassEnabled) return;
+
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      // webkitCompassHeading is iOS-specific and gives true north
+      // alpha gives orientation relative to arbitrary starting point
+      // For absolute heading, prefer webkitCompassHeading or deviceorientationabsolute
+      // biome-ignore lint/suspicious/noExplicitAny: webkitCompassHeading is iOS-specific
+      const e = event as any;
+      let heading: number | null = null;
+
+      if (e.webkitCompassHeading !== undefined) {
+        // iOS - webkitCompassHeading is degrees from true north (0-360)
+        heading = e.webkitCompassHeading;
+      } else if (event.alpha !== null && event.absolute) {
+        // Android with absolute orientation - alpha is degrees from north
+        heading = (360 - event.alpha) % 360;
+      } else if (event.alpha !== null) {
+        // Fallback - use alpha directly (may not be true north)
+        heading = (360 - event.alpha) % 360;
+      }
+
+      if (heading !== null) {
+        setCompassHeading(heading);
+      }
+    };
+
+    // Try absolute orientation first (Android)
+    window.addEventListener('deviceorientationabsolute', handleOrientation);
+    // Also listen to regular orientation (iOS uses this with webkitCompassHeading)
+    window.addEventListener('deviceorientation', handleOrientation);
+
+    return () => {
+      window.removeEventListener('deviceorientationabsolute', handleOrientation);
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, [compassEnabled]);
+
+  // Update sky chart rotation when compass heading changes
+  useEffect(() => {
+    if (!compassEnabled || compassHeading === null) return;
+    if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
+
+    try {
+      const zenith = Celestial.zenith();
+      if (zenith) {
+        // Rotate view to match device heading
+        // Device heading is degrees from north, so we rotate the view by -heading
+        // to show what's in the direction the device is pointing
+        Celestial.rotate({ center: [zenith[0], zenith[1], -compassHeading] });
+        Celestial.redraw();
+      }
+    } catch {
+      // Celestial not ready
+    }
+  }, [compassEnabled, compassHeading]);
 
   return (
     <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
@@ -519,16 +651,43 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                 onChange={e => setSelectedTime(Number(e.target.value))}
                 className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
               />
-              {/* Center button */}
+              {/* Center button - disabled when compass is on */}
               <button
                 type="button"
                 onClick={handleCenterView}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white"
-                title="Center view (zenith, north up)"
+                disabled={compassEnabled}
+                className={`p-1.5 rounded text-xs font-medium transition-colors ${
+                  compassEnabled
+                    ? 'bg-night-800/50 text-gray-600 cursor-not-allowed'
+                    : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white'
+                }`}
+                title={
+                  compassEnabled
+                    ? 'Disable compass to center manually'
+                    : 'Center view (zenith, north up)'
+                }
               >
-                <Crosshair className="w-3 h-3" />
-                <span className="hidden sm:inline">Center</span>
+                <Crosshair className="w-4 h-4" />
               </button>
+              {/* Compass button - only shown when compass is available */}
+              {compassAvailable && (
+                <button
+                  type="button"
+                  onClick={handleCompassToggle}
+                  className={`p-1.5 rounded text-xs font-medium transition-colors ${
+                    compassEnabled
+                      ? 'bg-indigo-500/30 text-indigo-400 border border-indigo-500/50'
+                      : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white'
+                  }`}
+                  title={
+                    compassEnabled
+                      ? 'Disable compass mode'
+                      : 'Enable compass mode (rotate device to look around)'
+                  }
+                >
+                  <Compass className={`w-4 h-4 ${compassEnabled ? 'animate-pulse' : ''}`} />
+                </button>
+              )}
             </div>
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>Sunset</span>
