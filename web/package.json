@@ -22,7 +22,9 @@
     "check": "biome check src",
     "check:fix": "biome check --write src",
     "type-check": "tsc --noEmit",
+    "dead-code": "npx knip --include files,exports",
     "validate": "npm run type-check && npm run check && npm run test:run",
+    "validate:full": "npm run validate && npm run dead-code",
     "prepare": "husky"
   },
   "lint-staged": {
