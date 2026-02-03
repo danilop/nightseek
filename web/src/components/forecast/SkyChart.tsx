@@ -42,7 +42,7 @@ const CELESTIAL_CANVAS_SIZE = 500;
 const CHART_SETTINGS = {
   showMilkyWay: true,
   showGrid: false,
-  showEcliptic: true,
+  showEcliptic: false, // Disabled: d3-celestial renders ecliptic incorrectly with horizontal transform
   showConstellations: true,
 };
 
@@ -755,10 +755,6 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
             <div className="flex items-center gap-1">
               <span className="w-3 h-3 rounded-full bg-green-500" />
               <span>Top DSOs</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="w-4 border-t-2 border-amber-500/70" />
-              <span>Ecliptic</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-4 h-2 bg-gray-500/30 rounded" />
