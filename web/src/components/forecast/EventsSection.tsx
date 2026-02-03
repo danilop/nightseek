@@ -1,4 +1,5 @@
 import { Orbit, Star } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
 import type { AstronomicalEvents, Conjunction, MeteorShower } from '@/types';
 import AstronomicalEventsSection from './AstronomicalEventsSection';
 import MeteorShowerCard from './MeteorShowerCard';
@@ -40,7 +41,7 @@ export default function EventsSection({
 
       {/* Conjunctions */}
       {conjunctions.length > 0 && (
-        <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
+        <Card>
           <div className="px-4 py-3 border-b border-night-700">
             <h3 className="font-semibold text-white flex items-center gap-2">
               <Orbit className="w-4 h-4 text-purple-400" />
@@ -70,7 +71,7 @@ export default function EventsSection({
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Meteor Showers - Enhanced with IAU data */}
