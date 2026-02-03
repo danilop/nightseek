@@ -39,10 +39,12 @@ const PLANET_COLORS: Record<string, string> = {
 const CELESTIAL_CANVAS_SIZE = 500;
 
 // Fixed display settings - d3-celestial doesn't support dynamic config changes
+// Note: Ecliptic disabled because d3-celestial doesn't properly support zenith-centered
+// views with stereographic projection - the ecliptic renders incorrectly
 const CHART_SETTINGS = {
   showMilkyWay: true,
   showGrid: false,
-  showEcliptic: true, // Now works correctly with equatorial coordinates
+  showEcliptic: false, // Disabled - renders incorrectly with current projection
   showConstellations: true,
 };
 
