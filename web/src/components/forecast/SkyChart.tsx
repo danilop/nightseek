@@ -42,9 +42,18 @@ const CELESTIAL_CANVAS_SIZE = 500;
 const CHART_SETTINGS = {
   showMilkyWay: true,
   showGrid: false,
-  showEcliptic: false, // Disabled: d3-celestial renders ecliptic incorrectly with horizontal transform
+  showEcliptic: true, // Now works correctly with equatorial coordinates
   showConstellations: true,
 };
+
+// Calculate Local Sidereal Time in hours for a given date and longitude
+function calculateLST(date: Date, longitudeDegrees: number): number {
+  // Get Greenwich Mean Sidereal Time using astronomy-engine
+  const gmst = Astronomy.SiderealTime(date);
+  // Convert longitude to hours and add to GMST to get Local Sidereal Time
+  const lst = (gmst + longitudeDegrees / 15 + 24) % 24;
+  return lst;
+}
 
 export default function SkyChart({ nightInfo, location, planets, scoredObjects }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
@@ -411,15 +420,20 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
       // d3-celestial data files are hosted on unpkg CDN
       const dataPath = 'https://unpkg.com/d3-celestial/data/';
 
+      // Calculate zenith position: center on LST (in degrees) and observer's latitude
+      const lst = calculateLST(currentTime, location.longitude);
+      const zenithRA = lst * 15; // Convert hours to degrees
+      const zenithDec = location.latitude;
+
       const config = {
         container: 'celestial-map',
         datapath: dataPath,
         width: CELESTIAL_CANVAS_SIZE, // Fixed canvas size for good quality
         projection: 'stereographic', // Stereographic projection - good for all-sky circular view
-        transform: 'horizontal', // Horizontal (alt-az) coordinates - shows sky as observer sees it
-        center: null,
+        // Note: transform defaults to 'equatorial' which is correct
+        // We center on the zenith (LST, latitude) to show "what's overhead"
+        center: [zenithRA, zenithDec, 0] as [number, number, number],
         geopos: [location.latitude, location.longitude] as [number, number],
-        follow: 'zenith',
         zoomlevel: null,
         zoomextend: 10, // Allow full sky view
         interactive: false,
@@ -549,29 +563,25 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
     initCelestial();
   }, [expanded, location.latitude, location.longitude, currentTime, drawCustomOverlays]);
 
-  // Update d3-celestial when time changes (use skyview for proper updates)
+  // Update d3-celestial when time changes - rotate to new zenith position
   useEffect(() => {
     if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
 
     try {
-      // Use skyview to update date and trigger proper recalculation
-      Celestial.skyview({ date: currentTime });
+      // Calculate new zenith position for the current time
+      const lst = calculateLST(currentTime, location.longitude);
+      const zenithRA = lst * 15; // Convert hours to degrees
+
+      // Calculate orientation: when using compass, rotate by heading; otherwise, orient with N at top
+      // For N at top of circular chart, we need orientation = 180 - zenithRA (approximate)
+      const orientation = useCompass ? -compassHeading : 0;
+
+      // Rotate the map center to the new zenith
+      Celestial.rotate({ center: [zenithRA, location.latitude, orientation] });
     } catch {
       // Celestial not ready
     }
-  }, [currentTime]);
-
-  // Update when compass heading changes
-  useEffect(() => {
-    if (!celestialInitialized.current || !useCompass || typeof Celestial === 'undefined') return;
-
-    try {
-      Celestial.rotate({ center: [-compassHeading, 0, 0] });
-      Celestial.redraw();
-    } catch {
-      // Celestial not ready
-    }
-  }, [compassHeading, useCompass]);
+  }, [currentTime, location.longitude, location.latitude, useCompass, compassHeading]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -755,6 +765,10 @@ export default function SkyChart({ nightInfo, location, planets, scoredObjects }
             <div className="flex items-center gap-1">
               <span className="w-3 h-3 rounded-full bg-green-500" />
               <span>Top DSOs</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-4 border-t-2 border-yellow-400" />
+              <span>Ecliptic</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-4 h-2 bg-gray-500/30 rounded" />
