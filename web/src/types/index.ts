@@ -593,6 +593,45 @@ export interface ISSPosition {
   footprint: number; // km radius of visibility
 }
 
+// Object Search Result
+export interface ObjectSearchResult {
+  objectName: string;
+  displayName: string;
+  objectType: ObjectCategory;
+  subtype: DSOSubtype | null;
+  raHours: number;
+  decDegrees: number;
+  magnitude: number | null;
+  constellation: string | null;
+  messierNumber: number | null;
+
+  // Visibility assessment
+  visibilityStatus: ObjectVisibilityStatus;
+
+  // If visible tonight or soon
+  visibleTonight: boolean;
+  nextVisibleDate: Date | null;
+  nextVisibleNightInfo: NightInfo | null;
+  visibility: ObjectVisibility | null;
+
+  // If never visible from this location
+  neverVisible: boolean;
+  neverVisibleReason: string | null;
+
+  // Maximum possible altitude from this location
+  maxPossibleAltitude: number;
+
+  // For moving objects (comets, planets, asteroids)
+  isMovingObject: boolean;
+}
+
+export type ObjectVisibilityStatus =
+  | 'visible_tonight' // Object is visible tonight during dark hours
+  | 'visible_soon' // Object will be visible within next 30 days
+  | 'visible_later' // Object will be visible within the year
+  | 'below_horizon' // Object is above minimum altitude but currently below horizon at night
+  | 'never_visible'; // Object can never reach minimum altitude from this location
+
 // IAU Meteor Data Center - Enhanced Meteor Shower
 export interface IAUMeteorShower extends MeteorShower {
   iauNumber: number; // Official IAU number
