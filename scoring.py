@@ -736,25 +736,197 @@ def generate_score_reason(
     return ", ".join(reasons).capitalize()
 
 
+# Maximum possible score for percentage calculations
+MAX_SCORE = 200.0
+
+
 def get_score_tier(score: float) -> tuple[str, str]:
-    """Get tier name and emoji based on score.
+    """Get tier name and emoji based on score percentage.
+
+    Uses percentage-based thresholds matching the Web UI for consistency:
+    - 75%+ (150+): Excellent
+    - 50%+ (100+): Very Good
+    - 35%+ (70+): Good
+    - 20%+ (40+): Fair
+    - Below 20%: Poor
 
     Args:
-        score: Total score
+        score: Total score (0-200 scale)
 
     Returns:
         Tuple of (tier_name, star_rating)
     """
-    if score >= 150:
+    pct = (score / MAX_SCORE) * 100
+    if pct >= 75:
         return "Excellent", "[green]★★★★★[/green]"
-    elif score >= 120:
+    elif pct >= 50:
         return "Very Good", "[green]★★★★☆[/green]"
-    elif score >= 90:
+    elif pct >= 35:
         return "Good", "[yellow]★★★☆☆[/yellow]"
-    elif score >= 60:
+    elif pct >= 20:
         return "Fair", "[yellow]★★☆☆☆[/yellow]"
     else:
         return "Poor", "[red]★☆☆☆☆[/red]"
+
+
+# =============================================================================
+# Window Quality Functions (for best window selection)
+# These match the Web's imaging-windows.ts for consistent scoring
+# =============================================================================
+
+
+def get_altitude_quality(altitude: float) -> float:
+    """Calculate altitude quality score (0-100).
+
+    Higher altitude = better quality (less atmosphere).
+    Matches Web's calculateAltitudeQuality().
+
+    Args:
+        altitude: Altitude in degrees
+
+    Returns:
+        Quality score from 0-100
+    """
+    if altitude < 20:
+        return 0
+    elif altitude < 30:
+        return 30
+    elif altitude < 45:
+        return 50
+    elif altitude < 60:
+        return 70
+    elif altitude < 75:
+        return 85
+    return 100
+
+
+def get_airmass_quality(altitude: float) -> float:
+    """Calculate airmass quality score (0-100).
+
+    Lower airmass = better quality.
+    Matches Web's calculateAirmassQuality().
+
+    Args:
+        altitude: Altitude in degrees
+
+    Returns:
+        Quality score from 0-100
+    """
+    if altitude <= 0:
+        return 0
+
+    # Calculate airmass using Kasten-Young formula
+    # Airmass ≈ 1 / sin(altitude) for simple approximation
+    import math
+
+    alt_rad = math.radians(altitude)
+    if alt_rad <= 0:
+        return 0
+    airmass = 1.0 / math.sin(alt_rad)
+
+    if airmass <= 1.1:
+        return 100  # Near zenith
+    elif airmass <= 1.3:
+        return 90  # 50-60 degrees
+    elif airmass <= 1.5:
+        return 75  # 40-50 degrees
+    elif airmass <= 2.0:
+        return 50  # 30-40 degrees
+    elif airmass <= 3.0:
+        return 25  # 20-30 degrees
+    return 0
+
+
+def get_moon_quality(
+    moon_separation: Optional[float],
+    moon_illumination: float,
+    moon_altitude: float = 30.0,
+) -> float:
+    """Calculate moon interference quality score (0-100).
+
+    100 = no interference, 0 = severe interference.
+    Matches Web's calculateMoonInterferenceQuality().
+
+    Args:
+        moon_separation: Angular separation from moon in degrees
+        moon_illumination: Moon illumination percentage (0-100)
+        moon_altitude: Moon altitude in degrees (default 30 if unknown)
+
+    Returns:
+        Quality score from 0-100
+    """
+    # Moon below horizon = no interference
+    if moon_altitude <= 0:
+        return 100
+
+    # Low illumination = minimal interference
+    if moon_illumination < 20:
+        return 95
+
+    # No separation data
+    if moon_separation is None:
+        return 50
+
+    # Calculate combined interference
+    separation_factor = min(moon_separation / 90.0, 1.0)  # 90+ degrees = full score
+    illum_factor = 1.0 - moon_illumination / 100.0
+
+    quality = (separation_factor * 0.6 + illum_factor * 0.4) * 100
+    return round(quality)
+
+
+def get_cloud_quality(cloud_cover: float) -> float:
+    """Calculate cloud cover quality score (0-100).
+
+    Matches Web's calculateCloudQuality().
+
+    Args:
+        cloud_cover: Cloud cover percentage (0-100)
+
+    Returns:
+        Quality score from 0-100
+    """
+    if cloud_cover <= 10:
+        return 100
+    elif cloud_cover <= 20:
+        return 90
+    elif cloud_cover <= 30:
+        return 75
+    elif cloud_cover <= 50:
+        return 50
+    elif cloud_cover <= 70:
+        return 25
+    return 0
+
+
+def calculate_window_quality(
+    avg_altitude: float,
+    avg_cloud_cover: float,
+    moon_separation: Optional[float],
+    moon_illumination: float,
+    moon_altitude: float = 30.0,
+) -> float:
+    """Calculate overall window quality using 4 equally-weighted factors.
+
+    Matches Web's imaging window quality calculation for consistency.
+    Each factor is 0-100, weighted equally at 25%.
+
+    Args:
+        avg_altitude: Average object altitude during window
+        avg_cloud_cover: Average cloud cover percentage
+        moon_separation: Angular separation from moon in degrees
+        moon_illumination: Moon illumination percentage (0-100)
+        moon_altitude: Moon altitude in degrees
+
+    Returns:
+        Quality score from 0-100
+    """
+    altitude_q = get_altitude_quality(avg_altitude)
+    airmass_q = get_airmass_quality(avg_altitude)
+    moon_q = get_moon_quality(moon_separation, moon_illumination, moon_altitude)
+    cloud_q = get_cloud_quality(avg_cloud_cover)
+
+    return (altitude_q + airmass_q + moon_q + cloud_q) / 4
 
 
 def select_best_objects(

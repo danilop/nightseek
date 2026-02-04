@@ -439,8 +439,10 @@ class ForecastFormatter:
                 if forecast.weather:
                     # Show cloud cover range (min-max) during night
                     cloud_str = f"{forecast.weather.min_cloud_cover:.0f}-{forecast.weather.max_cloud_cover:.0f}%"
-                    # Best time to observe (uses shared helper for consistency)
-                    time_str, best_cloud = self._get_best_time_str(forecast.weather)
+                    # Best time to observe (uses shared helper with moon data)
+                    time_str, best_cloud = self._get_best_time_str(
+                        forecast.weather, forecast.night_info
+                    )
                     if time_str:
                         best_time_str = (
                             f"[green]{time_str}[/green]"
@@ -595,7 +597,7 @@ class ForecastFormatter:
         # Keep for backward compatibility but redirect to new method
         self._print_celestial_events(forecast)
 
-    def _print_weather_extras(self, weather: NightWeather):
+    def _print_weather_extras(self, weather: NightWeather, night_info=None):
         """Print additional weather information (wind, visibility, humidity, etc.)."""
         extras = []
         warnings = []
@@ -685,9 +687,9 @@ class ForecastFormatter:
             self.console.print("[italic]" + " • ".join(extras) + "[/italic]")
 
         # Print detailed conditions on separate line
-        self._print_weather_details(weather)
+        self._print_weather_details(weather, night_info)
 
-    def _print_weather_details(self, weather: NightWeather):
+    def _print_weather_details(self, weather: NightWeather, night_info=None):
         """Print detailed weather breakdown (cloud layers, stability, best time)."""
         details = []
 
@@ -761,7 +763,9 @@ class ForecastFormatter:
                 details.append(f"[red]Transparency: {ts:.0f}%[/red]")
 
         # Best observing time (uses helper for DRY with weekly forecast)
-        best_time_info = self._format_best_time_info(weather, include_clouds=True)
+        best_time_info = self._format_best_time_info(
+            weather, include_clouds=True, night_info=night_info
+        )
         if best_time_info:
             details.append(best_time_info)
 
@@ -805,7 +809,7 @@ class ForecastFormatter:
 
         # Print weather warnings and details
         if forecast.weather:
-            self._print_weather_extras(forecast.weather)
+            self._print_weather_extras(forecast.weather, forecast.night_info)
 
         self.console.print()
 
@@ -1297,7 +1301,9 @@ class ForecastFormatter:
             if has_weather and forecast.weather:
                 conditions += f" • {self._format_cloud_conditions(forecast.weather)}"
                 # Add best observing time
-                best_time_info = self._format_best_time_info(forecast.weather)
+                best_time_info = self._format_best_time_info(
+                    forecast.weather, night_info=forecast.night_info
+                )
                 if best_time_info:
                     conditions += f" • {best_time_info}"
                 # Add air quality if notable
@@ -1393,22 +1399,45 @@ class ForecastFormatter:
             return f"{desc} ({avg:.0f}%)"
 
     def _get_best_time_str(
-        self, weather: NightWeather
+        self, weather: NightWeather, night_info=None
     ) -> tuple[str | None, float | None]:
         """Get best observing time string and cloud cover.
 
-        Prefers clear_windows (ranges) when available, falls back to best_time.
-        Returns the raw time string without prefix or coloring.
+        Selects the best window using quality-based scoring that considers:
+        - Cloud cover (primary factor when altitude unavailable)
+        - Moon interference (if night_info provided)
+
+        This aligns with the Web's 4-factor scoring approach.
 
         Args:
             weather: NightWeather with best_time and/or clear_windows
+            night_info: Optional NightInfo for moon data
 
         Returns:
             Tuple of (time_string, cloud_cover) or (None, None) if unavailable
         """
+        from scoring import get_cloud_quality, get_moon_quality
+
         # Prefer clear_windows if available - gives a range
         if weather.clear_windows:
-            best_window = min(weather.clear_windows, key=lambda w: w.avg_cloud_cover)
+            # Score windows using available factors
+            def window_quality(w):
+                cloud_q = get_cloud_quality(w.avg_cloud_cover)
+
+                # Add moon quality if we have night_info
+                if night_info is not None:
+                    # Use a moderate separation estimate since we don't have
+                    # per-window object data. Moon illumination is the key factor.
+                    moon_q = get_moon_quality(
+                        moon_separation=60.0,  # Conservative estimate
+                        moon_illumination=night_info.moon_illumination,
+                        moon_altitude=30.0,  # Assume moon may be up
+                    )
+                    # Weight: cloud 50%, moon 50% (since we don't have altitude data)
+                    return cloud_q * 0.5 + moon_q * 0.5
+                return cloud_q
+
+            best_window = max(weather.clear_windows, key=window_quality)
             start_str = self.tz.format_time(best_window.start)
             end_str = self.tz.format_time(best_window.end)
             return f"{start_str}-{end_str}", best_window.avg_cloud_cover
@@ -1421,7 +1450,7 @@ class ForecastFormatter:
         return None, None
 
     def _format_best_time_info(
-        self, weather: NightWeather, include_clouds: bool = False
+        self, weather: NightWeather, include_clouds: bool = False, night_info=None
     ) -> str | None:
         """Format best observing time with 'Best:' prefix and coloring.
 
@@ -1430,11 +1459,12 @@ class ForecastFormatter:
         Args:
             weather: NightWeather with best_time and/or clear_windows
             include_clouds: If True, append cloud percentage in parentheses
+            night_info: Optional NightInfo for quality-based window selection
 
         Returns:
             Formatted string like "Best: 2-4 AM" or "Best: 2 AM (25% clouds)"
         """
-        best_str, cloud_cover = self._get_best_time_str(weather)
+        best_str, cloud_cover = self._get_best_time_str(weather, night_info)
         if not best_str:
             return None
 
