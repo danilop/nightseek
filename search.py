@@ -53,6 +53,12 @@ class SearchResult:
     # For moving objects
     is_moving_object: bool
 
+    # Additional object info
+    constellation: Optional[str] = None
+    object_subtype: Optional[str] = None  # e.g., "spiral_galaxy", "planetary_nebula"
+    angular_size_arcmin: Optional[float] = None  # For extended objects
+    azimuth_at_peak: Optional[float] = None  # Compass direction at peak altitude
+
 
 def can_object_ever_be_visible(
     dec_degrees: float,
@@ -398,6 +404,9 @@ class ObjectSearcher:
                 never_visible_reason=reason,
                 max_possible_altitude=max_alt,
                 is_moving_object=False,
+                constellation=dso.constellation,
+                object_subtype=dso.dso_subtype,
+                angular_size_arcmin=dso.angular_size_arcmin,
             )
 
         # Check tonight
@@ -423,6 +432,10 @@ class ObjectSearcher:
                 never_visible_reason=None,
                 max_possible_altitude=max_alt,
                 is_moving_object=False,
+                constellation=dso.constellation,
+                object_subtype=dso.dso_subtype,
+                angular_size_arcmin=dso.angular_size_arcmin,
+                azimuth_at_peak=visibility.azimuth_at_peak,
             )
 
         # Find next visible night (DSOs have fixed coordinates)
@@ -455,6 +468,10 @@ class ObjectSearcher:
                 never_visible_reason=None,
                 max_possible_altitude=max_alt,
                 is_moving_object=False,
+                constellation=dso.constellation,
+                object_subtype=dso.dso_subtype,
+                angular_size_arcmin=dso.angular_size_arcmin,
+                azimuth_at_peak=vis.azimuth_at_peak,
             )
 
         return SearchResult(
@@ -472,6 +489,9 @@ class ObjectSearcher:
             never_visible_reason="Object not visible at night within the next year",
             max_possible_altitude=max_alt,
             is_moving_object=False,
+            constellation=dso.constellation,
+            object_subtype=dso.dso_subtype,
+            angular_size_arcmin=dso.angular_size_arcmin,
         )
 
     def _create_planet_result(self, planet_name: str) -> SearchResult:
@@ -495,6 +515,9 @@ class ObjectSearcher:
             planet_obj, planet_name, "planet", self.tonight
         )
 
+        # Planet subtype
+        planet_subtype = "inner" if planet_name in ("Mercury", "Venus") else "outer"
+
         if visibility.is_visible and visibility.max_altitude >= MIN_ALTITUDE:
             return SearchResult(
                 object_name=planet_name,
@@ -511,6 +534,8 @@ class ObjectSearcher:
                 never_visible_reason=None,
                 max_possible_altitude=max_alt,
                 is_moving_object=True,
+                object_subtype=planet_subtype,
+                azimuth_at_peak=visibility.azimuth_at_peak,
             )
 
         # Find next visible night
@@ -545,6 +570,8 @@ class ObjectSearcher:
                 never_visible_reason=None,
                 max_possible_altitude=max_alt,
                 is_moving_object=True,
+                object_subtype=planet_subtype,
+                azimuth_at_peak=vis.azimuth_at_peak,
             )
 
         return SearchResult(
@@ -562,6 +589,7 @@ class ObjectSearcher:
             never_visible_reason="Planet not visible at night within the next year",
             max_possible_altitude=max_alt,
             is_moving_object=True,
+            object_subtype=planet_subtype,
         )
 
     def _create_comet_result(self, comet: Comet) -> SearchResult:
@@ -590,6 +618,8 @@ class ObjectSearcher:
                 dec_degrees, self.latitude
             )
 
+            comet_subtype = "interstellar" if comet.is_interstellar else "comet"
+
             if not can_be_visible:
                 return SearchResult(
                     object_name=comet.designation,
@@ -606,6 +636,7 @@ class ObjectSearcher:
                     never_visible_reason=reason,
                     max_possible_altitude=max_alt,
                     is_moving_object=True,
+                    object_subtype=comet_subtype,
                 )
 
             # Check tonight
@@ -631,6 +662,8 @@ class ObjectSearcher:
                     never_visible_reason=None,
                     max_possible_altitude=max_alt,
                     is_moving_object=True,
+                    object_subtype=comet_subtype,
+                    azimuth_at_peak=visibility.azimuth_at_peak,
                 )
 
             # Find next visible night
@@ -669,6 +702,8 @@ class ObjectSearcher:
                     never_visible_reason=None,
                     max_possible_altitude=max_alt,
                     is_moving_object=True,
+                    object_subtype=comet_subtype,
+                    azimuth_at_peak=vis.azimuth_at_peak,
                 )
 
             return SearchResult(
@@ -686,6 +721,7 @@ class ObjectSearcher:
                 never_visible_reason="Comet not visible at night within the next year",
                 max_possible_altitude=max_alt,
                 is_moving_object=True,
+                object_subtype=comet_subtype,
             )
 
         except Exception as e:
@@ -728,6 +764,7 @@ class ObjectSearcher:
                     never_visible_reason="No orbital data available",
                     max_possible_altitude=0,
                     is_moving_object=True,
+                    object_subtype=obj_type,
                 )
 
             # Create skyfield object
@@ -769,6 +806,7 @@ class ObjectSearcher:
                     never_visible_reason=reason,
                     max_possible_altitude=max_alt,
                     is_moving_object=True,
+                    object_subtype=obj_type,
                 )
 
             # Check tonight
@@ -793,6 +831,8 @@ class ObjectSearcher:
                     never_visible_reason=None,
                     max_possible_altitude=max_alt,
                     is_moving_object=True,
+                    object_subtype=obj_type,
+                    azimuth_at_peak=visibility.azimuth_at_peak,
                 )
 
             # Find next visible night
@@ -831,6 +871,8 @@ class ObjectSearcher:
                     never_visible_reason=None,
                     max_possible_altitude=max_alt,
                     is_moving_object=True,
+                    object_subtype=obj_type,
+                    azimuth_at_peak=vis.azimuth_at_peak,
                 )
 
             return SearchResult(
@@ -848,6 +890,7 @@ class ObjectSearcher:
                 never_visible_reason="Object not visible at night within the next year",
                 max_possible_altitude=max_alt,
                 is_moving_object=True,
+                object_subtype=obj_type,
             )
 
         except Exception as e:
@@ -867,7 +910,24 @@ class ObjectSearcher:
                 never_visible_reason="Unable to calculate position",
                 max_possible_altitude=0,
                 is_moving_object=True,
+                object_subtype=obj_type,
             )
+
+
+def _azimuth_to_cardinal(azimuth: float) -> str:
+    """Convert azimuth degrees to cardinal direction."""
+    azimuth = azimuth % 360
+    directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    index = int((azimuth + 22.5) / 45) % 8
+    return directions[index]
+
+
+def _format_subtype(subtype: Optional[str]) -> str:
+    """Format object subtype for display."""
+    if not subtype:
+        return ""
+    # Convert snake_case to Title Case
+    return subtype.replace("_", " ").title()
 
 
 def format_search_results(
@@ -917,11 +977,28 @@ def format_search_results(
             title += f" [dim]({result.object_name})[/dim]"
 
         console.print(f"\n{title}")
-        console.print(f"  [dim]{type_name}[/dim]  |  [{color}]{status_text}[/{color}]")
 
-        # Magnitude
+        # Type with subtype
+        type_info = type_name
+        if result.object_subtype:
+            subtype_display = _format_subtype(result.object_subtype)
+            if subtype_display and subtype_display.lower() != type_name.lower():
+                type_info = f"{type_name} ({subtype_display})"
+        console.print(f"  [dim]{type_info}[/dim]  |  [{color}]{status_text}[/{color}]")
+
+        # Magnitude and size
+        info_parts = []
         if result.magnitude is not None:
-            console.print(f"  Magnitude: {result.magnitude:.1f}")
+            info_parts.append(f"Mag {result.magnitude:.1f}")
+        if result.angular_size_arcmin is not None and result.angular_size_arcmin > 0:
+            if result.angular_size_arcmin >= 60:
+                info_parts.append(f"Size {result.angular_size_arcmin / 60:.1f}°")
+            else:
+                info_parts.append(f"Size {result.angular_size_arcmin:.1f}'")
+        if result.constellation:
+            info_parts.append(f"in {result.constellation}")
+        if info_parts:
+            console.print(f"  {' | '.join(info_parts)}")
 
         # Coordinates
         console.print(
@@ -937,7 +1014,13 @@ def format_search_results(
             vis = result.visibility
             console.print()
             console.print("  [green]Visible tonight![/green]")
-            console.print(f"    Peak altitude: {vis.max_altitude:.0f}")
+
+            # Peak altitude with direction
+            peak_info = f"    Peak altitude: {vis.max_altitude:.0f}°"
+            if result.azimuth_at_peak is not None:
+                direction = _azimuth_to_cardinal(result.azimuth_at_peak)
+                peak_info += f" (looking {direction})"
+            console.print(peak_info)
 
             if vis.max_altitude_time:
                 local_time = tz_converter.to_local(vis.max_altitude_time)
@@ -947,13 +1030,13 @@ def format_search_results(
                 start = tz_converter.to_local(vis.above_45_start)
                 end = tz_converter.to_local(vis.above_45_end)
                 console.print(
-                    f"    Good observing (>45): {start.strftime('%H:%M')} - {end.strftime('%H:%M')}"
+                    f"    Good observing (>45°): {start.strftime('%H:%M')} - {end.strftime('%H:%M')}"
                 )
 
             if vis.moon_separation is not None:
                 moon_dist = vis.moon_separation
                 warning = " (moon interference)" if vis.moon_warning else ""
-                console.print(f"    Moon distance: {moon_dist:.0f}{warning}")
+                console.print(f"    Moon distance: {moon_dist:.0f}°{warning}")
 
         elif result.next_visible_date and not result.never_visible:
             days_until = (result.next_visible_date - datetime.now()).days
@@ -974,7 +1057,11 @@ def format_search_results(
             console.print(f"  [cyan]Next visible: {date_str} ({time_str})[/cyan]")
 
             if result.visibility:
-                console.print(f"    Peak altitude: {result.visibility.max_altitude:.0f}")
+                peak_info = f"    Peak altitude: {result.visibility.max_altitude:.0f}°"
+                if result.azimuth_at_peak is not None:
+                    direction = _azimuth_to_cardinal(result.azimuth_at_peak)
+                    peak_info += f" (looking {direction})"
+                console.print(peak_info)
 
         elif result.never_visible and result.never_visible_reason:
             console.print()

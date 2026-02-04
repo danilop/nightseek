@@ -114,6 +114,26 @@ function formatTime(date: Date): string {
 }
 
 /**
+ * Convert azimuth degrees to cardinal direction
+ */
+function azimuthToCardinal(azimuth: number): string {
+  const normalized = ((azimuth % 360) + 360) % 360;
+  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  const index = Math.round(normalized / 45) % 8;
+  return directions[index];
+}
+
+/**
+ * Format angular size for display
+ */
+function formatAngularSize(arcmin: number): string {
+  if (arcmin >= 60) {
+    return `${(arcmin / 60).toFixed(1)}°`;
+  }
+  return `${arcmin.toFixed(1)}'`;
+}
+
+/**
  * Search result card component
  */
 function SearchResultCard({
@@ -168,6 +188,12 @@ function SearchResultCard({
                 <span>Mag {result.magnitude.toFixed(1)}</span>
               </>
             )}
+            {result.angularSizeArcmin !== null && result.angularSizeArcmin > 0 && (
+              <>
+                <span className="text-gray-600">|</span>
+                <span>Size {formatAngularSize(result.angularSizeArcmin)}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -202,6 +228,14 @@ function SearchResultCard({
                     <div>
                       <span className="text-gray-400">Peak Time</span>
                       <p className="text-white">{formatTime(result.visibility.maxAltitudeTime)}</p>
+                    </div>
+                  )}
+                  {result.azimuthAtPeak !== null && (
+                    <div>
+                      <span className="text-gray-400">Direction</span>
+                      <p className="text-white">
+                        {azimuthToCardinal(result.azimuthAtPeak)} ({result.azimuthAtPeak.toFixed(0)}°)
+                      </p>
                     </div>
                   )}
                   {result.visibility.above45Start && result.visibility.above45End && (
@@ -247,6 +281,14 @@ function SearchResultCard({
                       <div>
                         <span className="text-gray-400">Peak Time</span>
                         <p className="text-white">{formatTime(result.visibility.maxAltitudeTime)}</p>
+                      </div>
+                    )}
+                    {result.azimuthAtPeak !== null && (
+                      <div>
+                        <span className="text-gray-400">Direction</span>
+                        <p className="text-white">
+                          {azimuthToCardinal(result.azimuthAtPeak)} ({result.azimuthAtPeak.toFixed(0)}°)
+                        </p>
                       </div>
                     )}
                   </div>
