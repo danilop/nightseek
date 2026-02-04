@@ -1,6 +1,7 @@
-import { MapPin, RefreshCw, Settings, Telescope } from 'lucide-react';
+import { MapPin, RefreshCw, Search, Settings, Telescope } from 'lucide-react';
 import { useState } from 'react';
 import BortleIndicator from '@/components/forecast/BortleIndicator';
+import ObjectSearchModal from '@/components/search/ObjectSearchModal';
 import { formatCoordinates } from '@/lib/geo/location';
 import { useApp } from '@/stores/AppContext';
 import SettingsModal from './SettingsModal';
@@ -9,6 +10,7 @@ export default function Header() {
   const { state } = useApp();
   const { location, isLoading } = state;
   const [showSettings, setShowSettings] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   return (
     <>
@@ -45,6 +47,17 @@ export default function Header() {
             {/* Actions */}
             <div className="flex items-center gap-2">
               {isLoading && <RefreshCw className="w-5 h-5 text-sky-400 animate-spin" />}
+              {location && (
+                <button
+                  type="button"
+                  onClick={() => setShowSearch(true)}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-night-700 rounded-lg transition-colors"
+                  aria-label="Search objects"
+                  title="Search celestial objects"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setShowSettings(true)}
@@ -72,6 +85,9 @@ export default function Header() {
       </header>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSearch && location && (
+        <ObjectSearchModal location={location} onClose={() => setShowSearch(false)} />
+      )}
     </>
   );
 }
