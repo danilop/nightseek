@@ -623,6 +623,10 @@ export interface ObjectSearchResult {
 
   // For moving objects (comets, planets, asteroids)
   isMovingObject: boolean;
+
+  // Additional object info
+  angularSizeArcmin: number | null; // For extended objects (DSOs)
+  azimuthAtPeak: number | null; // Compass direction at peak altitude (0-360°)
 }
 
 export type ObjectVisibilityStatus =

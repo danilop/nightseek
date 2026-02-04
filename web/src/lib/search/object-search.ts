@@ -371,6 +371,9 @@ async function createDSOSearchResult(
 ): Promise<ObjectSearchResult> {
   const hemisphereCheck = canObjectEverBeVisible(dso.decDegrees, calculator.getLatitude());
 
+  // Calculate angular size from major/minor axes
+  const angularSize = dso.majorAxisArcmin || null;
+
   if (!hemisphereCheck.canBeVisible) {
     return {
       objectName: dso.name,
@@ -391,6 +394,8 @@ async function createDSOSearchResult(
       neverVisibleReason: hemisphereCheck.reason,
       maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
       isMovingObject: false,
+      angularSizeArcmin: angularSize,
+      azimuthAtPeak: null,
     };
   }
 
@@ -417,6 +422,8 @@ async function createDSOSearchResult(
       neverVisibleReason: null,
       maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
       isMovingObject: false,
+      angularSizeArcmin: angularSize,
+      azimuthAtPeak: tonightResult.visibility.azimuthAtPeak ?? null,
     };
   }
 
@@ -450,6 +457,8 @@ async function createDSOSearchResult(
       neverVisibleReason: null,
       maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
       isMovingObject: false,
+      angularSizeArcmin: angularSize,
+      azimuthAtPeak: nextVisible.visibility.azimuthAtPeak ?? null,
     };
   }
 
@@ -473,6 +482,8 @@ async function createDSOSearchResult(
     neverVisibleReason: 'Object not visible at night within the next year',
     maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
     isMovingObject: false,
+    angularSizeArcmin: angularSize,
+    azimuthAtPeak: null,
   };
 }
 
@@ -533,6 +544,8 @@ async function createPlanetSearchResult(
       neverVisibleReason: null,
       maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
       isMovingObject: true,
+      angularSizeArcmin: null, // Planets use apparent diameter in arcsec
+      azimuthAtPeak: visibility.azimuthAtPeak ?? null,
     };
   }
 
@@ -565,6 +578,8 @@ async function createPlanetSearchResult(
       neverVisibleReason: null,
       maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
       isMovingObject: true,
+      angularSizeArcmin: null,
+      azimuthAtPeak: nextVisible.visibility.azimuthAtPeak ?? null,
     };
   }
 
@@ -587,6 +602,8 @@ async function createPlanetSearchResult(
     neverVisibleReason: 'Planet not visible at night within the next year',
     maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
     isMovingObject: true,
+    angularSizeArcmin: null,
+    azimuthAtPeak: null,
   };
 }
 
@@ -624,6 +641,8 @@ async function createCometSearchResult(
       neverVisibleReason: 'Unable to calculate comet position',
       maxPossibleAltitude: 0,
       isMovingObject: true,
+      angularSizeArcmin: null,
+      azimuthAtPeak: null,
     };
   }
 
@@ -660,6 +679,8 @@ async function createCometSearchResult(
       neverVisibleReason: null,
       maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
       isMovingObject: true,
+      angularSizeArcmin: null,
+      azimuthAtPeak: tonightResult.visibility.azimuthAtPeak ?? null,
     };
   }
 
@@ -692,6 +713,8 @@ async function createCometSearchResult(
       neverVisibleReason: null,
       maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
       isMovingObject: true,
+      angularSizeArcmin: null,
+      azimuthAtPeak: nextVisible.visibility.azimuthAtPeak ?? null,
     };
   }
 
@@ -714,6 +737,8 @@ async function createCometSearchResult(
     neverVisibleReason: hemisphereCheck.reason || 'Comet not visible at night within the next year',
     maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
     isMovingObject: true,
+    angularSizeArcmin: null,
+    azimuthAtPeak: null,
   };
 }
 
@@ -753,6 +778,8 @@ async function createMinorPlanetSearchResult(
       neverVisibleReason: 'Unable to calculate position',
       maxPossibleAltitude: 0,
       isMovingObject: true,
+      angularSizeArcmin: null,
+      azimuthAtPeak: null,
     };
   }
 
@@ -788,6 +815,8 @@ async function createMinorPlanetSearchResult(
       neverVisibleReason: null,
       maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
       isMovingObject: true,
+      angularSizeArcmin: null,
+      azimuthAtPeak: tonightResult.visibility.azimuthAtPeak ?? null,
     };
   }
 
@@ -820,6 +849,8 @@ async function createMinorPlanetSearchResult(
       neverVisibleReason: null,
       maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
       isMovingObject: true,
+      angularSizeArcmin: null,
+      azimuthAtPeak: nextVisible.visibility.azimuthAtPeak ?? null,
     };
   }
 
@@ -842,6 +873,8 @@ async function createMinorPlanetSearchResult(
     neverVisibleReason: hemisphereCheck.reason || 'Object not visible at night within the next year',
     maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
     isMovingObject: true,
+    angularSizeArcmin: null,
+    azimuthAtPeak: null,
   };
 }
 
