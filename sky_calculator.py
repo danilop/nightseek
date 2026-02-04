@@ -283,8 +283,21 @@ class SkyCalculator:
                 elif e == 4 and astronomical_dawn is None:
                     astronomical_dawn = dt
 
-        # Calculate moon phase and illumination
-        t_mid = self.ts.utc(date.year, date.month, date.day, 12, 0, 0)
+        # Calculate moon phase and illumination at midnight local time
+        # Use midpoint between astronomical dusk and dawn for accuracy during observation
+        if astronomical_dusk and astronomical_dawn:
+            # Handle night spanning midnight
+            dusk = astronomical_dusk
+            dawn = astronomical_dawn
+            if dawn < dusk:
+                from datetime import timedelta
+
+                dawn = dawn + timedelta(days=1)
+            midnight = dusk + (dawn - dusk) / 2
+            t_mid = self.ts.from_datetime(midnight)
+        else:
+            # Fallback to local midnight (next day 00:00)
+            t_mid = self.ts.utc(date.year, date.month, date.day + 1, 0, 0, 0)
         phase = almanac.moon_phase(self.eph, t_mid)
         phase_fraction = phase.degrees / 360.0
 
