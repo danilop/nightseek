@@ -304,14 +304,22 @@ class OpenNGCLoader:
                     if obj_type in ("NonEx", "Dup", "", "*", "**", "*Ass"):
                         continue
 
-                    # Parse magnitude
+                    # Parse magnitude - allow objects without magnitude (use default for nebulae)
                     mag_str = row.get("V-Mag") or row.get("B-Mag", "")
-                    if not mag_str:
-                        continue
-                    try:
-                        magnitude = float(mag_str)
-                    except ValueError:
-                        continue
+                    magnitude = None
+                    if mag_str:
+                        try:
+                            magnitude = float(mag_str)
+                        except ValueError:
+                            pass
+
+                    # For nebulae without magnitude, assign a default based on type
+                    # Large emission nebulae are often photographically bright
+                    if magnitude is None:
+                        if obj_type in ("Neb", "HII", "EmN", "RN", "Cl+N", "SNR"):
+                            magnitude = 10.0  # Default for nebulae without mag
+                        else:
+                            continue  # Skip other types without magnitude
 
                     # Filter by magnitude
                     if magnitude > max_magnitude:
@@ -344,7 +352,13 @@ class OpenNGCLoader:
 
                     # Get Messier designation and common name
                     messier = row.get("M", "").strip()
+                    # First try hardcoded common names, then fall back to CSV
                     base_common_name = COMMON_NAMES.get(name, "")
+                    if not base_common_name:
+                        # Read from CSV "Common names" column
+                        csv_common_name = row.get("Common names", "").strip()
+                        if csv_common_name:
+                            base_common_name = csv_common_name
 
                     # Build common_name: prefer "M42 Orion Nebula" format
                     if messier:

@@ -166,8 +166,9 @@ export async function loadOpenNGCCatalog(
     // Get Messier number
     const messierNumber = messier?.match(/\d+/) ? parseInt(messier, 10) : null;
 
-    // Get common name
-    const commonName = getCommonName(name);
+    // Get common name from CSV first, then fall back to hardcoded dictionary
+    const csvCommonName = fields[cols['Common names']] || '';
+    const commonName = getCommonName(name) || csvCommonName || null;
 
     // Calculate surface brightness if possible
     let surfaceBrightness: number | null = null;
