@@ -1037,35 +1037,56 @@ class ObjectSearcher:
         obj_type = mp.category
 
         try:
-            if mp.row is None:
-                return SearchResult(
-                    object_name=mp.name,
-                    display_name=mp.name,
-                    object_type=obj_type,
-                    ra_hours=0,
-                    dec_degrees=0,
-                    magnitude=mp.magnitude_h,
-                    visibility_status="never_visible",
-                    visible_tonight=False,
-                    next_visible_date=None,
-                    visibility=None,
-                    never_visible=True,
-                    never_visible_reason="No orbital data available",
-                    max_possible_altitude=0,
-                    is_moving_object=True,
-                    object_subtype=obj_type,
-                    can_reach_optimal=False,
-                    optimal_altitude_note="No orbital data",
-                )
-
-            # Create skyfield object
+            # Create skyfield object from embedded orbital elements or MPC row
             if getattr(mp, "skyfield_obj", None) is None:
                 from skyfield.constants import GM_SUN_Pitjeva_2005_km3_s2 as GM_SUN
                 from skyfield.data import mpc
 
-                mp.skyfield_obj = self.calculator.sun + mpc.mpcorb_orbit(
-                    mp.row, self.calculator.ts, GM_SUN
-                )
+                if mp.row is not None:
+                    # Use MPC row data (legacy path)
+                    mp.skyfield_obj = self.calculator.sun + mpc.mpcorb_orbit(
+                        mp.row, self.calculator.ts, GM_SUN
+                    )
+                elif mp.semi_major_axis > 0:
+                    # Use embedded orbital elements via mock MPC row
+                    class MockMPCRow:
+                        pass
+
+                    row = MockMPCRow()
+                    row.designation = mp.designation
+                    row.semimajor_axis_au = mp.semi_major_axis
+                    row.eccentricity = mp.eccentricity
+                    row.inclination_degrees = mp.inclination
+                    row.longitude_of_ascending_node_degrees = mp.lon_asc_node
+                    row.argument_of_perihelion_degrees = mp.arg_perihelion
+                    row.mean_anomaly_degrees = mp.mean_anomaly
+                    # Convert JD to MPC packed epoch format (K00A0 = J2000.0)
+                    row.epoch_packed = "K00A0"  # J2000.0 = 2451545.0
+
+                    mp.skyfield_obj = self.calculator.sun + mpc.mpcorb_orbit(
+                        row, self.calculator.ts, GM_SUN
+                    )
+                else:
+                    # No orbital data available
+                    return SearchResult(
+                        object_name=mp.name,
+                        display_name=mp.name,
+                        object_type=obj_type,
+                        ra_hours=0,
+                        dec_degrees=0,
+                        magnitude=mp.magnitude_h,
+                        visibility_status="never_visible",
+                        visible_tonight=False,
+                        next_visible_date=None,
+                        visibility=None,
+                        never_visible=True,
+                        never_visible_reason="No orbital data available",
+                        max_possible_altitude=0,
+                        is_moving_object=True,
+                        object_subtype=obj_type,
+                        can_reach_optimal=False,
+                        optimal_altitude_note="No orbital data",
+                    )
 
             mp_obj = mp.skyfield_obj
 
