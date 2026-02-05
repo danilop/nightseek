@@ -55,6 +55,12 @@ def forecast(
         "-cm",
         help="Maximum comet magnitude to include (default: 12, lower=brighter=faster)",
     ),
+    search: Optional[str] = typer.Option(
+        None,
+        "--search",
+        "-s",
+        help="Search for a celestial object by name or code (e.g., M31, Andromeda, Jupiter)",
+    ),
     setup: bool = typer.Option(
         False,
         "--setup",
@@ -157,6 +163,11 @@ def forecast(
     # Type narrowing: after validation, these are guaranteed non-None
     lat: float = config.latitude
     lon: float = config.longitude
+
+    # Handle search mode
+    if search:
+        _handle_search(search, lat, lon, verbose)
+        return
 
     # Initialize analyzer with progress bar showing each step
     with Progress(
@@ -343,6 +354,56 @@ def forecast(
                 )
     except Exception as e:
         logger.debug("Update check failed: %s", e)
+
+
+def _handle_search(query: str, lat: float, lon: float, verbose: bool):
+    """Handle search mode - find objects and show their visibility.
+
+    Args:
+        query: Search query string
+        lat: Observer latitude
+        lon: Observer longitude
+        verbose: If True, show verbose output
+    """
+    from search import ObjectSearcher, format_search_results
+    from timezone_utils import TimezoneConverter
+
+    console.print(f"[bold]Searching for:[/bold] {query}")
+    console.print()
+
+    # Initialize searcher
+    with Status(
+        "[bold blue]Loading catalogs...[/bold blue]",
+        console=console,
+        spinner="dots",
+    ):
+        searcher = ObjectSearcher(lat, lon, verbose=verbose)
+
+    # Perform search
+    with Status(
+        "[bold blue]Searching...[/bold blue]",
+        console=console,
+        spinner="dots",
+    ):
+        results = searcher.search(query)
+
+    # Display results
+    tz_converter = TimezoneConverter(lat, lon)
+    format_search_results(results, tz_converter, console)
+
+    # Summary
+    if results:
+        visible_tonight = sum(1 for r in results if r.visible_tonight)
+        never_visible = sum(1 for r in results if r.never_visible)
+
+        console.print()
+        console.print(f"[dim]Found {len(results)} matching object(s)[/dim]")
+        if visible_tonight:
+            console.print(f"[green]{visible_tonight} visible tonight[/green]")
+        if never_visible:
+            console.print(
+                f"[yellow]{never_visible} never visible from your location[/yellow]"
+            )
 
 
 if __name__ == "__main__":
