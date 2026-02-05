@@ -15,3 +15,15 @@ wheels/
 # Skyfield ephemeris data
 *.bsp
 CometEls.txt
+
+# Tool caches
+.ruff_cache/
+.pytest_cache/
+.playwright-mcp/
+
+# Editor/AI tool configs (user-specific)
+.kiro/
+.claude/
+
+# Test artifacts
+*.png
