@@ -5,18 +5,17 @@ import type { Location } from '@/types';
  */
 export async function detectLocationByIP(): Promise<Location | null> {
   try {
-    const response = await fetch(
-      'http://ip-api.com/json/?fields=status,lat,lon,city,country,timezone'
-    );
+    // Using ipwho.is which supports HTTPS on free tier
+    const response = await fetch('https://ipwho.is/');
     const data = await response.json();
 
-    if (data.status !== 'success') return null;
+    if (!data.success) return null;
 
     return {
-      latitude: data.lat,
-      longitude: data.lon,
+      latitude: data.latitude,
+      longitude: data.longitude,
       name: `${data.city}, ${data.country}`,
-      timezone: data.timezone,
+      timezone: data.timezone?.id,
     };
   } catch {
     return null;
