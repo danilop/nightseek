@@ -300,30 +300,14 @@ function checkVisibilityForNight(
   nightInfo: NightInfo,
   minAltitude: number = MIN_ALTITUDE
 ): { isVisible: boolean; visibility: ObjectVisibility | null } {
-  // Quick check: can the object ever be visible?
+  // Quick check: can the object ever be visible from this latitude?
   const hemisphereCheck = canObjectEverBeVisible(decDegrees, calculator.getLatitude(), minAltitude);
   if (!hemisphereCheck.canBeVisible) {
     return { isVisible: false, visibility: null };
   }
 
-  // Sample altitude at dusk and dawn
-  const altAzDusk = calculator.getAltAz(raHours, decDegrees, nightInfo.astronomicalDusk);
-  const altAzDawn = calculator.getAltAz(raHours, decDegrees, nightInfo.astronomicalDawn);
-
-  // Quick check: is object above horizon at either end of night?
-  if (altAzDusk.altitude < minAltitude && altAzDawn.altitude < minAltitude) {
-    // Check if it transits during the night
-    const midnightTime = new Date(
-      (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
-    );
-    const altAzMidnight = calculator.getAltAz(raHours, decDegrees, midnightTime);
-
-    if (altAzMidnight.altitude < minAltitude) {
-      return { isVisible: false, visibility: null };
-    }
-  }
-
-  // Full visibility calculation
+  // Full visibility calculation - samples altitude throughout the entire night
+  // to find the true maximum (object may transit at any time, not just at midnight)
   const visibility = calculator.calculateVisibility(
     raHours,
     decDegrees,
