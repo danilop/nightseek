@@ -1,9 +1,6 @@
 import type { NightInfo, ObjectVisibility } from '@/types';
 import type { SkyCalculator } from '../astronomy/calculator';
-import { getCached, setCache } from '../utils/cache';
-
-const COMET_CACHE_KEY = 'nightseek:comets';
-const COMET_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
 
 // MPC Comet data URL - we'll use a CORS proxy or fetch directly
 const MPC_COMET_URL = 'https://www.minorplanetcenter.net/iau/MPCORB/CometEls.txt';
@@ -374,7 +371,7 @@ export function heliocentricToEquatorial(
  */
 export async function fetchComets(maxMagnitude: number = 12.0): Promise<ParsedComet[]> {
   // Check cache first
-  const cached = await getCached<ParsedComet[]>(COMET_CACHE_KEY, COMET_CACHE_TTL);
+  const cached = await getCached<ParsedComet[]>(CACHE_KEYS.COMETS, CACHE_TTLS.COMETS);
   if (cached) {
     return cached.filter(c => c.absoluteMagnitude <= maxMagnitude + 5); // Pre-filter
   }
@@ -398,7 +395,7 @@ export async function fetchComets(maxMagnitude: number = 12.0): Promise<ParsedCo
     }
 
     // Cache the data
-    await setCache(COMET_CACHE_KEY, comets);
+    await setCache(CACHE_KEYS.COMETS, comets);
 
     return comets.filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
   } catch (_error) {

@@ -1,12 +1,9 @@
 import type { DSOCatalogEntry, DSOSubtype } from '@/types';
-import { getCached, setCache } from '../utils/cache';
+import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
 import { getCommonName, MESSIER_EXTRAS } from './common-names';
 
 const OPENGC_URL =
   'https://raw.githubusercontent.com/mattiaverga/OpenNGC/master/database_files/NGC.csv';
-// Increment version when common-names.ts is updated to invalidate cached catalogs
-const CACHE_KEY = 'nightseek:opengc:v2';
-const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
  * Map OpenNGC type codes to DSOSubtype
@@ -99,7 +96,7 @@ export async function loadOpenNGCCatalog(
   const { maxMagnitude = 14.0, observerLatitude, minAltitude = 30 } = options;
 
   // Check cache first
-  const cached = await getCached<DSOCatalogEntry[]>(CACHE_KEY, CACHE_TTL);
+  const cached = await getCached<DSOCatalogEntry[]>(CACHE_KEYS.OPENGC, CACHE_TTLS.OPENGC);
   if (cached) {
     return filterCatalog(cached, maxMagnitude, observerLatitude, minAltitude);
   }
@@ -212,7 +209,7 @@ export async function loadOpenNGCCatalog(
   }
 
   // Cache the full catalog
-  await setCache(CACHE_KEY, catalog);
+  await setCache(CACHE_KEYS.OPENGC, catalog);
 
   return filterCatalog(catalog, maxMagnitude, observerLatitude, minAltitude);
 }
