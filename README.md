@@ -9,7 +9,7 @@ An astronomy observation planning tool with both a **Web App** and **CLI**. Gene
 The web app is a Progressive Web App (PWA) that works on desktop and mobile:
 - **Offline Support**: Install as an app and use without internet
 - **Interactive Sky Chart**: Visual representation of the night sky
-- **Object Search**: Find any celestial object by name (M31, Jupiter, Orion, etc.)
+- **Object Search**: Find any celestial object by name, common name, or catalog code (M31, Monkey Head Nebula, NGC 2174, Jupiter, etc.)
 - **Weather Integration**: Real-time cloud cover and observing conditions
 - **Drag & Drop**: Reorder categories to personalize your view
 
@@ -79,6 +79,7 @@ nightseek -n 10        # Show top 10 objects per night
 - **Interstellar Objects**: Highlights rare visitors like 2I/Borisov
 
 ### Observation Planning
+- **Optimal Altitude Tracking**: Shows when objects reach 45°+ for best imaging conditions
 - **Conjunction Alerts**: Automatic detection of close approaches between planets/Moon
 - **5-Tier Weather Rating**: Excellent/Good/Fair/Poor/Bad with cloud percentage ranges
 - **Best Observing Time**: Hourly analysis to find optimal conditions (lowest cloud + precipitation)
@@ -264,11 +265,19 @@ nightseek --setup
 Find any celestial object and check its visibility:
 
 ```bash
-nightseek --search "M31"        # Andromeda Galaxy
-nightseek --search "Jupiter"    # Planet
-nightseek --search "Orion"      # Orion Nebula
-nightseek -s "NGC 7000"         # North America Nebula
+nightseek --search "M31"           # Andromeda Galaxy
+nightseek --search "Jupiter"       # Planet
+nightseek --search "Orion"         # Orion Nebula
+nightseek -s "NGC 7000"            # North America Nebula
+nightseek -s "Monkey Head"         # Search by common name
+nightseek -s "12P"                 # Comet by designation
 ```
+
+The search shows:
+- Current visibility status (visible tonight or next visible date)
+- Peak altitude and optimal viewing time
+- When object reaches 45°+ altitude (optimal for imaging)
+- Moon distance to assess interference
 
 ### Help
 
@@ -494,6 +503,7 @@ Loaded from **OpenNGC** catalog with intelligent filtering:
 
 ### OpenNGC Integration
 - Full [OpenNGC](https://github.com/mattiaverga/OpenNGC) catalog (~13,000 objects)
+- **Common names**: Searchable by popular names (Monkey Head Nebula, Rosette, etc.)
 - Cached locally (7-day expiry)
 - Filtered by:
   - Maximum magnitude (default: 14)
