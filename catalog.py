@@ -29,6 +29,7 @@ class CelestialObject:
     surface_brightness: Optional[float] = None  # mag/arcsec²
     position_angle: Optional[float] = None  # Orientation in degrees (0-180)
     minor_axis_arcmin: Optional[float] = None  # Minor axis for elongation
+    constellation: str = ""  # Constellation abbreviation
 
 
 @dataclass
@@ -156,6 +157,7 @@ class Catalog:
                     surface_brightness=obj.surface_brightness,
                     position_angle=obj.position_angle,
                     minor_axis_arcmin=obj.minor_axis_arcmin,
+                    constellation=obj.constellation,
                 )
                 for obj in opengc_objects
             ]
