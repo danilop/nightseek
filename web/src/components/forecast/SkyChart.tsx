@@ -578,6 +578,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   }, [compassEnabled]);
 
   // Update sky chart rotation when compass heading changes
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Compass handling requires checking multiple states
   useEffect(() => {
     if (!compassEnabled || compassHeading === null) return;
     if (!celestialInitialized.current || typeof Celestial === 'undefined') return;

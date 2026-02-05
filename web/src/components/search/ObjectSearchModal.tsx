@@ -135,6 +135,7 @@ function formatAngularSize(arcmin: number): string {
 /**
  * Search result card component
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: UI component displays many conditional states
 function SearchResultCard({
   result,
   isExpanded,

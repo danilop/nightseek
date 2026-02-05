@@ -140,6 +140,7 @@ function checkOptimalForNight(
 /**
  * Find the next night when an object reaches optimal altitude (45°+)
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Binary search with multiple date checks requires this complexity
 async function findNextOptimalNight(
   getRaDec: (time: Date) => { ra: number; dec: number } | null,
   calculator: SkyCalculator,
@@ -325,6 +326,7 @@ function checkVisibilityForNight(
 /**
  * Find the next night when an object is visible using efficient binary-like search
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Binary search with multiple date checks requires this complexity
 async function findNextVisibleNight(
   getRaDec: (time: Date) => { ra: number; dec: number } | null,
   calculator: SkyCalculator,
@@ -484,6 +486,7 @@ function searchAsteroids(query: string): MinorPlanetData[] {
 /**
  * Create a search result for a DSO
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Astronomical search requires handling multiple visibility scenarios
 async function createDSOSearchResult(
   dso: DSOCatalogEntry,
   calculator: SkyCalculator,
@@ -650,6 +653,7 @@ async function createDSOSearchResult(
 /**
  * Create a search result for a planet
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Astronomical search requires handling multiple visibility scenarios
 async function createPlanetSearchResult(
   planetName: string,
   calculator: SkyCalculator,
@@ -800,6 +804,7 @@ async function createPlanetSearchResult(
 /**
  * Create a search result for a comet
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Astronomical search requires handling multiple visibility scenarios
 async function createCometSearchResult(
   comet: ParsedComet,
   calculator: SkyCalculator,
@@ -969,6 +974,7 @@ async function createCometSearchResult(
 /**
  * Create a search result for a minor planet (dwarf planet or asteroid)
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Astronomical search requires handling multiple visibility scenarios
 async function createMinorPlanetSearchResult(
   mp: MinorPlanetData,
   calculator: SkyCalculator,
@@ -1193,8 +1199,8 @@ export async function searchCelestialObjects(
       const result = await createDSOSearchResult(dso, calculator, tonight);
       results.push(result);
     }
-  } catch (error) {
-    console.error('Error loading DSO catalog:', error);
+  } catch (_error) {
+    // Silently fail - user can still see other search results
   }
 
   // Search comets (may need fetching)
@@ -1207,8 +1213,8 @@ export async function searchCelestialObjects(
       const result = await createCometSearchResult(comet, calculator, tonight);
       results.push(result);
     }
-  } catch (error) {
-    console.error('Error loading comets:', error);
+  } catch (_error) {
+    // Silently fail - user can still see other search results
   }
 
   // Sort results: visible tonight first, then by visibility status

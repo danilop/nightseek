@@ -158,6 +158,24 @@ The web app is built with:
 - **astronomy-engine** for calculations
 - **Vitest** for testing
 
+### Code Quality Checks
+
+Both CLI and Web use equivalent static analysis tools. Run all checks with:
+
+```bash
+./precommit.sh
+```
+
+| Check | Python CLI | TypeScript Web |
+|-------|------------|----------------|
+| **Lint** | ruff | Biome |
+| **Format** | ruff format | Biome format |
+| **Type Check** | ty | tsc |
+| **Dead Code** | vulture | knip |
+| **Tests** | pytest | vitest |
+
+The pre-commit hook runs automatically before each commit.
+
 ## Configuration
 
 NightSeek stores your location in a platform-specific config directory:
