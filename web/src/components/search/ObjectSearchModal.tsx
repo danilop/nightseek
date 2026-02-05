@@ -263,6 +263,25 @@ function SearchResultCard({
                       </p>
                     </div>
                   )}
+                  {/* Show optimal viewing note if not optimal tonight */}
+                  {!result.visibility.above45Start &&
+                    !result.canReachOptimal &&
+                    result.optimalAltitudeNote && (
+                      <div className="col-span-2">
+                        <span className="text-yellow-400 text-xs">
+                          {result.optimalAltitudeNote}
+                        </span>
+                      </div>
+                    )}
+                  {/* Show next optimal date if visible but not optimal tonight */}
+                  {!result.visibility.above45Start &&
+                    result.canReachOptimal &&
+                    result.nextOptimalDate && (
+                      <div className="col-span-2">
+                        <span className="text-gray-400">Optimal Viewing (45°+)</span>
+                        <p className="text-sky-400">{formatDate(result.nextOptimalDate)}</p>
+                      </div>
+                    )}
                 </div>
               </div>
             )}
@@ -290,6 +309,21 @@ function SearchResultCard({
                       </p>
                     </div>
                   )}
+                  {/* Optimal viewing info */}
+                  {!result.canReachOptimal && result.optimalAltitudeNote && (
+                    <div className="col-span-2">
+                      <span className="text-yellow-400 text-xs">{result.optimalAltitudeNote}</span>
+                    </div>
+                  )}
+                  {result.canReachOptimal &&
+                    result.nextOptimalDate &&
+                    result.visibility &&
+                    result.visibility.maxAltitude < 45 && (
+                      <div className="col-span-2">
+                        <span className="text-gray-400">Optimal Viewing (45°+)</span>
+                        <p className="text-sky-400">{formatDate(result.nextOptimalDate)}</p>
+                      </div>
+                    )}
                 </div>
               </div>
             )}
