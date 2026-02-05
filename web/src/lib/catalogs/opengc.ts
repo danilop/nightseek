@@ -4,7 +4,8 @@ import { getCommonName, MESSIER_EXTRAS } from './common-names';
 
 const OPENGC_URL =
   'https://raw.githubusercontent.com/mattiaverga/OpenNGC/master/database_files/NGC.csv';
-const CACHE_KEY = 'nightseek:opengc';
+// Increment version when common-names.ts is updated to invalidate cached catalogs
+const CACHE_KEY = 'nightseek:opengc:v2';
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
