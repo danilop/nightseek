@@ -15,6 +15,7 @@ from sky_calculator import (
     ObjectVisibility,
     SkyCalculator,
 )
+from star_catalog import StarCatalogLoader, NamedStar, search_stars
 
 logger = get_logger(__name__)
 
@@ -29,6 +30,9 @@ MAX_SEARCH_DAYS = 365
 
 # Planets list
 PLANETS = ["Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"]
+
+# Special objects
+SPECIAL_OBJECTS = ["Moon", "Sun"]
 
 
 @dataclass
@@ -491,6 +495,20 @@ class ObjectSearcher:
             "Neptune": self.calculator.neptune,
         }
 
+        # Load named stars
+        self._star_loader = StarCatalogLoader()
+        self.named_stars = self._star_loader.load_named_stars(verbose=verbose)
+
+    def _search_special_objects(self, query: str) -> List[str]:
+        """Search for Moon/Sun."""
+        query_lower = query.lower().strip()
+        results = []
+        if "moon" in query_lower or "luna" in query_lower:
+            results.append("Moon")
+        if "sun" in query_lower or "sol" in query_lower:
+            results.append("Sun")
+        return results
+
     def search(self, query: str, max_results: int = 20) -> List[SearchResult]:
         """Search for objects matching the query.
 
@@ -503,10 +521,26 @@ class ObjectSearcher:
         """
         results = []
 
+        # Search special objects (Moon/Sun) first
+        for special in self._search_special_objects(query):
+            if special == "Moon":
+                result = self._create_moon_result()
+                results.append(result)
+            elif special == "Sun":
+                result = self._create_sun_result()
+                results.append(result)
+
         # Search planets (fast)
         for planet_name in search_planets(query):
             result = self._create_planet_result(planet_name)
             results.append(result)
+
+        # Search named stars (fast)
+        for star in search_stars(query, self.named_stars):
+            result = self._create_star_result(star)
+            results.append(result)
+            if len(results) >= max_results:
+                break
 
         # Search dwarf planets (fast)
         for dp in search_dwarf_planets(query, self.dwarf_planets):
@@ -1050,7 +1084,14 @@ class ObjectSearcher:
                 elif mp.semi_major_axis > 0:
                     # Use embedded orbital elements via mock MPC row
                     class MockMPCRow:
-                        pass
+                        designation: str = ""
+                        semimajor_axis_au: float = 0.0
+                        eccentricity: float = 0.0
+                        inclination_degrees: float = 0.0
+                        longitude_of_ascending_node_degrees: float = 0.0
+                        argument_of_perihelion_degrees: float = 0.0
+                        mean_anomaly_degrees: float = 0.0
+                        epoch_packed: str = ""
 
                     row = MockMPCRow()
                     row.designation = mp.designation
@@ -1268,6 +1309,233 @@ class ObjectSearcher:
                 optimal_altitude_note="Unable to calculate",
             )
 
+    def _create_star_result(self, star: NamedStar) -> SearchResult:
+        """Create a search result for a named star."""
+        can_be_visible, max_alt, reason = can_object_ever_be_visible(
+            star.dec_degrees, self.latitude
+        )
+
+        # Check if object can ever reach optimal altitude (45°+)
+        can_optimal, optimal_note = can_object_reach_optimal(
+            star.dec_degrees, self.latitude
+        )
+
+        if not can_be_visible:
+            return SearchResult(
+                object_name=star.name,
+                display_name=star.name,
+                object_type="star",
+                ra_hours=star.ra_hours,
+                dec_degrees=star.dec_degrees,
+                magnitude=star.magnitude,
+                visibility_status="never_visible",
+                visible_tonight=False,
+                next_visible_date=None,
+                visibility=None,
+                never_visible=True,
+                never_visible_reason=reason,
+                max_possible_altitude=max_alt,
+                is_moving_object=False,
+                constellation=star.constellation,
+                object_subtype="star",
+                can_reach_optimal=can_optimal,
+                optimal_altitude_note=optimal_note,
+            )
+
+        # Stars have fixed coordinates - create a Skyfield Star object
+        from skyfield.api import Star as SkyfieldStar
+
+        star_obj = SkyfieldStar(ra_hours=star.ra_hours, dec_degrees=star.dec_degrees)
+
+        # Check tonight
+        visibility = self.calculator.calculate_object_visibility(
+            star_obj, star.name, "star", self.tonight
+        )
+        visibility.magnitude = star.magnitude
+
+        def get_ra_dec(_: datetime) -> tuple[float, float]:
+            return (star.ra_hours, star.dec_degrees)
+
+        if visibility.is_visible and visibility.max_altitude >= MIN_ALTITUDE:
+            is_optimal_tonight = visibility.max_altitude >= OPTIMAL_ALTITUDE
+            next_optimal_date = None
+
+            if not is_optimal_tonight and can_optimal:
+                next_optimal = find_next_optimal_night(
+                    get_ra_dec, self.calculator, self.tonight.date + timedelta(days=1)
+                )
+                if next_optimal:
+                    next_optimal_date = next_optimal[0]
+
+            return SearchResult(
+                object_name=star.name,
+                display_name=star.name,
+                object_type="star",
+                ra_hours=star.ra_hours,
+                dec_degrees=star.dec_degrees,
+                magnitude=star.magnitude,
+                visibility_status="visible_tonight",
+                visible_tonight=True,
+                next_visible_date=self.tonight.date,
+                visibility=visibility,
+                never_visible=False,
+                never_visible_reason=None,
+                max_possible_altitude=max_alt,
+                is_moving_object=False,
+                constellation=star.constellation,
+                object_subtype="star",
+                azimuth_at_peak=visibility.azimuth_at_peak,
+                can_reach_optimal=can_optimal,
+                optimal_altitude_note=optimal_note,
+                next_optimal_date=next_optimal_date,
+            )
+
+        # Find next visible night
+        next_visible = find_next_visible_night(
+            get_ra_dec, self.calculator, self.tonight.date
+        )
+
+        if next_visible:
+            date, night_info, vis = next_visible
+            vis.object_name = star.name
+            vis.magnitude = star.magnitude
+            days_until = (date - self.tonight.date).days
+            status = "visible_soon" if days_until <= 30 else "visible_later"
+
+            return SearchResult(
+                object_name=star.name,
+                display_name=star.name,
+                object_type="star",
+                ra_hours=star.ra_hours,
+                dec_degrees=star.dec_degrees,
+                magnitude=star.magnitude,
+                visibility_status=status,
+                visible_tonight=False,
+                next_visible_date=date,
+                visibility=vis,
+                never_visible=False,
+                never_visible_reason=None,
+                max_possible_altitude=max_alt,
+                is_moving_object=False,
+                constellation=star.constellation,
+                object_subtype="star",
+                azimuth_at_peak=vis.azimuth_at_peak,
+                can_reach_optimal=can_optimal,
+                optimal_altitude_note=optimal_note,
+            )
+
+        return SearchResult(
+            object_name=star.name,
+            display_name=star.name,
+            object_type="star",
+            ra_hours=star.ra_hours,
+            dec_degrees=star.dec_degrees,
+            magnitude=star.magnitude,
+            visibility_status="below_horizon",
+            visible_tonight=False,
+            next_visible_date=None,
+            visibility=None,
+            never_visible=False,
+            never_visible_reason="Star not visible at night within the next year",
+            max_possible_altitude=max_alt,
+            is_moving_object=False,
+            constellation=star.constellation,
+            object_subtype="star",
+            can_reach_optimal=can_optimal,
+            optimal_altitude_note=optimal_note,
+        )
+
+    def _create_moon_result(self) -> SearchResult:
+        """Create a search result for the Moon."""
+        # Get current Moon position
+        now = datetime.now()
+        t = self.calculator.ts.utc(now.year, now.month, now.day, now.hour)
+        astrometric = self.calculator.earth.at(t).observe(self.calculator.moon)
+        ra, dec, _ = astrometric.radec()
+        ra_hours = ra.hours
+        dec_degrees = dec.degrees
+
+        # Moon is always "visible" from Earth - check if above horizon at night
+        visibility = self.calculator.calculate_object_visibility(
+            self.calculator.moon, "Moon", "moon", self.tonight
+        )
+
+        # Get moon phase info
+        moon_illum = self.tonight.moon_illumination
+
+        if visibility.is_visible and visibility.max_altitude >= MIN_ALTITUDE:
+            return SearchResult(
+                object_name="Moon",
+                display_name=f"Moon ({moon_illum:.0f}% illuminated)",
+                object_type="moon",
+                ra_hours=ra_hours,
+                dec_degrees=dec_degrees,
+                magnitude=-12.7 + 2.5 * (1 - moon_illum / 100),  # Approx magnitude
+                visibility_status="visible_tonight",
+                visible_tonight=True,
+                next_visible_date=self.tonight.date,
+                visibility=visibility,
+                never_visible=False,
+                never_visible_reason=None,
+                max_possible_altitude=90.0,  # Moon can reach zenith
+                is_moving_object=True,
+                object_subtype="natural_satellite",
+                azimuth_at_peak=visibility.azimuth_at_peak,
+                can_reach_optimal=True,
+                optimal_altitude_note=None,
+            )
+
+        return SearchResult(
+            object_name="Moon",
+            display_name=f"Moon ({moon_illum:.0f}% illuminated)",
+            object_type="moon",
+            ra_hours=ra_hours,
+            dec_degrees=dec_degrees,
+            magnitude=-12.7 + 2.5 * (1 - moon_illum / 100),
+            visibility_status="below_horizon",
+            visible_tonight=False,
+            next_visible_date=None,
+            visibility=visibility,
+            never_visible=False,
+            never_visible_reason="Moon below horizon during dark hours tonight",
+            max_possible_altitude=90.0,
+            is_moving_object=True,
+            object_subtype="natural_satellite",
+            can_reach_optimal=True,
+            optimal_altitude_note=None,
+        )
+
+    def _create_sun_result(self) -> SearchResult:
+        """Create a search result for the Sun (with safety warning)."""
+        # Get current Sun position
+        now = datetime.now()
+        t = self.calculator.ts.utc(now.year, now.month, now.day, now.hour)
+        astrometric = self.calculator.earth.at(t).observe(self.calculator.sun)
+        ra, dec, _ = astrometric.radec()
+        ra_hours = ra.hours
+        dec_degrees = dec.degrees
+
+        # Sun is never visible during astronomical night (by definition)
+        return SearchResult(
+            object_name="Sun",
+            display_name="Sun ⚠️ NEVER point telescope at Sun without proper filter!",
+            object_type="sun",
+            ra_hours=ra_hours,
+            dec_degrees=dec_degrees,
+            magnitude=-26.74,
+            visibility_status="never_visible",  # Not visible during dark hours
+            visible_tonight=False,
+            next_visible_date=None,
+            visibility=None,
+            never_visible=True,
+            never_visible_reason="⚠️ SAFETY WARNING: Never observe the Sun without proper solar filters! The Sun is only visible during daylight hours.",
+            max_possible_altitude=90 - abs(self.latitude - dec_degrees),
+            is_moving_object=True,
+            object_subtype="star",
+            can_reach_optimal=False,
+            optimal_altitude_note="Daytime object - not visible during astronomical night",
+        )
+
 
 def _azimuth_to_cardinal(azimuth: float) -> str:
     """Convert azimuth degrees to cardinal direction."""
@@ -1323,6 +1591,9 @@ def format_search_results(
             "comet": "Comet",
             "dwarf_planet": "Dwarf Planet",
             "asteroid": "Asteroid",
+            "star": "Star",
+            "moon": "Moon",
+            "sun": "Sun",
         }
         type_name = type_names.get(result.object_type, result.object_type)
 

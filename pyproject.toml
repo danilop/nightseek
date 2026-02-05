@@ -24,7 +24,7 @@ dependencies = [
 nightseek = "main:app"
 
 [tool.setuptools]
-py-modules = ["main", "analyzer", "catalog", "cache_manager", "config", "enums", "event_detection", "events", "formatter", "logging_config", "models", "search", "sky_calculator", "timezone_utils", "weather", "opengc_loader", "scoring", "update_checker"]
+py-modules = ["main", "analyzer", "catalog", "cache_manager", "config", "enums", "event_detection", "events", "formatter", "logging_config", "models", "search", "sky_calculator", "timezone_utils", "weather", "opengc_loader", "scoring", "update_checker", "star_catalog"]
 
 [tool.uv]
 package = true
