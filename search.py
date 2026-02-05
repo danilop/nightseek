@@ -21,6 +21,9 @@ logger = get_logger(__name__)
 # Minimum altitude for "visible"
 MIN_ALTITUDE = 30
 
+# Optimal altitude for "good observing"
+OPTIMAL_ALTITUDE = 45
+
 # Maximum days to search ahead
 MAX_SEARCH_DAYS = 365
 
@@ -59,6 +62,11 @@ class SearchResult:
     angular_size_arcmin: Optional[float] = None  # For extended objects
     azimuth_at_peak: Optional[float] = None  # Compass direction at peak altitude
 
+    # Optimal viewing info (45°+ altitude)
+    can_reach_optimal: bool = True  # Can object ever reach 45° from this location?
+    optimal_altitude_note: Optional[str] = None  # Message about optimal viewing conditions
+    next_optimal_date: Optional[datetime] = None  # When object will next reach 45°+
+
 
 def can_object_ever_be_visible(
     dec_degrees: float,
@@ -93,6 +101,147 @@ def can_object_ever_be_visible(
         )
 
     return True, max_alt, None
+
+
+def can_object_reach_optimal(
+    dec_degrees: float,
+    observer_latitude: float,
+    optimal_altitude: float = OPTIMAL_ALTITUDE,
+) -> tuple[bool, Optional[str]]:
+    """Check if an object can ever reach optimal viewing altitude (45°+).
+
+    Args:
+        dec_degrees: Object declination in degrees
+        observer_latitude: Observer latitude in degrees
+        optimal_altitude: Optimal altitude threshold (default 45°)
+
+    Returns:
+        Tuple of (can_reach_optimal, note_if_not)
+    """
+    max_alt = 90 - abs(observer_latitude - dec_degrees)
+
+    if max_alt < optimal_altitude:
+        return (
+            False,
+            f"Best altitude from your location: {max_alt:.0f}° (never reaches optimal {optimal_altitude:.0f}°)",
+        )
+
+    return True, None
+
+
+def check_optimal_for_night(
+    ra_hours: float,
+    dec_degrees: float,
+    calculator: SkyCalculator,
+    night_info: NightInfo,
+    optimal_altitude: float = OPTIMAL_ALTITUDE,
+) -> tuple[bool, Optional[ObjectVisibility]]:
+    """Check if an object reaches optimal altitude (45°+) during a given night.
+
+    Args:
+        ra_hours: Right ascension in hours
+        dec_degrees: Declination in degrees
+        calculator: SkyCalculator instance
+        night_info: Night information
+        optimal_altitude: Optimal altitude threshold
+
+    Returns:
+        Tuple of (reaches_optimal, visibility_info)
+    """
+    # Quick check: can the object ever reach optimal?
+    can_reach, _ = can_object_reach_optimal(dec_degrees, calculator.latitude, optimal_altitude)
+    if not can_reach:
+        return False, None
+
+    # Create a star object for the position
+    from skyfield.api import Star
+
+    star = Star(ra_hours=ra_hours, dec_degrees=dec_degrees)
+
+    # Calculate visibility
+    visibility = calculator.calculate_object_visibility(
+        star, "search-object", "dso", night_info
+    )
+
+    return visibility.max_altitude >= optimal_altitude, visibility
+
+
+def find_next_optimal_night(
+    get_ra_dec: Callable[[datetime], Optional[tuple[float, float]]],
+    calculator: SkyCalculator,
+    start_date: datetime,
+    max_days: int = MAX_SEARCH_DAYS,
+) -> Optional[tuple[datetime, NightInfo, ObjectVisibility]]:
+    """Find the next night when an object reaches optimal altitude (45°+).
+
+    Uses exponential search followed by binary search for efficiency.
+
+    Args:
+        get_ra_dec: Function that returns (ra_hours, dec_degrees) for a given date
+        calculator: SkyCalculator instance
+        start_date: Start date for search
+        max_days: Maximum days to search ahead
+
+    Returns:
+        Tuple of (date, night_info, visibility) or None if not found
+    """
+    # Check dates at exponentially increasing intervals
+    check_days = [0, 1, 7, 14, 30, 60, 90, 180, 365]
+    check_days = [d for d in check_days if d <= max_days]
+
+    last_not_optimal = 0
+    first_optimal = None
+
+    for day_offset in check_days:
+        check_date = start_date + timedelta(days=day_offset)
+        pos = get_ra_dec(check_date)
+        if pos is None:
+            continue
+
+        ra, dec = pos
+        night_info = calculator.get_night_info(check_date)
+        is_optimal, _ = check_optimal_for_night(ra, dec, calculator, night_info)
+
+        if is_optimal:
+            first_optimal = day_offset
+            break
+        last_not_optimal = day_offset
+
+    if first_optimal is None:
+        return None
+
+    # Binary search for exact first optimal day
+    while first_optimal - last_not_optimal > 1:
+        mid = (last_not_optimal + first_optimal) // 2
+        check_date = start_date + timedelta(days=mid)
+        pos = get_ra_dec(check_date)
+        if pos is None:
+            last_not_optimal = mid
+            continue
+
+        ra, dec = pos
+        night_info = calculator.get_night_info(check_date)
+        is_optimal, _ = check_optimal_for_night(ra, dec, calculator, night_info)
+
+        if is_optimal:
+            first_optimal = mid
+        else:
+            last_not_optimal = mid
+
+    # Return the first optimal night
+    optimal_date = start_date + timedelta(days=first_optimal)
+    pos = get_ra_dec(optimal_date)
+    if pos is None:
+        return None
+
+    ra, dec = pos
+    night_info = calculator.get_night_info(optimal_date)
+    _, visibility = check_optimal_for_night(ra, dec, calculator, night_info)
+
+    if visibility is None:
+        return None
+
+    return optimal_date, night_info, visibility
 
 
 def search_dsos(query: str, catalog: Catalog) -> List[CelestialObject]:
@@ -388,6 +537,9 @@ class ObjectSearcher:
             dso.dec_degrees, self.latitude
         )
 
+        # Check if object can ever reach optimal altitude (45°+)
+        can_optimal, optimal_note = can_object_reach_optimal(dso.dec_degrees, self.latitude)
+
         if not can_be_visible:
             return SearchResult(
                 object_name=dso.name,
@@ -407,7 +559,13 @@ class ObjectSearcher:
                 constellation=dso.constellation,
                 object_subtype=dso.dso_subtype,
                 angular_size_arcmin=dso.angular_size_arcmin,
+                can_reach_optimal=can_optimal,
+                optimal_altitude_note=optimal_note,
             )
+
+        # DSOs have fixed coordinates
+        def get_ra_dec(_: datetime) -> tuple[float, float]:
+            return (dso.ra_hours, dso.dec_degrees)
 
         # Check tonight
         is_visible, visibility = check_visibility_for_night(
@@ -417,6 +575,19 @@ class ObjectSearcher:
         if is_visible and visibility:
             visibility.object_name = dso.common_name or dso.name
             visibility.magnitude = dso.magnitude
+
+            # Check if optimal tonight
+            is_optimal_tonight = visibility.max_altitude >= OPTIMAL_ALTITUDE
+            next_optimal_date = None
+
+            # If visible but not optimal, find when it will be optimal
+            if not is_optimal_tonight and can_optimal:
+                next_optimal = find_next_optimal_night(
+                    get_ra_dec, self.calculator, self.tonight.date + timedelta(days=1)
+                )
+                if next_optimal:
+                    next_optimal_date = next_optimal[0]
+
             return SearchResult(
                 object_name=dso.name,
                 display_name=dso.common_name or dso.name,
@@ -436,12 +607,12 @@ class ObjectSearcher:
                 object_subtype=dso.dso_subtype,
                 angular_size_arcmin=dso.angular_size_arcmin,
                 azimuth_at_peak=visibility.azimuth_at_peak,
+                can_reach_optimal=can_optimal,
+                optimal_altitude_note=optimal_note,
+                next_optimal_date=next_optimal_date,
             )
 
-        # Find next visible night (DSOs have fixed coordinates)
-        def get_ra_dec(_: datetime) -> tuple[float, float]:
-            return (dso.ra_hours, dso.dec_degrees)
-
+        # Find next visible night
         next_visible = find_next_visible_night(
             get_ra_dec, self.calculator, self.tonight.date
         )
@@ -452,6 +623,19 @@ class ObjectSearcher:
             vis.magnitude = dso.magnitude
             days_until = (date - self.tonight.date).days
             status = "visible_soon" if days_until <= 30 else "visible_later"
+
+            # Check if optimal on that night, or find when
+            is_optimal_that_night = vis.max_altitude >= OPTIMAL_ALTITUDE
+            next_optimal_date = None
+
+            if not is_optimal_that_night and can_optimal:
+                next_optimal = find_next_optimal_night(
+                    get_ra_dec, self.calculator, date + timedelta(days=1)
+                )
+                if next_optimal:
+                    next_optimal_date = next_optimal[0]
+            elif is_optimal_that_night:
+                next_optimal_date = date
 
             return SearchResult(
                 object_name=dso.name,
@@ -472,6 +656,9 @@ class ObjectSearcher:
                 object_subtype=dso.dso_subtype,
                 angular_size_arcmin=dso.angular_size_arcmin,
                 azimuth_at_peak=vis.azimuth_at_peak,
+                can_reach_optimal=can_optimal,
+                optimal_altitude_note=optimal_note,
+                next_optimal_date=next_optimal_date,
             )
 
         return SearchResult(
@@ -492,6 +679,8 @@ class ObjectSearcher:
             constellation=dso.constellation,
             object_subtype=dso.dso_subtype,
             angular_size_arcmin=dso.angular_size_arcmin,
+            can_reach_optimal=can_optimal,
+            optimal_altitude_note=optimal_note,
         )
 
     def _create_planet_result(self, planet_name: str) -> SearchResult:
@@ -510,6 +699,10 @@ class ObjectSearcher:
             dec_degrees, self.latitude
         )
 
+        # For planets (moving objects), optimal viewing varies throughout the year
+        # Check current declination for optimal capability
+        can_optimal, optimal_note = can_object_reach_optimal(dec_degrees, self.latitude)
+
         # Check tonight
         visibility = self.calculator.calculate_object_visibility(
             planet_obj, planet_name, "planet", self.tonight
@@ -518,7 +711,28 @@ class ObjectSearcher:
         # Planet subtype
         planet_subtype = "inner" if planet_name in ("Mercury", "Venus") else "outer"
 
+        # Position function for finding next optimal night
+        def get_planet_pos(date: datetime) -> tuple[float, float]:
+            t = self.calculator.ts.utc(date.year, date.month, date.day)
+            astrometric = self.calculator.earth.at(t).observe(planet_obj)
+            ra, dec, _ = astrometric.radec()
+            return ra.hours, dec.degrees
+
         if visibility.is_visible and visibility.max_altitude >= MIN_ALTITUDE:
+            is_optimal_tonight = visibility.max_altitude >= OPTIMAL_ALTITUDE
+            next_optimal_date = None
+
+            # If visible but not optimal, find when it will be optimal
+            if not is_optimal_tonight:
+                next_optimal = find_next_optimal_night(
+                    get_planet_pos, self.calculator, self.tonight.date + timedelta(days=1)
+                )
+                if next_optimal:
+                    next_optimal_date = next_optimal[0]
+                else:
+                    # Planet may never reach optimal from this location
+                    optimal_note = f"Best tonight: {visibility.max_altitude:.0f}° (optimal is {OPTIMAL_ALTITUDE}°+)"
+
             return SearchResult(
                 object_name=planet_name,
                 display_name=planet_name,
@@ -536,15 +750,12 @@ class ObjectSearcher:
                 is_moving_object=True,
                 object_subtype=planet_subtype,
                 azimuth_at_peak=visibility.azimuth_at_peak,
+                can_reach_optimal=is_optimal_tonight or next_optimal_date is not None,
+                optimal_altitude_note=optimal_note,
+                next_optimal_date=next_optimal_date,
             )
 
         # Find next visible night
-        def get_planet_pos(date: datetime) -> tuple[float, float]:
-            t = self.calculator.ts.utc(date.year, date.month, date.day)
-            astrometric = self.calculator.earth.at(t).observe(planet_obj)
-            ra, dec, _ = astrometric.radec()
-            return ra.hours, dec.degrees
-
         next_visible = find_next_visible_night(
             get_planet_pos, self.calculator, self.tonight.date
         )
@@ -554,6 +765,17 @@ class ObjectSearcher:
             vis.object_name = planet_name
             days_until = (date - self.tonight.date).days
             status = "visible_soon" if days_until <= 30 else "visible_later"
+
+            # Check if optimal on that night
+            is_optimal_that_night = vis.max_altitude >= OPTIMAL_ALTITUDE
+            next_optimal_date = date if is_optimal_that_night else None
+
+            if not is_optimal_that_night:
+                next_optimal = find_next_optimal_night(
+                    get_planet_pos, self.calculator, date + timedelta(days=1)
+                )
+                if next_optimal:
+                    next_optimal_date = next_optimal[0]
 
             return SearchResult(
                 object_name=planet_name,
@@ -572,6 +794,9 @@ class ObjectSearcher:
                 is_moving_object=True,
                 object_subtype=planet_subtype,
                 azimuth_at_peak=vis.azimuth_at_peak,
+                can_reach_optimal=next_optimal_date is not None,
+                optimal_altitude_note=optimal_note,
+                next_optimal_date=next_optimal_date,
             )
 
         return SearchResult(
@@ -590,6 +815,8 @@ class ObjectSearcher:
             max_possible_altitude=max_alt,
             is_moving_object=True,
             object_subtype=planet_subtype,
+            can_reach_optimal=False,
+            optimal_altitude_note="Not visible within search period",
         )
 
     def _create_comet_result(self, comet: Comet) -> SearchResult:
@@ -618,7 +845,20 @@ class ObjectSearcher:
                 dec_degrees, self.latitude
             )
 
+            # Check optimal altitude capability
+            can_optimal, optimal_note = can_object_reach_optimal(dec_degrees, self.latitude)
+
             comet_subtype = "interstellar" if comet.is_interstellar else "comet"
+
+            # Position function for finding next optimal night
+            def get_comet_pos(date: datetime) -> Optional[tuple[float, float]]:
+                try:
+                    t = self.calculator.ts.utc(date.year, date.month, date.day)
+                    astrometric = self.calculator.earth.at(t).observe(comet_obj)
+                    ra, dec, _ = astrometric.radec()
+                    return ra.hours, dec.degrees
+                except Exception:
+                    return None
 
             if not can_be_visible:
                 return SearchResult(
@@ -637,6 +877,8 @@ class ObjectSearcher:
                     max_possible_altitude=max_alt,
                     is_moving_object=True,
                     object_subtype=comet_subtype,
+                    can_reach_optimal=can_optimal,
+                    optimal_altitude_note=optimal_note,
                 )
 
             # Check tonight
@@ -647,6 +889,18 @@ class ObjectSearcher:
             visibility.is_interstellar = comet.is_interstellar
 
             if visibility.is_visible and visibility.max_altitude >= MIN_ALTITUDE:
+                is_optimal_tonight = visibility.max_altitude >= OPTIMAL_ALTITUDE
+                next_optimal_date = None
+
+                if not is_optimal_tonight:
+                    next_optimal = find_next_optimal_night(
+                        get_comet_pos, self.calculator, self.tonight.date + timedelta(days=1)
+                    )
+                    if next_optimal:
+                        next_optimal_date = next_optimal[0]
+                    elif not can_optimal:
+                        optimal_note = f"Best tonight: {visibility.max_altitude:.0f}° (optimal is {OPTIMAL_ALTITUDE}°+)"
+
                 return SearchResult(
                     object_name=comet.designation,
                     display_name=display_name,
@@ -664,18 +918,12 @@ class ObjectSearcher:
                     is_moving_object=True,
                     object_subtype=comet_subtype,
                     azimuth_at_peak=visibility.azimuth_at_peak,
+                    can_reach_optimal=is_optimal_tonight or next_optimal_date is not None,
+                    optimal_altitude_note=optimal_note,
+                    next_optimal_date=next_optimal_date,
                 )
 
             # Find next visible night
-            def get_comet_pos(date: datetime) -> Optional[tuple[float, float]]:
-                try:
-                    t = self.calculator.ts.utc(date.year, date.month, date.day)
-                    astrometric = self.calculator.earth.at(t).observe(comet_obj)
-                    ra, dec, _ = astrometric.radec()
-                    return ra.hours, dec.degrees
-                except Exception:
-                    return None
-
             next_visible = find_next_visible_night(
                 get_comet_pos, self.calculator, self.tonight.date
             )
@@ -686,6 +934,16 @@ class ObjectSearcher:
                 vis.magnitude = apparent_mag
                 days_until = (date - self.tonight.date).days
                 status = "visible_soon" if days_until <= 30 else "visible_later"
+
+                is_optimal_that_night = vis.max_altitude >= OPTIMAL_ALTITUDE
+                next_optimal_date = date if is_optimal_that_night else None
+
+                if not is_optimal_that_night:
+                    next_optimal = find_next_optimal_night(
+                        get_comet_pos, self.calculator, date + timedelta(days=1)
+                    )
+                    if next_optimal:
+                        next_optimal_date = next_optimal[0]
 
                 return SearchResult(
                     object_name=comet.designation,
@@ -704,6 +962,9 @@ class ObjectSearcher:
                     is_moving_object=True,
                     object_subtype=comet_subtype,
                     azimuth_at_peak=vis.azimuth_at_peak,
+                    can_reach_optimal=next_optimal_date is not None,
+                    optimal_altitude_note=optimal_note,
+                    next_optimal_date=next_optimal_date,
                 )
 
             return SearchResult(
@@ -722,6 +983,8 @@ class ObjectSearcher:
                 max_possible_altitude=max_alt,
                 is_moving_object=True,
                 object_subtype=comet_subtype,
+                can_reach_optimal=False,
+                optimal_altitude_note="Not visible within search period",
             )
 
         except Exception as e:
@@ -741,6 +1004,8 @@ class ObjectSearcher:
                 never_visible_reason="Unable to calculate comet position",
                 max_possible_altitude=0,
                 is_moving_object=True,
+                can_reach_optimal=False,
+                optimal_altitude_note="Unable to calculate",
             )
 
     def _create_minor_planet_result(self, mp: MinorPlanet) -> SearchResult:
@@ -765,6 +1030,8 @@ class ObjectSearcher:
                     max_possible_altitude=0,
                     is_moving_object=True,
                     object_subtype=obj_type,
+                    can_reach_optimal=False,
+                    optimal_altitude_note="No orbital data",
                 )
 
             # Create skyfield object
@@ -790,6 +1057,19 @@ class ObjectSearcher:
                 dec_degrees, self.latitude
             )
 
+            # Check optimal altitude capability
+            can_optimal, optimal_note = can_object_reach_optimal(dec_degrees, self.latitude)
+
+            # Position function for finding optimal night
+            def get_mp_pos(date: datetime) -> Optional[tuple[float, float]]:
+                try:
+                    t = self.calculator.ts.utc(date.year, date.month, date.day)
+                    astrometric = self.calculator.earth.at(t).observe(mp_obj)
+                    ra, dec, _ = astrometric.radec()
+                    return ra.hours, dec.degrees
+                except Exception:
+                    return None
+
             if not can_be_visible:
                 return SearchResult(
                     object_name=mp.name,
@@ -807,6 +1087,8 @@ class ObjectSearcher:
                     max_possible_altitude=max_alt,
                     is_moving_object=True,
                     object_subtype=obj_type,
+                    can_reach_optimal=can_optimal,
+                    optimal_altitude_note=optimal_note,
                 )
 
             # Check tonight
@@ -816,6 +1098,18 @@ class ObjectSearcher:
             visibility.magnitude = mp.magnitude_h
 
             if visibility.is_visible and visibility.max_altitude >= MIN_ALTITUDE:
+                is_optimal_tonight = visibility.max_altitude >= OPTIMAL_ALTITUDE
+                next_optimal_date = None
+
+                if not is_optimal_tonight:
+                    next_optimal = find_next_optimal_night(
+                        get_mp_pos, self.calculator, self.tonight.date + timedelta(days=1)
+                    )
+                    if next_optimal:
+                        next_optimal_date = next_optimal[0]
+                    elif not can_optimal:
+                        optimal_note = f"Best tonight: {visibility.max_altitude:.0f}° (optimal is {OPTIMAL_ALTITUDE}°+)"
+
                 return SearchResult(
                     object_name=mp.name,
                     display_name=mp.name,
@@ -833,18 +1127,12 @@ class ObjectSearcher:
                     is_moving_object=True,
                     object_subtype=obj_type,
                     azimuth_at_peak=visibility.azimuth_at_peak,
+                    can_reach_optimal=is_optimal_tonight or next_optimal_date is not None,
+                    optimal_altitude_note=optimal_note,
+                    next_optimal_date=next_optimal_date,
                 )
 
             # Find next visible night
-            def get_mp_pos(date: datetime) -> Optional[tuple[float, float]]:
-                try:
-                    t = self.calculator.ts.utc(date.year, date.month, date.day)
-                    astrometric = self.calculator.earth.at(t).observe(mp_obj)
-                    ra, dec, _ = astrometric.radec()
-                    return ra.hours, dec.degrees
-                except Exception:
-                    return None
-
             next_visible = find_next_visible_night(
                 get_mp_pos, self.calculator, self.tonight.date
             )
@@ -855,6 +1143,16 @@ class ObjectSearcher:
                 vis.magnitude = mp.magnitude_h
                 days_until = (date - self.tonight.date).days
                 status = "visible_soon" if days_until <= 30 else "visible_later"
+
+                is_optimal_that_night = vis.max_altitude >= OPTIMAL_ALTITUDE
+                next_optimal_date = date if is_optimal_that_night else None
+
+                if not is_optimal_that_night:
+                    next_optimal = find_next_optimal_night(
+                        get_mp_pos, self.calculator, date + timedelta(days=1)
+                    )
+                    if next_optimal:
+                        next_optimal_date = next_optimal[0]
 
                 return SearchResult(
                     object_name=mp.name,
@@ -873,6 +1171,9 @@ class ObjectSearcher:
                     is_moving_object=True,
                     object_subtype=obj_type,
                     azimuth_at_peak=vis.azimuth_at_peak,
+                    can_reach_optimal=next_optimal_date is not None,
+                    optimal_altitude_note=optimal_note,
+                    next_optimal_date=next_optimal_date,
                 )
 
             return SearchResult(
@@ -891,6 +1192,8 @@ class ObjectSearcher:
                 max_possible_altitude=max_alt,
                 is_moving_object=True,
                 object_subtype=obj_type,
+                can_reach_optimal=False,
+                optimal_altitude_note="Not visible within search period",
             )
 
         except Exception as e:
@@ -911,6 +1214,8 @@ class ObjectSearcher:
                 max_possible_altitude=0,
                 is_moving_object=True,
                 object_subtype=obj_type,
+                can_reach_optimal=False,
+                optimal_altitude_note="Unable to calculate",
             )
 
 
@@ -1032,6 +1337,19 @@ def format_search_results(
                 console.print(
                     f"    Good observing (>45°): {start.strftime('%H:%M')} - {end.strftime('%H:%M')}"
                 )
+            elif not result.can_reach_optimal and result.optimal_altitude_note:
+                # Object visible but can never reach optimal altitude from this location
+                console.print(f"    [yellow]{result.optimal_altitude_note}[/yellow]")
+            elif result.next_optimal_date and vis.max_altitude < 45:
+                # Object visible tonight but not optimal - show when optimal viewing is available
+                days_until_optimal = (result.next_optimal_date - datetime.now()).days
+                opt_date_str = result.next_optimal_date.strftime("%b %d")
+                if days_until_optimal <= 7:
+                    console.print(f"    [cyan]Optimal viewing (45°+): {opt_date_str} (in {days_until_optimal} days)[/cyan]")
+                elif days_until_optimal <= 30:
+                    console.print(f"    [cyan]Optimal viewing (45°+): {opt_date_str} (in ~{days_until_optimal // 7} weeks)[/cyan]")
+                else:
+                    console.print(f"    [cyan]Optimal viewing (45°+): {opt_date_str}[/cyan]")
 
             if vis.moon_separation is not None:
                 moon_dist = vis.moon_separation
@@ -1062,6 +1380,14 @@ def format_search_results(
                     direction = _azimuth_to_cardinal(result.azimuth_at_peak)
                     peak_info += f" (looking {direction})"
                 console.print(peak_info)
+
+                # Show optimal viewing info
+                if not result.can_reach_optimal and result.optimal_altitude_note:
+                    console.print(f"    [yellow]{result.optimal_altitude_note}[/yellow]")
+                elif result.next_optimal_date and result.visibility.max_altitude < 45:
+                    if result.next_optimal_date != result.next_visible_date:
+                        opt_date_str = result.next_optimal_date.strftime("%b %d")
+                        console.print(f"    [cyan]Optimal viewing (45°+): {opt_date_str}[/cyan]")
 
         elif result.never_visible and result.never_visible_reason:
             console.print()

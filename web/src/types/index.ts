@@ -627,6 +627,11 @@ export interface ObjectSearchResult {
   // Additional object info
   angularSizeArcmin: number | null; // For extended objects (DSOs)
   azimuthAtPeak: number | null; // Compass direction at peak altitude (0-360°)
+
+  // Optimal viewing info (45°+ altitude)
+  canReachOptimal: boolean; // Can object ever reach 45° from this location?
+  optimalAltitudeNote: string | null; // Message about optimal viewing conditions
+  nextOptimalDate: Date | null; // When object will next reach 45°+
 }
 
 export type ObjectVisibilityStatus =

@@ -21,27 +21,30 @@ import type {
   ObjectVisibilityStatus,
 } from '@/types';
 import { SkyCalculator } from '../astronomy/calculator';
-import { loadOpenNGCCatalog } from '../catalogs/opengc';
 import {
-  type ParsedComet,
+  calculateCometMagnitude,
   calculateCometPosition,
   fetchComets,
   heliocentricToEquatorial,
-  calculateCometMagnitude,
+  type ParsedComet,
 } from '../catalogs/comets';
 import {
-  type MinorPlanetData,
-  DWARF_PLANETS,
-  NOTABLE_ASTEROIDS,
-  calculateMinorPlanetPosition,
   calculateMinorPlanetMagnitude,
+  calculateMinorPlanetPosition,
+  DWARF_PLANETS,
+  type MinorPlanetData,
+  NOTABLE_ASTEROIDS,
 } from '../catalogs/minor-planets';
+import { loadOpenNGCCatalog } from '../catalogs/opengc';
 
 // Planets list
 const PLANETS = ['Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];
 
 // Minimum altitude threshold for "visibility"
 const MIN_ALTITUDE = 30;
+
+// Optimal altitude for good observing conditions
+const OPTIMAL_ALTITUDE = 45;
 
 // Maximum days to search ahead for visibility
 const MAX_SEARCH_DAYS = 365;
@@ -84,6 +87,136 @@ export function canObjectEverBeVisible(
 }
 
 /**
+ * Check if an object can ever reach optimal viewing altitude (45°+)
+ */
+export function canObjectReachOptimal(
+  decDegrees: number,
+  observerLatitude: number,
+  optimalAltitude: number = OPTIMAL_ALTITUDE
+): { canReach: boolean; note: string | null } {
+  const maxAlt = 90 - Math.abs(observerLatitude - decDegrees);
+
+  if (maxAlt < optimalAltitude) {
+    return {
+      canReach: false,
+      note: `Best altitude from your location: ${maxAlt.toFixed(0)}° (never reaches optimal ${optimalAltitude}°)`,
+    };
+  }
+
+  return { canReach: true, note: null };
+}
+
+/**
+ * Check if an object reaches optimal altitude (45°+) during a given night
+ */
+function checkOptimalForNight(
+  raHours: number,
+  decDegrees: number,
+  calculator: SkyCalculator,
+  nightInfo: NightInfo,
+  optimalAltitude: number = OPTIMAL_ALTITUDE
+): { isOptimal: boolean; visibility: ObjectVisibility | null } {
+  // Quick check: can the object ever reach optimal?
+  const optimalCheck = canObjectReachOptimal(decDegrees, calculator.getLatitude(), optimalAltitude);
+  if (!optimalCheck.canReach) {
+    return { isOptimal: false, visibility: null };
+  }
+
+  // Calculate visibility
+  const visibility = calculator.calculateVisibility(
+    raHours,
+    decDegrees,
+    nightInfo,
+    'search-object',
+    'dso'
+  );
+
+  return {
+    isOptimal: visibility.maxAltitude >= optimalAltitude,
+    visibility,
+  };
+}
+
+/**
+ * Find the next night when an object reaches optimal altitude (45°+)
+ */
+async function findNextOptimalNight(
+  getRaDec: (time: Date) => { ra: number; dec: number } | null,
+  calculator: SkyCalculator,
+  startDate: Date,
+  maxDays: number = MAX_SEARCH_DAYS
+): Promise<{ date: Date; nightInfo: NightInfo; visibility: ObjectVisibility } | null> {
+  const initialPos = getRaDec(startDate);
+  if (!initialPos) return null;
+
+  const optimalCheck = canObjectReachOptimal(initialPos.dec, calculator.getLatitude());
+  if (!optimalCheck.canReach) {
+    return null;
+  }
+
+  const checkDates = [0, 1, 7, 14, 30, 60, 90, 180, 365].filter(d => d <= maxDays);
+
+  let lastNotOptimal = 0;
+  let firstOptimal: number | null = null;
+
+  for (const dayOffset of checkDates) {
+    const checkDate = new Date(startDate);
+    checkDate.setDate(checkDate.getDate() + dayOffset);
+
+    const pos = getRaDec(checkDate);
+    if (!pos) continue;
+
+    const nightInfo = calculator.getNightInfo(checkDate);
+    const { isOptimal } = checkOptimalForNight(pos.ra, pos.dec, calculator, nightInfo);
+
+    if (isOptimal) {
+      firstOptimal = dayOffset;
+      break;
+    }
+    lastNotOptimal = dayOffset;
+  }
+
+  if (firstOptimal === null) {
+    return null;
+  }
+
+  // Binary search for exact first optimal day
+  while (firstOptimal - lastNotOptimal > 1) {
+    const mid = Math.floor((lastNotOptimal + firstOptimal) / 2);
+    const checkDate = new Date(startDate);
+    checkDate.setDate(checkDate.getDate() + mid);
+
+    const pos = getRaDec(checkDate);
+    if (!pos) {
+      lastNotOptimal = mid;
+      continue;
+    }
+
+    const nightInfo = calculator.getNightInfo(checkDate);
+    const { isOptimal } = checkOptimalForNight(pos.ra, pos.dec, calculator, nightInfo);
+
+    if (isOptimal) {
+      firstOptimal = mid;
+    } else {
+      lastNotOptimal = mid;
+    }
+  }
+
+  const optimalDate = new Date(startDate);
+  optimalDate.setDate(optimalDate.getDate() + firstOptimal);
+
+  const pos = getRaDec(optimalDate);
+  if (!pos) return null;
+
+  const nightInfo = calculator.getNightInfo(optimalDate);
+  const { visibility } = checkOptimalForNight(pos.ra, pos.dec, calculator, nightInfo);
+
+  if (!visibility) return null;
+
+  return { date: optimalDate, nightInfo, visibility };
+}
+
+/**
  * Get planet position at a given time
  */
 function getPlanetPosition(
@@ -119,7 +252,12 @@ function getCometPosition(
   const pos = calculateCometPosition(comet, jd);
   const { ra, dec, distance: earthDist } = heliocentricToEquatorial(pos.x, pos.y, pos.z, jd);
 
-  if (!Number.isFinite(ra) || !Number.isFinite(dec) || !Number.isFinite(earthDist) || earthDist <= 0) {
+  if (
+    !Number.isFinite(ra) ||
+    !Number.isFinite(dec) ||
+    !Number.isFinite(earthDist) ||
+    earthDist <= 0
+  ) {
     return null;
   }
 
@@ -332,8 +470,7 @@ function searchComets(query: string, comets: ParsedComet[]): ParsedComet[] {
   const lowerQuery = query.toLowerCase().trim();
   return comets.filter(
     c =>
-      c.designation.toLowerCase().includes(lowerQuery) ||
-      c.name.toLowerCase().includes(lowerQuery)
+      c.designation.toLowerCase().includes(lowerQuery) || c.name.toLowerCase().includes(lowerQuery)
   );
 }
 
@@ -356,8 +493,7 @@ function searchAsteroids(query: string): MinorPlanetData[] {
   const lowerQuery = query.toLowerCase().trim();
   return NOTABLE_ASTEROIDS.filter(
     a =>
-      a.name.toLowerCase().includes(lowerQuery) ||
-      a.designation.toLowerCase().includes(lowerQuery)
+      a.name.toLowerCase().includes(lowerQuery) || a.designation.toLowerCase().includes(lowerQuery)
   );
 }
 
@@ -370,9 +506,13 @@ async function createDSOSearchResult(
   tonight: NightInfo
 ): Promise<ObjectSearchResult> {
   const hemisphereCheck = canObjectEverBeVisible(dso.decDegrees, calculator.getLatitude());
+  const optimalCheck = canObjectReachOptimal(dso.decDegrees, calculator.getLatitude());
 
   // Calculate angular size from major/minor axes
   const angularSize = dso.majorAxisArcmin || null;
+
+  // DSOs have fixed coordinates
+  const getRaDec = () => ({ ra: dso.raHours, dec: dso.decDegrees });
 
   if (!hemisphereCheck.canBeVisible) {
     return {
@@ -396,6 +536,9 @@ async function createDSOSearchResult(
       isMovingObject: false,
       angularSizeArcmin: angularSize,
       azimuthAtPeak: null,
+      canReachOptimal: optimalCheck.canReach,
+      optimalAltitudeNote: optimalCheck.note,
+      nextOptimalDate: null,
     };
   }
 
@@ -403,6 +546,19 @@ async function createDSOSearchResult(
   const tonightResult = checkVisibilityForNight(dso.raHours, dso.decDegrees, calculator, tonight);
 
   if (tonightResult.isVisible && tonightResult.visibility) {
+    const isOptimalTonight = tonightResult.visibility.maxAltitude >= OPTIMAL_ALTITUDE;
+    let nextOptimalDate: Date | null = null;
+
+    // If visible but not optimal, find when it will be optimal
+    if (!isOptimalTonight && optimalCheck.canReach) {
+      const tomorrow = new Date(tonight.date);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const nextOptimal = await findNextOptimalNight(getRaDec, calculator, tomorrow);
+      if (nextOptimal) {
+        nextOptimalDate = nextOptimal.date;
+      }
+    }
+
     return {
       objectName: dso.name,
       displayName: dso.commonName || dso.name,
@@ -424,19 +580,33 @@ async function createDSOSearchResult(
       isMovingObject: false,
       angularSizeArcmin: angularSize,
       azimuthAtPeak: tonightResult.visibility.azimuthAtPeak ?? null,
+      canReachOptimal: isOptimalTonight || nextOptimalDate !== null,
+      optimalAltitudeNote: optimalCheck.note,
+      nextOptimalDate,
     };
   }
 
-  // Find next visible night (DSOs have fixed coordinates)
-  const getRaDec = () => ({ ra: dso.raHours, dec: dso.decDegrees });
+  // Find next visible night
   const nextVisible = await findNextVisibleNight(getRaDec, calculator, tonight.date);
 
   if (nextVisible) {
     const daysUntil = Math.round(
       (nextVisible.date.getTime() - tonight.date.getTime()) / (1000 * 60 * 60 * 24)
     );
-    const status: ObjectVisibilityStatus =
-      daysUntil <= 30 ? 'visible_soon' : 'visible_later';
+    const status: ObjectVisibilityStatus = daysUntil <= 30 ? 'visible_soon' : 'visible_later';
+
+    // Check if optimal on that night
+    const isOptimalThatNight = nextVisible.visibility.maxAltitude >= OPTIMAL_ALTITUDE;
+    let nextOptimalDate: Date | null = isOptimalThatNight ? nextVisible.date : null;
+
+    if (!isOptimalThatNight && optimalCheck.canReach) {
+      const dayAfter = new Date(nextVisible.date);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+      const nextOptimal = await findNextOptimalNight(getRaDec, calculator, dayAfter);
+      if (nextOptimal) {
+        nextOptimalDate = nextOptimal.date;
+      }
+    }
 
     return {
       objectName: dso.name,
@@ -459,6 +629,9 @@ async function createDSOSearchResult(
       isMovingObject: false,
       angularSizeArcmin: angularSize,
       azimuthAtPeak: nextVisible.visibility.azimuthAtPeak ?? null,
+      canReachOptimal: nextOptimalDate !== null,
+      optimalAltitudeNote: optimalCheck.note,
+      nextOptimalDate,
     };
   }
 
@@ -484,6 +657,9 @@ async function createDSOSearchResult(
     isMovingObject: false,
     angularSizeArcmin: angularSize,
     azimuthAtPeak: null,
+    canReachOptimal: optimalCheck.canReach,
+    optimalAltitudeNote: optimalCheck.note,
+    nextOptimalDate: null,
   };
 }
 
@@ -505,6 +681,7 @@ async function createPlanetSearchResult(
   const currentPos = getPlanetPosition(planetName, now, observer);
 
   const hemisphereCheck = canObjectEverBeVisible(currentPos.dec, calculator.getLatitude());
+  const optimalCheck = canObjectReachOptimal(currentPos.dec, calculator.getLatitude());
 
   // Planets move, so we need a different approach
   const getRaDec = (time: Date) => {
@@ -514,16 +691,25 @@ async function createPlanetSearchResult(
 
   // Check tonight
   const tonightPos = getRaDec(tonight.date);
-  const tonightResult = checkVisibilityForNight(
-    tonightPos.ra,
-    tonightPos.dec,
-    calculator,
-    tonight
-  );
+  const tonightResult = checkVisibilityForNight(tonightPos.ra, tonightPos.dec, calculator, tonight);
 
   if (tonightResult.isVisible && tonightResult.visibility) {
     // Calculate planet visibility with proper method
     const visibility = calculator.calculatePlanetVisibility(planetName, tonight);
+    const isOptimalTonight = visibility.maxAltitude >= OPTIMAL_ALTITUDE;
+    let nextOptimalDate: Date | null = null;
+    let optimalNote = optimalCheck.note;
+
+    if (!isOptimalTonight) {
+      const tomorrow = new Date(tonight.date);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const nextOptimal = await findNextOptimalNight(getRaDec, calculator, tomorrow);
+      if (nextOptimal) {
+        nextOptimalDate = nextOptimal.date;
+      } else {
+        optimalNote = `Best tonight: ${visibility.maxAltitude.toFixed(0)}° (optimal is ${OPTIMAL_ALTITUDE}°+)`;
+      }
+    }
 
     return {
       objectName: planetName,
@@ -544,8 +730,11 @@ async function createPlanetSearchResult(
       neverVisibleReason: null,
       maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
       isMovingObject: true,
-      angularSizeArcmin: null, // Planets use apparent diameter in arcsec
+      angularSizeArcmin: null,
       azimuthAtPeak: visibility.azimuthAtPeak ?? null,
+      canReachOptimal: isOptimalTonight || nextOptimalDate !== null,
+      optimalAltitudeNote: optimalNote,
+      nextOptimalDate,
     };
   }
 
@@ -556,8 +745,19 @@ async function createPlanetSearchResult(
     const daysUntil = Math.round(
       (nextVisible.date.getTime() - tonight.date.getTime()) / (1000 * 60 * 60 * 24)
     );
-    const status: ObjectVisibilityStatus =
-      daysUntil <= 30 ? 'visible_soon' : 'visible_later';
+    const status: ObjectVisibilityStatus = daysUntil <= 30 ? 'visible_soon' : 'visible_later';
+
+    const isOptimalThatNight = nextVisible.visibility.maxAltitude >= OPTIMAL_ALTITUDE;
+    let nextOptimalDate: Date | null = isOptimalThatNight ? nextVisible.date : null;
+
+    if (!isOptimalThatNight) {
+      const dayAfter = new Date(nextVisible.date);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+      const nextOptimal = await findNextOptimalNight(getRaDec, calculator, dayAfter);
+      if (nextOptimal) {
+        nextOptimalDate = nextOptimal.date;
+      }
+    }
 
     return {
       objectName: planetName,
@@ -580,6 +780,9 @@ async function createPlanetSearchResult(
       isMovingObject: true,
       angularSizeArcmin: null,
       azimuthAtPeak: nextVisible.visibility.azimuthAtPeak ?? null,
+      canReachOptimal: nextOptimalDate !== null,
+      optimalAltitudeNote: optimalCheck.note,
+      nextOptimalDate,
     };
   }
 
@@ -604,6 +807,9 @@ async function createPlanetSearchResult(
     isMovingObject: true,
     angularSizeArcmin: null,
     azimuthAtPeak: null,
+    canReachOptimal: false,
+    optimalAltitudeNote: 'Not visible within search period',
+    nextOptimalDate: null,
   };
 }
 
@@ -643,22 +849,36 @@ async function createCometSearchResult(
       isMovingObject: true,
       angularSizeArcmin: null,
       azimuthAtPeak: null,
+      canReachOptimal: false,
+      optimalAltitudeNote: 'Unable to calculate',
+      nextOptimalDate: null,
     };
   }
 
   const hemisphereCheck = canObjectEverBeVisible(tonightPos.dec, calculator.getLatitude());
+  const optimalCheck = canObjectReachOptimal(tonightPos.dec, calculator.getLatitude());
 
   // Check tonight
-  const tonightResult = checkVisibilityForNight(
-    tonightPos.ra,
-    tonightPos.dec,
-    calculator,
-    tonight
-  );
+  const tonightResult = checkVisibilityForNight(tonightPos.ra, tonightPos.dec, calculator, tonight);
 
   if (tonightResult.isVisible && tonightResult.visibility) {
     tonightResult.visibility.magnitude = tonightPos.magnitude;
     tonightResult.visibility.isInterstellar = comet.isInterstellar;
+
+    const isOptimalTonight = tonightResult.visibility.maxAltitude >= OPTIMAL_ALTITUDE;
+    let nextOptimalDate: Date | null = null;
+    let optimalNote = optimalCheck.note;
+
+    if (!isOptimalTonight) {
+      const tomorrow = new Date(tonight.date);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const nextOptimal = await findNextOptimalNight(getRaDec, calculator, tomorrow);
+      if (nextOptimal) {
+        nextOptimalDate = nextOptimal.date;
+      } else if (!optimalCheck.canReach) {
+        optimalNote = `Best tonight: ${tonightResult.visibility.maxAltitude.toFixed(0)}° (optimal is ${OPTIMAL_ALTITUDE}°+)`;
+      }
+    }
 
     return {
       objectName: comet.designation,
@@ -681,6 +901,9 @@ async function createCometSearchResult(
       isMovingObject: true,
       angularSizeArcmin: null,
       azimuthAtPeak: tonightResult.visibility.azimuthAtPeak ?? null,
+      canReachOptimal: isOptimalTonight || nextOptimalDate !== null,
+      optimalAltitudeNote: optimalNote,
+      nextOptimalDate,
     };
   }
 
@@ -691,8 +914,19 @@ async function createCometSearchResult(
     const daysUntil = Math.round(
       (nextVisible.date.getTime() - tonight.date.getTime()) / (1000 * 60 * 60 * 24)
     );
-    const status: ObjectVisibilityStatus =
-      daysUntil <= 30 ? 'visible_soon' : 'visible_later';
+    const status: ObjectVisibilityStatus = daysUntil <= 30 ? 'visible_soon' : 'visible_later';
+
+    const isOptimalThatNight = nextVisible.visibility.maxAltitude >= OPTIMAL_ALTITUDE;
+    let nextOptimalDate: Date | null = isOptimalThatNight ? nextVisible.date : null;
+
+    if (!isOptimalThatNight) {
+      const dayAfter = new Date(nextVisible.date);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+      const nextOptimal = await findNextOptimalNight(getRaDec, calculator, dayAfter);
+      if (nextOptimal) {
+        nextOptimalDate = nextOptimal.date;
+      }
+    }
 
     return {
       objectName: comet.designation,
@@ -715,6 +949,9 @@ async function createCometSearchResult(
       isMovingObject: true,
       angularSizeArcmin: null,
       azimuthAtPeak: nextVisible.visibility.azimuthAtPeak ?? null,
+      canReachOptimal: nextOptimalDate !== null,
+      optimalAltitudeNote: optimalCheck.note,
+      nextOptimalDate,
     };
   }
 
@@ -739,6 +976,9 @@ async function createCometSearchResult(
     isMovingObject: true,
     angularSizeArcmin: null,
     azimuthAtPeak: null,
+    canReachOptimal: false,
+    optimalAltitudeNote: 'Not visible within search period',
+    nextOptimalDate: null,
   };
 }
 
@@ -780,21 +1020,35 @@ async function createMinorPlanetSearchResult(
       isMovingObject: true,
       angularSizeArcmin: null,
       azimuthAtPeak: null,
+      canReachOptimal: false,
+      optimalAltitudeNote: 'Unable to calculate',
+      nextOptimalDate: null,
     };
   }
 
   const hemisphereCheck = canObjectEverBeVisible(tonightPos.dec, calculator.getLatitude());
+  const optimalCheck = canObjectReachOptimal(tonightPos.dec, calculator.getLatitude());
 
   // Check tonight
-  const tonightResult = checkVisibilityForNight(
-    tonightPos.ra,
-    tonightPos.dec,
-    calculator,
-    tonight
-  );
+  const tonightResult = checkVisibilityForNight(tonightPos.ra, tonightPos.dec, calculator, tonight);
 
   if (tonightResult.isVisible && tonightResult.visibility) {
     tonightResult.visibility.magnitude = tonightPos.magnitude;
+
+    const isOptimalTonight = tonightResult.visibility.maxAltitude >= OPTIMAL_ALTITUDE;
+    let nextOptimalDate: Date | null = null;
+    let optimalNote = optimalCheck.note;
+
+    if (!isOptimalTonight) {
+      const tomorrow = new Date(tonight.date);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const nextOptimal = await findNextOptimalNight(getRaDec, calculator, tomorrow);
+      if (nextOptimal) {
+        nextOptimalDate = nextOptimal.date;
+      } else if (!optimalCheck.canReach) {
+        optimalNote = `Best tonight: ${tonightResult.visibility.maxAltitude.toFixed(0)}° (optimal is ${OPTIMAL_ALTITUDE}°+)`;
+      }
+    }
 
     return {
       objectName: mp.name,
@@ -817,6 +1071,9 @@ async function createMinorPlanetSearchResult(
       isMovingObject: true,
       angularSizeArcmin: null,
       azimuthAtPeak: tonightResult.visibility.azimuthAtPeak ?? null,
+      canReachOptimal: isOptimalTonight || nextOptimalDate !== null,
+      optimalAltitudeNote: optimalNote,
+      nextOptimalDate,
     };
   }
 
@@ -827,8 +1084,19 @@ async function createMinorPlanetSearchResult(
     const daysUntil = Math.round(
       (nextVisible.date.getTime() - tonight.date.getTime()) / (1000 * 60 * 60 * 24)
     );
-    const status: ObjectVisibilityStatus =
-      daysUntil <= 30 ? 'visible_soon' : 'visible_later';
+    const status: ObjectVisibilityStatus = daysUntil <= 30 ? 'visible_soon' : 'visible_later';
+
+    const isOptimalThatNight = nextVisible.visibility.maxAltitude >= OPTIMAL_ALTITUDE;
+    let nextOptimalDate: Date | null = isOptimalThatNight ? nextVisible.date : null;
+
+    if (!isOptimalThatNight) {
+      const dayAfter = new Date(nextVisible.date);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+      const nextOptimal = await findNextOptimalNight(getRaDec, calculator, dayAfter);
+      if (nextOptimal) {
+        nextOptimalDate = nextOptimal.date;
+      }
+    }
 
     return {
       objectName: mp.name,
@@ -851,6 +1119,9 @@ async function createMinorPlanetSearchResult(
       isMovingObject: true,
       angularSizeArcmin: null,
       azimuthAtPeak: nextVisible.visibility.azimuthAtPeak ?? null,
+      canReachOptimal: nextOptimalDate !== null,
+      optimalAltitudeNote: optimalCheck.note,
+      nextOptimalDate,
     };
   }
 
@@ -870,11 +1141,15 @@ async function createMinorPlanetSearchResult(
     nextVisibleNightInfo: null,
     visibility: null,
     neverVisible: !hemisphereCheck.canBeVisible,
-    neverVisibleReason: hemisphereCheck.reason || 'Object not visible at night within the next year',
+    neverVisibleReason:
+      hemisphereCheck.reason || 'Object not visible at night within the next year',
     maxPossibleAltitude: hemisphereCheck.maxPossibleAltitude,
     isMovingObject: true,
     angularSizeArcmin: null,
     azimuthAtPeak: null,
+    canReachOptimal: false,
+    optimalAltitudeNote: 'Not visible within search period',
+    nextOptimalDate: null,
   };
 }
 
