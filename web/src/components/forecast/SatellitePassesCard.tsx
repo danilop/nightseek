@@ -175,8 +175,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
             <div className="text-center py-4">
               <Rocket className="w-8 h-8 text-gray-600 mx-auto mb-2" />
               <p className="text-gray-400 text-sm">
-                No ISS passes visible {getNightLabel(nightInfo.date)} from your
-                location
+                No ISS passes visible {getNightLabel(nightInfo.date)} from your location
               </p>
               <p className="text-gray-500 text-xs mt-1">
                 Passes require dark skies and the ISS to be sunlit
