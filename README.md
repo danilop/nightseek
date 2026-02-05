@@ -1,8 +1,23 @@
 # NightSeek
 
-A Python CLI tool for planning astronomy observations based on celestial object visibility. Generate forecasts showing when planets, deep sky objects, comets, and other celestial targets are optimally positioned in the night sky.
+An astronomy observation planning tool with both a **Web App** and **CLI**. Generate forecasts showing when planets, deep sky objects, comets, and other celestial targets are optimally positioned in the night sky.
 
-## Quickstart
+## Web App
+
+**Try it now**: https://danilop.github.io/nightseek/
+
+The web app is a Progressive Web App (PWA) that works on desktop and mobile:
+- **Offline Support**: Install as an app and use without internet
+- **Interactive Sky Chart**: Visual representation of the night sky
+- **Object Search**: Find any celestial object by name (M31, Jupiter, Orion, etc.)
+- **Weather Integration**: Real-time cloud cover and observing conditions
+- **Drag & Drop**: Reorder categories to personalize your view
+
+## CLI Tool
+
+For terminal users who prefer command-line tools.
+
+### Quickstart
 
 ### 1. Install uv
 
@@ -83,12 +98,22 @@ nightseek -n 10        # Show top 10 objects per night
 
 ## Development Setup
 
-For contributors and developers who want to work on NightSeek:
+NightSeek has two components managed by different package managers:
+- **CLI (Python)**: Managed with [uv](https://docs.astral.sh/uv/)
+- **Web App (TypeScript/React)**: Managed with [pnpm](https://pnpm.io/)
+
+### Clone the Repository
 
 ```bash
-# Clone the repository
 git clone https://github.com/danilop/nightseek.git
 cd nightseek
+```
+
+### CLI Development (Python + uv)
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install dependencies
 uv sync
@@ -98,7 +123,39 @@ uv run nightseek
 
 # Run tests
 uv run pytest
+
+# Search for objects
+uv run nightseek --search "M31"
 ```
+
+### Web App Development (TypeScript + pnpm)
+
+```bash
+# Install pnpm (if not already installed)
+npm install -g pnpm
+
+# Navigate to web directory
+cd web
+
+# Install dependencies
+pnpm install
+
+# Start development server
+pnpm dev
+
+# Run tests
+pnpm test
+
+# Build for production
+pnpm build
+```
+
+The web app is built with:
+- **React 19** + **TypeScript**
+- **Vite** for fast builds
+- **Tailwind CSS** for styling
+- **astronomy-engine** for calculations
+- **Vitest** for testing
 
 ## Configuration
 
@@ -200,6 +257,17 @@ Run the interactive setup again to change your location:
 
 ```bash
 nightseek --setup
+```
+
+### Search for Objects
+
+Find any celestial object and check its visibility:
+
+```bash
+nightseek --search "M31"        # Andromeda Galaxy
+nightseek --search "Jupiter"    # Planet
+nightseek --search "Orion"      # Orion Nebula
+nightseek -s "NGC 7000"         # North America Nebula
 ```
 
 ### Help
@@ -464,13 +532,21 @@ nightseek/
 ├── catalog.py          # Celestial object catalog (planets, comets, asteroids)
 ├── opengc_loader.py    # OpenNGC catalog integration
 ├── analyzer.py         # Visibility analysis engine (conjunctions, scoring)
+├── search.py           # Object search functionality
 ├── scoring.py          # Professional merit-based scoring algorithm
 ├── weather.py          # Weather forecast integration (Open-Meteo)
 ├── formatter.py        # Output formatting
 ├── timezone_utils.py   # Timezone conversion utilities
 ├── cache_manager.py    # Unified caching for external data
-├── test_nightseek.py   # Test suite
-├── pyproject.toml      # Project dependencies
+├── pyproject.toml      # Python dependencies (uv)
+├── uv.lock             # Locked Python dependencies
+├── web/                # Web application
+│   ├── src/            # React/TypeScript source
+│   ├── package.json    # Node dependencies (pnpm)
+│   ├── pnpm-lock.yaml  # Locked Node dependencies
+│   └── vite.config.ts  # Vite configuration
+├── .github/workflows/  # CI/CD
+│   └── deploy.yml      # GitHub Pages deployment
 └── LICENSE             # MIT License
 ```
 
