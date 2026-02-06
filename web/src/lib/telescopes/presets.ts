@@ -9,7 +9,7 @@ export const TELESCOPE_PRESETS: TelescopePreset[] = [
   { id: 'dwarf_ii', name: 'Dwarf II', fovWidth: 180, fovHeight: 100 },
   { id: 'dwarf_3', name: 'Dwarf 3', fovWidth: 174, fovHeight: 99 },
   { id: 'seestar_s30', name: 'Seestar S30', fovWidth: 72, fovHeight: 128 },
-  { id: 'seestar_s30_pro', name: 'Seestar S30 Pro', fovWidth: 240, fovHeight: 134 },
+  { id: 'seestar_s30_pro', name: 'Seestar S30 Pro', fovWidth: 134, fovHeight: 240 },
   { id: 'seestar_s50', name: 'Seestar S50', fovWidth: 42, fovHeight: 78 },
   { id: 'unistellar_evscope', name: 'Unistellar eVscope/eQuinox', fovWidth: 27, fovHeight: 37 },
   {
