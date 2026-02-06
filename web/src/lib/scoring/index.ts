@@ -1,6 +1,7 @@
 import { getNightLabel } from '@/lib/utils/format';
 import type {
   DSOSubtype,
+  ImagingWindow,
   LunarApsis,
   NightInfo,
   NightWeather,
@@ -126,7 +127,7 @@ export function calculatePeakTimingScore(peakTime: Date | null, dusk: Date, dawn
 }
 
 /**
- * Calculate weather score (0-15 points)
+ * Calculate weather score (0-10 points)
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Weather scoring combines multiple atmospheric factors
 export function calculateWeatherScore(
@@ -134,7 +135,7 @@ export function calculateWeatherScore(
   objectType: ObjectCategory,
   _subtype: DSOSubtype | null
 ): number {
-  if (!weather) return 7.5; // Default middle score
+  if (!weather) return 5; // Default middle score
 
   const isDeepSky = objectType === 'dso' || objectType === 'milky_way' || objectType === 'comet';
   const isPlanet = objectType === 'planet';
@@ -204,9 +205,9 @@ export function calculateWeatherScore(
     else windFactor = 0.4;
   }
 
-  // Combine factors and scale to 0-15
+  // Combine factors and scale to 0-10
   const composite = baseScore * aodFactor * transparencyFactor * precipFactor * windFactor;
-  return Math.round(composite * 15);
+  return Math.round(composite * 10);
 }
 
 /**
@@ -573,6 +574,39 @@ export function calculateDewRiskPenalty(weather: NightWeather | null): number {
 }
 
 /**
+ * Calculate imaging window score (0-25 points)
+ * Rewards objects whose best imaging window has high quality and long duration.
+ * This provides time-correlated scoring — it checks whether the hours when the
+ * object is high also have good weather/moon conditions.
+ */
+export function calculateImagingWindowScore(
+  imagingWindow: ImagingWindow | undefined,
+  weather: NightWeather | null
+): number {
+  // No weather data → neutral score (don't penalize when we can't assess)
+  if (!weather) return 10;
+
+  // Weather exists but no imaging window (object never reaches quality ≥50)
+  if (!imagingWindow) return 0;
+
+  // Quality tier base score
+  let qualityBase: number;
+  if (imagingWindow.qualityScore >= 85)
+    qualityBase = 20; // excellent
+  else if (imagingWindow.qualityScore >= 70)
+    qualityBase = 15; // good
+  else qualityBase = 8; // acceptable (≥50)
+
+  // Duration bonus: up to +5 points for longer windows (3+ hours = full bonus)
+  const durationMs = imagingWindow.end.getTime() - imagingWindow.start.getTime();
+  const durationHours = durationMs / (60 * 60 * 1000);
+  // Linear scale from 0.5h (0 bonus) to 3h (5 bonus)
+  const durationBonus = Math.min(5, Math.max(0, ((durationHours - 0.5) / 2.5) * 5));
+
+  return Math.round(qualityBase + durationBonus);
+}
+
+/**
  * Calculate total score for an object
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Total score combines many individual scoring components
@@ -657,6 +691,7 @@ export function calculateTotalScore(
   const venusPeakBonus = calculateVenusPeakBonus(objectName, venusPeak);
   const seeingQuality = calculateSeeingQualityScore(nightInfo.seeingForecast, objectType);
   const dewRiskPenalty = calculateDewRiskPenalty(weather);
+  const imagingWindowScore = calculateImagingWindowScore(visibility.imagingWindow, weather);
 
   const totalScore =
     altitudeScore +
@@ -677,7 +712,8 @@ export function calculateTotalScore(
     twilightPenalty +
     venusPeakBonus +
     seeingQuality +
-    dewRiskPenalty;
+    dewRiskPenalty +
+    imagingWindowScore;
 
   const scoreBreakdown: ScoreBreakdown = {
     altitudeScore,
@@ -699,6 +735,7 @@ export function calculateTotalScore(
     venusPeakBonus,
     seeingQuality,
     dewRiskPenalty,
+    imagingWindowScore,
   };
 
   // Generate reason string
@@ -717,6 +754,7 @@ export function calculateTotalScore(
   if (venusPeakBonus >= 4) reasons.push('Peak brightness');
   if (seeingQuality >= 6) reasons.push('Good seeing');
   if (dewRiskPenalty < -3) reasons.push('Dew risk');
+  if (imagingWindowScore >= 15) reasons.push('Good imaging conditions');
 
   return {
     objectName,
@@ -769,7 +807,7 @@ export function getTierDisplay(tier: ScoreTier): { stars: number; label: string;
 /**
  * Normalize a score to 0-100 scale
  */
-export function normalizeScore(score: number, maxScore: number = 200): number {
+export function normalizeScore(score: number, maxScore: number = 220): number {
   if (maxScore <= 0) return 0;
   return Math.max(0, Math.min(100, (score / maxScore) * 100));
 }

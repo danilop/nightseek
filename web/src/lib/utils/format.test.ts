@@ -187,7 +187,7 @@ describe('format utils', () => {
 
   describe('formatScore', () => {
     it('should format score with default max', () => {
-      expect(formatScore(150)).toBe('150/200');
+      expect(formatScore(150)).toBe('150/220');
     });
 
     it('should format score with custom max', () => {

@@ -253,7 +253,7 @@ export default function ObjectCard({
               <h4 className="text-white font-medium truncate">
                 {visibility.commonName || visibility.objectName}
               </h4>
-              <RatingStars score={totalScore} maxScore={200} size="sm" />
+              <RatingStars score={totalScore} maxScore={220} size="sm" />
             </div>
             <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
               <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
@@ -265,6 +265,20 @@ export default function ObjectCard({
               {magnitude !== null && <span>mag {formatMagnitude(magnitude)}</span>}
               {subtype && <span className="text-gray-500">• {formatSubtype(subtype)}</span>}
             </div>
+            {visibility.imagingWindow && (
+              <div className="flex items-center gap-1.5 text-xs mt-1">
+                <Camera className="w-3 h-3 text-green-400" />
+                <span
+                  className={`font-medium ${getImagingQualityColorClass(visibility.imagingWindow.quality)}`}
+                >
+                  {visibility.imagingWindow.quality.charAt(0).toUpperCase() +
+                    visibility.imagingWindow.quality.slice(1)}
+                </span>
+                <span className="text-gray-500">
+                  {formatTimeRange(visibility.imagingWindow.start, visibility.imagingWindow.end)}
+                </span>
+              </div>
+            )}
           </div>
           {isDSO && onDSOClick ? (
             <span className="text-xs text-sky-400">View</span>
@@ -310,7 +324,7 @@ export default function ObjectCard({
         <span className="text-3xl">{icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <RatingStars score={totalScore} maxScore={200} size="sm" />
+            <RatingStars score={totalScore} maxScore={220} size="sm" />
           </div>
           <h4 className="text-white font-medium">
             {visibility.commonName || visibility.objectName}
@@ -320,7 +334,7 @@ export default function ObjectCard({
           )}
         </div>
         <div className="text-right">
-          <Rating score={totalScore} maxScore={200} showStars={false} size="lg" />
+          <Rating score={totalScore} maxScore={220} showStars={false} size="lg" />
         </div>
       </div>
 
@@ -406,7 +420,7 @@ function ScoreDetails({ breakdown }: { breakdown: ScoredObject['scoreBreakdown']
       </div>
       <div className="flex justify-between">
         <span className="text-gray-500">Weather</span>
-        <span className="text-gray-300">{breakdown.weatherScore}/15</span>
+        <span className="text-gray-300">{breakdown.weatherScore}/10</span>
       </div>
       <div className="flex justify-between">
         <span className="text-gray-500">Brightness</span>
@@ -473,6 +487,12 @@ function ScoreDetails({ breakdown }: { breakdown: ScoredObject['scoreBreakdown']
         <div className="flex justify-between">
           <span className="text-blue-400">Dew Risk</span>
           <span className="text-blue-400">{breakdown.dewRiskPenalty}</span>
+        </div>
+      )}
+      {breakdown.imagingWindowScore > 0 && (
+        <div className="flex justify-between">
+          <span className="text-green-400">Imaging Window</span>
+          <span className="text-green-400">+{breakdown.imagingWindowScore}</span>
         </div>
       )}
     </div>

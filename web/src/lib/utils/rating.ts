@@ -96,7 +96,7 @@ export function getTierConfig(tier: RatingTier): { stars: number; label: string;
 /**
  * Normalize a score to 0-100 scale
  */
-export function normalizeScore(score: number, maxScore: number = 200): number {
+export function normalizeScore(score: number, maxScore: number = 220): number {
   if (maxScore <= 0) return 0;
   return Math.max(0, Math.min(100, (score / maxScore) * 100));
 }

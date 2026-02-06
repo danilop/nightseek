@@ -149,7 +149,7 @@ export default function DSODetailModal({
         <div className="p-4 space-y-4 overflow-y-auto flex-1">
           {/* Rating and basic info */}
           <div className="flex items-center justify-between">
-            <RatingStars score={totalScore} maxScore={200} size="md" />
+            <RatingStars score={totalScore} maxScore={220} size="md" />
             <div className="flex items-center gap-2 text-sm">
               {magnitude !== null && (
                 <span className="text-gray-400">mag {formatMagnitude(magnitude)}</span>
@@ -264,6 +264,12 @@ export default function DSODetailModal({
                 Quality: {visibility.imagingWindow.quality} (score:{' '}
                 {visibility.imagingWindow.qualityScore})
               </div>
+              <div className="mt-3 space-y-2">
+                <FactorBar label="Altitude" value={visibility.imagingWindow.factors.altitude} />
+                <FactorBar label="Airmass" value={visibility.imagingWindow.factors.airmass} />
+                <FactorBar label="Moon" value={visibility.imagingWindow.factors.moonInterference} />
+                <FactorBar label="Clouds" value={visibility.imagingWindow.factors.cloudCover} />
+              </div>
             </div>
           )}
 
@@ -346,4 +352,29 @@ function DetailItem({
     return <Tooltip content={tooltip}>{content}</Tooltip>;
   }
   return content;
+}
+
+function FactorBar({ label, value }: { label: string; value: number }) {
+  const clampedValue = Math.max(0, Math.min(100, value));
+  const colorClass =
+    clampedValue >= 75
+      ? 'bg-green-400'
+      : clampedValue >= 50
+        ? 'bg-yellow-400'
+        : clampedValue >= 25
+          ? 'bg-orange-400'
+          : 'bg-red-400';
+
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="text-gray-400 w-14 shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 bg-night-700 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full ${colorClass}`}
+          style={{ width: `${clampedValue}%` }}
+        />
+      </div>
+      <span className="text-gray-500 w-8 text-right">{Math.round(clampedValue)}</span>
+    </div>
+  );
 }
