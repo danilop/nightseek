@@ -23,8 +23,9 @@ function mapTypeToSubtype(type: string): DSOSubtype {
     GCl: 'globular_cluster',
     Ast: 'asterism',
     DN: 'dark_nebula',
-    'Cl+N': 'open_cluster', // Cluster with nebulosity
+    'Cl+N': 'cluster_nebula', // Cluster with nebulosity (e.g., M42 Orion Nebula)
     Neb: 'nebula',
+    Other: 'other',
   };
 
   return mapping[type] || 'other';
@@ -120,7 +121,7 @@ export async function loadOpenNGCCatalog(
   const catalog: DSOCatalogEntry[] = [];
 
   // Skip types that aren't DSOs
-  const skipTypes = new Set(['NonEx', 'Dup', '*', '**', '*Ass']);
+  const skipTypes = new Set(['NonEx', 'Dup', '*', '**', '*Ass', 'Nova']);
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
