@@ -616,6 +616,72 @@ export function calculateImagingWindowScore(
 }
 
 /**
+ * Calculate FOV suitability score (0-15 points)
+ * Rewards objects that fill a meaningful portion of the telescope's field of view.
+ * Planets/Moon are exempt (viewed via digital zoom). Unknown sizes get neutral score.
+ */
+export function calculateFOVSuitabilityScore(
+  angularSizeArcmin: number,
+  objectType: ObjectCategory,
+  fov: { width: number; height: number } | null
+): number {
+  // Planets and Moon are always tiny but viewed via digital zoom — neutral
+  if (objectType === 'planet' || objectType === 'moon') return 10;
+
+  // Unknown size — neutral
+  if (angularSizeArcmin <= 0) return 10;
+
+  // No FOV info — neutral
+  if (!fov) return 10;
+
+  const minFovDim = Math.min(fov.width, fov.height);
+  if (minFovDim <= 0) return 10;
+
+  const fillRatio = angularSizeArcmin / minFovDim;
+
+  if (fillRatio >= 0.1) return 15;
+  if (fillRatio >= 0.05) return 12;
+  if (fillRatio >= 0.02) return 8;
+  if (fillRatio >= 0.01) return 4;
+  return 0;
+}
+
+/**
+ * Calculate mosaic panels needed for an object larger than the FOV.
+ * Returns null if the object fits in a single frame.
+ */
+export function calculateMosaicPanels(
+  angularSizeArcmin: number,
+  fov: { width: number; height: number } | null
+): { cols: number; rows: number } | null {
+  if (!fov || angularSizeArcmin <= 0) return null;
+
+  // Object fits in a single frame
+  if (angularSizeArcmin <= fov.width && angularSizeArcmin <= fov.height) return null;
+
+  const cols = Math.ceil(angularSizeArcmin / fov.width);
+  const rows = Math.ceil(angularSizeArcmin / fov.height);
+
+  return { cols, rows };
+}
+
+/**
+ * Calculate frame fill percentage — how much of the FOV's shorter dimension
+ * the object occupies. Returns null for planets/moon or unknown sizes.
+ */
+export function calculateFrameFillPercent(
+  angularSizeArcmin: number,
+  objectType: ObjectCategory,
+  fov: { width: number; height: number } | null
+): number | null {
+  if (objectType === 'planet' || objectType === 'moon') return null;
+  if (angularSizeArcmin <= 0 || !fov) return null;
+  const minFovDim = Math.min(fov.width, fov.height);
+  if (minFovDim <= 0) return null;
+  return Math.round((angularSizeArcmin / minFovDim) * 100);
+}
+
+/**
  * Calculate total score for an object
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Total score combines many individual scoring components
@@ -626,7 +692,8 @@ export function calculateTotalScore(
   sunRaHours: number,
   oppositions: OppositionEvent[] = [],
   lunarApsis: LunarApsis | null = null,
-  venusPeak: VenusPeakInfo | null = null
+  venusPeak: VenusPeakInfo | null = null,
+  fov: { width: number; height: number } | null = null
 ): ScoredObject {
   const {
     objectType,
@@ -701,6 +768,7 @@ export function calculateTotalScore(
   const seeingQuality = calculateSeeingQualityScore(nightInfo.seeingForecast, objectType);
   const dewRiskPenalty = calculateDewRiskPenalty(weather);
   const imagingWindowScore = calculateImagingWindowScore(visibility.imagingWindow, weather);
+  const fovSuitability = calculateFOVSuitabilityScore(angularSizeArcmin, objectType, fov);
 
   const totalScore =
     altitudeScore +
@@ -722,7 +790,8 @@ export function calculateTotalScore(
     venusPeakBonus +
     seeingQuality +
     dewRiskPenalty +
-    imagingWindowScore;
+    imagingWindowScore +
+    fovSuitability;
 
   const scoreBreakdown: ScoreBreakdown = {
     altitudeScore,
@@ -745,6 +814,7 @@ export function calculateTotalScore(
     seeingQuality,
     dewRiskPenalty,
     imagingWindowScore,
+    fovSuitability,
   };
 
   // Generate reason string
@@ -816,7 +886,7 @@ export function getTierDisplay(tier: ScoreTier): { stars: number; label: string;
 /**
  * Normalize a score to 0-100 scale
  */
-export function normalizeScore(score: number, maxScore: number = 220): number {
+export function normalizeScore(score: number, maxScore: number = 235): number {
   if (maxScore <= 0) return 0;
   return Math.max(0, Math.min(100, (score / maxScore) * 100));
 }

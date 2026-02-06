@@ -206,6 +206,7 @@ export interface ScoreBreakdown {
   seeingQuality: number; // 0-8 (atmospheric conditions)
   dewRiskPenalty: number; // -5 to 0 (high dew probability)
   imagingWindowScore: number; // 0-25 (time-correlated imaging conditions)
+  fovSuitability: number; // 0-15 (how well object fits telescope FOV)
 }
 
 export type ScoreTier = 'excellent' | 'very_good' | 'good' | 'fair' | 'poor';

@@ -4,6 +4,8 @@ import Rating, { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
 import { formatImagingWindow } from '@/lib/astronomy/imaging-windows';
 import { formatAsteroidDiameter, formatRotationPeriod } from '@/lib/jpl/sbdb';
+import { calculateFrameFillPercent, calculateMosaicPanels } from '@/lib/scoring';
+import { getEffectiveFOV } from '@/lib/telescopes';
 import {
   formatAltitude,
   formatMagnitude,
@@ -15,6 +17,7 @@ import {
 } from '@/lib/utils/format';
 import { formatSubtype } from '@/lib/utils/format-subtype';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
+import { useApp } from '@/stores/AppContext';
 import type { NightInfo, NightWeather, ObjectVisibility, ScoredObject } from '@/types';
 
 interface ObjectCardProps {
@@ -39,7 +42,8 @@ interface BadgeConfig {
 function buildBadgeConfigs(
   visibility: ObjectVisibility,
   magnitude: number | null,
-  subtype: string | null | undefined
+  subtype: string | null | undefined,
+  fov: { width: number; height: number } | null = null
 ): BadgeConfig[] {
   const badges: BadgeConfig[] = [];
 
@@ -170,6 +174,33 @@ function buildBadgeConfigs(
     }
   }
 
+  // Frame fill and mosaic badges for FOV context
+  if (fov && visibility.angularSizeArcmin > 0) {
+    const frameFill = calculateFrameFillPercent(
+      visibility.angularSizeArcmin,
+      visibility.objectType,
+      fov
+    );
+    if (frameFill !== null) {
+      badges.push({
+        id: 'frame-fill',
+        bgClass: 'bg-sky-500/20',
+        textClass: 'text-sky-400',
+        text: `${frameFill}% fill`,
+      });
+    }
+
+    const mosaic = calculateMosaicPanels(visibility.angularSizeArcmin, fov);
+    if (mosaic) {
+      badges.push({
+        id: 'mosaic',
+        bgClass: 'bg-sky-500/20',
+        textClass: 'text-sky-400',
+        text: `${mosaic.cols}\u00d7${mosaic.rows} mosaic`,
+      });
+    }
+  }
+
   return badges;
 }
 
@@ -180,12 +211,14 @@ function AstronomicalBadges({
   visibility,
   magnitude,
   subtype,
+  fov = null,
 }: {
   visibility: ObjectVisibility;
   magnitude: number | null;
   subtype: string | null | undefined;
+  fov?: { width: number; height: number } | null;
 }) {
-  const badges = buildBadgeConfigs(visibility, magnitude, subtype);
+  const badges = buildBadgeConfigs(visibility, magnitude, subtype, fov);
 
   return (
     <>
@@ -210,7 +243,10 @@ export default function ObjectCard({
   onDSOClick,
 }: ObjectCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const { state } = useApp();
+  const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const { visibility, scoreBreakdown, totalScore, category, subtype, magnitude } = object;
+  const frameFillPercent = calculateFrameFillPercent(visibility.angularSizeArcmin, category, fov);
 
   // DSO objects can be clicked to open detail modal
   const isDSO = category === 'dso';
@@ -253,7 +289,7 @@ export default function ObjectCard({
               <h4 className="text-white font-medium truncate">
                 {visibility.commonName || visibility.objectName}
               </h4>
-              <RatingStars score={totalScore} maxScore={220} size="sm" />
+              <RatingStars score={totalScore} maxScore={235} size="sm" />
             </div>
             <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
               <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
@@ -291,10 +327,15 @@ export default function ObjectCard({
 
         {expanded && !isDSO && (
           <div className="mt-3 pt-3 border-t border-night-700 space-y-2">
-            <ScoreDetails breakdown={scoreBreakdown} />
+            <ScoreDetails breakdown={scoreBreakdown} frameFillPercent={frameFillPercent} />
             <ObjectDetails visibility={visibility} />
             <div className="flex flex-wrap gap-2 pt-2">
-              <AstronomicalBadges visibility={visibility} magnitude={magnitude} subtype={subtype} />
+              <AstronomicalBadges
+                visibility={visibility}
+                magnitude={magnitude}
+                subtype={subtype}
+                fov={fov}
+              />
             </div>
           </div>
         )}
@@ -324,7 +365,7 @@ export default function ObjectCard({
         <span className="text-3xl">{icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <RatingStars score={totalScore} maxScore={220} size="sm" />
+            <RatingStars score={totalScore} maxScore={235} size="sm" />
           </div>
           <h4 className="text-white font-medium">
             {visibility.commonName || visibility.objectName}
@@ -334,7 +375,7 @@ export default function ObjectCard({
           )}
         </div>
         <div className="text-right">
-          <Rating score={totalScore} maxScore={220} showStars={false} size="lg" />
+          <Rating score={totalScore} maxScore={235} showStars={false} size="lg" />
         </div>
       </div>
 
@@ -397,13 +438,24 @@ export default function ObjectCard({
       )}
 
       <div className="mt-3 pt-3 border-t border-night-700 flex flex-wrap gap-2">
-        <AstronomicalBadges visibility={visibility} magnitude={magnitude} subtype={subtype} />
+        <AstronomicalBadges
+          visibility={visibility}
+          magnitude={magnitude}
+          subtype={subtype}
+          fov={fov}
+        />
       </div>
     </div>
   );
 }
 
-function ScoreDetails({ breakdown }: { breakdown: ScoredObject['scoreBreakdown'] }) {
+function ScoreDetails({
+  breakdown,
+  frameFillPercent,
+}: {
+  breakdown: ScoredObject['scoreBreakdown'];
+  frameFillPercent?: number | null;
+}) {
   return (
     <div className="grid grid-cols-2 gap-2 text-xs">
       <div className="flex justify-between">
@@ -493,6 +545,14 @@ function ScoreDetails({ breakdown }: { breakdown: ScoredObject['scoreBreakdown']
         <div className="flex justify-between">
           <span className="text-green-400">Imaging Window</span>
           <span className="text-green-400">+{breakdown.imagingWindowScore}</span>
+        </div>
+      )}
+      {breakdown.fovSuitability < 15 && (
+        <div className="flex justify-between">
+          <span className="text-sky-400">
+            FOV Fit{frameFillPercent != null ? ` (${frameFillPercent}%)` : ''}
+          </span>
+          <span className="text-sky-400">{breakdown.fovSuitability}/15</span>
         </div>
       )}
     </div>

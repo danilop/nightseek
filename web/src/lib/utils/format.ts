@@ -166,7 +166,7 @@ export function getAltitudeQualityClass(altitude: number): string {
 /**
  * Format score with tier
  */
-export function formatScore(score: number, maxScore: number = 220): string {
+export function formatScore(score: number, maxScore: number = 235): string {
   return `${score}/${maxScore}`;
 }
 

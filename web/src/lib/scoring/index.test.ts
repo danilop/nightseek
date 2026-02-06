@@ -10,10 +10,12 @@ import {
   calculateAltitudeScore,
   calculateDewRiskPenalty,
   calculateElongationBonus,
+  calculateFOVSuitabilityScore,
   calculateImagingWindowScore,
   calculateMagnitudeScore,
   calculateMeridianBonus,
   calculateMoonInterference,
+  calculateMosaicPanels,
   calculateOppositionBonus,
   calculatePeakTimingScore,
   calculatePerihelionBonus,
@@ -561,18 +563,85 @@ describe('scoring', () => {
 
   describe('normalizeScore', () => {
     it('should normalize score to 0-100 range', () => {
-      expect(normalizeScore(110, 220)).toBe(50);
-      expect(normalizeScore(165, 220)).toBe(75);
-      expect(normalizeScore(220, 220)).toBe(100);
+      expect(normalizeScore(117.5, 235)).toBe(50);
+      expect(normalizeScore(176.25, 235)).toBe(75);
+      expect(normalizeScore(235, 235)).toBe(100);
     });
 
     it('should clamp values', () => {
-      expect(normalizeScore(250, 220)).toBe(100);
-      expect(normalizeScore(-50, 220)).toBe(0);
+      expect(normalizeScore(250, 235)).toBe(100);
+      expect(normalizeScore(-50, 235)).toBe(0);
     });
 
     it('should handle maxScore of 0', () => {
       expect(normalizeScore(50, 0)).toBe(0);
+    });
+  });
+
+  describe('calculateFOVSuitabilityScore', () => {
+    const seestarFOV = { width: 42, height: 42 };
+    const dwarfMiniFOV = { width: 144, height: 72 };
+
+    it('should give full score for objects filling the FOV well', () => {
+      // M42 at 90' on Seestar (90/42 = 2.14 fill ratio > 0.10)
+      expect(calculateFOVSuitabilityScore(90, 'dso', seestarFOV)).toBe(15);
+    });
+
+    it('should give reduced score for small objects', () => {
+      // M57 Ring Nebula at 1.4' on Dwarf Mini (1.4/72 = 0.019)
+      expect(calculateFOVSuitabilityScore(1.4, 'dso', dwarfMiniFOV)).toBe(4);
+    });
+
+    it('should give 0 for essentially point sources', () => {
+      // Very tiny object (0.5' on 72' FOV = 0.007)
+      expect(calculateFOVSuitabilityScore(0.5, 'dso', dwarfMiniFOV)).toBe(0);
+    });
+
+    it('should return neutral score for planets', () => {
+      expect(calculateFOVSuitabilityScore(0.5, 'planet', seestarFOV)).toBe(10);
+    });
+
+    it('should return neutral score for Moon', () => {
+      expect(calculateFOVSuitabilityScore(30, 'moon', seestarFOV)).toBe(10);
+    });
+
+    it('should return neutral score when FOV is null', () => {
+      expect(calculateFOVSuitabilityScore(90, 'dso', null)).toBe(10);
+    });
+
+    it('should return neutral score for unknown size (0)', () => {
+      expect(calculateFOVSuitabilityScore(0, 'dso', seestarFOV)).toBe(10);
+    });
+
+    it('should give 12 for medium fill ratio', () => {
+      // M1 Crab at 6' on Dwarf Mini (6/72 = 0.083)
+      expect(calculateFOVSuitabilityScore(6, 'dso', dwarfMiniFOV)).toBe(12);
+    });
+  });
+
+  describe('calculateMosaicPanels', () => {
+    it('should return null when object fits in frame', () => {
+      expect(calculateMosaicPanels(30, { width: 42, height: 42 })).toBeNull();
+    });
+
+    it('should calculate mosaic for large object', () => {
+      // M42 at 90' on Seestar S50 (42x42)
+      const mosaic = calculateMosaicPanels(90, { width: 42, height: 42 });
+      expect(mosaic).toEqual({ cols: 3, rows: 3 });
+    });
+
+    it('should handle rectangular FOV', () => {
+      // M42 at 90' on Dwarf Mini (144x72)
+      const mosaic = calculateMosaicPanels(90, { width: 144, height: 72 });
+      expect(mosaic).toEqual({ cols: 1, rows: 2 });
+    });
+
+    it('should return null when FOV is null', () => {
+      expect(calculateMosaicPanels(90, null)).toBeNull();
+    });
+
+    it('should return null for zero size', () => {
+      expect(calculateMosaicPanels(0, { width: 42, height: 42 })).toBeNull();
     });
   });
 });

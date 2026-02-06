@@ -49,6 +49,7 @@ import { getTransitForDisplay } from './events/transits';
 import { fetchAsteroidPhysicalData } from './jpl/sbdb';
 import { fetchNeoCloseApproaches } from './nasa/neows';
 import { calculateTotalScore } from './scoring';
+import { getEffectiveFOV } from './telescopes';
 import { calculateNightQuality } from './weather/night-quality';
 import { fetchAirQuality, fetchWeather, parseNightWeather } from './weather/open-meteo';
 
@@ -134,6 +135,9 @@ export async function generateForecast(
   progress('Calculating planetary events...', 25);
   const oppositions = detectOppositions(today, forecastDays);
   const maxElongations = detectMaxElongations(today, forecastDays);
+
+  // Compute effective FOV for scoring
+  const fov = getEffectiveFOV(settings.telescope, settings.customFOV);
 
   for (let i = 0; i < forecastDays; i++) {
     const nightDate = new Date(today);
@@ -472,7 +476,8 @@ export async function generateForecast(
           sunPos.ra,
           astronomicalEvents.oppositions,
           lunarApsis,
-          venusPeak
+          venusPeak,
+          fov
         )
       )
       .filter(s => s.totalScore >= MIN_SCORE_THRESHOLD)
