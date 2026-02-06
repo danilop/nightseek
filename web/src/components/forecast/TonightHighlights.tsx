@@ -109,7 +109,8 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
         obj.subtype === 'supernova_remnant' ||
         obj.subtype === 'nebula' ||
         obj.subtype === 'hii_region' ||
-        obj.subtype === 'dark_nebula'),
+        obj.subtype === 'dark_nebula' ||
+        obj.subtype === 'cluster_nebula'),
     sortOrder: 5,
     showSubtypeInPreview: true,
   },

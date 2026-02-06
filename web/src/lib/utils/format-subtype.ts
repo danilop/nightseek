@@ -21,6 +21,7 @@ const SUBTYPE_DISPLAY_NAMES: Record<DSOSubtype, string> = {
   asterism: 'Asterism',
   star_association: 'Star Association',
   dark_nebula: 'Dark Nebula',
+  cluster_nebula: 'Cluster + Nebula',
   other: 'Other',
 };
 

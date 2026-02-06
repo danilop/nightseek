@@ -142,10 +142,25 @@ describe('format utils', () => {
 
     it('should return nebula emoji for nebula subtypes', () => {
       expect(getCategoryIcon('dso', 'emission_nebula')).toBe('☁️');
+      expect(getCategoryIcon('dso', 'cluster_nebula')).toBe('☁️');
+      expect(getCategoryIcon('dso', 'hii_region')).toBe('☁️');
+    });
+
+    it('should return specific emoji for planetary nebula', () => {
+      expect(getCategoryIcon('dso', 'planetary_nebula')).toBe('💫');
+    });
+
+    it('should return specific emoji for supernova remnant', () => {
+      expect(getCategoryIcon('dso', 'supernova_remnant')).toBe('💥');
+    });
+
+    it('should return specific emoji for dark nebula', () => {
+      expect(getCategoryIcon('dso', 'dark_nebula')).toBe('🌑');
     });
 
     it('should return cluster emoji for cluster subtypes', () => {
       expect(getCategoryIcon('dso', 'globular_cluster')).toBe('✨');
+      expect(getCategoryIcon('dso', 'open_cluster')).toBe('✨');
     });
 
     it('should return default emoji for unknown categories', () => {

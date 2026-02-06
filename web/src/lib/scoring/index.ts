@@ -46,11 +46,14 @@ function getMoonSensitivity(subtype: DSOSubtype | null): number {
     case 'reflection_nebula':
       return 0.95;
     case 'emission_nebula':
+    case 'cluster_nebula':
+    case 'hii_region':
       return 0.9;
-    case 'galaxy':
-      return 0.8;
+    case 'nebula':
     case 'supernova_remnant':
       return 0.85;
+    case 'galaxy':
+      return 0.8;
     case 'planetary_nebula':
       return 0.5;
     case 'globular_cluster':
@@ -282,7 +285,12 @@ export function calculateTypeSuitabilityScore(
 
   if (isDarkSky) {
     if (objectType === 'milky_way') return 15;
-    if (subtype === 'emission_nebula' || subtype === 'reflection_nebula' || subtype === 'galaxy')
+    if (
+      subtype === 'emission_nebula' ||
+      subtype === 'reflection_nebula' ||
+      subtype === 'galaxy' ||
+      subtype === 'cluster_nebula'
+    )
       return 14.25;
     if (subtype === 'planetary_nebula' || subtype === 'supernova_remnant') return 12.75;
     if (objectType === 'comet') return 12;
@@ -295,7 +303,8 @@ export function calculateTypeSuitabilityScore(
     if (subtype === 'globular_cluster' || subtype === 'open_cluster') return 13.5;
     if (subtype === 'planetary_nebula') return 10.5;
     if (objectType === 'comet') return 7.5;
-    if (subtype === 'galaxy' || subtype === 'emission_nebula') return 4.5;
+    if (subtype === 'galaxy' || subtype === 'emission_nebula' || subtype === 'cluster_nebula')
+      return 4.5;
     if (objectType === 'milky_way') return 1.5;
     return 6;
   }

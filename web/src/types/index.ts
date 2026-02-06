@@ -25,6 +25,7 @@ export type DSOSubtype =
   | 'asterism'
   | 'star_association'
   | 'dark_nebula'
+  | 'cluster_nebula'
   | 'other';
 
 export interface NightInfo {

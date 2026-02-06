@@ -134,12 +134,13 @@ export function getCategoryIcon(category: string, subtype?: string | null): stri
   if (category === 'milky_way') return '🌌';
   if (category === 'moon') return '🌙';
 
-  // DSO subtypes
+  // DSO subtypes — specific matches before generic includes() checks
   if (subtype === 'galaxy' || subtype?.includes('galaxy')) return '🌀';
-  if (subtype?.includes('nebula') || subtype === 'hii_region') return '☁️';
-  if (subtype?.includes('cluster')) return '✨';
   if (subtype === 'planetary_nebula') return '💫';
   if (subtype === 'supernova_remnant') return '💥';
+  if (subtype === 'dark_nebula') return '🌑';
+  if (subtype?.includes('nebula') || subtype === 'hii_region') return '☁️';
+  if (subtype?.includes('cluster')) return '✨';
 
   return '🌌';
 }
