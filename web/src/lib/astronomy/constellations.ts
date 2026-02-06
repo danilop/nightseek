@@ -111,7 +111,7 @@ export function getConstellationFullName(abbrev: string): string {
  */
 export function getConstellation(raHours: number, decDegrees: number): string {
   try {
-    const constellation = Astronomy.Constellation(raHours * 15, decDegrees);
+    const constellation = Astronomy.Constellation(raHours, decDegrees);
     return constellation.name;
   } catch (_error) {
     return 'Unknown';
@@ -129,7 +129,7 @@ export function getConstellationInfo(
   decDegrees: number
 ): { name: string; symbol: string } {
   try {
-    const constellation = Astronomy.Constellation(raHours * 15, decDegrees);
+    const constellation = Astronomy.Constellation(raHours, decDegrees);
     return {
       name: constellation.name,
       symbol: constellation.symbol,

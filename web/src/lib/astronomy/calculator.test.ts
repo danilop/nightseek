@@ -140,6 +140,155 @@ describe('SkyCalculator', () => {
     });
   });
 
+  /**
+   * Tests verified against independent sources:
+   * - Sky Tonight planetarium (sky-tonight.com) for London, Feb 6, 2026
+   * - Theoretical transit altitude formula: alt = 90 - |lat - dec|
+   * - Polaris altitude ≈ observer latitude (fundamental astronomical property)
+   *
+   * These tests guard against RA/Dec unit conversion bugs (e.g. passing
+   * degrees where hours are expected to astronomy-engine's Horizon function).
+   */
+  describe('getAltAz - verified against independent sources', () => {
+    // London observer for all reference tests
+    let london: SkyCalculator;
+    beforeEach(() => {
+      london = new SkyCalculator(51.5074, -0.1278, 0);
+    });
+
+    // Well-known object coordinates (J2000)
+    const objects = {
+      // Polaris: RA 2h 31m 49s, Dec +89° 15' 51"
+      polaris: { ra: 2 + 31 / 60 + 49 / 3600, dec: 89 + 15 / 60 + 51 / 3600 },
+      // M42 (Orion Nebula): RA 5h 35m 17s, Dec -5° 23' 28"
+      m42: { ra: 5 + 35 / 60 + 17 / 3600, dec: -(5 + 23 / 60 + 28 / 3600) },
+      // NGC 6543 (Cat's Eye): RA 17h 58m 33s, Dec +66° 37' 59"
+      ngc6543: { ra: 17 + 58 / 60 + 33 / 3600, dec: 66 + 37 / 60 + 59 / 3600 },
+      // Sirius: RA 6h 45m 9s, Dec -16° 42' 58"
+      sirius: { ra: 6 + 45 / 60 + 9 / 3600, dec: -(16 + 42 / 60 + 58 / 3600) },
+      // M45 (Pleiades): RA 3h 47m 0s, Dec +24° 7' 0"
+      m45: { ra: 3 + 47 / 60, dec: 24 + 7 / 60 },
+    };
+
+    it('Polaris altitude should approximate observer latitude', () => {
+      // Polaris is ~0.74° from the celestial pole, so its altitude
+      // should always be within ~1° of the observer's latitude
+      const time = new Date('2026-02-06T22:00:00Z');
+      const result = london.getAltAz(objects.polaris.ra, objects.polaris.dec, time);
+
+      expect(result.altitude).toBeCloseTo(51.5, 0); // within ~1°
+    });
+
+    it('Polaris altitude should remain nearly constant throughout the night', () => {
+      const times = [
+        new Date('2026-02-06T20:00:00Z'),
+        new Date('2026-02-07T00:00:00Z'),
+        new Date('2026-02-07T04:00:00Z'),
+      ];
+      const altitudes = times.map(
+        t => london.getAltAz(objects.polaris.ra, objects.polaris.dec, t).altitude
+      );
+
+      // All altitudes should be within 1.5° of each other (circumpolar wobble)
+      const min = Math.min(...altitudes);
+      const max = Math.max(...altitudes);
+      expect(max - min).toBeLessThan(1.5);
+    });
+
+    it('Polaris azimuth should always be near due North', () => {
+      const time = new Date('2026-02-06T22:00:00Z');
+      const result = london.getAltAz(objects.polaris.ra, objects.polaris.dec, time);
+
+      // Azimuth should be near 0° (North) or 360°
+      const distFromNorth = Math.min(result.azimuth, 360 - result.azimuth);
+      expect(distFromNorth).toBeLessThan(3);
+    });
+
+    // Reference: Sky Tonight for London, Feb 6, 2026 at 20:30 UTC
+    // M42: ~33° altitude, due South
+    it('M42 should be ~33° altitude at 8:30 PM UTC from London (Sky Tonight reference)', () => {
+      const time = new Date('2026-02-06T20:30:00Z');
+      const result = london.getAltAz(objects.m42.ra, objects.m42.dec, time);
+
+      expect(result.altitude).toBeCloseTo(33, 0); // within ~1°
+      // Should be roughly south (azimuth 150-210°)
+      expect(result.azimuth).toBeGreaterThan(150);
+      expect(result.azimuth).toBeLessThan(210);
+    });
+
+    // The original bug case: NGC 6543 was showing 75° when it should be ~28°
+    // NGC 6543 is circumpolar from London, near lower transit at ~8:30 PM in February
+    // Reference: manual USNO calculation = 28.2°, DWARFlab app ~23°
+    it('NGC 6543 should be ~28° at 8:30 PM UTC from London (not 75°)', () => {
+      const time = new Date('2026-02-06T20:30:00Z');
+      const result = london.getAltAz(objects.ngc6543.ra, objects.ngc6543.dec, time);
+
+      expect(result.altitude).toBeCloseTo(28.2, 0); // within ~0.5°
+      // Should be near due North (circumpolar object near lower transit)
+      const distFromNorth = Math.min(result.azimuth, 360 - result.azimuth);
+      expect(distFromNorth).toBeLessThan(10);
+    });
+
+    // Reference: Sky Tonight - Sirius ~20° altitude at 20:30 UTC
+    it('Sirius should be ~20° altitude at 8:30 PM UTC from London (Sky Tonight reference)', () => {
+      const time = new Date('2026-02-06T20:30:00Z');
+      const result = london.getAltAz(objects.sirius.ra, objects.sirius.dec, time);
+
+      expect(result.altitude).toBeCloseTo(20, 0); // within ~1°
+    });
+
+    // Reference: Sky Tonight - M45 ~55.4° altitude at 20:30 UTC
+    it('M45 should be ~55° altitude at 8:30 PM UTC from London (Sky Tonight reference)', () => {
+      const time = new Date('2026-02-06T20:30:00Z');
+      const result = london.getAltAz(objects.m45.ra, objects.m45.dec, time);
+
+      expect(result.altitude).toBeCloseTo(55.4, 0); // within ~0.5°
+    });
+
+    // Transit altitude is a pure geometric property: alt = 90° - |lat - dec|
+    // This catches bugs where RA is wrong (shifts transit time) but dec is correct
+    it('transit altitudes should match theoretical formula for all objects', () => {
+      const lat = 51.5074;
+      const testCases = [
+        { name: 'M42', dec: objects.m42.dec, expected: 90 - Math.abs(lat - objects.m42.dec) },
+        {
+          name: 'Sirius',
+          dec: objects.sirius.dec,
+          expected: 90 - Math.abs(lat - objects.sirius.dec),
+        },
+        { name: 'M45', dec: objects.m45.dec, expected: 90 - Math.abs(lat - objects.m45.dec) },
+        {
+          name: 'NGC 6543',
+          dec: objects.ngc6543.dec,
+          expected: 90 - Math.abs(lat - objects.ngc6543.dec),
+        },
+      ];
+
+      // Sample every 10 min across a full sidereal day to find the actual peak
+      for (const tc of testCases) {
+        let maxAlt = -90;
+        const start = new Date('2026-02-06T12:00:00Z');
+        for (let i = 0; i < 144; i++) {
+          // 144 samples * 10 min = 24 hours
+          const t = new Date(start.getTime() + i * 10 * 60 * 1000);
+          const alt = london.getAltAz(
+            tc.name === 'M42'
+              ? objects.m42.ra
+              : tc.name === 'Sirius'
+                ? objects.sirius.ra
+                : tc.name === 'M45'
+                  ? objects.m45.ra
+                  : objects.ngc6543.ra,
+            tc.dec,
+            t
+          ).altitude;
+          if (alt > maxAlt) maxAlt = alt;
+        }
+        expect(maxAlt).toBeCloseTo(tc.expected, 0);
+      }
+    });
+  });
+
   describe('getAtmosphericRefraction', () => {
     it('should return positive refraction for positive altitude', () => {
       const result = calculator.getAtmosphericRefraction(30);

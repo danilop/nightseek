@@ -141,7 +141,7 @@ export class SkyCalculator {
     altitude: number;
     azimuth: number;
   } {
-    const horizon = Astronomy.Horizon(time, this.observer, raHours * 15, decDeg, 'normal');
+    const horizon = Astronomy.Horizon(time, this.observer, raHours, decDeg, 'normal');
 
     return {
       altitude: horizon.altitude,
@@ -154,19 +154,13 @@ export class SkyCalculator {
    */
   getMoonPosition(time: Date): { ra: number; dec: number; altitude: number; azimuth: number } {
     const moonEquator = Astronomy.Equator(Astronomy.Body.Moon, time, this.observer, true, true);
-    const moonHorizon = Astronomy.Horizon(
-      time,
-      this.observer,
-      moonEquator.ra * 15,
-      moonEquator.dec,
-      'normal'
-    );
+    const { altitude, azimuth } = this.getAltAz(moonEquator.ra, moonEquator.dec, time);
 
     return {
       ra: moonEquator.ra,
       dec: moonEquator.dec,
-      altitude: moonHorizon.altitude,
-      azimuth: moonHorizon.azimuth,
+      altitude,
+      azimuth,
     };
   }
 
@@ -358,8 +352,7 @@ export class SkyCalculator {
     const { samples, maxAltitude, maxAltitudeTime, azimuthAtPeak } = this.sampleAltitudesForNight(
       time => {
         const equator = Astronomy.Equator(body, time, observer, true, true);
-        const horizon = Astronomy.Horizon(time, observer, equator.ra * 15, equator.dec, 'normal');
-        return { altitude: horizon.altitude, azimuth: horizon.azimuth };
+        return this.getAltAz(equator.ra, equator.dec, time);
       },
       nightInfo
     );
