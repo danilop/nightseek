@@ -204,6 +204,7 @@ export interface ScoreBreakdown {
   venusPeakBonus: number; // 0-8 (Venus within 14 days of peak)
   seeingQuality: number; // 0-8 (atmospheric conditions)
   dewRiskPenalty: number; // -5 to 0 (high dew probability)
+  imagingWindowScore: number; // 0-25 (time-correlated imaging conditions)
 }
 
 export type ScoreTier = 'excellent' | 'very_good' | 'good' | 'fair' | 'poor';

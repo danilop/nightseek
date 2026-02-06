@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import type { NightWeather, OppositionEvent, SeeingForecast, VenusPeakInfo } from '@/types';
+import type {
+  ImagingWindow,
+  NightWeather,
+  OppositionEvent,
+  SeeingForecast,
+  VenusPeakInfo,
+} from '@/types';
 import {
   calculateAltitudeScore,
   calculateDewRiskPenalty,
   calculateElongationBonus,
+  calculateImagingWindowScore,
   calculateMagnitudeScore,
   calculateMeridianBonus,
   calculateMoonInterference,
@@ -102,7 +109,7 @@ describe('scoring', () => {
   describe('calculateWeatherScore', () => {
     it('should return middle score when no weather', () => {
       const score = calculateWeatherScore(null, 'dso', null);
-      expect(score).toBe(7.5);
+      expect(score).toBe(5);
     });
 
     it('should give high score for clear skies', () => {
@@ -115,12 +122,24 @@ describe('scoring', () => {
       };
 
       const score = calculateWeatherScore(weather as NightWeather, 'dso', 'galaxy');
-      expect(score).toBeGreaterThan(12);
+      expect(score).toBeGreaterThan(8);
     });
 
     it('should penalize high cloud cover', () => {
-      const clear: Partial<NightWeather> = { avgCloudCover: 10 };
-      const cloudy: Partial<NightWeather> = { avgCloudCover: 80 };
+      const clear: Partial<NightWeather> = {
+        avgCloudCover: 10,
+        avgAerosolOpticalDepth: 0.05,
+        transparencyScore: 80,
+        maxPrecipProbability: 5,
+        maxWindSpeedKmh: 10,
+      };
+      const cloudy: Partial<NightWeather> = {
+        avgCloudCover: 80,
+        avgAerosolOpticalDepth: 0.05,
+        transparencyScore: 80,
+        maxPrecipProbability: 5,
+        maxWindSpeedKmh: 10,
+      };
 
       const clearScore = calculateWeatherScore(clear as NightWeather, 'dso', null);
       const cloudyScore = calculateWeatherScore(cloudy as NightWeather, 'dso', null);
@@ -477,16 +496,79 @@ describe('scoring', () => {
     });
   });
 
+  describe('calculateImagingWindowScore', () => {
+    const baseWeather = { avgCloudCover: 20 } as NightWeather;
+
+    it('should return neutral score when no weather data', () => {
+      const score = calculateImagingWindowScore(undefined, null);
+      expect(score).toBe(10);
+    });
+
+    it('should return 0 when weather exists but no imaging window', () => {
+      const score = calculateImagingWindowScore(undefined, baseWeather);
+      expect(score).toBe(0);
+    });
+
+    it('should score excellent window highly', () => {
+      const window: ImagingWindow = {
+        start: new Date('2025-01-15T22:00:00Z'),
+        end: new Date('2025-01-16T03:00:00Z'), // 5 hours
+        quality: 'excellent',
+        qualityScore: 90,
+        factors: { altitude: 90, airmass: 85, moonInterference: 95, cloudCover: 88 },
+      };
+
+      const score = calculateImagingWindowScore(window, baseWeather);
+      expect(score).toBe(25); // 20 base + 5 duration bonus (5h > 3h)
+    });
+
+    it('should score acceptable window lower', () => {
+      const window: ImagingWindow = {
+        start: new Date('2025-01-15T23:00:00Z'),
+        end: new Date('2025-01-16T01:00:00Z'), // 2 hours
+        quality: 'acceptable',
+        qualityScore: 55,
+        factors: { altitude: 60, airmass: 55, moonInterference: 50, cloudCover: 55 },
+      };
+
+      const score = calculateImagingWindowScore(window, baseWeather);
+      expect(score).toBeLessThan(15);
+      expect(score).toBeGreaterThan(0);
+    });
+
+    it('should give duration bonus for long windows', () => {
+      const shortWindow: ImagingWindow = {
+        start: new Date('2025-01-15T23:00:00Z'),
+        end: new Date('2025-01-15T23:30:00Z'), // 30 min
+        quality: 'good',
+        qualityScore: 75,
+        factors: { altitude: 80, airmass: 75, moonInterference: 80, cloudCover: 70 },
+      };
+
+      const longWindow: ImagingWindow = {
+        start: new Date('2025-01-15T22:00:00Z'),
+        end: new Date('2025-01-16T02:00:00Z'), // 4 hours
+        quality: 'good',
+        qualityScore: 75,
+        factors: { altitude: 80, airmass: 75, moonInterference: 80, cloudCover: 70 },
+      };
+
+      const shortScore = calculateImagingWindowScore(shortWindow, baseWeather);
+      const longScore = calculateImagingWindowScore(longWindow, baseWeather);
+      expect(longScore).toBeGreaterThan(shortScore);
+    });
+  });
+
   describe('normalizeScore', () => {
     it('should normalize score to 0-100 range', () => {
-      expect(normalizeScore(100, 200)).toBe(50);
-      expect(normalizeScore(150, 200)).toBe(75);
-      expect(normalizeScore(200, 200)).toBe(100);
+      expect(normalizeScore(110, 220)).toBe(50);
+      expect(normalizeScore(165, 220)).toBe(75);
+      expect(normalizeScore(220, 220)).toBe(100);
     });
 
     it('should clamp values', () => {
-      expect(normalizeScore(250, 200)).toBe(100);
-      expect(normalizeScore(-50, 200)).toBe(0);
+      expect(normalizeScore(250, 220)).toBe(100);
+      expect(normalizeScore(-50, 220)).toBe(0);
     });
 
     it('should handle maxScore of 0', () => {
