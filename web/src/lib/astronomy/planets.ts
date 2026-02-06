@@ -1,7 +1,7 @@
 import type { PlanetData } from '@/types';
 
 // Physical diameters in km
-export const PLANET_DIAMETERS: Record<string, number> = {
+const PLANET_DIAMETERS: Record<string, number> = {
   mercury: 4879,
   venus: 12104,
   mars: 6779,
@@ -55,11 +55,4 @@ export function calculateApparentDiameter(planetName: string, distanceKm: number
 
   const angularDiameterRad = physicalDiameter / distanceKm;
   return angularDiameterRad * 206265; // Convert to arcseconds
-}
-
-/**
- * Get planet data by name
- */
-export function getPlanetData(name: string): PlanetData | undefined {
-  return PLANETS.find(p => p.name.toLowerCase() === name.toLowerCase());
 }

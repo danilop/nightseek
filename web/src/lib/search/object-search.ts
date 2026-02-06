@@ -56,7 +56,7 @@ const MAX_SEARCH_DAYS = 365;
  * - For northern observers: objects with dec < lat - 90 never rise
  * - For southern observers: objects with dec > lat + 90 never rise
  */
-export function canObjectEverBeVisible(
+function canObjectEverBeVisible(
   decDegrees: number,
   observerLatitude: number,
   minAltitude: number = MIN_ALTITUDE
@@ -89,7 +89,7 @@ export function canObjectEverBeVisible(
 /**
  * Check if an object can ever reach optimal viewing altitude (45°+)
  */
-export function canObjectReachOptimal(
+function canObjectReachOptimal(
   decDegrees: number,
   observerLatitude: number,
   optimalAltitude: number = OPTIMAL_ALTITUDE
@@ -1227,57 +1227,6 @@ export async function searchCelestialObjects(
   };
 
   results.sort((a, b) => statusOrder[a.visibilityStatus] - statusOrder[b.visibilityStatus]);
-
-  return results.slice(0, maxResults);
-}
-
-/**
- * Quick search for autocomplete suggestions (faster, fewer details)
- */
-export async function quickSearchObjects(
-  query: string,
-  _location: Location, // Reserved for future visibility filtering
-  maxResults: number = 10
-): Promise<{ name: string; displayName: string; type: ObjectCategory }[]> {
-  if (!query || query.trim().length < 2) {
-    return [];
-  }
-
-  const results: { name: string; displayName: string; type: ObjectCategory }[] = [];
-
-  // Search planets
-  const planets = searchPlanets(query);
-  for (const p of planets) {
-    results.push({ name: p, displayName: p, type: 'planet' });
-  }
-
-  // Search dwarf planets
-  const dwarfPlanets = searchDwarfPlanets(query);
-  for (const dp of dwarfPlanets) {
-    results.push({ name: dp.name, displayName: dp.name, type: 'dwarf_planet' });
-  }
-
-  // Search asteroids
-  const asteroids = searchAsteroids(query);
-  for (const a of asteroids) {
-    results.push({ name: a.name, displayName: a.name, type: 'asteroid' });
-  }
-
-  // Search DSOs (if catalog is cached)
-  try {
-    const dsoCatalog = await loadOpenNGCCatalog({ maxMagnitude: 16 });
-    const matchingDSOs = await searchDSOs(query, dsoCatalog);
-
-    for (const dso of matchingDSOs.slice(0, maxResults)) {
-      results.push({
-        name: dso.name,
-        displayName: dso.commonName || dso.name,
-        type: 'dso',
-      });
-    }
-  } catch {
-    // Ignore errors for quick search
-  }
 
   return results.slice(0, maxResults);
 }

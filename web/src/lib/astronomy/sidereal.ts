@@ -49,24 +49,6 @@ export function getLocalSiderealTime(date: Date, longitudeDeg: number): string {
 }
 
 /**
- * Get sidereal time as a Date-like object for display
- * Useful when you want to display it like a time
- */
-export function getSiderealTimeAsDate(date: Date, longitudeDeg: number): Date {
-  const lstHours = getLocalSiderealTimeHours(date, longitudeDeg);
-
-  const hours = Math.floor(lstHours);
-  const minutesDecimal = (lstHours - hours) * 60;
-  const minutes = Math.floor(minutesDecimal);
-  const seconds = Math.round((minutesDecimal - minutes) * 60);
-
-  const result = new Date(date);
-  result.setHours(hours, minutes, seconds, 0);
-
-  return result;
-}
-
-/**
  * Calculate what RA is currently on the meridian
  * This is equivalent to LST (in hours)
  */

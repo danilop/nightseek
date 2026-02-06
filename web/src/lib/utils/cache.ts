@@ -45,17 +45,6 @@ export async function setCache<T>(key: string, data: T): Promise<void> {
 }
 
 /**
- * Remove cached data
- */
-export async function removeCache(key: string): Promise<void> {
-  try {
-    await del(key);
-  } catch {
-    // Silently fail for cache operations
-  }
-}
-
-/**
  * Clear all cached data for NightSeek
  */
 export async function clearAllCache(): Promise<void> {
@@ -93,63 +82,6 @@ export async function cleanupOldCaches(): Promise<void> {
     }
   } catch {
     // Silently fail for cache operations
-  }
-}
-
-/**
- * Prune expired cache entries
- */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Cache pruning requires iterating keys and checking multiple conditions
-export async function pruneCache(maxAges: Record<string, number>): Promise<void> {
-  try {
-    const allKeys = await keys();
-    const now = Date.now();
-
-    for (const key of allKeys) {
-      if (typeof key !== 'string' || !key.startsWith('nightseek:')) continue;
-
-      // Find matching max age
-      let maxAge: number | null = null;
-      for (const [prefix, age] of Object.entries(maxAges)) {
-        if (key.startsWith(prefix)) {
-          maxAge = age;
-          break;
-        }
-      }
-
-      if (maxAge !== null) {
-        const entry = await get<CacheEntry<unknown>>(key);
-        if (entry && now - entry.timestamp > maxAge) {
-          await del(key);
-        }
-      }
-    }
-  } catch {
-    // Silently fail for cache operations
-  }
-}
-
-/**
- * Get cache size estimate (in bytes)
- */
-export async function getCacheSize(): Promise<number> {
-  try {
-    const allKeys = await keys();
-    let totalSize = 0;
-
-    for (const key of allKeys) {
-      if (typeof key === 'string' && key.startsWith('nightseek:')) {
-        const entry = await get(key);
-        if (entry) {
-          totalSize += JSON.stringify(entry).length;
-        }
-      }
-    }
-
-    return totalSize;
-  } catch {
-    // Silently fail for cache operations
-    return 0;
   }
 }
 

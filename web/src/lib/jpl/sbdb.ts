@@ -128,39 +128,6 @@ export async function fetchAsteroidPhysicalData(
 }
 
 /**
- * Get spectral type description
- */
-export function getSpectralTypeDescription(spectralType: string | null): string | null {
-  if (!spectralType) return null;
-
-  // Get the main type (first character, uppercase)
-  const mainType = spectralType.charAt(0).toUpperCase();
-
-  const descriptions: Record<string, string> = {
-    C: 'Carbonaceous (dark, carbon-rich)',
-    S: 'Silicaceous (stony, silicate-rich)',
-    M: 'Metallic (iron-nickel)',
-    V: 'Vestoid (basaltic, from Vesta)',
-    E: 'Enstatite (high albedo)',
-    P: 'Primitive (low albedo, organic-rich)',
-    D: 'Dark (very low albedo)',
-    A: 'Olivine-rich (asteroid 246 Asporina type)',
-    B: 'B-type (blue, primitive)',
-    F: 'F-type (low albedo, featureless)',
-    G: 'G-type (similar to C but UV absorption)',
-    K: 'K-type (intermediate S-C)',
-    L: 'L-type (red, spinel-bearing)',
-    O: 'O-type (olivine-dominated)',
-    Q: 'Q-type (ordinary chondrite composition)',
-    R: 'R-type (pyroxene-rich)',
-    T: 'T-type (dark, featureless red)',
-    X: 'X-type (degenerate E, M, or P)',
-  };
-
-  return descriptions[mainType] ?? `Type ${spectralType}`;
-}
-
-/**
  * Format rotation period for display
  */
 export function formatRotationPeriod(hours: number | null): string | null {

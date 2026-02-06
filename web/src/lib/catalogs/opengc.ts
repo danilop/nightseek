@@ -243,17 +243,3 @@ function filterCatalog(
     return true;
   });
 }
-
-/**
- * Search for objects by name or common name
- */
-export function searchCatalog(catalog: DSOCatalogEntry[], query: string): DSOCatalogEntry[] {
-  const lowerQuery = query.toLowerCase();
-
-  return catalog.filter(entry => {
-    if (entry.name.toLowerCase().includes(lowerQuery)) return true;
-    if (entry.commonName?.toLowerCase().includes(lowerQuery)) return true;
-    if (entry.messierNumber && `m${entry.messierNumber}`.includes(lowerQuery)) return true;
-    return false;
-  });
-}

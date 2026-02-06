@@ -527,31 +527,3 @@ function determineBestNights(forecasts: NightForecast[]): string[] {
     .slice(0, 3)
     .map(n => n.date);
 }
-
-/**
- * Get a summary of the forecast for display
- */
-export function getForecastSummary(result: ForecastResult): {
-  totalNights: number;
-  totalObjects: number;
-  bestNightDate: string | null;
-  hasWeather: boolean;
-  activeShowers: number;
-  notableConjunctions: number;
-} {
-  const firstForecast = result.forecasts[0];
-
-  let totalObjects = 0;
-  for (const objects of result.scoredObjects.values()) {
-    totalObjects += objects.length;
-  }
-
-  return {
-    totalNights: result.forecasts.length,
-    totalObjects,
-    bestNightDate: result.bestNights[0] ?? null,
-    hasWeather: firstForecast?.weather !== null,
-    activeShowers: firstForecast?.meteorShowers.length ?? 0,
-    notableConjunctions: firstForecast?.conjunctions.filter(c => c.isNotable).length ?? 0,
-  };
-}

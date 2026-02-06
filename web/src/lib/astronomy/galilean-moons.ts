@@ -12,7 +12,7 @@ type MoonName = 'Io' | 'Europa' | 'Ganymede' | 'Callisto';
  * Note: The z component indicates depth - negative z means the moon is
  * between Jupiter and Earth (potential transit), positive z means behind.
  */
-export function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
+function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
   try {
     const moonsData = Astronomy.JupiterMoons(date);
     const positions: GalileanMoonPosition[] = [];
@@ -93,7 +93,7 @@ function detectEventTransition(
  * Detect transit and shadow events during the night
  * Samples every 5 minutes to find state changes
  */
-export function detectGalileanMoonEvents(nightInfo: NightInfo): GalileanMoonEvent[] {
+function detectGalileanMoonEvents(nightInfo: NightInfo): GalileanMoonEvent[] {
   const events: GalileanMoonEvent[] = [];
   const startTime = nightInfo.astronomicalDusk.getTime();
   const endTime = nightInfo.astronomicalDawn.getTime();
@@ -177,20 +177,4 @@ export function describeGalileanMoonEvent(event: GalileanMoonEvent): string {
     default:
       return `${event.moon} event`;
   }
-}
-
-/**
- * Format moon positions for display
- * Returns a description of where each moon is relative to Jupiter
- */
-export function formatMoonPositions(positions: GalileanMoonPosition[]): string[] {
-  return positions.map(pos => {
-    const distance = Math.sqrt(pos.x * pos.x + pos.y * pos.y).toFixed(1);
-    const direction = pos.x > 0 ? 'W' : 'E';
-    const occluded = pos.isOccluded ? ' (occluded)' : '';
-    const transit = pos.isTransiting ? ' [TRANSIT]' : '';
-    const shadow = pos.shadowOnJupiter ? ' [SHADOW]' : '';
-
-    return `${pos.name}: ${distance}Rj ${direction}${occluded}${transit}${shadow}`;
-  });
 }

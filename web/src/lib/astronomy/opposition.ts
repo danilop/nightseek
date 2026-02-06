@@ -18,7 +18,7 @@ const OPPOSITION_WINDOW_DAYS = 14;
  * Opposition occurs when the planet's ecliptic longitude differs from
  * the Sun's by 180 degrees (planet is opposite the Sun in the sky)
  */
-export function searchNextOpposition(body: Astronomy.Body, startDate: Date): Date | null {
+function searchNextOpposition(body: Astronomy.Body, startDate: Date): Date | null {
   try {
     // SearchRelativeLongitude finds when the planet reaches
     // a specific longitude difference from the Sun
@@ -32,7 +32,7 @@ export function searchNextOpposition(body: Astronomy.Body, startDate: Date): Dat
 /**
  * Check if a planet is currently at or near opposition
  */
-export function isNearOpposition(
+function isNearOpposition(
   body: Astronomy.Body,
   date: Date,
   windowDays: number = OPPOSITION_WINDOW_DAYS

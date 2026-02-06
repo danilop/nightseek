@@ -34,24 +34,3 @@ export function maxVal(arr: number[]): number {
 export function sum(arr: number[]): number {
   return arr.reduce((a, b) => a + b, 0);
 }
-
-/**
- * Check if an array has values and get its average, otherwise return null
- */
-export function avgOrNull(arr: number[]): number | null {
-  return arr.length > 0 ? avg(arr) : null;
-}
-
-/**
- * Check if an array has values and get its min, otherwise return null
- */
-export function minOrNull(arr: number[]): number | null {
-  return arr.length > 0 ? minVal(arr) : null;
-}
-
-/**
- * Check if an array has values and get its max, otherwise return null
- */
-export function maxOrNull(arr: number[]): number | null {
-  return arr.length > 0 ? maxVal(arr) : null;
-}

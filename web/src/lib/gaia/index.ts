@@ -1,1 +1,1 @@
-export { fetchGaiaStarField, formatDistance } from './api';
+export { formatDistance } from './api';

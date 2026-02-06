@@ -15,7 +15,7 @@ const FULL_MOON_PHASE_THRESHOLD = 12; // about 24 hours
 /**
  * Search for the next lunar apsis (perigee or apogee)
  */
-export function searchNextLunarApsis(
+function searchNextLunarApsis(
   startDate: Date
 ): { type: 'perigee' | 'apogee'; date: Date; distanceKm: number } | null {
   try {
@@ -33,31 +33,9 @@ export function searchNextLunarApsis(
 }
 
 /**
- * Search for the next specific apsis type
- */
-export function searchNextPerigee(startDate: Date): { date: Date; distanceKm: number } | null {
-  let searchDate = new Date(startDate);
-
-  // Search up to 2 complete lunar cycles
-  for (let i = 0; i < 4; i++) {
-    const apsis = searchNextLunarApsis(searchDate);
-    if (!apsis) return null;
-
-    if (apsis.type === 'perigee') {
-      return { date: apsis.date, distanceKm: apsis.distanceKm };
-    }
-
-    // Move search date past this apogee
-    searchDate = new Date(apsis.date.getTime() + 24 * 60 * 60 * 1000);
-  }
-
-  return null;
-}
-
-/**
  * Check if a full moon coincides with perigee (supermoon condition)
  */
-export function isSupermoon(perigeeDate: Date, perigeeDistanceKm: number): boolean {
+function isSupermoon(perigeeDate: Date, perigeeDistanceKm: number): boolean {
   // Check if perigee is close enough
   if (perigeeDistanceKm > SUPERMOON_PERIGEE_THRESHOLD_KM) {
     return false;
@@ -105,67 +83,6 @@ export function getLunarApsisForNight(
     };
   } catch (_error) {
     return null;
-  }
-}
-
-/**
- * Check if tonight is a supermoon night
- */
-export function checkSupermoon(date: Date): {
-  isSupermoon: boolean;
-  perigeeDate: Date | null;
-  distanceKm: number | null;
-  fullMoonPhase: number;
-} {
-  try {
-    const moonPhase = Astronomy.MoonPhase(date);
-
-    // First check if we're near full moon
-    const degreesFromFull = Math.abs(180 - moonPhase);
-    const adjustedDegrees = degreesFromFull > 180 ? 360 - degreesFromFull : degreesFromFull;
-
-    if (adjustedDegrees > FULL_MOON_PHASE_THRESHOLD * 2) {
-      return {
-        isSupermoon: false,
-        perigeeDate: null,
-        distanceKm: null,
-        fullMoonPhase: moonPhase,
-      };
-    }
-
-    // Search for nearby perigee
-    const searchStart = new Date(date);
-    searchStart.setDate(searchStart.getDate() - 2);
-
-    const perigee = searchNextPerigee(searchStart);
-
-    if (!perigee) {
-      return {
-        isSupermoon: false,
-        perigeeDate: null,
-        distanceKm: null,
-        fullMoonPhase: moonPhase,
-      };
-    }
-
-    const supermoon = isSupermoon(perigee.date, perigee.distanceKm);
-
-    // Also check if this night is within 24 hours of that supermoon perigee
-    const hoursDiff = Math.abs(date.getTime() - perigee.date.getTime()) / (1000 * 60 * 60);
-
-    return {
-      isSupermoon: supermoon && hoursDiff < 48,
-      perigeeDate: perigee.date,
-      distanceKm: perigee.distanceKm,
-      fullMoonPhase: moonPhase,
-    };
-  } catch (_error) {
-    return {
-      isSupermoon: false,
-      perigeeDate: null,
-      distanceKm: null,
-      fullMoonPhase: 0,
-    };
   }
 }
 
