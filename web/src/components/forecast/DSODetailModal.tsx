@@ -4,6 +4,7 @@ import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
 import { formatDistance } from '@/lib/gaia';
 import { fetchEnhancedGaiaStarField } from '@/lib/gaia/enhanced-queries';
+import { calculateFrameFillPercent, calculateMosaicPanels } from '@/lib/scoring';
 import { formatFOV, getEffectiveFOV } from '@/lib/telescopes';
 import {
   formatAltitude,
@@ -47,6 +48,8 @@ export default function DSODetailModal({
   const { visibility, magnitude, category, subtype, totalScore } = object;
   const fov = getEffectiveFOV(telescope, customFOV);
   const icon = getCategoryIcon(category, subtype);
+  const frameFillPercent = calculateFrameFillPercent(visibility.angularSizeArcmin, category, fov);
+  const mosaic = calculateMosaicPanels(visibility.angularSizeArcmin, fov);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -149,7 +152,7 @@ export default function DSODetailModal({
         <div className="p-4 space-y-4 overflow-y-auto flex-1">
           {/* Rating and basic info */}
           <div className="flex items-center justify-between">
-            <RatingStars score={totalScore} maxScore={220} size="md" />
+            <RatingStars score={totalScore} maxScore={235} size="md" />
             <div className="flex items-center gap-2 text-sm">
               {magnitude !== null && (
                 <span className="text-gray-400">mag {formatMagnitude(magnitude)}</span>
@@ -171,7 +174,11 @@ export default function DSODetailModal({
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Focus className="w-3 h-3" />
-                <span>FOV: {formatFOV(fov.width, fov.height)}</span>
+                <span>
+                  FOV: {formatFOV(fov.width, fov.height)}
+                  {frameFillPercent !== null && ` · ${frameFillPercent}% fill`}
+                  {mosaic && ` · ${mosaic.cols}\u00d7${mosaic.rows} mosaic`}
+                </span>
               </div>
             </div>
 
