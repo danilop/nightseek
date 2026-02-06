@@ -107,10 +107,16 @@ function getQualityRating(score: number): ImagingWindow['quality'] {
  * Get weather data for a specific hour
  */
 function getHourlyWeatherAt(weather: NightWeather | null, time: Date): HourlyWeather | null {
-  if (!weather || !weather.hourlyData) return null;
+  if (!weather || !weather.hourlyData || weather.hourlyData.size === 0) return null;
 
-  const hour = time.getHours();
-  return weather.hourlyData.get(hour) ?? null;
+  const targetTime = time.getTime();
+  const THIRTY_MIN = 30 * 60 * 1000;
+  for (const [timestamp, data] of weather.hourlyData) {
+    if (Math.abs(timestamp - targetTime) <= THIRTY_MIN) {
+      return data;
+    }
+  }
+  return null;
 }
 
 /**
