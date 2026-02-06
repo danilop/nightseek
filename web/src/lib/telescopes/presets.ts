@@ -26,14 +26,14 @@ export const TELESCOPE_PRESETS: TelescopePreset[] = [
   { id: 'custom', name: 'Custom', fovWidth: 0, fovHeight: 0 },
 ];
 
-export const DEFAULT_TELESCOPE: TelescopePresetId = 'dwarf_mini';
+const DEFAULT_TELESCOPE: TelescopePresetId = 'dwarf_mini';
 export const MAX_CUSTOM_FOV = 480; // 8 degrees = 2x largest preset
 export const MIN_CUSTOM_FOV = 1;
 
 /**
  * Get telescope preset by ID
  */
-export function getTelescopePreset(id: TelescopePresetId): TelescopePreset | undefined {
+function getTelescopePreset(id: TelescopePresetId): TelescopePreset | undefined {
   return TELESCOPE_PRESETS.find(p => p.id === id);
 }
 

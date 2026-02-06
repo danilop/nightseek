@@ -872,13 +872,6 @@ export const IAU_METEOR_SHOWERS: Omit<
 ];
 
 /**
- * Get the number of showers in the IAU catalog
- */
-export function getIAUShowerCount(): number {
-  return IAU_METEOR_SHOWERS.length;
-}
-
-/**
  * Get constellation for a radiant position
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: constellation lookup requires many boundary checks

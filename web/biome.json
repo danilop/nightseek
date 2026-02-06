@@ -73,12 +73,12 @@
         "noAssignInExpressions": "error",
         "noDoubleEquals": "error",
         "noEmptyBlockStatements": "warn",
-        "noExplicitAny": "warn",
+        "noExplicitAny": "error",
         "noImplicitAnyLet": "warn",
         "noConsole": { "level": "warn", "options": { "allow": ["log"] } }
       },
       "nursery": {
-        "useSortedClasses": "off"
+        "useSortedClasses": "warn"
       }
     }
   },

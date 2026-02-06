@@ -13,7 +13,7 @@ const ELONGATION_WINDOW_DAYS = 7;
 /**
  * Get current elongation (angular separation from Sun) for a planet
  */
-export function getElongation(
+function getElongation(
   body: Astronomy.Body,
   date: Date
 ): { elongation: number; visibility: string } {
@@ -31,7 +31,7 @@ export function getElongation(
 /**
  * Search for the next maximum elongation of Mercury or Venus
  */
-export function searchMaxElongation(
+function searchMaxElongation(
   body: Astronomy.Body,
   startDate: Date
 ): { date: Date; elongation: number; isEastern: boolean } | null {
@@ -53,7 +53,7 @@ export function searchMaxElongation(
 /**
  * Check if a planet is near its maximum elongation
  */
-export function isNearMaxElongation(
+function isNearMaxElongation(
   body: Astronomy.Body,
   date: Date,
   windowDays: number = ELONGATION_WINDOW_DAYS

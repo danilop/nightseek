@@ -216,7 +216,7 @@ export function calculateWeatherScore(
 /**
  * Surface brightness score for DSOs (0-20 points)
  */
-export function calculateSurfaceBrightnessScore(
+function calculateSurfaceBrightnessScore(
   surfaceBrightness: number | null,
   magnitude: number | null,
   angularSizeArcmin: number
@@ -276,7 +276,7 @@ export function calculateMagnitudeScore(
  * Type suitability score based on moon conditions (0-15 points)
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Suitability scoring varies by object type and moon conditions
-export function calculateTypeSuitabilityScore(
+function calculateTypeSuitabilityScore(
   objectType: ObjectCategory,
   subtype: DSOSubtype | null,
   moonIllumination: number
@@ -341,7 +341,7 @@ export function calculateSeasonalWindowScore(objectRaHours: number, sunRaHours: 
 /**
  * Novelty/popularity bonus (0-10 points)
  */
-export function calculateNoveltyScore(isMessier: boolean, hasCommonName: boolean): number {
+function calculateNoveltyScore(isMessier: boolean, hasCommonName: boolean): number {
   if (isMessier) return 10;
   if (hasCommonName) return 5;
   return 0;
@@ -408,7 +408,7 @@ export function calculateElongationBonus(
 /**
  * Supermoon bonus for Moon photography (0-10 points)
  */
-export function calculateSupermoonBonus(
+function calculateSupermoonBonus(
   lunarApsis: LunarApsis | null,
   moonIllumination: number,
   objectType: ObjectCategory

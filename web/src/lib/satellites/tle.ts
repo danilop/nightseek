@@ -52,21 +52,3 @@ export async function fetchISSTLE(): Promise<TLEData | null> {
     return null;
   }
 }
-
-/**
- * Parse TLE text into TLEData object
- */
-export function parseTLE(tleText: string, noradId: number): TLEData | null {
-  const lines = tleText.trim().split('\n');
-
-  if (lines.length < 3) {
-    return null;
-  }
-
-  return {
-    name: lines[0].trim(),
-    line1: lines[1].trim(),
-    line2: lines[2].trim(),
-    noradId,
-  };
-}

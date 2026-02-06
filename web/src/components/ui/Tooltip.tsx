@@ -214,24 +214,3 @@ export default function Tooltip({
     </>
   );
 }
-
-/**
- * InfoIcon component for fields that need explanation.
- * Wrap with Tooltip for the help text.
- */
-export function InfoIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg
-      className={`inline-block w-3.5 h-3.5 text-gray-500 ${className}`}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-      role="img"
-      aria-label="Info"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 16v-4M12 8h.01" />
-    </svg>
-  );
-}

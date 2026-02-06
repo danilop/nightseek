@@ -149,10 +149,3 @@ function getConjunctionDescription(object1: string, object2: string, separation:
     return `${object1} and ${object2} within ${sepStr} degrees`;
   }
 }
-
-/**
- * Check if there's a notable conjunction (< 5 degrees)
- */
-export function hasNotableConjunction(conjunctions: Conjunction[]): boolean {
-  return conjunctions.some(c => c.isNotable);
-}

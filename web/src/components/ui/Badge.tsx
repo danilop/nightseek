@@ -29,38 +29,3 @@ export function Badge({
     </span>
   );
 }
-
-/**
- * Get the appropriate badge variant based on a numeric value and thresholds
- * Higher values are better when ascending=true (e.g., altitude)
- * Lower values are better when ascending=false (e.g., distance)
- */
-export function getStatusVariant(
-  value: number,
-  thresholds: { danger?: number; warning?: number; success?: number },
-  ascending = true
-): BadgeVariant {
-  return ascending
-    ? getAscendingVariant(value, thresholds)
-    : getDescendingVariant(value, thresholds);
-}
-
-function getAscendingVariant(
-  value: number,
-  { danger, warning, success }: { danger?: number; warning?: number; success?: number }
-): BadgeVariant {
-  if (success !== undefined && value >= success) return 'success';
-  if (warning !== undefined && value >= warning) return 'warning';
-  if (danger !== undefined && value < danger) return 'danger';
-  return 'warning';
-}
-
-function getDescendingVariant(
-  value: number,
-  { danger, warning, success }: { danger?: number; warning?: number; success?: number }
-): BadgeVariant {
-  if (success !== undefined && value <= success) return 'success';
-  if (warning !== undefined && value <= warning) return 'warning';
-  if (danger !== undefined && value > danger) return 'danger';
-  return 'warning';
-}

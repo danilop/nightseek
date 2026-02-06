@@ -6,7 +6,7 @@ type SeasonType = 'march_equinox' | 'june_solstice' | 'september_equinox' | 'dec
 /**
  * Get all seasonal events for a given year
  */
-export function getSeasonsForYear(year: number): {
+function getSeasonsForYear(year: number): {
   marchEquinox: Date;
   juneSolstice: Date;
   septemberEquinox: Date;
@@ -35,7 +35,7 @@ export function getSeasonsForYear(year: number): {
 /**
  * Find the next seasonal marker from a given date
  */
-export function getNextSeasonalMarker(date: Date, windowDays: number = 7): SeasonalMarker | null {
+function getNextSeasonalMarker(date: Date, windowDays: number = 7): SeasonalMarker | null {
   try {
     const year = date.getFullYear();
 
@@ -70,46 +70,6 @@ export function getNextSeasonalMarker(date: Date, windowDays: number = 7): Seaso
   } catch (_error) {
     return null;
   }
-}
-
-/**
- * Get the current season based on date
- */
-export function getCurrentSeason(
-  date: Date,
-  isNorthernHemisphere: boolean = true
-): 'spring' | 'summer' | 'autumn' | 'winter' {
-  const year = date.getFullYear();
-  const seasons = getSeasonsForYear(year);
-
-  const dateMs = date.getTime();
-
-  let season: 'spring' | 'summer' | 'autumn' | 'winter';
-
-  if (dateMs < seasons.marchEquinox.getTime()) {
-    season = 'winter';
-  } else if (dateMs < seasons.juneSolstice.getTime()) {
-    season = 'spring';
-  } else if (dateMs < seasons.septemberEquinox.getTime()) {
-    season = 'summer';
-  } else if (dateMs < seasons.decemberSolstice.getTime()) {
-    season = 'autumn';
-  } else {
-    season = 'winter';
-  }
-
-  // Flip for Southern Hemisphere
-  if (!isNorthernHemisphere) {
-    const flipMap: Record<string, 'spring' | 'summer' | 'autumn' | 'winter'> = {
-      spring: 'autumn',
-      summer: 'winter',
-      autumn: 'spring',
-      winter: 'summer',
-    };
-    season = flipMap[season];
-  }
-
-  return season;
 }
 
 /**

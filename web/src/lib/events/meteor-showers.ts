@@ -6,7 +6,7 @@ import { getRadiantConstellation, IAU_METEOR_SHOWERS } from './iau-meteor-data';
  * Major meteor showers data (legacy - now using IAU_METEOR_SHOWERS for more complete data)
  * Kept for backwards compatibility
  */
-export const METEOR_SHOWERS: Omit<
+const METEOR_SHOWERS: Omit<
   MeteorShower,
   'isActive' | 'daysFromPeak' | 'radiantAltitude' | 'moonIllumination' | 'moonSeparationDeg'
 >[] = [

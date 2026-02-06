@@ -22,22 +22,6 @@ export function getQualityBgColor(level: QualityLevel): string {
 }
 
 /**
- * Get Tailwind text color class for quality levels
- */
-export function getQualityTextColor(level: QualityLevel): string {
-  switch (level) {
-    case 'excellent':
-      return 'text-green-400';
-    case 'good':
-      return 'text-yellow-400';
-    case 'fair':
-      return 'text-orange-400';
-    case 'poor':
-      return 'text-red-400';
-  }
-}
-
-/**
  * Get text color for altitude values (used in meteor showers, satellite passes)
  * Higher altitude = better visibility
  */
@@ -46,28 +30,6 @@ export function getAltitudeTextColor(altitude: number): string {
   if (altitude < 30) return 'text-amber-400';
   if (altitude < 60) return 'text-green-400';
   return 'text-emerald-400';
-}
-
-/**
- * Get text color for distance values (lower is more notable)
- * Used for asteroid close approaches
- */
-export function getDistanceTextColor(lunarDistances: number): string {
-  if (lunarDistances < 1) return 'text-red-400';
-  if (lunarDistances < 5) return 'text-amber-400';
-  if (lunarDistances < 20) return 'text-yellow-400';
-  return 'text-gray-400';
-}
-
-/**
- * Get text color for magnitude values (brightness)
- * Lower magnitude = brighter = better
- */
-export function getMagnitudeTextColor(magnitude: number): string {
-  if (magnitude < 0) return 'text-green-400'; // Very bright
-  if (magnitude < 2) return 'text-yellow-400'; // Easily visible
-  if (magnitude < 4) return 'text-gray-300'; // Visible
-  return 'text-gray-500'; // Dim
 }
 
 /**
@@ -89,14 +51,4 @@ export function getMoonInterference(illumination: number | null): {
     return { level: 'moderate', text: 'Moderate interference', textColor: 'text-amber-400' };
   }
   return { level: 'high', text: 'Significant interference', textColor: 'text-red-400' };
-}
-
-/**
- * Get visibility status color based on satellite pass magnitude
- */
-export function getVisibilityStatusColor(magnitude: number): string {
-  if (magnitude < -2) return 'text-green-400'; // Excellent
-  if (magnitude < 0) return 'text-yellow-400'; // Good
-  if (magnitude < 2) return 'text-gray-300'; // Fair
-  return 'text-gray-500'; // Poor
 }

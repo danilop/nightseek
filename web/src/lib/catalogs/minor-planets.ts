@@ -297,7 +297,7 @@ export function calculateMinorPlanetMagnitude(
 /**
  * Calculate apparent diameter in arcseconds
  */
-export function calculateApparentDiameter(physicalDiameterKm: number, distanceAU: number): number {
+function calculateApparentDiameter(physicalDiameterKm: number, distanceAU: number): number {
   if (distanceAU <= 0) return 0;
   const distanceKm = distanceAU * 149597870.7;
   const angularDiameterRad = physicalDiameterKm / distanceKm;
@@ -362,13 +362,6 @@ export function calculateMinorPlanetVisibility(
   visibility.apparentDiameterArcsec = calculateApparentDiameter(mp.physicalDiameter, pos.earthDist);
 
   return visibility;
-}
-
-/**
- * Get all minor planets (dwarf planets + asteroids)
- */
-export function getAllMinorPlanets(): MinorPlanetData[] {
-  return [...DWARF_PLANETS, ...NOTABLE_ASTEROIDS];
 }
 
 /**

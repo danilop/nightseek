@@ -2,7 +2,7 @@
  * Common names for well-known NGC/IC objects
  * Merged from both CLI and Web to ensure consistent search results
  */
-export const COMMON_NAMES: Record<string, string> = {
+const COMMON_NAMES: Record<string, string> = {
   // Galaxies
   'NGC 224': 'Andromeda Galaxy',
   'NGC 253': 'Sculptor Galaxy',

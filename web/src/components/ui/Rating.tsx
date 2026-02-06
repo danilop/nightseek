@@ -89,24 +89,3 @@ export function RatingStars({
     />
   );
 }
-
-/**
- * Label-only rating display
- */
-export function RatingLabel({
-  score,
-  maxScore = 100,
-  size = 'md',
-  className = '',
-}: Omit<RatingProps, 'showLabel' | 'showStars'>) {
-  return (
-    <Rating
-      score={score}
-      maxScore={maxScore}
-      showLabel={true}
-      showStars={false}
-      size={size}
-      className={className}
-    />
-  );
-}
