@@ -167,6 +167,7 @@ export interface NightForecast {
   milkyWay: ObjectVisibility | null;
   moon: ObjectVisibility | null;
   weather: NightWeather | null;
+  forecastConfidence: 'high' | 'medium' | 'low';
   conjunctions: Conjunction[];
   meteorShowers: MeteorShower[];
   astronomicalEvents: AstronomicalEvents;

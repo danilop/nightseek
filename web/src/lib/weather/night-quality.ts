@@ -111,7 +111,11 @@ function calculateWindScore(windSpeed: number | null): number {
 /**
  * Generate a summary description of the night quality
  */
-function generateSummary(factors: NightQualityFactors, _weather: NightWeather | null): string {
+function generateSummary(factors: NightQualityFactors, weather: NightWeather | null): string {
+  if (!weather) {
+    return 'No weather data — rating based on moon and astronomical conditions only';
+  }
+
   const descriptions: string[] = [];
 
   // Cloud description

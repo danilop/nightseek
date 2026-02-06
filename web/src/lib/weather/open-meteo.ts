@@ -103,6 +103,10 @@ export async function fetchAirQuality(
  */
 interface NightWeatherArrays {
   cloudCover: number[];
+  cloudCoverLow: number[];
+  cloudCoverMid: number[];
+  cloudCoverHigh: number[];
+  visibility: number[];
   windSpeed: number[];
   windGust: number[];
   humidity: number[];
@@ -124,6 +128,10 @@ interface NightWeatherArrays {
 function createEmptyWeatherArrays(): NightWeatherArrays {
   return {
     cloudCover: [],
+    cloudCoverLow: [],
+    cloudCoverMid: [],
+    cloudCoverHigh: [],
+    visibility: [],
     windSpeed: [],
     windGust: [],
     humidity: [],
@@ -149,6 +157,11 @@ function collectHourlyData(
   arrays: NightWeatherArrays
 ): void {
   arrays.cloudCover.push(hourly.cloud_cover[i]);
+
+  if (hourly.cloud_cover_low?.[i] != null) arrays.cloudCoverLow.push(hourly.cloud_cover_low[i]);
+  if (hourly.cloud_cover_mid?.[i] != null) arrays.cloudCoverMid.push(hourly.cloud_cover_mid[i]);
+  if (hourly.cloud_cover_high?.[i] != null) arrays.cloudCoverHigh.push(hourly.cloud_cover_high[i]);
+  if (hourly.visibility?.[i] != null) arrays.visibility.push(hourly.visibility[i] / 1000);
 
   if (hourly.wind_speed_10m?.[i] != null) arrays.windSpeed.push(hourly.wind_speed_10m[i]);
   if (hourly.wind_gusts_10m?.[i] != null) arrays.windGust.push(hourly.wind_gusts_10m[i]);
@@ -256,7 +269,7 @@ export function parseNightWeather(
   weatherData: WeatherAPIResponse,
   airQualityData: AirQualityAPIResponse | null,
   nightInfo: NightInfo
-): NightWeather {
+): NightWeather | null {
   const { hourly } = weatherData;
   const airHourly = airQualityData?.hourly;
 
@@ -277,6 +290,9 @@ export function parseNightWeather(
     }
   }
 
+  // No hourly data matched the night window — this night is beyond the API range
+  if (arrays.cloudCover.length === 0) return null;
+
   const avgAod = avgOrNull(arrays.aod);
   const clearWindows = findClearWindows(hourlyMap, duskTime, dawnTime);
   const bestTime = findBestObservingTime(hourlyMap, duskTime, dawnTime);
@@ -292,15 +308,15 @@ export function parseNightWeather(
     ),
     clearWindows,
     hourlyData: hourlyMap,
-    avgVisibilityKm: avgOrNull(arrays.windSpeed),
+    avgVisibilityKm: avgOrNull(arrays.visibility),
     avgWindSpeedKmh: avgOrNull(arrays.windSpeed),
     maxWindSpeedKmh: maxOrNull(arrays.windGust),
     avgHumidity: avgOrNull(arrays.humidity),
     avgTemperatureC: avgOrNull(arrays.temp),
     transparencyScore: calculateTransparencyScore(avgAod),
-    cloudCoverLow: hourly.cloud_cover_low ? avg(hourly.cloud_cover_low) : null,
-    cloudCoverMid: hourly.cloud_cover_mid ? avg(hourly.cloud_cover_mid) : null,
-    cloudCoverHigh: hourly.cloud_cover_high ? avg(hourly.cloud_cover_high) : null,
+    cloudCoverLow: avgOrNull(arrays.cloudCoverLow),
+    cloudCoverMid: avgOrNull(arrays.cloudCoverMid),
+    cloudCoverHigh: avgOrNull(arrays.cloudCoverHigh),
     minPrecipProbability: minOrNull(arrays.precipProb),
     maxPrecipProbability: maxOrNull(arrays.precipProb),
     totalPrecipitationMm: arrays.precip.length > 0 ? sum(arrays.precip) : null,

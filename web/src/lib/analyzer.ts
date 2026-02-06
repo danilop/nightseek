@@ -54,8 +54,6 @@ import { calculateNightQuality } from './weather/night-quality';
 import { fetchAirQuality, fetchWeather, parseNightWeather } from './weather/open-meteo';
 
 const MIN_SCORE_THRESHOLD = 60;
-const MAX_WEATHER_DAYS = 16;
-const MAX_AIR_QUALITY_DAYS = 5;
 
 export interface ForecastResult {
   forecasts: NightForecast[];
@@ -108,20 +106,16 @@ export async function generateForecast(
   let weatherData = null;
   let airQualityData = null;
 
-  if (forecastDays <= MAX_WEATHER_DAYS) {
-    try {
-      weatherData = await fetchWeather(latitude, longitude, forecastDays);
-    } catch {
-      // Weather fetch failed - continue without weather data
-    }
+  try {
+    weatherData = await fetchWeather(latitude, longitude, forecastDays);
+  } catch {
+    // Weather fetch failed - continue without weather data
   }
 
-  if (forecastDays <= MAX_AIR_QUALITY_DAYS) {
-    try {
-      airQualityData = await fetchAirQuality(latitude, longitude, forecastDays);
-    } catch {
-      // Air quality fetch failed - continue without air quality data
-    }
+  try {
+    airQualityData = await fetchAirQuality(latitude, longitude, forecastDays);
+  } catch {
+    // Air quality fetch failed - continue without air quality data
   }
 
   // Generate forecasts for each night
@@ -367,7 +361,7 @@ export async function generateForecast(
     const moon = calculator.calculateMoonVisibility(nightInfo);
     moon.libration = getLibrationForNight(nightDate);
 
-    // Parse weather for this night
+    // Parse weather for this night (returns null if night is beyond API range)
     let weather: NightWeather | null = null;
     if (weatherData) {
       try {
@@ -376,6 +370,14 @@ export async function generateForecast(
         // Weather parsing failed - continue without weather data
       }
     }
+
+    // Determine forecast confidence tier
+    const forecastConfidence: 'high' | 'medium' | 'low' =
+      weather !== null && weather.avgAerosolOpticalDepth !== null
+        ? 'high'
+        : weather !== null
+          ? 'medium'
+          : 'low';
 
     // Calculate seeing forecast based on weather
     nightInfo.seeingForecast = getSeeingFromWeather(weather);
@@ -438,6 +440,7 @@ export async function generateForecast(
       milkyWay: milkyWay.isVisible ? milkyWay : null,
       moon,
       weather,
+      forecastConfidence,
       conjunctions,
       meteorShowers,
       astronomicalEvents,

@@ -1,4 +1,4 @@
-import { Star } from 'lucide-react';
+import { Info, Star } from 'lucide-react';
 import Tooltip from '@/components/ui/Tooltip';
 import {
   formatDate,
@@ -91,12 +91,13 @@ export default function NightSummaryTable({
           </thead>
           <tbody>
             {forecasts.map((forecast, index) => {
-              const { nightInfo, weather } = forecast;
+              const { nightInfo, weather, forecastConfidence } = forecast;
               const dateKey = nightInfo.date.toISOString().split('T')[0];
               const isBestNight = bestNightSet.has(dateKey);
               const isSelected = index === selectedIndex;
               const nightQuality = calculateNightQuality(weather, nightInfo);
               const bestTimeStr = getBestTimeDisplay(weather);
+              const isLowConfidence = forecastConfidence === 'low';
 
               return (
                 <tr
@@ -104,7 +105,7 @@ export default function NightSummaryTable({
                   onClick={() => onSelectNight(index)}
                   className={`cursor-pointer transition-colors ${
                     isSelected ? 'bg-sky-600/20' : 'hover:bg-night-800/50'
-                  } ${isBestNight ? 'border-l-2 border-l-green-500' : ''}`}
+                  } ${isBestNight ? 'border-l-2 border-l-green-500' : ''} ${isLowConfidence ? 'opacity-70' : ''}`}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -127,12 +128,18 @@ export default function NightSummaryTable({
                         </span>
                       </>
                     ) : (
-                      <span className="text-gray-500">—</span>
+                      <Tooltip content="Weather forecast not available beyond 16 days">
+                        <span className="text-gray-500 text-sm">N/A</span>
+                      </Tooltip>
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {bestTimeStr ? (
                       <span className="text-green-400">{bestTimeStr}</span>
+                    ) : isLowConfidence ? (
+                      <Tooltip content="No weather data available for this date">
+                        <span className="text-gray-500">N/A</span>
+                      </Tooltip>
                     ) : (
                       <span className="text-gray-500">No good window</span>
                     )}
@@ -141,6 +148,11 @@ export default function NightSummaryTable({
                     <span className={`star-rating text-sm ${nightQuality.rating.color}`}>
                       {nightQuality.rating.starString}
                     </span>
+                    {isLowConfidence && (
+                      <Tooltip content="Estimated — no weather data">
+                        <Info className="inline-block ml-1 w-3 h-3 text-gray-500" />
+                      </Tooltip>
+                    )}
                   </td>
                 </tr>
               );
@@ -152,12 +164,13 @@ export default function NightSummaryTable({
       {/* Mobile Cards */}
       <div className="sm:hidden divide-y divide-night-700">
         {forecasts.map((forecast, index) => {
-          const { nightInfo, weather } = forecast;
+          const { nightInfo, weather, forecastConfidence } = forecast;
           const dateKey = nightInfo.date.toISOString().split('T')[0];
           const isBestNight = bestNightSet.has(dateKey);
           const isSelected = index === selectedIndex;
           const nightQuality = calculateNightQuality(weather, nightInfo);
           const bestTimeStr = getBestTimeDisplay(weather);
+          const isLowConfidence = forecastConfidence === 'low';
 
           return (
             <div
@@ -173,16 +186,23 @@ export default function NightSummaryTable({
               }}
               className={`p-4 cursor-pointer transition-colors ${
                 isSelected ? 'bg-sky-600/20' : ''
-              } ${isBestNight ? 'border-l-2 border-l-green-500' : ''}`}
+              } ${isBestNight ? 'border-l-2 border-l-green-500' : ''} ${isLowConfidence ? 'opacity-70' : ''}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   {isBestNight && <Star className="w-4 h-4 text-green-400" />}
                   <span className="text-white font-medium">{formatDate(nightInfo.date)}</span>
                 </div>
-                <span className={`star-rating text-sm ${nightQuality.rating.color}`}>
-                  {nightQuality.rating.starString}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className={`star-rating text-sm ${nightQuality.rating.color}`}>
+                    {nightQuality.rating.starString}
+                  </span>
+                  {isLowConfidence && (
+                    <Tooltip content="Estimated — no weather data">
+                      <Info className="w-3 h-3 text-gray-500" />
+                    </Tooltip>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center gap-4 text-sm text-gray-400">
@@ -190,14 +210,18 @@ export default function NightSummaryTable({
                   {getMoonPhaseEmoji(nightInfo.moonPhase)}
                   {Math.round(nightInfo.moonIllumination)}%
                 </span>
-                {weather && (
+                {weather ? (
                   <span className="flex items-center gap-1">
                     {getWeatherEmoji(weather.avgCloudCover)}
                     {Math.round(weather.avgCloudCover)}%
                   </span>
+                ) : (
+                  <span className="text-gray-500 text-xs">No weather</span>
                 )}
                 {bestTimeStr ? (
                   <span className="text-green-400">{bestTimeStr}</span>
+                ) : isLowConfidence ? (
+                  <span className="text-gray-500">N/A</span>
                 ) : (
                   <span className="text-gray-500">No window</span>
                 )}

@@ -1,4 +1,14 @@
-import { ChevronDown, ChevronUp, CloudSun, Droplets, Eye, Telescope, Wind } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  CloudOff,
+  CloudSun,
+  Droplets,
+  Eye,
+  Info,
+  Telescope,
+  Wind,
+} from 'lucide-react';
 import type React from 'react';
 import { useMemo, useState } from 'react';
 import Tooltip from '@/components/ui/Tooltip';
@@ -64,6 +74,18 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
           </div>
           {/* Summary description */}
           <p className="text-sm text-gray-400">{nightQuality.summary}</p>
+          {/* Confidence notes */}
+          {forecast.forecastConfidence === 'low' && (
+            <div className="flex items-start gap-2 text-sm text-amber-400">
+              <Info className="mt-0.5 w-4 h-4 shrink-0" />
+              <span>
+                Based on celestial conditions only. Weather data is not available beyond 16 days.
+              </span>
+            </div>
+          )}
+          {forecast.forecastConfidence === 'medium' && (
+            <p className="text-xs text-gray-500">Air quality data unavailable beyond 5 days</p>
+          )}
           {/* Best observation time */}
           {weather?.bestTime ? (
             <p className="text-sm text-green-400">
@@ -85,6 +107,20 @@ export default function NightDetails({ forecast }: NightDetailsProps) {
           )}
         </div>
       </div>
+
+      {/* Weather Unavailable Card */}
+      {!weather && (
+        <div className="bg-night-900 rounded-xl border border-night-700 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <CloudOff className="w-4 h-4 text-gray-500" />
+            <h3 className="font-semibold text-gray-400">Weather Forecast Unavailable</h3>
+          </div>
+          <p className="text-sm text-gray-500">
+            Weather data is not available for this date. Scores are based on astronomical data (moon
+            phase, object positions, seasonal visibility).
+          </p>
+        </div>
+      )}
 
       {/* Weather Details Card */}
       {weather && (
