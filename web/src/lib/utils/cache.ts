@@ -105,6 +105,7 @@ export const CACHE_KEYS = {
   SBDB_PREFIX: 'nightseek:sbdb:',
   IAU_METEORS: 'nightseek:iau:showers',
   GAIA_ENHANCED_PREFIX: 'nightseek:gaia:enhanced:',
+  DONKI: 'nightseek:donki',
 };
 
 // Cache TTLs (in milliseconds)
@@ -123,4 +124,5 @@ export const CACHE_TTLS = {
   SBDB: 30 * 24 * 60 * 60 * 1000, // 30 days
   IAU_METEORS: 48 * 60 * 60 * 1000, // 48 hours
   GAIA_ENHANCED: 7 * 24 * 60 * 60 * 1000, // 7 days
+  DONKI: 4 * 60 * 60 * 1000, // 4 hours
 };

@@ -242,6 +242,71 @@ function getAsteroidData() {
   };
 }
 
+// ─── DONKI Space Weather (NASA) ─────────────────────────────────────────────
+
+const DONKI_BASE_URL = 'https://api.nasa.gov/DONKI';
+
+async function fetchDonkiData() {
+  console.log('Fetching DONKI space weather data...');
+
+  const today = new Date();
+  const pastWeek = new Date(today);
+  pastWeek.setDate(pastWeek.getDate() - 7);
+  const futureDate = new Date(today);
+  futureDate.setDate(futureDate.getDate() + 3);
+
+  const gstUrl = `${DONKI_BASE_URL}/GST?startDate=${formatDate(pastWeek)}&endDate=${formatDate(futureDate)}&api_key=${NASA_API_KEY}`;
+  const flrUrl = `${DONKI_BASE_URL}/FLR?startDate=${formatDate(pastWeek)}&endDate=${formatDate(today)}&api_key=${NASA_API_KEY}`;
+
+  const [gstResponse, flrResponse] = await Promise.all([fetch(gstUrl), fetch(flrUrl)]);
+
+  if (!gstResponse.ok && !flrResponse.ok) {
+    throw new Error(
+      `DONKI API failed: GST ${gstResponse.status}, FLR ${flrResponse.status}`
+    );
+  }
+
+  const gstData = gstResponse.ok ? await gstResponse.json() : [];
+  const flrData = flrResponse.ok ? await flrResponse.json() : [];
+
+  const geomagneticStorms = Array.isArray(gstData)
+    ? gstData.map((gst) => ({
+        gstID: gst.gstID,
+        startTime: gst.startTime,
+        kpIndexes: (gst.allKpIndex || []).map((kp) => ({
+          observedTime: kp.observedTime,
+          kpIndex: kp.kpIndex,
+          source: kp.source,
+        })),
+        maxKp: Math.max(0, ...(gst.allKpIndex || []).map((kp) => kp.kpIndex)),
+      }))
+    : [];
+
+  const solarFlares = Array.isArray(flrData)
+    ? flrData
+        .filter((flr) => {
+          const cls = flr.classType || '';
+          return cls.startsWith('M') || cls.startsWith('X');
+        })
+        .map((flr) => ({
+          flrID: flr.flrID,
+          classType: flr.classType,
+          beginTime: flr.beginTime,
+          peakTime: flr.peakTime || flr.beginTime,
+        }))
+    : [];
+
+  console.log(
+    `  ${geomagneticStorms.length} storms, ${solarFlares.length} M/X-class flares`
+  );
+
+  return {
+    geomagneticStorms,
+    solarFlares,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -270,6 +335,16 @@ async function main() {
     errors.push(`comets: ${err.message}`);
   }
 
+  // DONKI space weather data
+  try {
+    const donki = await fetchDonkiData();
+    const content = safeWrite('donki.json', donki);
+    hashes['donki.json'] = sha256(content);
+  } catch (err) {
+    console.error(`  DONKI fetch failed: ${err.message}`);
+    errors.push(`donki: ${err.message}`);
+  }
+
   // Asteroid data (never fails — hardcoded)
   const asteroids = getAsteroidData();
   const asteroidContent = safeWrite('asteroids.json', asteroids);
@@ -285,8 +360,8 @@ async function main() {
 
   console.log(`\nDone. ${errors.length > 0 ? `${errors.length} error(s).` : 'All sources succeeded.'}`);
 
-  // Exit with error if ALL sources failed (partial success is OK)
-  if (errors.length >= 2) {
+  // Exit with error if most sources failed (partial success is OK)
+  if (errors.length >= 3) {
     process.exit(1);
   }
 }
