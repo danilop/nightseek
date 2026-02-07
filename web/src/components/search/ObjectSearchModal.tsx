@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { searchCelestialObjects } from '@/lib/search/object-search';
 import type { Location, ObjectSearchResult, ObjectVisibilityStatus } from '@/types';
 
@@ -370,13 +371,7 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Lock body scroll when modal is open
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, []);
+  useBodyScrollLock();
 
   // Focus input on mount
   useEffect(() => {

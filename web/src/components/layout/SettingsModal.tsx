@@ -10,7 +10,8 @@ import {
   Wind,
   X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useApp } from '@/stores/AppContext';
 import type { DistanceUnit, PressureUnit, SpeedUnit, TemperatureUnit } from '@/types';
 import TelescopeSettings from './TelescopeSettings';
@@ -25,13 +26,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Lock body scroll when modal is open
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, []);
+  useBodyScrollLock();
 
   const handleForecastDaysChange = (value: number) => {
     updateSettings({ forecastDays: Math.max(1, Math.min(30, value)) });
