@@ -290,21 +290,6 @@ export interface DSOCatalogEntry {
   surfaceBrightness: number | null;
 }
 
-export interface CometData {
-  designation: string;
-  name: string;
-  absoluteMagnitude: number;
-  slopeParameter: number;
-  perihelionDistance: number;
-  eccentricity: number;
-  argumentOfPerihelion: number;
-  longitudeOfAscendingNode: number;
-  inclination: number;
-  perihelionDate: Date;
-  epochDate: Date;
-  isInterstellar: boolean;
-}
-
 export interface PlanetData {
   name: string;
   physicalDiameter: number;
@@ -460,13 +445,6 @@ export interface SaturnRingInfo {
   isNorthPoleVisible: boolean;
   openness: 'edge-on' | 'narrow' | 'moderate' | 'wide' | 'maximum';
   description: string;
-}
-
-// Dew Risk Timeline Entry
-export interface DewRiskEntry {
-  hour: Date;
-  riskLevel: 'safe' | 'low' | 'moderate' | 'high';
-  dewMargin: number; // temperature - dewpoint
 }
 
 // Space Weather (NASA DONKI)

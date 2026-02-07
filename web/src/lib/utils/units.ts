@@ -6,7 +6,7 @@
 export type TemperatureUnit = 'celsius' | 'fahrenheit';
 export type SpeedUnit = 'kmh' | 'mph';
 export type PressureUnit = 'hpa' | 'inhg';
-export type DistanceUnit = 'km' | 'mi';
+type DistanceUnit = 'km' | 'mi';
 
 export interface UnitPreferences {
   temperature: TemperatureUnit;
