@@ -14,6 +14,8 @@ echo "════════════════════════�
 echo ""
 echo "──────────── Python CLI ────────────"
 
+cd cli
+
 # Run ruff for linting and formatting
 echo "→ Running ruff check (lint)..."
 uv run ruff check .
@@ -34,6 +36,8 @@ echo "→ Running pytest..."
 uv run pytest test_nightseek.py -q
 
 echo "✓ Python checks passed!"
+
+cd ..
 
 # ─────────────────────────────────────────────────────────────────────
 # TYPESCRIPT WEB CHECKS

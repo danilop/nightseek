@@ -1,28 +1,71 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <linearGradient id="skyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+    <!-- Deep space background -->
+    <radialGradient id="sky" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#070614"/>
+    </radialGradient>
+    <!-- Telescope lens ring -->
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="40%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
     </linearGradient>
+    <!-- Moon surface -->
+    <linearGradient id="moon" x1="20%" y1="0%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#f0f4ff"/>
+      <stop offset="100%" stop-color="#a5b4fc"/>
+    </linearGradient>
+    <!-- Star glow -->
+    <radialGradient id="glow1">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Nebula hint -->
+    <radialGradient id="nebula" cx="65%" cy="60%" r="25%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <!-- Background circle -->
-  <circle cx="50" cy="50" r="45" fill="#0f0d24"/>
-  <!-- Telescope -->
-  <g transform="translate(50,50)">
-    <!-- Tube -->
-    <rect x="-25" y="-8" width="40" height="16" rx="3" fill="url(#skyGradient)" transform="rotate(-30)"/>
-    <!-- Eyepiece -->
-    <circle cx="-18" cy="10" r="6" fill="#0ea5e9"/>
-    <!-- Mount -->
-    <rect x="-5" y="5" width="10" height="25" rx="2" fill="#4338ca"/>
-    <!-- Tripod legs -->
-    <line x1="0" y1="30" x2="-20" y2="40" stroke="#4338ca" stroke-width="4" stroke-linecap="round"/>
-    <line x1="0" y1="30" x2="20" y2="40" stroke="#4338ca" stroke-width="4" stroke-linecap="round"/>
-    <line x1="0" y1="30" x2="0" y2="42" stroke="#4338ca" stroke-width="4" stroke-linecap="round"/>
-  </g>
-  <!-- Stars -->
-  <circle cx="75" cy="20" r="3" fill="#fbbf24"/>
-  <circle cx="25" cy="25" r="2" fill="#fbbf24"/>
-  <circle cx="80" cy="40" r="2" fill="#fbbf24"/>
-  <circle cx="20" cy="60" r="1.5" fill="#fbbf24"/>
+
+  <!-- Outer lens ring -->
+  <circle cx="50" cy="50" r="49" fill="url(#ring)"/>
+  <!-- Dark sky (inner) -->
+  <circle cx="50" cy="50" r="45.5" fill="url(#sky)"/>
+  <!-- Inner ring highlight -->
+  <circle cx="50" cy="50" r="45.5" fill="none" stroke="#4338ca" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- Subtle nebula glow -->
+  <circle cx="62" cy="58" r="18" fill="url(#nebula)"/>
+
+  <!-- Crescent moon -->
+  <circle cx="26" cy="28" r="12" fill="url(#moon)"/>
+  <circle cx="31" cy="24" r="11" fill="url(#sky)"/>
+
+  <!-- Feature star with diffraction spikes -->
+  <circle cx="62" cy="30" r="9" fill="url(#glow1)"/>
+  <line x1="62" y1="18" x2="62" y2="42" stroke="#fbbf24" stroke-width="0.7" opacity="0.4"/>
+  <line x1="50" y1="30" x2="74" y2="30" stroke="#fbbf24" stroke-width="0.7" opacity="0.4"/>
+  <line x1="54.5" y1="22.5" x2="69.5" y2="37.5" stroke="#fbbf24" stroke-width="0.4" opacity="0.25"/>
+  <line x1="69.5" y1="22.5" x2="54.5" y2="37.5" stroke="#fbbf24" stroke-width="0.4" opacity="0.25"/>
+  <circle cx="62" cy="30" r="3" fill="#fbbf24"/>
+  <circle cx="62" cy="30" r="1.5" fill="#fffbeb"/>
+
+  <!-- Medium stars -->
+  <circle cx="42" cy="60" r="2" fill="#e0e7ff"/>
+  <circle cx="42" cy="60" r="0.8" fill="#ffffff"/>
+  <circle cx="76" cy="52" r="1.8" fill="#c7d2fe"/>
+  <circle cx="55" cy="74" r="1.5" fill="#a5b4fc"/>
+  <circle cx="30" cy="68" r="1.8" fill="#c7d2fe"/>
+  <circle cx="30" cy="68" r="0.7" fill="#ffffff"/>
+
+  <!-- Small stars -->
+  <circle cx="20" cy="50" r="1" fill="#818cf8"/>
+  <circle cx="78" cy="38" r="0.9" fill="#a5b4fc"/>
+  <circle cx="48" cy="18" r="0.8" fill="#818cf8"/>
+  <circle cx="72" cy="70" r="0.8" fill="#818cf8"/>
+  <circle cx="38" cy="42" r="0.7" fill="#6366f1"/>
+  <circle cx="82" cy="62" r="0.6" fill="#6366f1"/>
+  <circle cx="22" cy="78" r="0.7" fill="#4f46e5"/>
+  <circle cx="65" cy="82" r="0.6" fill="#4f46e5"/>
 </svg>

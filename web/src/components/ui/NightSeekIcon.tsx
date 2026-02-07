@@ -1,0 +1,101 @@
+interface NightSeekIconProps {
+  className?: string;
+}
+
+export default function NightSeekIcon({ className }: NightSeekIconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 100 100"
+      className={className}
+      aria-hidden="true"
+    >
+      <defs>
+        <radialGradient id="ns-sky" cx="35%" cy="30%" r="65%">
+          <stop offset="0%" stopColor="#1e1b4b" />
+          <stop offset="100%" stopColor="#070614" />
+        </radialGradient>
+        <linearGradient id="ns-ring" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="40%" stopColor="#6366f1" />
+          <stop offset="100%" stopColor="#0ea5e9" />
+        </linearGradient>
+        <linearGradient id="ns-moon" x1="20%" y1="0%" x2="100%" y2="80%">
+          <stop offset="0%" stopColor="#f0f4ff" />
+          <stop offset="100%" stopColor="#a5b4fc" />
+        </linearGradient>
+        <radialGradient id="ns-glow">
+          <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.5} />
+          <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
+        </radialGradient>
+        <radialGradient id="ns-nebula" cx="65%" cy="60%" r="25%">
+          <stop offset="0%" stopColor="#6366f1" stopOpacity={0.15} />
+          <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+        </radialGradient>
+      </defs>
+
+      {/* Lens ring */}
+      <circle cx={50} cy={50} r={49} fill="url(#ns-ring)" />
+      <circle cx={50} cy={50} r={45.5} fill="url(#ns-sky)" />
+      <circle
+        cx={50}
+        cy={50}
+        r={45.5}
+        fill="none"
+        stroke="#4338ca"
+        strokeWidth={0.5}
+        opacity={0.5}
+      />
+
+      {/* Nebula glow */}
+      <circle cx={62} cy={58} r={18} fill="url(#ns-nebula)" />
+
+      {/* Crescent moon */}
+      <circle cx={26} cy={28} r={12} fill="url(#ns-moon)" />
+      <circle cx={31} cy={24} r={11} fill="url(#ns-sky)" />
+
+      {/* Feature star with diffraction spikes */}
+      <circle cx={62} cy={30} r={9} fill="url(#ns-glow)" />
+      <line x1={62} y1={18} x2={62} y2={42} stroke="#fbbf24" strokeWidth={0.7} opacity={0.4} />
+      <line x1={50} y1={30} x2={74} y2={30} stroke="#fbbf24" strokeWidth={0.7} opacity={0.4} />
+      <line
+        x1={54.5}
+        y1={22.5}
+        x2={69.5}
+        y2={37.5}
+        stroke="#fbbf24"
+        strokeWidth={0.4}
+        opacity={0.25}
+      />
+      <line
+        x1={69.5}
+        y1={22.5}
+        x2={54.5}
+        y2={37.5}
+        stroke="#fbbf24"
+        strokeWidth={0.4}
+        opacity={0.25}
+      />
+      <circle cx={62} cy={30} r={3} fill="#fbbf24" />
+      <circle cx={62} cy={30} r={1.5} fill="#fffbeb" />
+
+      {/* Medium stars */}
+      <circle cx={42} cy={60} r={2} fill="#e0e7ff" />
+      <circle cx={42} cy={60} r={0.8} fill="#ffffff" />
+      <circle cx={76} cy={52} r={1.8} fill="#c7d2fe" />
+      <circle cx={55} cy={74} r={1.5} fill="#a5b4fc" />
+      <circle cx={30} cy={68} r={1.8} fill="#c7d2fe" />
+      <circle cx={30} cy={68} r={0.7} fill="#ffffff" />
+
+      {/* Small stars */}
+      <circle cx={20} cy={50} r={1} fill="#818cf8" />
+      <circle cx={78} cy={38} r={0.9} fill="#a5b4fc" />
+      <circle cx={48} cy={18} r={0.8} fill="#818cf8" />
+      <circle cx={72} cy={70} r={0.8} fill="#818cf8" />
+      <circle cx={38} cy={42} r={0.7} fill="#6366f1" />
+      <circle cx={82} cy={62} r={0.6} fill="#6366f1" />
+      <circle cx={22} cy={78} r={0.7} fill="#4f46e5" />
+      <circle cx={65} cy={82} r={0.6} fill="#4f46e5" />
+    </svg>
+  );
+}

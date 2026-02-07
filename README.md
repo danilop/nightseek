@@ -34,7 +34,7 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ### 2. Install NightSeek
 
 ```bash
-uv tool install git+https://github.com/danilop/nightseek
+uv tool install git+https://github.com/danilop/nightseek#subdirectory=cli
 ```
 
 ### 3. Configure your location
@@ -99,9 +99,9 @@ nightseek -n 10        # Show top 10 objects per night
 
 ## Development Setup
 
-NightSeek has two components managed by different package managers:
-- **CLI (Python)**: Managed with [uv](https://docs.astral.sh/uv/)
-- **Web App (TypeScript/React)**: Managed with [pnpm](https://pnpm.io/)
+NightSeek has two components, each in its own directory:
+- **CLI (Python)**: `cli/` — managed with [uv](https://docs.astral.sh/uv/)
+- **Web App (TypeScript/React)**: `web/` — managed with [pnpm](https://pnpm.io/)
 
 ### Clone the Repository
 
@@ -115,6 +115,9 @@ cd nightseek
 ```bash
 # Install uv (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Navigate to CLI directory
+cd cli
 
 # Install dependencies
 uv sync
@@ -208,6 +211,7 @@ MAX_OBJECTS=8
 When developing NightSeek, use CLI parameters to test with different locations:
 
 ```bash
+cd cli
 uv run nightseek -lat 40.7128 -lon -74.0060 -d 3
 ```
 
@@ -333,7 +337,7 @@ NightSeek also checks automatically in the background:
 ✓ Updated successfully. Changes apply on next run.
 ```
 
-Updates are installed using `uv tool install --force --reinstall` and apply the next time you run `nightseek`.
+Updates are installed using `uv tool install --force --reinstall git+...#subdirectory=cli` and apply the next time you run `nightseek`.
 
 ## Output Format
 
@@ -554,34 +558,35 @@ Automatically detects when objects are close together:
 
 ```
 nightseek/
-├── main.py             # CLI entry point
-├── config.py           # Configuration management
-├── sky_calculator.py   # Astronomical calculations (airmass, planet sizes)
-├── catalog.py          # Celestial object catalog (planets, comets, asteroids)
-├── opengc_loader.py    # OpenNGC catalog integration
-├── analyzer.py         # Visibility analysis engine (conjunctions, scoring)
-├── search.py           # Object search functionality
-├── scoring.py          # Professional merit-based scoring algorithm
-├── weather.py          # Weather forecast integration (Open-Meteo)
-├── formatter.py        # Output formatting
-├── timezone_utils.py   # Timezone conversion utilities
-├── cache_manager.py    # Unified caching for external data
-├── pyproject.toml      # Python dependencies (uv)
-├── uv.lock             # Locked Python dependencies
+├── README.md           # This file
+├── LICENSE             # MIT License
+├── precommit.sh        # Unified code quality checks
+├── cli/                # Python CLI tool
+│   ├── main.py         # CLI entry point
+│   ├── config.py       # Configuration management
+│   ├── sky_calculator.py   # Astronomical calculations
+│   ├── catalog.py      # Celestial object catalog
+│   ├── opengc_loader.py    # OpenNGC catalog integration
+│   ├── analyzer.py     # Visibility analysis engine
+│   ├── search.py       # Object search functionality
+│   ├── scoring.py      # Scoring algorithm
+│   ├── weather.py      # Weather forecast integration
+│   ├── formatter.py    # Output formatting
+│   ├── pyproject.toml  # Python dependencies (uv)
+│   └── uv.lock         # Locked Python dependencies
 ├── web/                # Web application
 │   ├── src/            # React/TypeScript source
 │   ├── package.json    # Node dependencies (pnpm)
 │   ├── pnpm-lock.yaml  # Locked Node dependencies
 │   └── vite.config.ts  # Vite configuration
-├── .github/workflows/  # CI/CD
-│   └── deploy.yml      # GitHub Pages deployment
-└── LICENSE             # MIT License
+└── .github/workflows/  # CI/CD
+    └── deploy.yml      # GitHub Pages deployment
 ```
 
 ## Requirements
 
 - Python 3.11+
-- Dependencies managed via uv (see `pyproject.toml`)
+- Dependencies managed via uv (see `cli/pyproject.toml`)
 - Key dependencies:
   - skyfield (astronomical calculations)
   - pandas (orbital elements parsing)

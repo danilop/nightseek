@@ -28,3 +28,6 @@ CometEls.txt
 
 # Test artifacts
 *.png
+
+# Allow PWA icons
+!web/public/icons/*.png
