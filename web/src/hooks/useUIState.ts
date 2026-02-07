@@ -18,24 +18,24 @@ interface UIState {
 }
 
 const DEFAULT_CATEGORY_ORDER = [
-  'planets',
-  'comets',
-  'minor_planets',
-  'galaxies',
   'nebulae',
+  'galaxies',
   'clusters',
+  'comets',
+  'planets',
+  'minor_planets',
   'milky_way',
   'other',
 ];
 
 const DEFAULT_UI_STATE: UIState = {
   expandedCategories: {
-    planets: true,
+    nebulae: true,
+    galaxies: true,
+    clusters: true,
     comets: true,
-    minor_planets: true,
-    galaxies: false,
-    nebulae: false,
-    clusters: false,
+    planets: true,
+    minor_planets: false,
     milky_way: true,
     other: false,
   },
@@ -95,6 +95,12 @@ function notifyListeners() {
   for (const listener of listeners) {
     listener();
   }
+}
+
+export function resetUIState(): void {
+  globalState = { ...DEFAULT_UI_STATE };
+  localStorage.removeItem(STORAGE_KEY);
+  notifyListeners();
 }
 
 export function useUIState() {
