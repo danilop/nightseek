@@ -19,6 +19,7 @@ import { getTransitAlertSummary } from '@/lib/events/transits';
 import { formatTime, getNightLabel } from '@/lib/utils/format';
 import type { AstronomicalEvents } from '@/types';
 import CloseApproachCard from './CloseApproachCard';
+import SpaceWeatherCard from './SpaceWeatherCard';
 
 interface AstronomicalEventsSectionProps {
   events: AstronomicalEvents;
@@ -30,6 +31,10 @@ export default function AstronomicalEventsSection({
   nightDate,
 }: AstronomicalEventsSectionProps) {
   const hasNeoApproaches = events.neoCloseApproaches && events.neoCloseApproaches.length > 0;
+  const hasSpaceWeather =
+    events.spaceWeather &&
+    (events.spaceWeather.geomagneticStorms.length > 0 ||
+      events.spaceWeather.solarFlares.length > 0);
 
   const hasEvents =
     events.lunarEclipse ||
@@ -43,7 +48,8 @@ export default function AstronomicalEventsSection({
     events.venusPeak?.isNearPeak ||
     events.planetPerihelia?.length > 0 ||
     (events.planetaryTransit && events.planetaryTransit.yearsUntil <= 2) ||
-    hasNeoApproaches;
+    hasNeoApproaches ||
+    hasSpaceWeather;
 
   if (!hasEvents) {
     return null;
@@ -217,6 +223,16 @@ export default function AstronomicalEventsSection({
       {hasNeoApproaches && (
         <div className="mt-4">
           <CloseApproachCard approaches={events.neoCloseApproaches} nightDate={nightDate} />
+        </div>
+      )}
+
+      {/* Space Weather */}
+      {hasSpaceWeather && events.spaceWeather && (
+        <div className="mt-4">
+          <SpaceWeatherCard
+            spaceWeather={events.spaceWeather}
+            auroraForecast={events.auroraForecast}
+          />
         </div>
       )}
     </div>

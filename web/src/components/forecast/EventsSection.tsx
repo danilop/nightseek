@@ -20,6 +20,10 @@ export default function EventsSection({
   nightDate,
 }: EventsSectionProps) {
   const hasBasicEvents = conjunctions.length > 0 || meteorShowers.length > 0;
+  const hasSpaceWeather =
+    astronomicalEvents?.spaceWeather &&
+    (astronomicalEvents.spaceWeather.geomagneticStorms.length > 0 ||
+      astronomicalEvents.spaceWeather.solarFlares.length > 0);
   const hasAstroEvents =
     astronomicalEvents &&
     (astronomicalEvents.lunarEclipse ||
@@ -27,7 +31,8 @@ export default function EventsSection({
       astronomicalEvents.lunarApsis?.isSupermoon ||
       astronomicalEvents.seasonalMarker ||
       astronomicalEvents.oppositions.some(o => o.isActive) ||
-      astronomicalEvents.maxElongations.some(e => Math.abs(e.daysUntil) <= 3));
+      astronomicalEvents.maxElongations.some(e => Math.abs(e.daysUntil) <= 3) ||
+      hasSpaceWeather);
 
   // Jupiter Moons is now shown in TonightHighlights after Planets category
   if (!hasBasicEvents && !hasAstroEvents) {

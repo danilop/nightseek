@@ -468,6 +468,36 @@ export interface DewRiskEntry {
   dewMargin: number; // temperature - dewpoint
 }
 
+// Space Weather (NASA DONKI)
+export interface GeomagneticStorm {
+  gstID: string;
+  startTime: string;
+  kpIndexes: Array<{ observedTime: string; kpIndex: number; source: string }>;
+  maxKp: number;
+}
+
+export interface SolarFlare {
+  flrID: string;
+  classType: string;
+  beginTime: string;
+  peakTime: string;
+}
+
+export interface SpaceWeather {
+  geomagneticStorms: GeomagneticStorm[];
+  solarFlares: SolarFlare[];
+  fetchedAt: string;
+}
+
+export type AuroraChance = 'none' | 'unlikely' | 'possible' | 'likely' | 'certain';
+
+export interface AuroraForecast {
+  chance: AuroraChance;
+  currentMaxKp: number;
+  requiredKp: number;
+  description: string;
+}
+
 // Container for all astronomical events
 export interface AstronomicalEvents {
   lunarEclipse: LunarEclipse | null;
@@ -486,6 +516,9 @@ export interface AstronomicalEvents {
   planetaryTransit: PlanetaryTransit | null;
   // NASA NeoWs close approaches
   neoCloseApproaches: NeoCloseApproach[];
+  // NASA DONKI space weather
+  spaceWeather: SpaceWeather | null;
+  auroraForecast: AuroraForecast | null;
 }
 
 // Bortle Scale for Light Pollution
