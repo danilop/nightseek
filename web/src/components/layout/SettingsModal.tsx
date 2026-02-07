@@ -10,7 +10,7 @@ import {
   Wind,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useApp } from '@/stores/AppContext';
 import type { DistanceUnit, PressureUnit, SpeedUnit, TemperatureUnit } from '@/types';
@@ -24,9 +24,17 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const { state, updateSettings, resetAllData, dispatch } = useApp();
   const { settings, location } = state;
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const resetRef = useRef<HTMLDivElement>(null);
 
   // Lock body scroll when modal is open
   useBodyScrollLock();
+
+  // Scroll reset confirmation into view when it appears
+  useEffect(() => {
+    if (showResetConfirm) {
+      resetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [showResetConfirm]);
 
   const handleForecastDaysChange = (value: number) => {
     updateSettings({ forecastDays: Math.max(1, Math.min(30, value)) });
@@ -314,7 +322,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           </div>
 
           {/* Reset Section */}
-          <div className="pt-4 border-t border-night-700">
+          <div ref={resetRef} className="pt-4 border-t border-night-700">
             <h3 className="text-sm font-medium text-gray-300 mb-3">Reset</h3>
 
             {showResetConfirm ? (
