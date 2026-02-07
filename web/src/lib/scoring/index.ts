@@ -647,8 +647,17 @@ export function calculateFOVSuitabilityScore(
 }
 
 /**
+ * Round to the nearest 0.5 (e.g. 1.38 → 1.5, 0.97 → 1, 2.1 → 2)
+ */
+function roundToHalf(n: number): number {
+  return Math.round(n * 2) / 2;
+}
+
+/**
  * Calculate mosaic panels needed for an object larger than the FOV.
  * Uses both major and minor axis to find the best orientation.
+ * Panel counts are fractional (rounded to nearest 0.5) matching
+ * how smart telescopes handle partial-overlap mosaics.
  * Returns null if the object fits in a single frame.
  */
 export function calculateMosaicPanels(
@@ -667,10 +676,10 @@ export function calculateMosaicPanels(
   if (fitsNormal || fitsRotated) return null;
 
   // Try both orientations and pick the one with fewer total panels
-  const normalCols = Math.ceil(major / fov.width);
-  const normalRows = Math.ceil(minor / fov.height);
-  const rotatedCols = Math.ceil(minor / fov.width);
-  const rotatedRows = Math.ceil(major / fov.height);
+  const normalCols = Math.max(1, roundToHalf(major / fov.width));
+  const normalRows = Math.max(1, roundToHalf(minor / fov.height));
+  const rotatedCols = Math.max(1, roundToHalf(minor / fov.width));
+  const rotatedRows = Math.max(1, roundToHalf(major / fov.height));
 
   if (normalCols * normalRows <= rotatedCols * rotatedRows) {
     return { cols: normalCols, rows: normalRows };
