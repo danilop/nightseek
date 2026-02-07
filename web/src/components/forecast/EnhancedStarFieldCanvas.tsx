@@ -70,11 +70,15 @@ export default function EnhancedStarFieldCanvas({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Get container dimensions
+    // Get container dimensions — bail out if layout isn't ready
     const containerWidth = container.clientWidth;
+    if (containerWidth <= 0 || fovWidth <= 0 || fovHeight <= 0) return;
+
     const aspectRatio = fovHeight / fovWidth;
     const canvasWidth = containerWidth;
     const canvasHeight = Math.round(containerWidth * aspectRatio);
+
+    if (canvasWidth < 20 || canvasHeight < 20 || !Number.isFinite(canvasHeight)) return;
 
     // Set canvas size
     const dpr = window.devicePixelRatio || 1;
