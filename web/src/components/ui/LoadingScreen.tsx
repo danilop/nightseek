@@ -1,4 +1,4 @@
-import { Telescope } from 'lucide-react';
+import NightSeekIcon from '@/components/ui/NightSeekIcon';
 
 interface LoadingScreenProps {
   message: string;
@@ -10,13 +10,12 @@ export default function LoadingScreen({ message, percent }: LoadingScreenProps) 
     <div className="fixed inset-0 z-40 bg-night-950/95 flex items-center justify-center">
       <div className="text-center px-4">
         <div className="relative w-20 h-20 mx-auto mb-6">
-          <div className="absolute inset-0 border-4 border-sky-500/20 rounded-full" />
           <div
             className="absolute inset-0 border-4 border-sky-500 rounded-full border-t-transparent animate-spin"
             style={{ animationDuration: '1.5s' }}
           />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Telescope className="w-8 h-8 text-sky-400" />
+            <NightSeekIcon className="w-12 h-12" />
           </div>
         </div>
 

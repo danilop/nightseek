@@ -169,7 +169,7 @@ def update_tool() -> bool:
                 "install",
                 "--force",
                 "--reinstall",
-                f"git+https://github.com/{GITHUB_REPO}",
+                f"git+https://github.com/{GITHUB_REPO}#subdirectory=cli",
             ],
             capture_output=True,
             text=True,

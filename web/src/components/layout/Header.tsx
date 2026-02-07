@@ -1,7 +1,8 @@
-import { MapPin, RefreshCw, Search, Settings, Telescope } from 'lucide-react';
+import { MapPin, RefreshCw, Search, Settings } from 'lucide-react';
 import { useState } from 'react';
 import BortleIndicator from '@/components/forecast/BortleIndicator';
 import ObjectSearchModal from '@/components/search/ObjectSearchModal';
+import NightSeekIcon from '@/components/ui/NightSeekIcon';
 import { formatCoordinates } from '@/lib/geo/location';
 import { useApp } from '@/stores/AppContext';
 import SettingsModal from './SettingsModal';
@@ -14,12 +15,12 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-night-900/95 backdrop-blur-sm border-b border-night-700">
+      <header className="sticky top-0 z-50 bg-night-900/95 backdrop-blur-sm border-b border-night-700 pt-[env(safe-area-inset-top)]">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <Telescope className="w-6 h-6 text-sky-400" />
+              <NightSeekIcon className="w-7 h-7" />
               <h1 className="text-lg font-semibold text-white">NightSeek</h1>
             </div>
 

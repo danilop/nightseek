@@ -1,6 +1,7 @@
 import { Loader2, MapPin, Navigation, Search } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import NightSeekIcon from '@/components/ui/NightSeekIcon';
 import {
   detectLocationByBrowser,
   detectLocationByIP,
@@ -132,9 +133,7 @@ export default function Setup() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-md">
       <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-sky-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-          <MapPin className="w-8 h-8 text-sky-400" />
-        </div>
+        <NightSeekIcon className="w-20 h-20 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-white mb-2">Set Your Location</h2>
         <p className="text-gray-400">
           NightSeek needs your location to calculate accurate astronomical data
