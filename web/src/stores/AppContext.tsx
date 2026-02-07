@@ -78,7 +78,7 @@ const initialState: AppState = {
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_LOCATION':
-      return { ...state, location: action.payload, isSetupComplete: true };
+      return { ...state, location: action.payload };
     case 'SET_SETTINGS':
       return { ...state, settings: { ...state.settings, ...action.payload } };
     case 'RESET_SETTINGS':
@@ -118,6 +118,7 @@ interface AppContextValue {
   updateSettings: (settings: Partial<Settings>) => void;
   resetAllData: () => Promise<void>;
   setProgress: (message: string, percent: number) => void;
+  completeSetup: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -132,6 +133,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const savedLocation = await getCached<Location>(CACHE_KEYS.LOCATION, Infinity);
       if (savedLocation) {
         dispatch({ type: 'SET_LOCATION', payload: savedLocation });
+        dispatch({ type: 'SET_SETUP_COMPLETE', payload: true });
       }
 
       // Load settings from localStorage
@@ -186,12 +188,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Clear all cached data
     await clearAllCache();
     localStorage.removeItem('nightseek:settings');
+    localStorage.removeItem('nightseek:onboarded');
     // Reset UI state (category order, active tab, expanded sections)
     resetUIState();
     // Reset to defaults with locale units
     dispatch({ type: 'RESET_SETTINGS' });
     dispatch({ type: 'CLEAR_FORECAST' });
     dispatch({ type: 'SET_SETUP_COMPLETE', payload: false });
+  }, []);
+
+  const completeSetup = useCallback(() => {
+    dispatch({ type: 'SET_SETUP_COMPLETE', payload: true });
   }, []);
 
   const setProgress = useCallback((message: string, percent: number) => {
@@ -205,6 +212,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateSettings,
     resetAllData,
     setProgress,
+    completeSetup,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

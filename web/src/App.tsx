@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import ForecastView from './components/forecast/ForecastView';
 import Header from './components/layout/Header';
-import Setup from './components/setup/Setup';
+import OnboardingWizard from './components/setup/OnboardingWizard';
 import ErrorMessage from './components/ui/ErrorMessage';
 import LoadingScreen from './components/ui/LoadingScreen';
 import OfflineBanner from './components/ui/OfflineBanner';
@@ -61,7 +61,7 @@ export default function App() {
       <div className="min-h-screen bg-night-950">
         <Header />
         {isOffline && <OfflineBanner />}
-        <Setup />
+        <OnboardingWizard />
       </div>
     );
   }
