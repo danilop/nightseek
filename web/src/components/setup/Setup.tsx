@@ -14,7 +14,11 @@ import type { Location } from '@/types';
 
 type SetupMode = 'choose' | 'detect' | 'search' | 'manual';
 
-export default function Setup() {
+interface SetupProps {
+  onLocationSet?: () => void;
+}
+
+export default function Setup({ onLocationSet }: SetupProps) {
   const { setLocation } = useApp();
   const [mode, setMode] = useState<SetupMode>('choose');
   const [isLoading, setIsLoading] = useState(false);
@@ -50,6 +54,7 @@ export default function Setup() {
   const handleUseDetected = async () => {
     if (detectedLocation) {
       await setLocation(detectedLocation);
+      onLocationSet?.();
     }
   };
 
@@ -67,6 +72,7 @@ export default function Setup() {
           name: name || undefined,
         };
         await setLocation(location);
+        onLocationSet?.();
       } else {
         setError('Could not detect your location. Please allow location access or enter manually.');
       }
@@ -88,6 +94,7 @@ export default function Setup() {
       const location = await geocodeAddress(searchQuery);
       if (location) {
         await setLocation(location);
+        onLocationSet?.();
       } else {
         setError('Could not find that location. Please try a different search.');
       }
@@ -127,6 +134,7 @@ export default function Setup() {
       });
     }
 
+    onLocationSet?.();
     setIsLoading(false);
   };
 
