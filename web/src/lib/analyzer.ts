@@ -47,7 +47,7 @@ import { detectMeteorShowers } from './events/meteor-showers';
 import { detectSeasonalMarkers } from './events/seasons';
 import { getTransitForDisplay } from './events/transits';
 import { fetchAsteroidPhysicalData } from './jpl/sbdb';
-import { fetchNeoCloseApproaches } from './nasa/neows';
+import { fetchNeoCloseApproachesRange } from './nasa/neows';
 import { calculateTotalScore } from './scoring';
 import { getEffectiveFOV } from './telescopes';
 import { calculateNightQuality } from './weather/night-quality';
@@ -129,6 +129,9 @@ export async function generateForecast(
   progress('Calculating planetary events...', 25);
   const oppositions = detectOppositions(today, forecastDays);
   const maxElongations = detectMaxElongations(today, forecastDays);
+
+  // Pre-fetch NEO close approaches for the entire forecast window (single batched call)
+  const neoDataByDate = await fetchNeoCloseApproachesRange(today, forecastDays);
 
   // Compute effective FOV for scoring
   const fov = getEffectiveFOV(settings.telescope, settings.customFOV);
@@ -400,8 +403,9 @@ export async function generateForecast(
     // Get planetary transit info (rare events)
     const planetaryTransit = getTransitForDisplay(nightDate);
 
-    // Fetch NEO close approaches
-    const neoCloseApproaches = await fetchNeoCloseApproaches(nightDate);
+    // Look up pre-fetched NEO close approaches for this night
+    const nightDateStr = nightDate.toISOString().split('T')[0];
+    const neoCloseApproaches = neoDataByDate.get(nightDateStr) ?? [];
 
     // Build astronomical events object
     const astronomicalEvents: AstronomicalEvents = {
