@@ -1,14 +1,15 @@
-import { RefreshCw, Sparkles, Star } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
-import Tooltip from '@/components/ui/Tooltip';
-import { formatDate, formatDateRange } from '@/lib/utils/format';
+import { RefreshCw, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { useUIState } from '@/hooks/useUIState';
+import { formatDateRange } from '@/lib/utils/format';
 import type { Location, NightForecast, ScoredObject } from '@/types';
-import EventsSection from './EventsSection';
-import NightDetails from './NightDetails';
-import NightSummaryTable from './NightSummaryTable';
-import SatellitePassesCard from './SatellitePassesCard';
-import SkyChart from './SkyChart';
-import TonightHighlights from './TonightHighlights';
+import NightStrip from './NightStrip';
+import ObjectDetailPanel from './ObjectDetailPanel';
+import TabBar from './TabBar';
+import EventsTab from './tabs/EventsTab';
+import OverviewTab from './tabs/OverviewTab';
+import SkyTab from './tabs/SkyTab';
+import TargetsTab from './tabs/TargetsTab';
 
 interface ForecastViewProps {
   forecasts: NightForecast[];
@@ -26,24 +27,8 @@ export default function ForecastView({
   onRefresh,
 }: ForecastViewProps) {
   const [selectedNightIndex, setSelectedNightIndex] = useState(0);
-  const nightTableRef = useRef<HTMLDivElement>(null);
-
-  // Navigate to a specific night by date string
-  const navigateToNight = useCallback(
-    (dateStr: string) => {
-      const index = forecasts.findIndex(
-        f => f.nightInfo.date.toISOString().split('T')[0] === dateStr
-      );
-      if (index !== -1) {
-        setSelectedNightIndex(index);
-        // Scroll the table into view
-        setTimeout(() => {
-          nightTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-      }
-    },
-    [forecasts]
-  );
+  const [selectedObject, setSelectedObject] = useState<ScoredObject | null>(null);
+  const { activeTab } = useUIState();
 
   if (forecasts.length === 0) {
     return (
@@ -60,63 +45,31 @@ export default function ForecastView({
   const selectedObjects = scoredObjects?.get(selectedDateKey) ?? [];
 
   return (
-    <main className="container mx-auto px-4 py-6 safe-area-inset">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-sky-400" />
-            Sky Observation Forecast
+    <main className="safe-area-inset container mx-auto px-4 py-4 sm:py-6">
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-2 font-bold text-lg text-white sm:text-2xl">
+            <Sparkles className="h-5 w-5 flex-shrink-0 text-sky-400 sm:h-6 sm:w-6" />
+            <span className="truncate">Sky Observation Forecast</span>
           </h2>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="mt-0.5 text-gray-400 text-xs sm:text-sm">
             {formatDateRange(firstNight.nightInfo.date, lastNight.nightInfo.date)}
           </p>
         </div>
-
         <button
           type="button"
           onClick={onRefresh}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-night-800 hover:bg-night-700 text-white rounded-lg transition-colors self-start sm:self-auto"
+          className="inline-flex flex-shrink-0 items-center gap-2 rounded-lg bg-night-800 px-3 py-2 text-sm text-white transition-colors hover:bg-night-700"
         >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
+          <RefreshCw className="h-4 w-4" />
+          <span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
 
-      {/* Best Nights Indicator */}
-      {bestNights.length > 0 && (
-        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-6">
-          <div className="flex items-center gap-2 text-green-400 text-sm font-medium mb-1">
-            <Star className="w-4 h-4" />
-            <Tooltip content="Nights ranked highest based on cloud cover, moon phase, transparency, and seeing conditions. Tap a date to see details.">
-              <span className="border-b border-dotted border-green-500/50">
-                Best Nights for Observation
-              </span>
-            </Tooltip>
-          </div>
-          <p className="text-gray-300 text-sm">
-            {bestNights.slice(0, 3).map((dateStr, i) => {
-              const date = new Date(dateStr);
-              return (
-                <span key={dateStr}>
-                  {i > 0 && <span className="text-gray-500 mx-2">·</span>}
-                  <button
-                    type="button"
-                    onClick={() => navigateToNight(dateStr)}
-                    className="text-green-300 font-medium hover:text-green-200 hover:underline cursor-pointer transition-colors"
-                  >
-                    {formatDate(date)}
-                  </button>
-                </span>
-              );
-            })}
-          </p>
-        </div>
-      )}
-
-      {/* Night Summary Table - Always visible, tap a day to see details below */}
-      <div ref={nightTableRef} className="mb-6">
-        <NightSummaryTable
+      {/* Night Strip */}
+      <div className="mb-4">
+        <NightStrip
           forecasts={forecasts}
           selectedIndex={selectedNightIndex}
           onSelectNight={setSelectedNightIndex}
@@ -124,42 +77,42 @@ export default function ForecastView({
         />
       </div>
 
-      {/* Weather Conditions for selected night */}
-      <div className="mb-6">
-        <NightDetails forecast={selectedNight} />
+      {/* Desktop: tabs above content */}
+      <div className="mb-4 hidden sm:block">
+        <TabBar variant="top" />
       </div>
 
-      {/* Sky Chart - Interactive sky map */}
-      <div className="mb-6">
-        <SkyChart nightInfo={selectedNight.nightInfo} location={location} />
+      {/* Tab content — add bottom padding on mobile for the fixed nav bar */}
+      <div className="pb-20 sm:pb-0">
+        {activeTab === 'overview' && <OverviewTab forecast={selectedNight} />}
+        {activeTab === 'targets' && (
+          <TargetsTab
+            objects={selectedObjects}
+            nightInfo={selectedNight.nightInfo}
+            weather={selectedNight.weather}
+            astronomicalEvents={selectedNight.astronomicalEvents}
+            latitude={location.latitude}
+            onObjectSelect={setSelectedObject}
+          />
+        )}
+        {activeTab === 'sky' && <SkyTab nightInfo={selectedNight.nightInfo} location={location} />}
+        {activeTab === 'events' && <EventsTab forecast={selectedNight} location={location} />}
       </div>
 
-      {/* Targets for selected night */}
-      <div className="mb-6">
-        <TonightHighlights
-          objects={selectedObjects}
+      {/* Mobile: bottom tab bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40 sm:hidden">
+        <TabBar variant="bottom" />
+      </div>
+
+      {/* Object detail panel */}
+      {selectedObject && (
+        <ObjectDetailPanel
+          object={selectedObject}
           nightInfo={selectedNight.nightInfo}
           weather={selectedNight.weather}
-          astronomicalEvents={selectedNight.astronomicalEvents}
-          latitude={location.latitude}
+          onClose={() => setSelectedObject(null)}
         />
-      </div>
-
-      {/* Events Section (Conjunctions, Meteor Showers) */}
-      <div className="mb-6">
-        <EventsSection
-          conjunctions={selectedNight.conjunctions}
-          meteorShowers={selectedNight.meteorShowers}
-          astronomicalEvents={selectedNight.astronomicalEvents}
-          latitude={location.latitude}
-          nightDate={selectedNight.nightInfo.date}
-        />
-      </div>
-
-      {/* Satellite Passes Section */}
-      <div className="mb-6">
-        <SatellitePassesCard nightInfo={selectedNight.nightInfo} location={location} />
-      </div>
+      )}
     </main>
   );
 }

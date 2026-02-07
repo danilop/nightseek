@@ -49,7 +49,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
   return (
     <div
       ref={ref}
-      className={`bg-night-900 rounded-xl border border-night-700 overflow-hidden transition-shadow ${
+      className={`overflow-hidden rounded-xl border border-night-700 bg-night-900 transition-shadow ${
         isDragging ? 'shadow-lg shadow-sky-500/20 ring-2 ring-sky-500/50' : ''
       }`}
     >
@@ -59,27 +59,27 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
         {dragHandleProps && (
           <button
             type="button"
-            className="px-2 py-3 text-gray-500 hover:text-gray-300 cursor-grab active:cursor-grabbing touch-none"
+            className="cursor-grab touch-none px-2 py-3 text-gray-500 hover:text-gray-300 active:cursor-grabbing"
             {...dragHandleProps}
           >
-            <GripVertical className="w-5 h-5" />
+            <GripVertical className="h-5 w-5" />
           </button>
         )}
         <button
           type="button"
-          className={`flex-1 ${dragHandleProps ? 'pl-0' : 'pl-4'} pr-4 py-3 flex items-center justify-between hover:bg-night-800 transition-colors`}
+          className={`flex-1 ${dragHandleProps ? 'pl-0' : 'pl-4'} flex items-center justify-between py-3 pr-4 transition-colors hover:bg-night-800`}
           onClick={() => toggleCategoryExpanded(categoryKey)}
         >
           <div className="flex items-center gap-3">
             <span className="text-2xl">{icon}</span>
             <h3 className="font-semibold text-white">{title}</h3>
-            <span className="text-sm text-gray-400 bg-night-700 px-2 py-0.5 rounded-full">
+            <span className="rounded-full bg-night-700 px-2 py-0.5 text-gray-400 text-sm">
               {objects.length}
             </span>
           </div>
           <div className="flex items-center gap-2">
             {!expanded && objects.length > 0 && (
-              <span className="text-sm text-gray-500 hidden sm:block">
+              <span className="hidden text-gray-500 text-sm sm:block">
                 Top:{' '}
                 {objects
                   .slice(0, 3)
@@ -94,9 +94,9 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
               </span>
             )}
             {expanded ? (
-              <ChevronDown className="w-5 h-5 text-gray-400" />
+              <ChevronDown className="h-5 w-5 text-gray-400" />
             ) : (
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+              <ChevronRight className="h-5 w-5 text-gray-400" />
             )}
           </div>
         </button>
@@ -104,23 +104,23 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
 
       {/* Content - collapsible */}
       {expanded && (
-        <div className="border-t border-night-700">
+        <div className="border-night-700 border-t">
           <div className="p-4">
             {/* Desktop Grid */}
-            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="hidden gap-4 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {displayObjects.map(obj => (
                 <ObjectCard
                   key={obj.objectName}
                   object={obj}
                   nightInfo={nightInfo}
                   weather={weather}
-                  onDSOClick={onObjectClick}
+                  onSelect={onObjectClick}
                 />
               ))}
             </div>
 
             {/* Mobile List */}
-            <div className="sm:hidden space-y-3">
+            <div className="space-y-3 sm:hidden">
               {displayObjects.map(obj => (
                 <ObjectCard
                   key={obj.objectName}
@@ -128,7 +128,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
                   nightInfo={nightInfo}
                   weather={weather}
                   compact
-                  onDSOClick={onObjectClick}
+                  onSelect={onObjectClick}
                 />
               ))}
             </div>
@@ -139,8 +139,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
             <div className="px-4 pb-4">
               <button
                 type="button"
-                className="w-full py-2 text-sm text-sky-400 hover:text-sky-300
-                             hover:bg-night-800 rounded-lg transition-colors"
+                className="w-full rounded-lg py-2 text-sky-400 text-sm transition-colors hover:bg-night-800 hover:text-sky-300"
                 onClick={e => {
                   e.stopPropagation();
                   setShowAll(!showAll);

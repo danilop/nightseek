@@ -26,6 +26,7 @@ interface ObjectCardProps {
   weather: NightWeather | null;
   compact?: boolean;
   onDSOClick?: (object: ScoredObject) => void;
+  onSelect?: (object: ScoredObject) => void;
 }
 
 interface BadgeConfig {
@@ -241,6 +242,7 @@ export default function ObjectCard({
   weather: _weather,
   compact = false,
   onDSOClick,
+  onSelect,
 }: ObjectCardProps) {
   const [expanded, setExpanded] = useState(false);
   const { state } = useApp();
@@ -248,10 +250,13 @@ export default function ObjectCard({
   const { visibility, scoreBreakdown, totalScore, category, subtype, magnitude } = object;
   const frameFillPercent = calculateFrameFillPercent(visibility.angularSizeArcmin, category, fov);
 
-  // DSO objects can be clicked to open detail modal
+  // All objects can be clicked when onSelect is provided; legacy onDSOClick only for DSOs
   const isDSO = category === 'dso';
+  const isClickable = onSelect || (isDSO && onDSOClick);
   const handleCardClick = () => {
-    if (isDSO && onDSOClick) {
+    if (onSelect) {
+      onSelect(object);
+    } else if (isDSO && onDSOClick) {
       onDSOClick(object);
     }
   };
@@ -263,9 +268,9 @@ export default function ObjectCard({
       <div
         role="button"
         tabIndex={0}
-        className={`bg-night-800 rounded-lg p-3 cursor-pointer card-hover ${isDSO && onDSOClick ? 'ring-1 ring-transparent hover:ring-sky-500/30' : ''}`}
+        className={`card-hover cursor-pointer rounded-lg bg-night-800 p-3 ${isClickable ? 'ring-1 ring-transparent hover:ring-sky-500/30' : ''}`}
         onClick={() => {
-          if (isDSO && onDSOClick) {
+          if (isClickable) {
             handleCardClick();
           } else {
             setExpanded(!expanded);
@@ -274,7 +279,7 @@ export default function ObjectCard({
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            if (isDSO && onDSOClick) {
+            if (isClickable) {
               handleCardClick();
             } else {
               setExpanded(!expanded);
@@ -284,14 +289,14 @@ export default function ObjectCard({
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">{icon}</span>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between">
-              <h4 className="text-white font-medium truncate">
+              <h4 className="truncate font-medium text-white">
                 {visibility.commonName || visibility.objectName}
               </h4>
               <RatingStars score={totalScore} maxScore={235} size="sm" />
             </div>
-            <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
+            <div className="mt-1 flex items-center gap-3 text-gray-400 text-xs">
               <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
                 {formatAltitude(visibility.maxAltitude)}
               </span>
@@ -302,8 +307,8 @@ export default function ObjectCard({
               {subtype && <span className="text-gray-500">• {formatSubtype(subtype)}</span>}
             </div>
             {visibility.imagingWindow && (
-              <div className="flex items-center gap-1.5 text-xs mt-1">
-                <Camera className="w-3 h-3 text-green-400" />
+              <div className="mt-1 flex items-center gap-1.5 text-xs">
+                <Camera className="h-3 w-3 text-green-400" />
                 <span
                   className={`font-medium ${getImagingQualityColorClass(visibility.imagingWindow.quality)}`}
                 >
@@ -316,17 +321,17 @@ export default function ObjectCard({
               </div>
             )}
           </div>
-          {isDSO && onDSOClick ? (
-            <span className="text-xs text-sky-400">View</span>
+          {isClickable ? (
+            <span className="text-sky-400 text-xs">View</span>
           ) : expanded ? (
-            <ChevronUp className="w-4 h-4 text-gray-400" />
+            <ChevronUp className="h-4 w-4 text-gray-400" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-400" />
+            <ChevronDown className="h-4 w-4 text-gray-400" />
           )}
         </div>
 
-        {expanded && !isDSO && (
-          <div className="mt-3 pt-3 border-t border-night-700 space-y-2">
+        {expanded && !isClickable && (
+          <div className="mt-3 space-y-2 border-night-700 border-t pt-3">
             <ScoreDetails breakdown={scoreBreakdown} frameFillPercent={frameFillPercent} />
             <ObjectDetails visibility={visibility} />
             <div className="flex flex-wrap gap-2 pt-2">
@@ -346,10 +351,10 @@ export default function ObjectCard({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: role and tabIndex are conditionally applied
     <div
-      className={`bg-night-800 rounded-lg p-4 card-hover ${isDSO && onDSOClick ? 'cursor-pointer ring-1 ring-transparent hover:ring-sky-500/30' : ''}`}
-      onClick={isDSO && onDSOClick ? handleCardClick : undefined}
+      className={`card-hover rounded-lg bg-night-800 p-4 ${isClickable ? 'cursor-pointer ring-1 ring-transparent hover:ring-sky-500/30' : ''}`}
+      onClick={isClickable ? handleCardClick : undefined}
       onKeyDown={
-        isDSO && onDSOClick
+        isClickable
           ? e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -358,20 +363,20 @@ export default function ObjectCard({
             }
           : undefined
       }
-      role={isDSO && onDSOClick ? 'button' : undefined}
-      tabIndex={isDSO && onDSOClick ? 0 : undefined}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
     >
       <div className="flex items-start gap-3">
         <span className="text-3xl">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center gap-2">
             <RatingStars score={totalScore} maxScore={235} size="sm" />
           </div>
-          <h4 className="text-white font-medium">
+          <h4 className="font-medium text-white">
             {visibility.commonName || visibility.objectName}
           </h4>
           {visibility.commonName && visibility.commonName !== visibility.objectName && (
-            <p className="text-xs text-gray-500">{visibility.objectName}</p>
+            <p className="text-gray-500 text-xs">{visibility.objectName}</p>
           )}
         </div>
         <div className="text-right">
@@ -381,7 +386,7 @@ export default function ObjectCard({
 
       <div className="mt-3 space-y-2 text-sm">
         <div className="flex items-center gap-2 text-gray-400">
-          <Mountain className="w-4 h-4" />
+          <Mountain className="h-4 w-4" />
           <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
             {formatAltitude(visibility.maxAltitude)} peak
           </span>
@@ -392,7 +397,7 @@ export default function ObjectCard({
 
         {visibility.moonSeparation !== null && (
           <div className="flex items-center gap-2 text-gray-400">
-            <Moon className="w-4 h-4" />
+            <Moon className="h-4 w-4" />
             <span className={visibility.moonWarning ? 'text-amber-400' : ''}>
               {formatMoonSeparation(visibility.moonSeparation)}
             </span>
@@ -401,7 +406,7 @@ export default function ObjectCard({
 
         {(visibility.above45Start || visibility.above60Start) && (
           <div className="flex items-center gap-2 text-gray-400">
-            <Clock className="w-4 h-4" />
+            <Clock className="h-4 w-4" />
             <span>
               {visibility.above60Start && visibility.above60End
                 ? `Above 60°: ${formatTimeRange(visibility.above60Start, visibility.above60End)}`
@@ -416,7 +421,7 @@ export default function ObjectCard({
       {/* Imaging Window */}
       {visibility.imagingWindow && (
         <div className="mt-3 flex items-center gap-2 text-sm">
-          <Camera className="w-4 h-4 text-green-400" />
+          <Camera className="h-4 w-4 text-green-400" />
           <span className="text-gray-400">Best Window:</span>
           <span
             className={`font-medium ${getImagingQualityColorClass(visibility.imagingWindow.quality)}`}
@@ -429,15 +434,15 @@ export default function ObjectCard({
       {/* Meridian Transit */}
       {visibility.meridianTransitTime && (
         <Tooltip content="Meridian transit is when the object crosses the north-south line and reaches its highest point in the sky. This is the best time to observe as it passes through the least atmosphere.">
-          <div className="mt-2 flex items-center gap-2 text-sm cursor-help">
-            <Compass className="w-4 h-4 text-indigo-400" />
-            <span className="text-gray-400 border-b border-dotted border-gray-500">Meridian:</span>
+          <div className="mt-2 flex cursor-help items-center gap-2 text-sm">
+            <Compass className="h-4 w-4 text-indigo-400" />
+            <span className="border-gray-500 border-b border-dotted text-gray-400">Meridian:</span>
             <span className="text-gray-300">{formatTime(visibility.meridianTransitTime)}</span>
           </div>
         </Tooltip>
       )}
 
-      <div className="mt-3 pt-3 border-t border-night-700 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap gap-2 border-night-700 border-t pt-3">
         <AstronomicalBadges
           visibility={visibility}
           magnitude={magnitude}
@@ -561,7 +566,7 @@ function ScoreDetails({
 
 function ObjectDetails({ visibility }: { visibility: ScoredObject['visibility'] }) {
   return (
-    <div className="space-y-1 text-xs text-gray-400">
+    <div className="space-y-1 text-gray-400 text-xs">
       {visibility.above75Start && visibility.above75End && (
         <p>Excellent (75°+): {formatTimeRange(visibility.above75Start, visibility.above75End)}</p>
       )}
