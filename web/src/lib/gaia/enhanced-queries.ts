@@ -18,54 +18,104 @@ const MAX_VARIABLES = 100;
 const MAX_EXTRAGALACTIC = 50;
 
 /**
- * Build ADQL query for variable stars in a region
- * Uses Gaia DR3 variable star catalog (I/358/vclassre)
+ * Build ADQL query for variable stars in a region.
+ * JOINs classification (I/358/vclassre), photometry (I/355/gaiadr3),
+ * and all 7 type-specific variability tables to get period + amplitude.
+ *
+ * Column layout (indices 0–19):
+ *  0 source_id, 1 ra, 2 dec, 3 var_type, 4 type_score, 5 magnitude,
+ *  6 rrl_period, 7 rrl_amp, 8 cep_period, 9 cep_amp,
+ * 10 lpv_freq, 11 lpv_amp, 12 eb_freq, 13 eb_depth,
+ * 14 rm_period, 15 rm_amp, 16 mso_freq, 17 mso_amp,
+ * 18 st_freq, 19 st_amp
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Single ADQL query joining 9 tables
 function buildVariableStarsQuery(raDeg: number, decDeg: number, radiusDeg: number): string {
-  // VizieR I/358/vclassre has classification only (Class, ClassSc) — no magnitude.
-  // JOIN with main Gaia DR3 catalog (I/355/gaiadr3) on Source to get Gmag.
   // No table aliases — VizieR rejects alias.column with quoted table names.
+  const vc = '"I/358/vclassre"';
+  const gd = '"I/355/gaiadr3"';
+  const rrl = '"I/358/vrrlyr"';
+  const cep = '"I/358/vcep"';
+  const lpv = '"I/358/vlpv"';
+  const eb = '"I/358/veb"';
+  const rm = '"I/358/vrm"';
+  const mso = '"I/358/vmsosc"';
+  const st = '"I/358/vst"';
+
   return `
     SELECT TOP ${MAX_VARIABLES}
-      "I/358/vclassre"."Source" as source_id,
-      "I/358/vclassre".RA_ICRS as ra,
-      "I/358/vclassre".DE_ICRS as dec,
-      "I/358/vclassre"."Class" as var_type,
-      "I/358/vclassre".ClassSc as type_score,
-      "I/355/gaiadr3".Gmag as magnitude
-    FROM "I/358/vclassre"
-    JOIN "I/355/gaiadr3" ON "I/358/vclassre"."Source" = "I/355/gaiadr3"."Source"
+      ${vc}."Source" as source_id,
+      ${vc}.RA_ICRS as ra,
+      ${vc}.DE_ICRS as dec,
+      ${vc}."Class" as var_type,
+      ${vc}.ClassSc as type_score,
+      ${gd}.Gmag as magnitude,
+      ${rrl}.PF as rrl_period,
+      ${rrl}.ptpG as rrl_amp,
+      ${cep}.PF as cep_period,
+      ${cep}.ptpG as cep_amp,
+      ${lpv}.Freq as lpv_freq,
+      ${lpv}.Amp as lpv_amp,
+      ${eb}.Freq as eb_freq,
+      ${eb}.DepthE1 as eb_depth,
+      ${rm}.Prot as rm_period,
+      ${rm}.AIGmax as rm_amp,
+      ${mso}.Freq1 as mso_freq,
+      ${mso}.AmpGFreq1 as mso_amp,
+      ${st}.Freq as st_freq,
+      ${st}.Ampl as st_amp
+    FROM ${vc}
+    JOIN ${gd} ON ${vc}."Source" = ${gd}."Source"
+    LEFT JOIN ${rrl} ON ${vc}."Source" = ${rrl}."Source"
+    LEFT JOIN ${cep} ON ${vc}."Source" = ${cep}."Source"
+    LEFT JOIN ${lpv} ON ${vc}."Source" = ${lpv}."Source"
+    LEFT JOIN ${eb} ON ${vc}."Source" = ${eb}."Source"
+    LEFT JOIN ${rm} ON ${vc}."Source" = ${rm}."Source"
+    LEFT JOIN ${mso} ON ${vc}."Source" = ${mso}."Source"
+    LEFT JOIN ${st} ON ${vc}."Source" = ${st}."Source"
     WHERE 1=CONTAINS(
-      POINT('ICRS', "I/358/vclassre".RA_ICRS, "I/358/vclassre".DE_ICRS),
+      POINT('ICRS', ${vc}.RA_ICRS, ${vc}.DE_ICRS),
       CIRCLE('ICRS', ${raDeg}, ${decDeg}, ${radiusDeg})
     )
-    ORDER BY "I/358/vclassre".ClassSc DESC
+    ORDER BY ${vc}.ClassSc DESC
   `.trim();
 }
 
 /**
- * Build ADQL query for galaxy candidates in a region
- * Uses Gaia DR3 extragalactic candidates (I/355/qsocand for QSOs, using galaxy flag)
+ * Build ADQL query for extragalactic candidates in a region.
+ * JOINs classification (I/355/paramp), photometry (I/355/gaiadr3),
+ * and redshift tables (I/356/qsocand, I/356/galcand).
+ *
+ * Column layout (indices 0–7):
+ *  0 source_id, 1 ra, 2 dec, 3 qso_prob, 4 galaxy_prob,
+ *  5 magnitude, 6 qso_redshift, 7 gal_redshift
  */
 function buildGalaxyCandidatesQuery(raDeg: number, decDeg: number, radiusDeg: number): string {
-  // VizieR I/355/paramp has classification probabilities only — no magnitude.
-  // JOIN with main Gaia DR3 catalog (I/355/gaiadr3) on Source to get Gmag.
+  const pa = '"I/355/paramp"';
+  const gd = '"I/355/gaiadr3"';
+  const qc = '"I/356/qsocand"';
+  const gc = '"I/356/galcand"';
+
   return `
     SELECT TOP ${MAX_EXTRAGALACTIC}
-      "I/355/paramp"."Source" as source_id,
-      "I/355/paramp".RA_ICRS as ra,
-      "I/355/paramp".DE_ICRS as dec,
-      "I/355/paramp".PQSO as qso_prob,
-      "I/355/paramp".PGal as galaxy_prob,
-      "I/355/gaiadr3".Gmag as magnitude
-    FROM "I/355/paramp"
-    JOIN "I/355/gaiadr3" ON "I/355/paramp"."Source" = "I/355/gaiadr3"."Source"
+      ${pa}."Source" as source_id,
+      ${pa}.RA_ICRS as ra,
+      ${pa}.DE_ICRS as dec,
+      ${pa}.PQSO as qso_prob,
+      ${pa}.PGal as galaxy_prob,
+      ${gd}.Gmag as magnitude,
+      ${qc}.z as qso_redshift,
+      ${gc}.z as gal_redshift
+    FROM ${pa}
+    JOIN ${gd} ON ${pa}."Source" = ${gd}."Source"
+    LEFT JOIN ${qc} ON ${pa}."Source" = ${qc}."Source"
+    LEFT JOIN ${gc} ON ${pa}."Source" = ${gc}."Source"
     WHERE 1=CONTAINS(
-      POINT('ICRS', "I/355/paramp".RA_ICRS, "I/355/paramp".DE_ICRS),
+      POINT('ICRS', ${pa}.RA_ICRS, ${pa}.DE_ICRS),
       CIRCLE('ICRS', ${raDeg}, ${decDeg}, ${radiusDeg})
     )
-    AND ("I/355/paramp".PGal > 0.5 OR "I/355/paramp".PQSO > 0.5)
-    ORDER BY "I/355/paramp".PGal DESC
+    AND (${pa}.PGal > 0.5 OR ${pa}.PQSO > 0.5)
+    ORDER BY ${pa}.PGal DESC
   `.trim();
 }
 
@@ -88,6 +138,45 @@ function mapVariabilityType(
   return 'OTHER';
 }
 
+/** Helper to safely read a number from a row, returning null for non-numbers */
+function num(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Extract period (days) from whichever type-specific table matched.
+ * Some tables store frequency (d⁻¹) instead of period — convert via 1/freq.
+ * Row indices 6–19, see buildVariableStarsQuery column layout.
+ */
+function extractPeriod(row: unknown[]): number | null {
+  // RR Lyrae / Cepheid: direct period in days (indices 6, 8)
+  const rrlPeriod = num(row[6]);
+  if (rrlPeriod && rrlPeriod > 0) return rrlPeriod;
+  const cepPeriod = num(row[8]);
+  if (cepPeriod && cepPeriod > 0) return cepPeriod;
+  // Rotational modulation: direct period (index 14)
+  const rmPeriod = num(row[14]);
+  if (rmPeriod && rmPeriod > 0) return rmPeriod;
+  // LPV, EB, MSO, ST: frequency → 1/freq (indices 10, 12, 16, 18)
+  for (const idx of [10, 12, 16, 18]) {
+    const freq = num(row[idx]);
+    if (freq && freq > 0) return 1 / freq;
+  }
+  return null;
+}
+
+/**
+ * Extract amplitude (mag) from whichever type-specific table matched.
+ * Row indices 7, 9, 11, 13, 15, 17, 19 — see buildVariableStarsQuery.
+ */
+function extractAmplitude(row: unknown[]): number | null {
+  for (const idx of [7, 9, 11, 13, 15, 17, 19]) {
+    const amp = num(row[idx]);
+    if (amp && amp > 0) return amp;
+  }
+  return null;
+}
+
 /**
  * Execute a TAP query and return results
  */
@@ -106,7 +195,7 @@ async function executeTapQuery(query: string): Promise<unknown[][] | null> {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(60000),
     });
 
     if (!response.ok) {
@@ -143,14 +232,16 @@ async function fetchVariableStars(
   const variables: GaiaVariableStar[] = [];
 
   for (const row of rows) {
-    // Columns: source_id, ra, dec, var_type, type_score, magnitude
-    if (!Array.isArray(row) || row.length < 4) continue;
+    // Columns: see buildVariableStarsQuery layout (indices 0–19)
+    if (!Array.isArray(row) || row.length < 6) continue;
 
     const sourceId = row[0]?.toString() ?? '';
-    const ra = typeof row[1] === 'number' ? row[1] : null;
-    const dec = typeof row[2] === 'number' ? row[2] : null;
+    const ra = num(row[1]);
+    const dec = num(row[2]);
     const varType = typeof row[3] === 'string' ? row[3] : null;
-    const magnitude = typeof row[5] === 'number' ? row[5] : 0;
+    const magnitude = num(row[5]) ?? 0;
+    const period = extractPeriod(row);
+    const amplitude = extractAmplitude(row);
 
     if (ra !== null && dec !== null) {
       variables.push({
@@ -159,8 +250,8 @@ async function fetchVariableStars(
         dec,
         magnitude,
         variabilityType: mapVariabilityType(varType),
-        period: null,
-        amplitude: null,
+        period,
+        amplitude,
         isNearMaximum: false,
       });
     }
@@ -187,15 +278,17 @@ async function fetchExtragalacticObjects(
   const objects: GaiaExtragalactic[] = [];
 
   for (const row of rows) {
-    // Columns: source_id, ra, dec, qso_prob, galaxy_prob, magnitude
-    if (!Array.isArray(row) || row.length < 4) continue;
+    // Columns: see buildGalaxyCandidatesQuery layout (indices 0–7)
+    if (!Array.isArray(row) || row.length < 6) continue;
 
     const sourceId = row[0]?.toString() ?? '';
-    const ra = typeof row[1] === 'number' ? row[1] : null;
-    const dec = typeof row[2] === 'number' ? row[2] : null;
-    const qsoProb = typeof row[3] === 'number' ? row[3] : 0;
-    const galaxyProb = typeof row[4] === 'number' ? row[4] : 0;
-    const magnitude = typeof row[5] === 'number' ? row[5] : 0;
+    const ra = num(row[1]);
+    const dec = num(row[2]);
+    const qsoProb = num(row[3]) ?? 0;
+    const galaxyProb = num(row[4]) ?? 0;
+    const magnitude = num(row[5]) ?? 0;
+    const qsoRedshift = num(row[6]);
+    const galRedshift = num(row[7]);
 
     if (ra !== null && dec !== null) {
       const isQso = qsoProb > galaxyProb;
@@ -206,7 +299,7 @@ async function fetchExtragalacticObjects(
         magnitude,
         type: isQso ? 'qso' : 'galaxy',
         probability: isQso ? qsoProb : galaxyProb,
-        redshift: null,
+        redshift: isQso ? qsoRedshift : galRedshift,
       });
     }
   }
