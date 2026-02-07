@@ -22,21 +22,22 @@ const MAX_EXTRAGALACTIC = 50;
  * Uses Gaia DR3 variable star catalog (I/358/vclassre)
  */
 function buildVariableStarsQuery(raDeg: number, decDeg: number, radiusDeg: number): string {
+  // VizieR I/358/vclassre uses RA_ICRS/DE_ICRS (no RAJ2000) and has no magnitude column.
+  // Column names: Source, Class, ClassSc (score), RA_ICRS, DE_ICRS.
+  // No table aliases — VizieR's parser rejects alias.column with quoted table names.
   return `
     SELECT TOP ${MAX_VARIABLES}
-      v.Source as source_id,
-      v.RAJ2000 as ra,
-      v.DEJ2000 as dec,
-      v.Gmag as magnitude,
-      v."best-class-name" as var_type,
-      v."best-class-score" as type_score
-    FROM "I/358/vclassre" as v
+      "Source" as source_id,
+      RA_ICRS as ra,
+      DE_ICRS as dec,
+      "Class" as var_type,
+      ClassSc as type_score
+    FROM "I/358/vclassre"
     WHERE 1=CONTAINS(
-      POINT('ICRS', v.RAJ2000, v.DEJ2000),
+      POINT('ICRS', RA_ICRS, DE_ICRS),
       CIRCLE('ICRS', ${raDeg}, ${decDeg}, ${radiusDeg})
     )
-    AND v.Gmag < 16
-    ORDER BY v.Gmag ASC
+    ORDER BY ClassSc DESC
   `.trim();
 }
 
@@ -45,25 +46,22 @@ function buildVariableStarsQuery(raDeg: number, decDeg: number, radiusDeg: numbe
  * Uses Gaia DR3 extragalactic candidates (I/355/qsocand for QSOs, using galaxy flag)
  */
 function buildGalaxyCandidatesQuery(raDeg: number, decDeg: number, radiusDeg: number): string {
-  // Note: VizieR may have limited galaxy data from Gaia
-  // This query uses the QSO/galaxy candidate table
+  // VizieR I/355/paramp uses RA_ICRS/DE_ICRS and abbreviated column names:
+  // PQSO (quasar probability), PGal (galaxy probability). No classlabel_dsc column.
   return `
     SELECT TOP ${MAX_EXTRAGALACTIC}
-      Source as source_id,
-      RAJ2000 as ra,
-      DEJ2000 as dec,
-      Gmag as magnitude,
-      classlabel_dsc as class_label,
-      classprob_dsc_combmod_quasar as qso_prob,
-      classprob_dsc_combmod_galaxy as galaxy_prob
+      "Source" as source_id,
+      RA_ICRS as ra,
+      DE_ICRS as dec,
+      PQSO as qso_prob,
+      PGal as galaxy_prob
     FROM "I/355/paramp"
     WHERE 1=CONTAINS(
-      POINT('ICRS', RAJ2000, DEJ2000),
+      POINT('ICRS', RA_ICRS, DE_ICRS),
       CIRCLE('ICRS', ${raDeg}, ${decDeg}, ${radiusDeg})
     )
-    AND (classprob_dsc_combmod_galaxy > 0.5 OR classprob_dsc_combmod_quasar > 0.5)
-    AND Gmag < 18
-    ORDER BY Gmag ASC
+    AND (PGal > 0.5 OR PQSO > 0.5)
+    ORDER BY PGal DESC
   `.trim();
 }
 
@@ -126,7 +124,6 @@ async function executeTapQuery(query: string): Promise<unknown[][] | null> {
 /**
  * Fetch variable stars in a region
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: data parsing requires type checking
 async function fetchVariableStars(
   raDeg: number,
   decDeg: number,
@@ -142,24 +139,24 @@ async function fetchVariableStars(
   const variables: GaiaVariableStar[] = [];
 
   for (const row of rows) {
-    if (!Array.isArray(row) || row.length < 5) continue;
+    // Columns: source_id, ra, dec, var_type, type_score
+    if (!Array.isArray(row) || row.length < 4) continue;
 
     const sourceId = row[0]?.toString() ?? '';
     const ra = typeof row[1] === 'number' ? row[1] : null;
     const dec = typeof row[2] === 'number' ? row[2] : null;
-    const magnitude = typeof row[3] === 'number' ? row[3] : null;
-    const varType = typeof row[4] === 'string' ? row[4] : null;
+    const varType = typeof row[3] === 'string' ? row[3] : null;
 
-    if (ra !== null && dec !== null && magnitude !== null) {
+    if (ra !== null && dec !== null) {
       variables.push({
         sourceId,
         ra,
         dec,
-        magnitude,
+        magnitude: 0, // Not available in vclassre table
         variabilityType: mapVariabilityType(varType),
-        period: null, // Would need additional query
-        amplitude: null, // Would need additional query
-        isNearMaximum: false, // Would need epoch data
+        period: null,
+        amplitude: null,
+        isNearMaximum: false,
       });
     }
   }
@@ -170,7 +167,6 @@ async function fetchVariableStars(
 /**
  * Fetch extragalactic objects (galaxies and QSOs) in a region
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: data parsing requires type checking
 async function fetchExtragalacticObjects(
   raDeg: number,
   decDeg: number,
@@ -186,25 +182,25 @@ async function fetchExtragalacticObjects(
   const objects: GaiaExtragalactic[] = [];
 
   for (const row of rows) {
-    if (!Array.isArray(row) || row.length < 6) continue;
+    // Columns: source_id, ra, dec, qso_prob, galaxy_prob
+    if (!Array.isArray(row) || row.length < 4) continue;
 
     const sourceId = row[0]?.toString() ?? '';
     const ra = typeof row[1] === 'number' ? row[1] : null;
     const dec = typeof row[2] === 'number' ? row[2] : null;
-    const magnitude = typeof row[3] === 'number' ? row[3] : null;
-    const qsoProb = typeof row[5] === 'number' ? row[5] : 0;
-    const galaxyProb = typeof row[6] === 'number' ? row[6] : 0;
+    const qsoProb = typeof row[3] === 'number' ? row[3] : 0;
+    const galaxyProb = typeof row[4] === 'number' ? row[4] : 0;
 
-    if (ra !== null && dec !== null && magnitude !== null) {
+    if (ra !== null && dec !== null) {
       const isQso = qsoProb > galaxyProb;
       objects.push({
         sourceId,
         ra,
         dec,
-        magnitude,
+        magnitude: 0, // Not available in paramp table
         type: isQso ? 'qso' : 'galaxy',
         probability: isQso ? qsoProb : galaxyProb,
-        redshift: null, // Would need spectroscopic data
+        redshift: null,
       });
     }
   }
