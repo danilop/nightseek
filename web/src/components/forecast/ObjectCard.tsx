@@ -309,6 +309,9 @@ export default function ObjectCard({
               )}
               {magnitude !== null && <span>mag {formatMagnitude(magnitude)}</span>}
               {subtype && <span className="text-gray-500">• {formatSubtype(subtype)}</span>}
+              {frameFillPercent !== null && (
+                <span className="text-sky-400">{frameFillPercent}% fill</span>
+              )}
             </div>
             {visibility.imagingWindow && (
               <div className="mt-1 flex items-center gap-1.5 text-xs">
