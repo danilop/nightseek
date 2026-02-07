@@ -9,6 +9,7 @@ import { formatAsteroidDiameter, formatRotationPeriod } from '@/lib/jpl/sbdb';
 import { calculateFrameFillPercent, calculateMosaicPanels } from '@/lib/scoring';
 import { formatFOV, getEffectiveFOV } from '@/lib/telescopes';
 import {
+  azimuthToCardinal,
   formatAltitude,
   formatMagnitude,
   formatMoonSeparation,
@@ -277,7 +278,7 @@ export default function ObjectDetailPanel({
           <DetailItem
             icon={<Mountain className="h-4 w-4 text-yellow-400" />}
             label="Peak Altitude"
-            value={formatAltitude(visibility.maxAltitude)}
+            value={`${formatAltitude(visibility.maxAltitude)} ${azimuthToCardinal(visibility.azimuthAtPeak)}`}
             valueClass={getAltitudeQualityClass(visibility.maxAltitude)}
           />
           <DetailItem
