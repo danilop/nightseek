@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'nightseek:uiState';
 
+export type ActiveTab = 'overview' | 'targets' | 'sky' | 'events';
+
 interface UIState {
   // Expanded sections
   expandedCategories: Record<string, boolean>;
@@ -10,6 +12,9 @@ interface UIState {
 
   // Category ordering (array of category keys)
   categoryOrder: string[];
+
+  // Active tab in forecast view
+  activeTab: ActiveTab;
 }
 
 const DEFAULT_CATEGORY_ORDER = [
@@ -37,6 +42,7 @@ const DEFAULT_UI_STATE: UIState = {
   jupiterMoonsExpanded: false,
   weatherDetailsExpanded: false,
   categoryOrder: DEFAULT_CATEGORY_ORDER,
+  activeTab: 'overview',
 };
 
 function loadUIState(): UIState {
@@ -140,6 +146,15 @@ export function useUIState() {
     notifyListeners();
   }, []);
 
+  const setActiveTab = useCallback((tab: ActiveTab) => {
+    globalState = {
+      ...globalState,
+      activeTab: tab,
+    };
+    saveUIState(globalState);
+    notifyListeners();
+  }, []);
+
   const setCategoryOrder = useCallback((order: string[]) => {
     globalState = {
       ...globalState,
@@ -169,6 +184,7 @@ export function useUIState() {
     jupiterMoonsExpanded: globalState.jupiterMoonsExpanded,
     weatherDetailsExpanded: globalState.weatherDetailsExpanded,
     categoryOrder: globalState.categoryOrder,
+    activeTab: globalState.activeTab,
 
     // Actions
     setCategoryExpanded,
@@ -176,6 +192,7 @@ export function useUIState() {
     isCategoryExpanded,
     setJupiterMoonsExpanded,
     setWeatherDetailsExpanded,
+    setActiveTab,
     setCategoryOrder,
     reorderCategory,
   };

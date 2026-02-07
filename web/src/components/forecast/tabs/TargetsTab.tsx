@@ -20,7 +20,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
 import { getNightLabel } from '@/lib/utils/format';
 import { getRatingFromScore } from '@/lib/utils/rating';
-import { useApp } from '@/stores/AppContext';
 import type {
   AstronomicalEvents,
   DSOSubtype,
@@ -28,16 +27,16 @@ import type {
   NightWeather,
   ScoredObject,
 } from '@/types';
-import CategorySection from './CategorySection';
-import DSODetailModal from './DSODetailModal';
-import JupiterMoonsCard from './JupiterMoonsCard';
+import CategorySection from '../CategorySection';
+import JupiterMoonsCard from '../JupiterMoonsCard';
 
-interface TonightHighlightsProps {
+interface TargetsTabProps {
   objects: ScoredObject[];
   nightInfo: NightInfo;
   weather: NightWeather | null;
   astronomicalEvents?: AstronomicalEvents;
   latitude?: number;
+  onObjectSelect: (object: ScoredObject) => void;
 }
 
 interface CategoryConfig {
@@ -51,7 +50,6 @@ interface CategoryConfig {
   showSubtypeInPreview?: boolean;
 }
 
-// Define category configurations
 const CATEGORY_CONFIGS: CategoryConfig[] = [
   {
     key: 'planets',
@@ -142,7 +140,6 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     defaultExpanded: false,
     defaultShowCount: 4,
     filter: obj => {
-      // Catch anything not in the above categories
       const covered = ['planet', 'comet', 'dwarf_planet', 'asteroid', 'milky_way'];
       if (covered.includes(obj.category)) return false;
       if (obj.category !== 'dso') return true;
@@ -168,7 +165,6 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
   },
 ];
 
-// Sortable wrapper for CategorySection
 function SortableCategorySection({
   config,
   categoryObjects,
@@ -180,7 +176,7 @@ function SortableCategorySection({
   categoryObjects: ScoredObject[];
   nightInfo: NightInfo;
   weather: NightWeather | null;
-  onObjectClick?: (object: ScoredObject) => void;
+  onObjectClick: (object: ScoredObject) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: config.key,
@@ -211,37 +207,27 @@ function SortableCategorySection({
   );
 }
 
-export default function TonightHighlights({
+export default function TargetsTab({
   objects,
   nightInfo,
   weather,
   astronomicalEvents,
   latitude = 0,
-}: TonightHighlightsProps) {
-  const { state } = useApp();
-  const { settings } = state;
+  onObjectSelect,
+}: TargetsTabProps) {
   const { categoryOrder, setCategoryOrder } = useUIState();
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [selectedDSO, setSelectedDSO] = useState<ScoredObject | null>(null);
 
-  // Handle DSO card click
-  const handleDSOClick = (object: ScoredObject) => {
-    setSelectedDSO(object);
-  };
-
-  // Configure sensors for drag and drop
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // Start drag after moving 8px
-      },
+      activationConstraint: { distance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
-  // Calculate magnitude range from loaded objects
+  // Calculate magnitude range
   const { minMag, maxMag } = useMemo(() => {
     let min = Infinity;
     let max = -Infinity;
@@ -251,14 +237,13 @@ export default function TonightHighlights({
         max = Math.max(max, obj.magnitude);
       }
     }
-    // Round to reasonable values
     return {
       minMag: Math.floor(min),
       maxMag: Math.ceil(max),
     };
   }, [objects]);
 
-  // Magnitude filter state - load from localStorage or default to max
+  // Magnitude filter state
   const STORAGE_KEY = 'nightseek:magLimit';
   const [magLimit, setMagLimit] = useState<number | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -270,7 +255,6 @@ export default function TonightHighlights({
     return null;
   });
 
-  // Effective limit: use saved value if within range, otherwise default to max
   const effectiveMagLimit = useMemo(() => {
     if (magLimit !== null && magLimit >= minMag && magLimit <= maxMag) {
       return magLimit;
@@ -278,7 +262,6 @@ export default function TonightHighlights({
     return maxMag;
   }, [magLimit, minMag, maxMag]);
 
-  // Persist magnitude limit to localStorage when user changes it
   useEffect(() => {
     if (magLimit !== null) {
       localStorage.setItem(STORAGE_KEY, magLimit.toString());
@@ -288,8 +271,6 @@ export default function TonightHighlights({
   // Filter objects by magnitude
   const filteredObjects = useMemo(() => {
     return objects.filter(obj => {
-      // Objects without magnitude: only show when slider is at max (unfiltered view)
-      // This ensures filtering actually reduces counts for astrophotographers
       if (obj.magnitude === null || obj.magnitude === undefined) {
         return effectiveMagLimit >= maxMag;
       }
@@ -300,27 +281,22 @@ export default function TonightHighlights({
   // Group filtered objects by category
   const groupedObjects = useMemo(() => {
     const groups: Record<string, ScoredObject[]> = {};
-
     for (const config of CATEGORY_CONFIGS) {
       groups[config.key] = filteredObjects
         .filter(config.filter)
         .sort((a, b) => b.totalScore - a.totalScore);
     }
-
     return groups;
   }, [filteredObjects]);
 
-  // Count total objects
   const totalCount = filteredObjects.length;
   const totalLoaded = objects.length;
 
-  // Get ordered categories (respecting user's custom order)
   const orderedConfigs = useMemo(
     () => getOrderedCategories(CATEGORY_CONFIGS, categoryOrder),
     [categoryOrder]
   );
 
-  // Filter to categories with objects
   const categoriesWithObjects = orderedConfigs.filter(
     config => groupedObjects[config.key].length > 0
   );
@@ -340,7 +316,6 @@ export default function TonightHighlights({
     const newIndex = categoriesWithObjects.findIndex(c => c.key === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // Build new order by moving the active key to its new position
     const activeKey = active.id as string;
     const overKey = over.id as string;
     const newOrder = categoryOrder.filter(k => k !== activeKey);
@@ -357,10 +332,10 @@ export default function TonightHighlights({
 
   if (objects.length === 0) {
     return (
-      <div className="bg-night-900 rounded-xl border border-night-700 p-6 text-center">
-        <Sparkles className="w-8 h-8 text-gray-600 mx-auto mb-3" />
+      <div className="rounded-xl border border-night-700 bg-night-900 p-6 text-center">
+        <Sparkles className="mx-auto mb-3 h-8 w-8 text-gray-600" />
         <p className="text-gray-400">No objects meet the visibility criteria for this night.</p>
-        <p className="text-sm text-gray-500 mt-1">Try adjusting the magnitude limit in settings.</p>
+        <p className="mt-1 text-gray-500 text-sm">Try adjusting the magnitude limit in settings.</p>
       </div>
     );
   }
@@ -369,11 +344,11 @@ export default function TonightHighlights({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-white flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-yellow-400" />
+        <h3 className="flex items-center gap-2 font-semibold text-white">
+          <Sparkles className="h-5 w-5 text-yellow-400" />
           {getNightLabel(nightInfo.date, true)} Targets
         </h3>
-        <span className="text-sm text-gray-400">
+        <span className="text-gray-400 text-sm">
           {totalCount === totalLoaded
             ? `${totalCount} objects`
             : `${totalCount} of ${totalLoaded} objects`}{' '}
@@ -383,15 +358,15 @@ export default function TonightHighlights({
 
       {/* Magnitude Filter Slider */}
       {maxMag > minMag && (
-        <div className="bg-night-900 rounded-lg border border-night-700 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="magnitude-limit" className="text-sm text-gray-400">
+        <div className="rounded-lg border border-night-700 bg-night-900 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <label htmlFor="magnitude-limit" className="text-gray-400 text-sm">
               Magnitude limit
             </label>
-            <span className="text-sm font-medium text-white">≤ {effectiveMagLimit.toFixed(1)}</span>
+            <span className="font-medium text-sm text-white">≤ {effectiveMagLimit.toFixed(1)}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500 w-8">{minMag}</span>
+            <span className="w-8 text-gray-500 text-xs">{minMag}</span>
             <input
               id="magnitude-limit"
               type="range"
@@ -400,27 +375,20 @@ export default function TonightHighlights({
               step={0.5}
               value={effectiveMagLimit}
               onChange={e => setMagLimit(parseFloat(e.target.value))}
-              className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer
-                         [&::-webkit-slider-thumb]:appearance-none
-                         [&::-webkit-slider-thumb]:w-4
-                         [&::-webkit-slider-thumb]:h-4
-                         [&::-webkit-slider-thumb]:rounded-full
-                         [&::-webkit-slider-thumb]:bg-sky-500
-                         [&::-webkit-slider-thumb]:cursor-pointer
-                         [&::-webkit-slider-thumb]:hover:bg-sky-400"
+              className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-sky-500 [&::-webkit-slider-thumb]:hover:bg-sky-400"
             />
-            <span className="text-xs text-gray-500 w-8 text-right">{maxMag}</span>
+            <span className="w-8 text-right text-gray-500 text-xs">{maxMag}</span>
           </div>
-          <div className="flex justify-between mt-1 text-xs text-gray-600">
+          <div className="mt-1 flex justify-between text-gray-600 text-xs">
             <span>brighter</span>
             <span>fainter</span>
           </div>
         </div>
       )}
 
-      {/* Tonight's Summary - updates with magnitude filter */}
-      <div className="bg-night-900 rounded-xl border border-night-700 p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+      {/* Summary grid */}
+      <div className="rounded-xl border border-night-700 bg-night-900 p-4">
+        <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
           <SummaryItem emoji="🪐" count={groupedObjects.planets?.length ?? 0} label="Planets" />
           <SummaryItem
             emoji="🌌"
@@ -461,11 +429,11 @@ export default function TonightHighlights({
                   categoryObjects={groupedObjects[config.key]}
                   nightInfo={nightInfo}
                   weather={weather}
-                  onObjectClick={handleDSOClick}
+                  onObjectClick={onObjectSelect}
                 />
               );
 
-              // Add Jupiter Moons card after Planets category if Jupiter is visible
+              // Add Jupiter Moons card after Planets category
               if (config.key === 'planets') {
                 const jupiterInPlanets = groupedObjects.planets?.some(
                   p => p.objectName.toLowerCase() === 'jupiter'
@@ -492,7 +460,6 @@ export default function TonightHighlights({
           </div>
         </SortableContext>
 
-        {/* Drag overlay for smooth animation */}
         <DragOverlay>
           {activeDragConfig ? (
             <div className="opacity-80">
@@ -514,32 +481,21 @@ export default function TonightHighlights({
 
       {/* Show message if all filtered out */}
       {totalCount === 0 && totalLoaded > 0 && (
-        <div className="bg-night-900 rounded-xl border border-night-700 p-6 text-center">
+        <div className="rounded-xl border border-night-700 bg-night-900 p-6 text-center">
           <p className="text-gray-400">
             No objects with known magnitude ≤ {effectiveMagLimit.toFixed(1)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-1 text-gray-500 text-xs">
             Objects without catalog magnitude data are shown at maximum slider position
           </p>
           <button
             type="button"
             onClick={() => setMagLimit(maxMag)}
-            className="text-sm text-sky-400 hover:text-sky-300 mt-2"
+            className="mt-2 text-sky-400 text-sm hover:text-sky-300"
           >
             Show all objects
           </button>
         </div>
-      )}
-
-      {/* DSO Detail Modal */}
-      {selectedDSO && (
-        <DSODetailModal
-          object={selectedDSO}
-          nightInfo={nightInfo}
-          telescope={settings.telescope}
-          customFOV={settings.customFOV}
-          onClose={() => setSelectedDSO(null)}
-        />
       )}
     </div>
   );
@@ -548,30 +504,29 @@ export default function TonightHighlights({
 function SummaryItem({ emoji, count, label }: { emoji: string; count: number; label: string }) {
   return (
     <div className={count === 0 ? 'opacity-50' : ''}>
-      <div className="text-2xl mb-1">{emoji}</div>
-      <div className="text-lg font-bold text-white">{count}</div>
-      <div className="text-xs text-gray-500">{label}</div>
+      <div className="mb-1 text-2xl">{emoji}</div>
+      <div className="font-bold text-lg text-white">{count}</div>
+      <div className="text-gray-500 text-xs">{label}</div>
     </div>
   );
 }
 
 function MilkyWayItem({ milkyWay }: { milkyWay: ScoredObject | null }) {
   const isVisible = milkyWay !== null;
-  // Get rating from score using unified rating system
   const rating = milkyWay ? getRatingFromScore(milkyWay.totalScore, 200) : null;
 
   return (
     <div className={isVisible ? '' : 'opacity-50'}>
-      <div className="text-2xl mb-1">🌌</div>
+      <div className="mb-1 text-2xl">🌌</div>
       {isVisible && rating ? (
         <>
-          <div className={`text-lg font-bold ${rating.color}`}>{rating.starString}</div>
-          <div className="text-xs text-gray-500">Milky Way ({rating.label})</div>
+          <div className={`font-bold text-lg ${rating.color}`}>{rating.starString}</div>
+          <div className="text-gray-500 text-xs">Milky Way ({rating.label})</div>
         </>
       ) : (
         <>
-          <div className="text-lg font-bold text-gray-500">—</div>
-          <div className="text-xs text-gray-500">Milky Way</div>
+          <div className="font-bold text-gray-500 text-lg">—</div>
+          <div className="text-gray-500 text-xs">Milky Way</div>
         </>
       )}
     </div>
