@@ -7,6 +7,7 @@
  */
 
 import type { AsteroidPhysicalData } from '@/types';
+import { fetchStaticData } from '../utils/static-data';
 
 const ASTEROID_DATA: Record<string, AsteroidPhysicalData> = {
   vesta: { diameter: 525.4, albedo: 0.4228, spectralType: 'V', rotationPeriod: 5.3421 },
@@ -16,13 +17,23 @@ const ASTEROID_DATA: Record<string, AsteroidPhysicalData> = {
 };
 
 /**
- * Get physical data for an asteroid
+ * Get physical data for an asteroid.
+ * Tries pre-fetched static JSON first, falls back to hardcoded data.
  */
-export function fetchAsteroidPhysicalData(
+export async function fetchAsteroidPhysicalData(
   designation: string
 ): Promise<AsteroidPhysicalData | null> {
   const key = designation.toLowerCase().replace(/\s+/g, '');
-  return Promise.resolve(ASTEROID_DATA[key] ?? null);
+
+  try {
+    const staticData =
+      await fetchStaticData<Record<string, AsteroidPhysicalData>>('asteroids.json');
+    if (staticData?.[key]) return staticData[key];
+  } catch {
+    // Static data unavailable — fall through to hardcoded
+  }
+
+  return ASTEROID_DATA[key] ?? null;
 }
 
 /**

@@ -1,0 +1,26 @@
+{
+  "vesta": {
+    "diameter": 525.4,
+    "albedo": 0.4228,
+    "spectralType": "V",
+    "rotationPeriod": 5.3421
+  },
+  "pallas": {
+    "diameter": 513,
+    "albedo": 0.101,
+    "spectralType": "B",
+    "rotationPeriod": 7.8132
+  },
+  "juno": {
+    "diameter": 233.92,
+    "albedo": 0.2383,
+    "spectralType": "S",
+    "rotationPeriod": 7.21
+  },
+  "hygiea": {
+    "diameter": 433,
+    "albedo": 0.0717,
+    "spectralType": "C",
+    "rotationPeriod": 27.659
+  }
+}
