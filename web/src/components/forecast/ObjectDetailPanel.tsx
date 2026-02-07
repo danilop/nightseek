@@ -65,12 +65,19 @@ export default function ObjectDetailPanel({
     setTimeout(onClose, 300);
   }, [onClose]);
 
-  // Lock body scroll when panel is open
+  // Lock body scroll and scroll to top on mobile so the bottom sheet has a clean backdrop
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
+    const originalScrollY = window.scrollY;
+    if (window.innerWidth < 640) {
+      window.scrollTo({ top: 0 });
+    }
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = originalOverflow;
+      if (window.innerWidth < 640) {
+        window.scrollTo({ top: originalScrollY });
+      }
     };
   }, []);
 
