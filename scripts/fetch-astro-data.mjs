@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, '..', 'web', 'public', 'data');
+const DATA_DIR = join(__dirname, '..', 'web', 'src', 'data');
 
 // Ensure output directory exists
 if (!existsSync(DATA_DIR)) {

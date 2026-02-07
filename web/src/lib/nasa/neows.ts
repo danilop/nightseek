@@ -5,9 +5,9 @@
  * Fetches asteroid close approach data for display in astronomical events
  */
 
+import neoJson from '@/data/neo.json';
 import type { NeoCloseApproach } from '@/types';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
-import { fetchStaticData } from '../utils/static-data';
 
 // NASA API key - DEMO_KEY works for light usage (30 requests/hour)
 // For production, consider registering at https://api.nasa.gov for a free key
@@ -148,32 +148,25 @@ interface StaticNeoFile {
 }
 
 /**
- * Try loading NEO data from pre-fetched static JSON.
+ * Try loading NEO data from bundled static JSON.
  * Returns a populated map if the static file covers the requested date range, null otherwise.
  */
-async function tryStaticNeoData(
-  startDate: Date,
-  days: number
-): Promise<Map<string, NeoCloseApproach[]> | null> {
-  try {
-    const staticNeo = await fetchStaticData<StaticNeoFile>('neo.json');
-    if (!staticNeo?.data) return null;
+function tryStaticNeoData(startDate: Date, days: number): Map<string, NeoCloseApproach[]> | null {
+  const staticNeo = neoJson as unknown as StaticNeoFile;
+  if (!staticNeo?.data) return null;
 
-    const reqStart = formatDateForApi(startDate);
-    const reqEnd = formatDateForApi(new Date(startDate.getTime() + (days - 1) * 86_400_000));
-    if (reqStart < staticNeo.startDate || reqEnd > staticNeo.endDate) return null;
+  const reqStart = formatDateForApi(startDate);
+  const reqEnd = formatDateForApi(new Date(startDate.getTime() + (days - 1) * 86_400_000));
+  if (reqStart < staticNeo.startDate || reqEnd > staticNeo.endDate) return null;
 
-    const result = new Map<string, NeoCloseApproach[]>();
-    for (const [dateStr, approaches] of Object.entries(staticNeo.data)) {
-      result.set(
-        dateStr,
-        approaches.map(neo => ({ ...neo, closeApproachDate: new Date(neo.closeApproachDate) }))
-      );
-    }
-    return result;
-  } catch {
-    return null;
+  const result = new Map<string, NeoCloseApproach[]>();
+  for (const [dateStr, approaches] of Object.entries(staticNeo.data)) {
+    result.set(
+      dateStr,
+      approaches.map(neo => ({ ...neo, closeApproachDate: new Date(neo.closeApproachDate) }))
+    );
   }
+  return result;
 }
 
 export async function fetchNeoCloseApproachesRange(
@@ -181,7 +174,7 @@ export async function fetchNeoCloseApproachesRange(
   days: number
 ): Promise<Map<string, NeoCloseApproach[]>> {
   // Try pre-fetched static data first
-  const staticResult = await tryStaticNeoData(startDate, days);
+  const staticResult = tryStaticNeoData(startDate, days);
   if (staticResult) return staticResult;
 
   const result = new Map<string, NeoCloseApproach[]>();

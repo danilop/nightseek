@@ -6,33 +6,16 @@
  * Only 4 asteroids are tracked, so this is simpler and more reliable.
  */
 
+import asteroidsJson from '@/data/asteroids.json';
 import type { AsteroidPhysicalData } from '@/types';
-import { fetchStaticData } from '../utils/static-data';
 
-const ASTEROID_DATA: Record<string, AsteroidPhysicalData> = {
-  vesta: { diameter: 525.4, albedo: 0.4228, spectralType: 'V', rotationPeriod: 5.3421 },
-  pallas: { diameter: 513, albedo: 0.101, spectralType: 'B', rotationPeriod: 7.8132 },
-  juno: { diameter: 233.92, albedo: 0.2383, spectralType: 'S', rotationPeriod: 7.21 },
-  hygiea: { diameter: 433, albedo: 0.0717, spectralType: 'C', rotationPeriod: 27.659 },
-};
+const ASTEROID_DATA = asteroidsJson as Record<string, AsteroidPhysicalData>;
 
 /**
  * Get physical data for an asteroid.
- * Tries pre-fetched static JSON first, falls back to hardcoded data.
  */
-export async function fetchAsteroidPhysicalData(
-  designation: string
-): Promise<AsteroidPhysicalData | null> {
+export function fetchAsteroidPhysicalData(designation: string): AsteroidPhysicalData | null {
   const key = designation.toLowerCase().replace(/\s+/g, '');
-
-  try {
-    const staticData =
-      await fetchStaticData<Record<string, AsteroidPhysicalData>>('asteroids.json');
-    if (staticData?.[key]) return staticData[key];
-  } catch {
-    // Static data unavailable — fall through to hardcoded
-  }
-
   return ASTEROID_DATA[key] ?? null;
 }
 

@@ -6,31 +6,20 @@
  * No client-side API calls — data comes from static JSON + IndexedDB cache.
  */
 
+import donkiJson from '@/data/donki.json';
 import type { AuroraChance, AuroraForecast, SpaceWeather } from '@/types';
-import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
-import { fetchStaticData } from '../utils/static-data';
+import { CACHE_KEYS, setCache } from '../utils/cache';
 
 /**
- * Fetch space weather data: static JSON first, then IndexedDB cache fallback.
+ * Get space weather data from bundled static JSON.
+ * Also caches to IndexedDB for offline PWA use.
  */
 export async function fetchSpaceWeather(): Promise<SpaceWeather | null> {
-  // 1. Try pre-fetched static data
-  try {
-    const staticData = await fetchStaticData<SpaceWeather>('donki.json');
-    if (staticData) {
-      // Cache it for offline use
-      await setCache(CACHE_KEYS.DONKI, staticData);
-      return staticData;
-    }
-  } catch {
-    // Static fetch failed, try cache
+  const data = donkiJson as unknown as SpaceWeather;
+  if (data) {
+    await setCache(CACHE_KEYS.DONKI, data);
   }
-
-  // 2. Fall back to IndexedDB cache
-  const cached = await getCached<SpaceWeather>(CACHE_KEYS.DONKI, CACHE_TTLS.DONKI);
-  if (cached) return cached;
-
-  return null;
+  return data ?? null;
 }
 
 /**
