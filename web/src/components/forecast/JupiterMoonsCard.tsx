@@ -1,3 +1,4 @@
+import { GripVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card, ToggleChevron } from '@/components/ui/Card';
 import Tooltip from '@/components/ui/Tooltip';
@@ -11,6 +12,33 @@ interface JupiterMoonsCardProps {
   events: GalileanMoonEvent[];
   latitude: number;
   nightDate: Date;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+}
+
+function getCollapsedPreview(
+  positions: GalileanMoonPosition[],
+  events: GalileanMoonEvent[]
+): string {
+  // If events exist, show the first 1-2 briefly
+  if (events.length > 0) {
+    return events
+      .slice(0, 2)
+      .map(e => {
+        const shortType =
+          e.type === 'transit_start'
+            ? 'transit'
+            : e.type === 'shadow_start'
+              ? 'shadow'
+              : e.type === 'transit_end'
+                ? 'transit end'
+                : 'shadow end';
+        return `${e.moon} ${shortType} ${formatTime(e.time)}`;
+      })
+      .join(', ');
+  }
+
+  // No events: show E/W positions
+  return positions.map(m => `${m.name} ${m.x > 0 ? 'W' : 'E'}`).join(', ');
 }
 
 export default function JupiterMoonsCard({
@@ -18,6 +46,7 @@ export default function JupiterMoonsCard({
   events,
   latitude,
   nightDate,
+  dragHandleProps,
 }: JupiterMoonsCardProps) {
   const { jupiterMoonsExpanded, setJupiterMoonsExpanded } = useUIState();
   const expanded = jupiterMoonsExpanded;
@@ -28,22 +57,41 @@ export default function JupiterMoonsCard({
 
   return (
     <Card>
-      <button
-        type="button"
-        onClick={() => setJupiterMoonsExpanded(!expanded)}
-        className="w-full px-4 py-3 border-b border-night-700 flex items-center justify-between hover:bg-night-800 transition-colors"
-      >
-        <h3 className="font-semibold text-white flex items-center gap-2">
-          <span className="text-xl">&#x2643;</span>
-          Jupiter's Galilean Moons
-          {hasActiveEvents && (
-            <Badge variant="warning" className="ml-2 rounded-full">
-              Events {nightLabel}
-            </Badge>
-          )}
-        </h3>
-        <ToggleChevron expanded={expanded} className="w-4 h-4 text-gray-400" />
-      </button>
+      <div className="flex items-center">
+        {/* Drag handle */}
+        {dragHandleProps && (
+          <button
+            type="button"
+            className="cursor-grab touch-none px-2 py-3 text-gray-500 hover:text-gray-300 active:cursor-grabbing"
+            {...dragHandleProps}
+          >
+            <GripVertical className="h-5 w-5" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setJupiterMoonsExpanded(!expanded)}
+          className={`flex-1 ${dragHandleProps ? 'pl-0' : 'pl-4'} flex items-center justify-between border-night-700 border-b py-3 pr-4 transition-colors hover:bg-night-800`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-xl">&#x2643;</span>
+            <h3 className="font-semibold text-white">Jupiter's Galilean Moons</h3>
+            {hasActiveEvents && (
+              <Badge variant="warning" className="ml-1 rounded-full">
+                Events {nightLabel}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {!expanded && (
+              <span className="hidden text-gray-500 text-sm sm:block">
+                {getCollapsedPreview(positions, events)}
+              </span>
+            )}
+            <ToggleChevron expanded={expanded} className="h-4 w-4 text-gray-400" />
+          </div>
+        </button>
+      </div>
 
       {expanded && (
         <div className="p-4 space-y-4">

@@ -116,7 +116,6 @@ interface AppContextValue {
   dispatch: React.Dispatch<Action>;
   setLocation: (location: Location) => Promise<void>;
   updateSettings: (settings: Partial<Settings>) => void;
-  resetSettings: () => void;
   resetAllData: () => Promise<void>;
   setProgress: (message: string, percent: number) => void;
 }
@@ -183,12 +182,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_SETTINGS', payload: settings });
   }, []);
 
-  const resetSettings = useCallback(() => {
-    dispatch({ type: 'RESET_SETTINGS' });
-    // Also reset UI state (category order, active tab, expanded sections)
-    resetUIState();
-  }, []);
-
   const resetAllData = useCallback(async () => {
     // Clear all cached data
     await clearAllCache();
@@ -210,7 +203,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch,
     setLocation,
     updateSettings,
-    resetSettings,
     resetAllData,
     setProgress,
   };

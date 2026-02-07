@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
 import { getNightLabel } from '@/lib/utils/format';
@@ -82,7 +82,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
   },
   {
     key: 'minor_planets',
-    title: 'Dwarf Planets & Asteroids',
+    title: 'Minor Planets',
     icon: '🪨',
     defaultExpanded: true,
     defaultShowCount: 5,
@@ -240,24 +240,13 @@ function SortableJupiterMoons({
 
   return (
     <div ref={setNodeRef} style={style} className={`relative ${isDragging ? 'z-10' : ''}`}>
-      <div className="flex items-start">
-        <button
-          type="button"
-          className="mt-3 cursor-grab touch-none px-1 text-gray-500 hover:text-gray-300 active:cursor-grabbing"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="h-5 w-5" />
-        </button>
-        <div className="flex-1">
-          <JupiterMoonsCard
-            positions={jupiterMoons.positions}
-            events={jupiterMoons.events}
-            latitude={latitude}
-            nightDate={nightDate}
-          />
-        </div>
-      </div>
+      <JupiterMoonsCard
+        positions={jupiterMoons.positions}
+        events={jupiterMoons.events}
+        latitude={latitude}
+        nightDate={nightDate}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
     </div>
   );
 }

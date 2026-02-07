@@ -3,7 +3,6 @@ import {
   CircleDot,
   Eye,
   MapPin,
-  RotateCcw,
   Ruler,
   Satellite,
   Thermometer,
@@ -21,7 +20,7 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ onClose }: SettingsModalProps) {
-  const { state, updateSettings, resetSettings, resetAllData, dispatch } = useApp();
+  const { state, updateSettings, resetAllData, dispatch } = useApp();
   const { settings, location } = state;
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
@@ -326,8 +325,8 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             {showResetConfirm ? (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
                 <p className="text-sm text-red-400 mb-3">
-                  This will clear all data, cached forecasts, and return to the location setup
-                  screen. Are you sure?
+                  This will reset all settings to defaults, clear cached forecasts, and return to
+                  the location setup screen. Are you sure?
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -350,34 +349,19 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={resetSettings}
-                  className="w-full flex items-center justify-between p-3 bg-night-800 hover:bg-night-700 rounded-lg transition-colors group"
-                >
-                  <div className="flex items-center gap-2">
-                    <RotateCcw className="w-4 h-4 text-gray-400 group-hover:text-white" />
-                    <span className="text-sm text-gray-300 group-hover:text-white">
-                      Reset to Defaults
-                    </span>
-                  </div>
-                  <span className="text-xs text-gray-500">Restore default settings</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowResetConfirm(true)}
-                  className="w-full flex items-center justify-between p-3 bg-night-800 hover:bg-red-500/10 rounded-lg transition-colors group"
-                >
-                  <div className="flex items-center gap-2">
-                    <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-400" />
-                    <span className="text-sm text-gray-300 group-hover:text-red-400">
-                      Reset All Data
-                    </span>
-                  </div>
-                  <span className="text-xs text-gray-500">Clear cache &amp; location</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(true)}
+                className="w-full flex items-center justify-between p-3 bg-night-800 hover:bg-red-500/10 rounded-lg transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-400" />
+                  <span className="text-sm text-gray-300 group-hover:text-red-400">
+                    Reset All Data
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500">Settings, cache &amp; location</span>
+              </button>
             )}
           </div>
         </div>
