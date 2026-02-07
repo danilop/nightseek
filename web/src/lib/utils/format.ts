@@ -146,6 +146,16 @@ export function getCategoryIcon(category: string, subtype?: string | null): stri
 }
 
 /**
+ * Convert azimuth degrees to 8-point cardinal direction
+ */
+export function azimuthToCardinal(azimuth: number): string {
+  const normalized = ((azimuth % 360) + 360) % 360;
+  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  const index = Math.round(normalized / 45) % 8;
+  return directions[index];
+}
+
+/**
  * Format altitude with quality indicator
  */
 export function formatAltitude(altitude: number): string {

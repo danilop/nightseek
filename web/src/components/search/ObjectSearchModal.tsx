@@ -20,6 +20,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { searchCelestialObjects } from '@/lib/search/object-search';
+import { azimuthToCardinal } from '@/lib/utils/format';
 import type { Location, ObjectSearchResult, ObjectVisibilityStatus } from '@/types';
 
 interface ObjectSearchModalProps {
@@ -111,16 +112,6 @@ function formatDate(date: Date): string {
  */
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-/**
- * Convert azimuth degrees to cardinal direction
- */
-function azimuthToCardinal(azimuth: number): string {
-  const normalized = ((azimuth % 360) + 360) % 360;
-  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-  const index = Math.round(normalized / 45) % 8;
-  return directions[index];
 }
 
 /**

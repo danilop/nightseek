@@ -7,6 +7,7 @@ import { formatAsteroidDiameter, formatRotationPeriod } from '@/lib/jpl/sbdb';
 import { calculateFrameFillPercent, calculateMosaicPanels } from '@/lib/scoring';
 import { getEffectiveFOV } from '@/lib/telescopes';
 import {
+  azimuthToCardinal,
   formatAltitude,
   formatMagnitude,
   formatMoonSeparation,
@@ -302,7 +303,8 @@ export default function ObjectCard({
             </div>
             <div className="mt-1 flex items-center gap-3 text-gray-400 text-xs">
               <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
-                {formatAltitude(visibility.maxAltitude)}
+                {formatAltitude(visibility.maxAltitude)}{' '}
+                {azimuthToCardinal(visibility.azimuthAtPeak)}
               </span>
               {visibility.maxAltitudeTime && (
                 <span>@ {formatTime(visibility.maxAltitudeTime)}</span>
@@ -395,7 +397,8 @@ export default function ObjectCard({
         <div className="flex items-center gap-2 text-gray-400">
           <Mountain className="h-4 w-4" />
           <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
-            {formatAltitude(visibility.maxAltitude)} peak
+            {formatAltitude(visibility.maxAltitude)} {azimuthToCardinal(visibility.azimuthAtPeak)}{' '}
+            peak
           </span>
           {visibility.maxAltitudeTime && (
             <span className="text-gray-500">@ {formatTime(visibility.maxAltitudeTime)}</span>
