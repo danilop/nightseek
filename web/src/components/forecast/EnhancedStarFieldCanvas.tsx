@@ -405,6 +405,9 @@ function ObjectInfoPanel({ object, onClose }: ObjectInfoPanelProps) {
         {varStar.period && (
           <div className="text-xs text-gray-400">Period: {varStar.period.toFixed(2)} days</div>
         )}
+        {varStar.amplitude && (
+          <div className="text-xs text-gray-400">Amplitude: {varStar.amplitude.toFixed(2)} mag</div>
+        )}
         <div className="text-xs text-gray-500 mt-1">{typeInfo.description}</div>
       </div>
     );
