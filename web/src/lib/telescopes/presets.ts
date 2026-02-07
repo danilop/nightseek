@@ -5,7 +5,7 @@ import type { TelescopePreset, TelescopePresetId } from '@/types';
  * FOV values in arcminutes
  */
 export const TELESCOPE_PRESETS: TelescopePreset[] = [
-  { id: 'dwarf_mini', name: 'Dwarf Mini', fovWidth: 144, fovHeight: 72 },
+  { id: 'dwarf_mini', name: 'Dwarf Mini', fovWidth: 128, fovHeight: 72 },
   { id: 'dwarf_ii', name: 'Dwarf II', fovWidth: 180, fovHeight: 100 },
   { id: 'dwarf_3', name: 'Dwarf 3', fovWidth: 174, fovHeight: 99 },
   { id: 'seestar_s30', name: 'Seestar S30', fovWidth: 72, fovHeight: 128 },
@@ -58,7 +58,7 @@ export function getEffectiveFOV(
 
   // Fallback to default telescope
   const defaultPreset = getTelescopePreset(DEFAULT_TELESCOPE);
-  return { width: defaultPreset?.fovWidth ?? 144, height: defaultPreset?.fovHeight ?? 72 };
+  return { width: defaultPreset?.fovWidth ?? 128, height: defaultPreset?.fovHeight ?? 72 };
 }
 
 /**

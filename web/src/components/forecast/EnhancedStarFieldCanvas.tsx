@@ -397,7 +397,11 @@ function ObjectInfoPanel({ object, onClose }: ObjectInfoPanelProps) {
         <div className="text-sm font-medium" style={{ color: typeInfo.color }}>
           {typeInfo.label}
         </div>
-        <div className="text-xs text-gray-400 mt-1">Magnitude: {varStar.magnitude.toFixed(1)}</div>
+        {varStar.magnitude > 0 && (
+          <div className="text-xs text-gray-400 mt-1">
+            Magnitude: {varStar.magnitude.toFixed(1)}
+          </div>
+        )}
         {varStar.period && (
           <div className="text-xs text-gray-400">Period: {varStar.period.toFixed(2)} days</div>
         )}
@@ -424,7 +428,9 @@ function ObjectInfoPanel({ object, onClose }: ObjectInfoPanelProps) {
       <div className="text-sm font-medium" style={{ color: typeInfo.color }}>
         {typeInfo.label}
       </div>
-      <div className="text-xs text-gray-400 mt-1">Magnitude: {extObj.magnitude.toFixed(1)}</div>
+      {extObj.magnitude > 0 && (
+        <div className="text-xs text-gray-400 mt-1">Magnitude: {extObj.magnitude.toFixed(1)}</div>
+      )}
       <div className="text-xs text-gray-400">
         Confidence: {(extObj.probability * 100).toFixed(0)}%
       </div>

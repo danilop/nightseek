@@ -22,22 +22,24 @@ const MAX_EXTRAGALACTIC = 50;
  * Uses Gaia DR3 variable star catalog (I/358/vclassre)
  */
 function buildVariableStarsQuery(raDeg: number, decDeg: number, radiusDeg: number): string {
-  // VizieR I/358/vclassre uses RA_ICRS/DE_ICRS (no RAJ2000) and has no magnitude column.
-  // Column names: Source, Class, ClassSc (score), RA_ICRS, DE_ICRS.
-  // No table aliases — VizieR's parser rejects alias.column with quoted table names.
+  // VizieR I/358/vclassre has classification only (Class, ClassSc) — no magnitude.
+  // JOIN with main Gaia DR3 catalog (I/355/gaiadr3) on Source to get Gmag.
+  // No table aliases — VizieR rejects alias.column with quoted table names.
   return `
     SELECT TOP ${MAX_VARIABLES}
-      "Source" as source_id,
-      RA_ICRS as ra,
-      DE_ICRS as dec,
-      "Class" as var_type,
-      ClassSc as type_score
+      "I/358/vclassre"."Source" as source_id,
+      "I/358/vclassre".RA_ICRS as ra,
+      "I/358/vclassre".DE_ICRS as dec,
+      "I/358/vclassre"."Class" as var_type,
+      "I/358/vclassre".ClassSc as type_score,
+      "I/355/gaiadr3".Gmag as magnitude
     FROM "I/358/vclassre"
+    JOIN "I/355/gaiadr3" ON "I/358/vclassre"."Source" = "I/355/gaiadr3"."Source"
     WHERE 1=CONTAINS(
-      POINT('ICRS', RA_ICRS, DE_ICRS),
+      POINT('ICRS', "I/358/vclassre".RA_ICRS, "I/358/vclassre".DE_ICRS),
       CIRCLE('ICRS', ${raDeg}, ${decDeg}, ${radiusDeg})
     )
-    ORDER BY ClassSc DESC
+    ORDER BY "I/358/vclassre".ClassSc DESC
   `.trim();
 }
 
@@ -46,22 +48,24 @@ function buildVariableStarsQuery(raDeg: number, decDeg: number, radiusDeg: numbe
  * Uses Gaia DR3 extragalactic candidates (I/355/qsocand for QSOs, using galaxy flag)
  */
 function buildGalaxyCandidatesQuery(raDeg: number, decDeg: number, radiusDeg: number): string {
-  // VizieR I/355/paramp uses RA_ICRS/DE_ICRS and abbreviated column names:
-  // PQSO (quasar probability), PGal (galaxy probability). No classlabel_dsc column.
+  // VizieR I/355/paramp has classification probabilities only — no magnitude.
+  // JOIN with main Gaia DR3 catalog (I/355/gaiadr3) on Source to get Gmag.
   return `
     SELECT TOP ${MAX_EXTRAGALACTIC}
-      "Source" as source_id,
-      RA_ICRS as ra,
-      DE_ICRS as dec,
-      PQSO as qso_prob,
-      PGal as galaxy_prob
+      "I/355/paramp"."Source" as source_id,
+      "I/355/paramp".RA_ICRS as ra,
+      "I/355/paramp".DE_ICRS as dec,
+      "I/355/paramp".PQSO as qso_prob,
+      "I/355/paramp".PGal as galaxy_prob,
+      "I/355/gaiadr3".Gmag as magnitude
     FROM "I/355/paramp"
+    JOIN "I/355/gaiadr3" ON "I/355/paramp"."Source" = "I/355/gaiadr3"."Source"
     WHERE 1=CONTAINS(
-      POINT('ICRS', RA_ICRS, DE_ICRS),
+      POINT('ICRS', "I/355/paramp".RA_ICRS, "I/355/paramp".DE_ICRS),
       CIRCLE('ICRS', ${raDeg}, ${decDeg}, ${radiusDeg})
     )
-    AND (PGal > 0.5 OR PQSO > 0.5)
-    ORDER BY PGal DESC
+    AND ("I/355/paramp".PGal > 0.5 OR "I/355/paramp".PQSO > 0.5)
+    ORDER BY "I/355/paramp".PGal DESC
   `.trim();
 }
 
@@ -139,20 +143,21 @@ async function fetchVariableStars(
   const variables: GaiaVariableStar[] = [];
 
   for (const row of rows) {
-    // Columns: source_id, ra, dec, var_type, type_score
+    // Columns: source_id, ra, dec, var_type, type_score, magnitude
     if (!Array.isArray(row) || row.length < 4) continue;
 
     const sourceId = row[0]?.toString() ?? '';
     const ra = typeof row[1] === 'number' ? row[1] : null;
     const dec = typeof row[2] === 'number' ? row[2] : null;
     const varType = typeof row[3] === 'string' ? row[3] : null;
+    const magnitude = typeof row[5] === 'number' ? row[5] : 0;
 
     if (ra !== null && dec !== null) {
       variables.push({
         sourceId,
         ra,
         dec,
-        magnitude: 0, // Not available in vclassre table
+        magnitude,
         variabilityType: mapVariabilityType(varType),
         period: null,
         amplitude: null,
@@ -182,7 +187,7 @@ async function fetchExtragalacticObjects(
   const objects: GaiaExtragalactic[] = [];
 
   for (const row of rows) {
-    // Columns: source_id, ra, dec, qso_prob, galaxy_prob
+    // Columns: source_id, ra, dec, qso_prob, galaxy_prob, magnitude
     if (!Array.isArray(row) || row.length < 4) continue;
 
     const sourceId = row[0]?.toString() ?? '';
@@ -190,6 +195,7 @@ async function fetchExtragalacticObjects(
     const dec = typeof row[2] === 'number' ? row[2] : null;
     const qsoProb = typeof row[3] === 'number' ? row[3] : 0;
     const galaxyProb = typeof row[4] === 'number' ? row[4] : 0;
+    const magnitude = typeof row[5] === 'number' ? row[5] : 0;
 
     if (ra !== null && dec !== null) {
       const isQso = qsoProb > galaxyProb;
@@ -197,7 +203,7 @@ async function fetchExtragalacticObjects(
         sourceId,
         ra,
         dec,
-        magnitude: 0, // Not available in paramp table
+        magnitude,
         type: isQso ? 'qso' : 'galaxy',
         probability: isQso ? qsoProb : galaxyProb,
         redshift: null,
