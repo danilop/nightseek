@@ -6,6 +6,7 @@ import { formatImagingWindow } from '@/lib/astronomy/imaging-windows';
 import { formatAsteroidDiameter, formatRotationPeriod } from '@/lib/jpl/sbdb';
 import { calculateFrameFillPercent, calculateMosaicPanels } from '@/lib/scoring';
 import { getEffectiveFOV } from '@/lib/telescopes';
+import { getAltitudeAtTime } from '@/lib/utils/altitude-interpolation';
 import {
   azimuthToCardinal,
   formatAltitude,
@@ -20,12 +21,15 @@ import { formatSubtype } from '@/lib/utils/format-subtype';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
 import { useApp } from '@/stores/AppContext';
 import type { NightInfo, NightWeather, ObjectVisibility, ScoredObject } from '@/types';
+import type { SortMode } from './SortModeControl';
 
 interface ObjectCardProps {
   object: ScoredObject;
   nightInfo: NightInfo;
   weather: NightWeather | null;
   compact?: boolean;
+  sortMode?: SortMode;
+  selectedTime?: Date;
   onDSOClick?: (object: ScoredObject) => void;
   onSelect?: (object: ScoredObject) => void;
 }
@@ -246,6 +250,8 @@ export default function ObjectCard({
   nightInfo: _nightInfo,
   weather: _weather,
   compact = false,
+  sortMode,
+  selectedTime,
   onDSOClick,
   onSelect,
 }: ObjectCardProps) {
@@ -254,6 +260,11 @@ export default function ObjectCard({
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const { visibility, scoreBreakdown, totalScore, category, subtype, magnitude } = object;
   const frameFillPercent = calculateFrameFillPercent(visibility.angularSizeArcmin, category, fov);
+
+  const isAltitudeMode = sortMode === 'altitude' && selectedTime;
+  const currentAltitude = isAltitudeMode
+    ? getAltitudeAtTime(visibility.altitudeSamples, selectedTime)
+    : null;
 
   // All objects can be clicked when onSelect is provided; legacy onDSOClick only for DSOs
   const isDSO = category === 'dso';
@@ -302,12 +313,24 @@ export default function ObjectCard({
               <RatingStars score={totalScore} maxScore={235} size="sm" />
             </div>
             <div className="mt-1 flex items-center gap-3 text-gray-400 text-xs">
-              <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
-                {formatAltitude(visibility.maxAltitude)}{' '}
-                {azimuthToCardinal(visibility.azimuthAtPeak)}
-              </span>
-              {visibility.maxAltitudeTime && (
-                <span>@ {formatTime(visibility.maxAltitudeTime)}</span>
+              {isAltitudeMode && currentAltitude !== null ? (
+                currentAltitude <= 0 ? (
+                  <span className="text-gray-600">Below horizon</span>
+                ) : (
+                  <span className={getAltitudeQualityClass(currentAltitude)}>
+                    {formatAltitude(currentAltitude)} now
+                  </span>
+                )
+              ) : (
+                <>
+                  <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
+                    {formatAltitude(visibility.maxAltitude)}{' '}
+                    {azimuthToCardinal(visibility.azimuthAtPeak)}
+                  </span>
+                  {visibility.maxAltitudeTime && (
+                    <span>@ {formatTime(visibility.maxAltitudeTime)}</span>
+                  )}
+                </>
               )}
               {magnitude !== null && <span>mag {formatMagnitude(magnitude)}</span>}
               {subtype && <span className="text-gray-500">• {formatSubtype(subtype)}</span>}
@@ -396,12 +419,24 @@ export default function ObjectCard({
       <div className="mt-3 space-y-2 text-sm">
         <div className="flex items-center gap-2 text-gray-400">
           <Mountain className="h-4 w-4" />
-          <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
-            {formatAltitude(visibility.maxAltitude)} {azimuthToCardinal(visibility.azimuthAtPeak)}{' '}
-            peak
-          </span>
-          {visibility.maxAltitudeTime && (
-            <span className="text-gray-500">@ {formatTime(visibility.maxAltitudeTime)}</span>
+          {isAltitudeMode && currentAltitude !== null ? (
+            currentAltitude <= 0 ? (
+              <span className="text-gray-600">Below horizon</span>
+            ) : (
+              <span className={getAltitudeQualityClass(currentAltitude)}>
+                {formatAltitude(currentAltitude)} now
+              </span>
+            )
+          ) : (
+            <>
+              <span className={getAltitudeQualityClass(visibility.maxAltitude)}>
+                {formatAltitude(visibility.maxAltitude)}{' '}
+                {azimuthToCardinal(visibility.azimuthAtPeak)} peak
+              </span>
+              {visibility.maxAltitudeTime && (
+                <span className="text-gray-500">@ {formatTime(visibility.maxAltitudeTime)}</span>
+              )}
+            </>
           )}
         </div>
 

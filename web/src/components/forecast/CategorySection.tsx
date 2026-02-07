@@ -4,6 +4,7 @@ import { useUIState } from '@/hooks/useUIState';
 import { formatSubtype } from '@/lib/utils/format-subtype';
 import type { NightInfo, NightWeather, ScoredObject } from '@/types';
 import ObjectCard from './ObjectCard';
+import type { SortMode } from './SortModeControl';
 
 interface CategorySectionProps {
   categoryKey: string;
@@ -17,6 +18,8 @@ interface CategorySectionProps {
   showSubtypeInPreview?: boolean;
   isDragging?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+  sortMode?: SortMode;
+  selectedTime?: Date;
   onObjectClick?: (object: ScoredObject) => void;
 }
 
@@ -33,6 +36,8 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
     showSubtypeInPreview = false,
     isDragging = false,
     dragHandleProps,
+    sortMode,
+    selectedTime,
     onObjectClick,
   },
   ref
@@ -114,6 +119,8 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
                   object={obj}
                   nightInfo={nightInfo}
                   weather={weather}
+                  sortMode={sortMode}
+                  selectedTime={selectedTime}
                   onSelect={onObjectClick}
                 />
               ))}
@@ -127,6 +134,8 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
                   object={obj}
                   nightInfo={nightInfo}
                   weather={weather}
+                  sortMode={sortMode}
+                  selectedTime={selectedTime}
                   compact
                   onSelect={onObjectClick}
                 />

@@ -17,7 +17,9 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
+import { getAltitudeAtTime } from '@/lib/utils/altitude-interpolation';
 import { getNightLabel } from '@/lib/utils/format';
 import { getRatingFromScore } from '@/lib/utils/rating';
 import type {
@@ -29,6 +31,7 @@ import type {
 } from '@/types';
 import CategorySection from '../CategorySection';
 import JupiterMoonsCard from '../JupiterMoonsCard';
+import SortModeControl, { type SortMode } from '../SortModeControl';
 
 interface TargetsTabProps {
   objects: ScoredObject[];
@@ -181,12 +184,16 @@ function SortableCategorySection({
   categoryObjects,
   nightInfo,
   weather,
+  sortMode,
+  selectedTime,
   onObjectClick,
 }: {
   config: CategoryConfig;
   categoryObjects: ScoredObject[];
   nightInfo: NightInfo;
   weather: NightWeather | null;
+  sortMode?: SortMode;
+  selectedTime?: Date;
   onObjectClick: (object: ScoredObject) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -212,6 +219,8 @@ function SortableCategorySection({
         showSubtypeInPreview={config.showSubtypeInPreview}
         isDragging={isDragging}
         dragHandleProps={{ ...attributes, ...listeners }}
+        sortMode={sortMode}
+        selectedTime={selectedTime}
         onObjectClick={onObjectClick}
       />
     </div>
@@ -261,6 +270,21 @@ export default function TargetsTab({
 }: TargetsTabProps) {
   const { categoryOrder, setCategoryOrder } = useUIState();
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>('score');
+  const [selectedTime, setSelectedTime] = useState<Date>(() => new Date());
+
+  // Check if we're currently in the dark window
+  const now = useCurrentTime();
+  const isDarkWindow =
+    now.getTime() >= nightInfo.astronomicalDusk.getTime() &&
+    now.getTime() <= nightInfo.astronomicalDawn.getTime();
+
+  // Auto-revert to score mode when dark window ends
+  useEffect(() => {
+    if (!isDarkWindow && sortMode === 'altitude') {
+      setSortMode('score');
+    }
+  }, [isDarkWindow, sortMode]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -326,12 +350,19 @@ export default function TargetsTab({
   const groupedObjects = useMemo(() => {
     const groups: Record<string, ScoredObject[]> = {};
     for (const config of CATEGORY_CONFIGS) {
-      groups[config.key] = filteredObjects
-        .filter(config.filter)
-        .sort((a, b) => b.totalScore - a.totalScore);
+      groups[config.key] = filteredObjects.filter(config.filter).sort((a, b) => {
+        if (sortMode === 'altitude') {
+          const altA = getAltitudeAtTime(a.visibility.altitudeSamples, selectedTime);
+          const altB = getAltitudeAtTime(b.visibility.altitudeSamples, selectedTime);
+          if (altA <= 0 && altB > 0) return 1;
+          if (altB <= 0 && altA > 0) return -1;
+          return altB - altA;
+        }
+        return b.totalScore - a.totalScore;
+      });
     }
     return groups;
-  }, [filteredObjects]);
+  }, [filteredObjects, sortMode, selectedTime]);
 
   const totalCount = filteredObjects.length;
   const totalLoaded = objects.length;
@@ -436,6 +467,17 @@ export default function TargetsTab({
         </div>
       )}
 
+      {/* Sort Mode Control (only during dark window) */}
+      {isDarkWindow && (
+        <SortModeControl
+          nightInfo={nightInfo}
+          sortMode={sortMode}
+          onSortModeChange={setSortMode}
+          selectedTime={selectedTime}
+          onSelectedTimeChange={setSelectedTime}
+        />
+      )}
+
       {/* Summary grid */}
       <div className="rounded-xl border border-night-700 bg-night-900 p-4">
         <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
@@ -492,6 +534,8 @@ export default function TargetsTab({
                   categoryObjects={groupedObjects[config.key]}
                   nightInfo={nightInfo}
                   weather={weather}
+                  sortMode={sortMode}
+                  selectedTime={selectedTime}
                   onObjectClick={onObjectSelect}
                 />
               );
@@ -520,6 +564,8 @@ export default function TargetsTab({
                   defaultExpanded={false}
                   defaultShowCount={activeDragConfig.defaultShowCount}
                   showSubtypeInPreview={activeDragConfig.showSubtypeInPreview}
+                  sortMode={sortMode}
+                  selectedTime={selectedTime}
                 />
               )}
             </div>
