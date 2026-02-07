@@ -93,16 +93,6 @@ export default defineConfig({
               },
             },
           },
-          {
-            urlPattern: /\/data\/.*\.json$/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'static-astro-data',
-              expiration: {
-                maxAgeSeconds: 24 * 60 * 60, // 24 hours
-              },
-            },
-          },
         ],
       },
     }),

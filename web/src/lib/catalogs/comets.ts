@@ -1,7 +1,7 @@
+import cometsJson from '@/data/comets.json';
 import type { NightInfo, ObjectVisibility } from '@/types';
 import type { SkyCalculator } from '../astronomy/calculator';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
-import { fetchStaticData } from '../utils/static-data';
 
 // MPC Comet data URL - we'll use a CORS proxy or fetch directly
 const MPC_COMET_URL = 'https://www.minorplanetcenter.net/iau/MPCORB/CometEls.txt';
@@ -368,28 +368,24 @@ export function heliocentricToEquatorial(
 }
 
 /**
- * Fetch and parse MPC comet data
+ * Get comet data from bundled static JSON, with IndexedDB cache and MPC live fallback.
  */
 export async function fetchComets(maxMagnitude: number = 12.0): Promise<ParsedComet[]> {
   // Check cache first
   const cached = await getCached<ParsedComet[]>(CACHE_KEYS.COMETS, CACHE_TTLS.COMETS);
   if (cached) {
-    return cached.filter(c => c.absoluteMagnitude <= maxMagnitude + 5); // Pre-filter
+    return cached.filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
   }
 
-  // Try pre-fetched static data (already parsed JSON)
-  try {
-    const staticComets = await fetchStaticData<ParsedComet[]>('comets.json');
-    if (staticComets && staticComets.length > 0) {
-      await setCache(CACHE_KEYS.COMETS, staticComets);
-      return staticComets.filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
-    }
-  } catch {
-    // Static data unavailable — fall through to MPC
+  // Use bundled static data
+  const staticComets = cometsJson as unknown as ParsedComet[];
+  if (staticComets && staticComets.length > 0) {
+    await setCache(CACHE_KEYS.COMETS, staticComets);
+    return staticComets.filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
   }
 
+  // Fallback: try fetching directly from MPC
   try {
-    // Try fetching directly (MPC may allow CORS)
     const response = await fetch(MPC_COMET_URL);
     if (!response.ok) {
       throw new Error(`Failed to fetch comet data: ${response.status}`);
@@ -406,12 +402,9 @@ export async function fetchComets(maxMagnitude: number = 12.0): Promise<ParsedCo
       }
     }
 
-    // Cache the data
     await setCache(CACHE_KEYS.COMETS, comets);
-
     return comets.filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
   } catch (_error) {
-    // Return fallback bright comets
     return getFallbackComets();
   }
 }
