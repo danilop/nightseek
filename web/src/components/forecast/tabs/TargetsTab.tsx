@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Sparkles } from 'lucide-react';
+import { GripVertical, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
 import { getNightLabel } from '@/lib/utils/format';
@@ -48,6 +48,7 @@ interface CategoryConfig {
   filter: (obj: ScoredObject) => boolean;
   sortOrder: number;
   showSubtypeInPreview?: boolean;
+  isSpecial?: boolean; // Special categories like Jupiter Moons that don't use CategorySection
 }
 
 const CATEGORY_CONFIGS: CategoryConfig[] = [
@@ -59,6 +60,16 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     defaultShowCount: 8,
     filter: obj => obj.category === 'planet',
     sortOrder: 1,
+  },
+  {
+    key: 'jupiter_moons',
+    title: "Jupiter's Galilean Moons",
+    icon: '♃',
+    defaultExpanded: true,
+    defaultShowCount: 0,
+    filter: () => false, // No regular objects — uses JupiterMoonsCard
+    sortOrder: 1.5,
+    isSpecial: true,
   },
   {
     key: 'comets',
@@ -207,6 +218,50 @@ function SortableCategorySection({
   );
 }
 
+function SortableJupiterMoons({
+  id,
+  jupiterMoons,
+  latitude,
+  nightDate,
+}: {
+  id: string;
+  jupiterMoons: NonNullable<AstronomicalEvents['jupiterMoons']>;
+  latitude: number;
+  nightDate: Date;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`relative ${isDragging ? 'z-10' : ''}`}>
+      <div className="flex items-start">
+        <button
+          type="button"
+          className="mt-3 cursor-grab touch-none px-1 text-gray-500 hover:text-gray-300 active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-5 w-5" />
+        </button>
+        <div className="flex-1">
+          <JupiterMoonsCard
+            positions={jupiterMoons.positions}
+            events={jupiterMoons.events}
+            latitude={latitude}
+            nightDate={nightDate}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TargetsTab({
   objects,
   nightInfo,
@@ -297,9 +352,15 @@ export default function TargetsTab({
     [categoryOrder]
   );
 
-  const categoriesWithObjects = orderedConfigs.filter(
-    config => groupedObjects[config.key].length > 0
-  );
+  // Check if Jupiter's Moons section should be visible
+  const showJupiterMoons =
+    groupedObjects.planets?.some(p => p.objectName.toLowerCase() === 'jupiter') &&
+    !!astronomicalEvents?.jupiterMoons;
+
+  const categoriesWithObjects = orderedConfigs.filter(config => {
+    if (config.key === 'jupiter_moons') return showJupiterMoons;
+    return groupedObjects[config.key].length > 0;
+  });
 
   // Drag handlers
   const handleDragStart = (event: DragStartEvent) => {
@@ -422,7 +483,20 @@ export default function TargetsTab({
         >
           <div className="space-y-4">
             {categoriesWithObjects.map(config => {
-              const section = (
+              // Jupiter Moons: render as a sortable wrapper around JupiterMoonsCard
+              if (config.key === 'jupiter_moons' && astronomicalEvents?.jupiterMoons) {
+                return (
+                  <SortableJupiterMoons
+                    key={config.key}
+                    id={config.key}
+                    jupiterMoons={astronomicalEvents.jupiterMoons}
+                    latitude={latitude}
+                    nightDate={nightInfo.date}
+                  />
+                );
+              }
+
+              return (
                 <SortableCategorySection
                   key={config.key}
                   config={config}
@@ -432,30 +506,6 @@ export default function TargetsTab({
                   onObjectClick={onObjectSelect}
                 />
               );
-
-              // Add Jupiter Moons card after Planets category
-              if (config.key === 'planets') {
-                const jupiterInPlanets = groupedObjects.planets?.some(
-                  p => p.objectName.toLowerCase() === 'jupiter'
-                );
-                const jupiterMoons = astronomicalEvents?.jupiterMoons;
-
-                if (jupiterInPlanets && jupiterMoons) {
-                  return (
-                    <div key={config.key} className="space-y-4">
-                      {section}
-                      <JupiterMoonsCard
-                        positions={jupiterMoons.positions}
-                        events={jupiterMoons.events}
-                        latitude={latitude}
-                        nightDate={nightInfo.date}
-                      />
-                    </div>
-                  );
-                }
-              }
-
-              return section;
             })}
           </div>
         </SortableContext>
@@ -463,17 +513,26 @@ export default function TargetsTab({
         <DragOverlay>
           {activeDragConfig ? (
             <div className="opacity-80">
-              <CategorySection
-                categoryKey={activeDragConfig.key}
-                title={activeDragConfig.title}
-                icon={activeDragConfig.icon}
-                objects={groupedObjects[activeDragConfig.key]}
-                nightInfo={nightInfo}
-                weather={weather}
-                defaultExpanded={false}
-                defaultShowCount={activeDragConfig.defaultShowCount}
-                showSubtypeInPreview={activeDragConfig.showSubtypeInPreview}
-              />
+              {activeDragConfig.key === 'jupiter_moons' && astronomicalEvents?.jupiterMoons ? (
+                <JupiterMoonsCard
+                  positions={astronomicalEvents.jupiterMoons.positions}
+                  events={astronomicalEvents.jupiterMoons.events}
+                  latitude={latitude}
+                  nightDate={nightInfo.date}
+                />
+              ) : (
+                <CategorySection
+                  categoryKey={activeDragConfig.key}
+                  title={activeDragConfig.title}
+                  icon={activeDragConfig.icon}
+                  objects={groupedObjects[activeDragConfig.key] ?? []}
+                  nightInfo={nightInfo}
+                  weather={weather}
+                  defaultExpanded={false}
+                  defaultShowCount={activeDragConfig.defaultShowCount}
+                  showSubtypeInPreview={activeDragConfig.showSubtypeInPreview}
+                />
+              )}
             </div>
           ) : null}
         </DragOverlay>
