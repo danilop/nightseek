@@ -1,7 +1,8 @@
 import { Camera, Clock, Compass, Focus, Moon, Mountain, Ruler, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { formatDistance } from '@/lib/gaia';
 import { fetchEnhancedGaiaStarField } from '@/lib/gaia/enhanced-queries';
 import { formatAsteroidDiameter, formatRotationPeriod } from '@/lib/jpl/sbdb';
@@ -65,21 +66,46 @@ export default function ObjectDetailPanel({
     setTimeout(onClose, 300);
   }, [onClose]);
 
-  // Lock body scroll and scroll to top on mobile so the bottom sheet has a clean backdrop
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    const originalScrollY = window.scrollY;
-    if (window.innerWidth < 640) {
-      window.scrollTo({ top: 0 });
+  // Swipe-to-dismiss for mobile bottom sheet
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragStartY = useRef(0);
+  const dragDelta = useRef(0);
+  const isDragging = useRef(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    dragStartY.current = e.touches[0].clientY;
+    dragDelta.current = 0;
+    isDragging.current = true;
+    if (panelRef.current) {
+      panelRef.current.style.transition = 'none';
     }
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      if (window.innerWidth < 640) {
-        window.scrollTo({ top: originalScrollY });
-      }
-    };
   }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging.current) return;
+    const delta = e.touches[0].clientY - dragStartY.current;
+    // Only allow dragging down (positive delta)
+    dragDelta.current = Math.max(0, delta);
+    if (panelRef.current) {
+      panelRef.current.style.transform = `translateY(${dragDelta.current}px)`;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    if (panelRef.current) {
+      panelRef.current.style.transition = '';
+      panelRef.current.style.transform = '';
+    }
+    // Dismiss if dragged down more than 100px
+    if (dragDelta.current > 100) {
+      handleClose();
+    }
+  }, [handleClose]);
+
+  // Lock body scroll and scroll to top on mobile so the bottom sheet has a clean backdrop
+  useBodyScrollLock({ scrollToTopOnMobile: true });
 
   // Fetch Gaia star field on mount (only for DSOs with angular size)
   useEffect(() => {
@@ -145,7 +171,7 @@ export default function ObjectDetailPanel({
   }, [handleClose]);
 
   const panelContent = (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-0 h-full flex-col">
       {/* Header */}
       <div className="flex flex-shrink-0 items-center justify-between border-night-700 border-b p-4">
         <div className="flex min-w-0 items-center gap-3">
@@ -169,7 +195,7 @@ export default function ObjectDetailPanel({
       </div>
 
       {/* Content */}
-      <div className="flex-1 space-y-4 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         {/* Rating and badges */}
         <div className="flex items-center justify-between">
           <RatingStars score={totalScore} maxScore={235} size="md" />
@@ -362,6 +388,7 @@ export default function ObjectDetailPanel({
 
       {/* Single panel — side panel on desktop, bottom sheet on mobile */}
       <div
+        ref={panelRef}
         className={`fixed z-50 border-night-700 bg-night-900 shadow-xl transition-transform duration-300 ease-out
           inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-2xl border-t
           sm:inset-x-auto sm:top-0 sm:right-0 sm:bottom-auto sm:h-full sm:w-[400px] sm:max-h-full sm:rounded-none sm:border-t-0 sm:border-l ${
@@ -370,9 +397,14 @@ export default function ObjectDetailPanel({
               : 'translate-y-full sm:translate-y-0 sm:translate-x-full'
           }`}
       >
-        {/* Drag handle — mobile only */}
-        <div className="flex flex-shrink-0 justify-center pt-2 pb-1 sm:hidden">
-          <div className="h-1 w-10 rounded-full bg-night-600" />
+        {/* Drag handle — mobile only, swipe down to dismiss */}
+        <div
+          className="flex flex-shrink-0 cursor-grab justify-center pt-3 pb-2 sm:hidden"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="h-1.5 w-12 rounded-full bg-night-500" />
         </div>
         {panelContent}
       </div>
