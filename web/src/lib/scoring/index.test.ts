@@ -624,16 +624,36 @@ describe('scoring', () => {
       expect(calculateMosaicPanels(30, { width: 42, height: 42 })).toBeNull();
     });
 
-    it('should calculate mosaic for large object', () => {
+    it('should calculate mosaic for large square object', () => {
       // M42 at 90' on Seestar S50 (42x42)
       const mosaic = calculateMosaicPanels(90, { width: 42, height: 42 });
       expect(mosaic).toEqual({ cols: 3, rows: 3 });
     });
 
-    it('should handle rectangular FOV', () => {
+    it('should handle rectangular FOV with square object', () => {
       // M42 at 90' on Dwarf Mini (144x72)
       const mosaic = calculateMosaicPanels(90, { width: 144, height: 72 });
       expect(mosaic).toEqual({ cols: 1, rows: 2 });
+    });
+
+    it('should use minor axis for elongated objects', () => {
+      // M31 at 178'x63' on Dwarf Mini (144x72)
+      // Best orientation: 178' along 144' width, 63' along 72' height → 2×1
+      const mosaic = calculateMosaicPanels(178, { width: 144, height: 72 }, 63);
+      expect(mosaic).toEqual({ cols: 2, rows: 1 });
+    });
+
+    it('should pick best orientation for elongated objects', () => {
+      // 100'x30' object on 42x42 FOV
+      // Normal: ceil(100/42)×ceil(30/42) = 3×1 = 3 panels
+      // Rotated: ceil(30/42)×ceil(100/42) = 1×3 = 3 panels (same)
+      const mosaic = calculateMosaicPanels(100, { width: 42, height: 42 }, 30);
+      expect(mosaic).toEqual({ cols: 3, rows: 1 });
+    });
+
+    it('should return null when elongated object fits rotated', () => {
+      // 60'x30' on 144x72 FOV — fits in single frame either way
+      expect(calculateMosaicPanels(60, { width: 144, height: 72 }, 30)).toBeNull();
     });
 
     it('should return null when FOV is null', () => {

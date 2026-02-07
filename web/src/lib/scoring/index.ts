@@ -648,26 +648,40 @@ export function calculateFOVSuitabilityScore(
 
 /**
  * Calculate mosaic panels needed for an object larger than the FOV.
+ * Uses both major and minor axis to find the best orientation.
  * Returns null if the object fits in a single frame.
  */
 export function calculateMosaicPanels(
   angularSizeArcmin: number,
-  fov: { width: number; height: number } | null
+  fov: { width: number; height: number } | null,
+  minorAxisArcmin?: number
 ): { cols: number; rows: number } | null {
   if (!fov || angularSizeArcmin <= 0) return null;
 
-  // Object fits in a single frame
-  if (angularSizeArcmin <= fov.width && angularSizeArcmin <= fov.height) return null;
+  const major = angularSizeArcmin;
+  const minor = minorAxisArcmin && minorAxisArcmin > 0 ? minorAxisArcmin : major;
 
-  const cols = Math.ceil(angularSizeArcmin / fov.width);
-  const rows = Math.ceil(angularSizeArcmin / fov.height);
+  // Object fits in a single frame (try both orientations)
+  const fitsNormal = major <= fov.width && minor <= fov.height;
+  const fitsRotated = minor <= fov.width && major <= fov.height;
+  if (fitsNormal || fitsRotated) return null;
 
-  return { cols, rows };
+  // Try both orientations and pick the one with fewer total panels
+  const normalCols = Math.ceil(major / fov.width);
+  const normalRows = Math.ceil(minor / fov.height);
+  const rotatedCols = Math.ceil(minor / fov.width);
+  const rotatedRows = Math.ceil(major / fov.height);
+
+  if (normalCols * normalRows <= rotatedCols * rotatedRows) {
+    return { cols: normalCols, rows: normalRows };
+  }
+  return { cols: rotatedCols, rows: rotatedRows };
 }
 
 /**
- * Calculate frame fill percentage — how much of the FOV's shorter dimension
- * the object occupies. Returns null for planets/moon or unknown sizes.
+ * Calculate frame fill percentage — how much of the FOV the object's
+ * major axis occupies relative to the FOV's shorter dimension.
+ * Returns null for planets/moon or unknown sizes.
  */
 export function calculateFrameFillPercent(
   angularSizeArcmin: number,

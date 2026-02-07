@@ -46,7 +46,11 @@ export default function ObjectDetailPanel({
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const icon = getCategoryIcon(category, subtype);
   const frameFillPercent = calculateFrameFillPercent(visibility.angularSizeArcmin, category, fov);
-  const mosaic = calculateMosaicPanels(visibility.angularSizeArcmin, fov);
+  const mosaic = calculateMosaicPanels(
+    visibility.angularSizeArcmin,
+    fov,
+    visibility.minorAxisArcmin
+  );
   // Only show star field for DSOs (Gaia queries don't work well for planets/solar-system objects)
   const showStarField = category === 'dso' && visibility.angularSizeArcmin > 0;
 

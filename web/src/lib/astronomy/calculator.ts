@@ -266,6 +266,7 @@ export class SkyCalculator {
       magnitude?: number | null;
       subtype?: DSOSubtype | null;
       angularSizeArcmin?: number;
+      minorAxisArcmin?: number;
       surfaceBrightness?: number | null;
       commonName?: string;
       isInterstellar?: boolean;
@@ -307,6 +308,7 @@ export class SkyCalculator {
       isInterstellar: options.isInterstellar ?? false,
       subtype: options.subtype ?? null,
       angularSizeArcmin: options.angularSizeArcmin ?? 0,
+      minorAxisArcmin: options.minorAxisArcmin,
       surfaceBrightness: options.surfaceBrightness ?? null,
       commonName: options.commonName ?? objectName,
       apparentDiameterArcsec: null,
