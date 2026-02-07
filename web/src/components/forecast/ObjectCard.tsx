@@ -191,7 +191,11 @@ function buildBadgeConfigs(
       });
     }
 
-    const mosaic = calculateMosaicPanels(visibility.angularSizeArcmin, fov);
+    const mosaic = calculateMosaicPanels(
+      visibility.angularSizeArcmin,
+      fov,
+      visibility.minorAxisArcmin
+    );
     if (mosaic) {
       badges.push({
         id: 'mosaic',

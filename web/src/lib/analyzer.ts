@@ -282,6 +282,7 @@ export async function generateForecast(
           magnitude: dso.magnitude,
           subtype: dso.type,
           angularSizeArcmin: dso.majorAxisArcmin ?? 0,
+          minorAxisArcmin: dso.minorAxisArcmin ?? undefined,
           surfaceBrightness: dso.surfaceBrightness,
           commonName: formattedCommonName,
           isMessier: dso.messierNumber !== null,

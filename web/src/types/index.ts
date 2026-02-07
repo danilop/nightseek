@@ -63,6 +63,7 @@ export interface ObjectVisibility {
   altitudeSamples: [Date, number][];
   subtype: DSOSubtype | null;
   angularSizeArcmin: number;
+  minorAxisArcmin?: number;
   surfaceBrightness: number | null;
   raHours: number;
   decDegrees: number;
