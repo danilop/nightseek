@@ -135,35 +135,59 @@ function transformNeoData(data: NeoWsApiResponse, targetDate: Date): NeoCloseApp
 }
 
 /**
- * Fetch NEO close approaches for a specific date
- * Returns cached data if available, otherwise fetches from API
+ * Fetch NEO close approaches for a date range in a single API call.
+ * The NeoWs API supports up to 7 days per request, so longer ranges
+ * are batched into multiple calls (still far fewer than one per day).
+ * Returns a Map keyed by date string (YYYY-MM-DD).
  */
-export async function fetchNeoCloseApproaches(date: Date): Promise<NeoCloseApproach[]> {
-  const dateStr = formatDateForApi(date);
-  const cacheKey = `${CACHE_KEYS.NEOWS_PREFIX}${dateStr}`;
+export async function fetchNeoCloseApproachesRange(
+  startDate: Date,
+  days: number
+): Promise<Map<string, NeoCloseApproach[]>> {
+  const result = new Map<string, NeoCloseApproach[]>();
+  const MAX_DAYS_PER_REQUEST = 7;
 
-  // Check cache first
-  const cached = await getCached<NeoCloseApproach[]>(cacheKey, CACHE_TTLS.NEOWS);
-  if (cached) {
-    // Rehydrate dates
-    return cached.map(neo => ({
-      ...neo,
-      closeApproachDate: new Date(neo.closeApproachDate),
-    }));
+  for (let offset = 0; offset < days; offset += MAX_DAYS_PER_REQUEST) {
+    const batchStart = new Date(startDate);
+    batchStart.setDate(batchStart.getDate() + offset);
+    const batchDays = Math.min(MAX_DAYS_PER_REQUEST, days - offset);
+    const batchEnd = new Date(batchStart);
+    batchEnd.setDate(batchEnd.getDate() + batchDays - 1);
+
+    const batchStartStr = formatDateForApi(batchStart);
+    const cacheKey = `${CACHE_KEYS.NEOWS_PREFIX}${batchStartStr}_${batchDays}d`;
+
+    // Check cache for this batch
+    const cached = await getCached<Record<string, NeoCloseApproach[]>>(cacheKey, CACHE_TTLS.NEOWS);
+    if (cached) {
+      for (const [dateStr, approaches] of Object.entries(cached)) {
+        result.set(
+          dateStr,
+          approaches.map(neo => ({ ...neo, closeApproachDate: new Date(neo.closeApproachDate) }))
+        );
+      }
+      continue;
+    }
+
+    // Fetch from API
+    const data = await fetchFromApi(batchStart, batchEnd);
+    if (!data) continue;
+
+    // Transform each day's data and collect for caching
+    const batchResults: Record<string, NeoCloseApproach[]> = {};
+    for (let d = 0; d < batchDays; d++) {
+      const dayDate = new Date(batchStart);
+      dayDate.setDate(dayDate.getDate() + d);
+      const approaches = transformNeoData(data, dayDate);
+      const dayStr = formatDateForApi(dayDate);
+      batchResults[dayStr] = approaches;
+      result.set(dayStr, approaches);
+    }
+
+    await setCache(cacheKey, batchResults);
   }
 
-  // Fetch from API (request a 1-day window)
-  const data = await fetchFromApi(date, date);
-  if (!data) {
-    return [];
-  }
-
-  const approaches = transformNeoData(data, date);
-
-  // Cache the result
-  await setCache(cacheKey, approaches);
-
-  return approaches;
+  return result;
 }
 
 /**
