@@ -349,23 +349,18 @@ export default function ObjectDetailPanel({
         onClick={handleClose}
       />
 
-      {/* Desktop: side panel */}
+      {/* Single panel — side panel on desktop, bottom sheet on mobile */}
       <div
-        className={`fixed top-0 right-0 z-50 hidden h-full w-[400px] border-night-700 border-l bg-night-900 shadow-xl transition-transform duration-300 ease-out sm:flex ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`fixed z-50 border-night-700 bg-night-900 shadow-xl transition-transform duration-300 ease-out
+          inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-2xl border-t
+          sm:inset-x-auto sm:top-0 sm:right-0 sm:bottom-auto sm:h-full sm:w-[400px] sm:max-h-full sm:rounded-none sm:border-t-0 sm:border-l ${
+            isOpen
+              ? 'translate-y-0 sm:translate-x-0'
+              : 'translate-y-full sm:translate-y-0 sm:translate-x-full'
+          }`}
       >
-        {panelContent}
-      </div>
-
-      {/* Mobile: bottom sheet */}
-      <div
-        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col rounded-t-2xl border-night-700 border-t bg-night-900 shadow-xl transition-transform duration-300 ease-out sm:hidden ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
-      >
-        {/* Drag handle */}
-        <div className="flex flex-shrink-0 justify-center pt-2 pb-1">
+        {/* Drag handle — mobile only */}
+        <div className="flex flex-shrink-0 justify-center pt-2 pb-1 sm:hidden">
           <div className="h-1 w-10 rounded-full bg-night-600" />
         </div>
         {panelContent}
