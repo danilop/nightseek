@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useReducer } from 'react';
+import { resetUIState } from '@/hooks/useUIState';
 import { CACHE_KEYS, clearAllCache, getCached, setCache } from '@/lib/utils/cache';
 import { getLocaleUnitDefaults } from '@/lib/utils/units';
 import type { Location, NightForecast, ScoredObject, Settings } from '@/types';
@@ -184,12 +185,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const resetSettings = useCallback(() => {
     dispatch({ type: 'RESET_SETTINGS' });
+    // Also reset UI state (category order, active tab, expanded sections)
+    resetUIState();
   }, []);
 
   const resetAllData = useCallback(async () => {
     // Clear all cached data
     await clearAllCache();
     localStorage.removeItem('nightseek:settings');
+    // Reset UI state (category order, active tab, expanded sections)
+    resetUIState();
     // Reset to defaults with locale units
     dispatch({ type: 'RESET_SETTINGS' });
     dispatch({ type: 'CLEAR_FORECAST' });
