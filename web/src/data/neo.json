@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-02-07T15:38:34.839Z",
-  "startDate": "2026-02-07",
-  "endDate": "2026-02-13",
+  "fetchedAt": "2026-02-08T06:50:25.912Z",
+  "startDate": "2026-02-08",
+  "endDate": "2026-02-14",
   "data": {
     "2026-02-10": [],
     "2026-02-08": [],
@@ -59,22 +59,48 @@
         "absoluteMagnitude": 25.9
       }
     ],
-    "2026-02-07": [
+    "2026-02-13": [],
+    "2026-02-14": [
       {
-        "name": "2026 CC",
-        "neoId": "54580776",
+        "name": "1999 AO10",
+        "neoId": "3017309",
         "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.0245558503,
-          "max": 0.0549085505
+          "min": 0.04411182,
+          "max": 0.0986370281
         },
-        "closeApproachDate": "2026-Feb-07 20:06",
-        "missDistanceLunarDistances": 1.5874630202,
-        "relativeVelocityKmh": 35843.7266259124,
-        "absoluteMagnitude": 25.172
+        "closeApproachDate": "2026-Feb-14 10:08",
+        "missDistanceLunarDistances": 10.4205980522,
+        "relativeVelocityKmh": 9689.2716946749,
+        "absoluteMagnitude": 23.9
+      },
+      {
+        "name": "162882 (2001 FD58)",
+        "neoId": "2162882",
+        "isPotentiallyHazardous": true,
+        "estimatedDiameterKm": {
+          "min": 0.4683332331,
+          "max": 1.0472249454
+        },
+        "closeApproachDate": "2026-Feb-14 14:11",
+        "missDistanceLunarDistances": 16.8975607455,
+        "relativeVelocityKmh": 68983.0089465168,
+        "absoluteMagnitude": 18.77
+      },
+      {
+        "name": "2026 BE7",
+        "neoId": "54579463",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0374588963,
+          "max": 0.0837606384
+        },
+        "closeApproachDate": "2026-Feb-14 20:15",
+        "missDistanceLunarDistances": 19.3903168192,
+        "relativeVelocityKmh": 36658.5637149508,
+        "absoluteMagnitude": 24.255
       }
     ],
-    "2026-02-13": [],
     "2026-02-11": [
       {
         "name": "2019 CN2",
