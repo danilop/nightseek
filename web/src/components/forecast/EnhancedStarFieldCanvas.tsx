@@ -78,7 +78,13 @@ export default function EnhancedStarFieldCanvas({
     const containerWidth = container.clientWidth;
     if (containerWidth <= 0 || fovWidth <= 0 || fovHeight <= 0) return;
 
-    const aspectRatio = fovHeight / fovWidth;
+    // When mosaic is active, zoom out so the full mosaic grid is visible
+    const mosaicView = mosaic && overlays.showMosaic;
+    const viewPadding = 1.15; // 15% padding around mosaic
+    const viewWidthArcmin = mosaicView ? fovWidth * mosaic.cols * viewPadding : fovWidth;
+    const viewHeightArcmin = mosaicView ? fovHeight * mosaic.rows * viewPadding : fovHeight;
+
+    const aspectRatio = viewHeightArcmin / viewWidthArcmin;
     const canvasWidth = containerWidth;
     const canvasHeight = Math.round(containerWidth * aspectRatio);
 
@@ -111,11 +117,11 @@ export default function EnhancedStarFieldCanvas({
     const minMag = Math.min(...magnitudes);
     const maxMag = Math.max(...magnitudes);
 
-    // FOV in degrees
-    const fovWidthDeg = fovWidth / 60;
-    const fovHeightDeg = fovHeight / 60;
+    // View area in degrees (what the canvas represents)
+    const viewWidthDeg = viewWidthArcmin / 60;
+    const viewHeightDeg = viewHeightArcmin / 60;
 
-    // RA/Dec to canvas coordinate converter
+    // RA/Dec to canvas coordinate converter (uses view dimensions)
     const raDecToCanvas = (ra: number, dec: number): { x: number; y: number } | null => {
       let deltaRa = ra - centerRa;
       if (deltaRa > 180) deltaRa -= 360;
@@ -125,11 +131,11 @@ export default function EnhancedStarFieldCanvas({
       const deltaDec = dec - centerDec;
 
       const margin = 0.05;
-      if (Math.abs(deltaRa) > (fovWidthDeg / 2) * (1 + margin)) return null;
-      if (Math.abs(deltaDec) > (fovHeightDeg / 2) * (1 + margin)) return null;
+      if (Math.abs(deltaRa) > (viewWidthDeg / 2) * (1 + margin)) return null;
+      if (Math.abs(deltaDec) > (viewHeightDeg / 2) * (1 + margin)) return null;
 
-      const x = canvasWidth / 2 - (deltaRa / fovWidthDeg) * canvasWidth;
-      const y = canvasHeight / 2 - (deltaDec / fovHeightDeg) * canvasHeight;
+      const x = canvasWidth / 2 - (deltaRa / viewWidthDeg) * canvasWidth;
+      const y = canvasHeight / 2 - (deltaDec / viewHeightDeg) * canvasHeight;
 
       return { x, y };
     };
@@ -221,35 +227,37 @@ export default function EnhancedStarFieldCanvas({
       }
     }
 
-    // Draw mosaic grid
-    if (mosaic && overlays.showMosaic) {
-      const panelW = canvasWidth;
-      const panelH = canvasHeight;
-      const totalW = mosaic.cols * panelW;
-      const totalH = mosaic.rows * panelH;
-      const startX = (canvasWidth - totalW) / 2;
-      const startY = (canvasHeight - totalH) / 2;
+    // Pixel sizes for FOV and mosaic in current view
+    const fovPixelW = (fovWidth / viewWidthArcmin) * canvasWidth;
+    const fovPixelH = (fovHeight / viewHeightArcmin) * canvasHeight;
+
+    // Draw mosaic grid (fully visible in zoomed-out view)
+    if (mosaicView) {
+      const mosaicW = mosaic.cols * fovPixelW;
+      const mosaicH = mosaic.rows * fovPixelH;
+      const mosaicX = (canvasWidth - mosaicW) / 2;
+      const mosaicY = (canvasHeight - mosaicH) / 2;
 
       // Outer boundary
       ctx.strokeStyle = '#f59e0b';
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 4]);
-      ctx.strokeRect(startX, startY, totalW, totalH);
+      ctx.strokeRect(mosaicX, mosaicY, mosaicW, mosaicH);
 
       // Internal grid lines
       ctx.lineWidth = 0.75;
       for (let i = 1; i < mosaic.cols; i++) {
-        const x = startX + i * panelW;
+        const x = mosaicX + i * fovPixelW;
         ctx.beginPath();
-        ctx.moveTo(x, startY);
-        ctx.lineTo(x, startY + totalH);
+        ctx.moveTo(x, mosaicY);
+        ctx.lineTo(x, mosaicY + mosaicH);
         ctx.stroke();
       }
       for (let j = 1; j < mosaic.rows; j++) {
-        const y = startY + j * panelH;
+        const y = mosaicY + j * fovPixelH;
         ctx.beginPath();
-        ctx.moveTo(startX, y);
-        ctx.lineTo(startX + totalW, y);
+        ctx.moveTo(mosaicX, y);
+        ctx.lineTo(mosaicX + mosaicW, y);
         ctx.stroke();
       }
       ctx.setLineDash([]);
@@ -259,15 +267,21 @@ export default function EnhancedStarFieldCanvas({
     ctx.strokeStyle = '#3b82f6';
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 5]);
-    const margin = 10;
-    ctx.strokeRect(margin, margin, canvasWidth - margin * 2, canvasHeight - margin * 2);
+    if (mosaicView) {
+      // FOV is one panel, centered within the mosaic
+      const fovX = (canvasWidth - fovPixelW) / 2;
+      const fovY = (canvasHeight - fovPixelH) / 2;
+      ctx.strokeRect(fovX, fovY, fovPixelW, fovPixelH);
+    } else {
+      const margin = 10;
+      ctx.strokeRect(margin, margin, canvasWidth - margin * 2, canvasHeight - margin * 2);
+    }
     ctx.setLineDash([]);
 
-    // Draw object size circle — draw at true scale so objects larger
-    // than the FOV visually extend beyond the blue FOV rectangle
+    // Draw object size circle at true scale
     if (objectSizeArcmin > 0) {
       const objectSizeDeg = objectSizeArcmin / 60;
-      const objectRadiusPx = ((objectSizeDeg / fovWidthDeg) * canvasWidth) / 2;
+      const objectRadiusPx = ((objectSizeDeg / viewWidthDeg) * canvasWidth) / 2;
 
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 1.5;
