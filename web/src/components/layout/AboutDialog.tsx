@@ -1,7 +1,7 @@
 import { Coffee, X } from 'lucide-react';
 import NightSeekIcon from '@/components/ui/NightSeekIcon';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
-import { APP_VERSION } from '@/version';
+import { version as APP_VERSION } from '../../../package.json';
 
 interface AboutDialogProps {
   onClose: () => void;

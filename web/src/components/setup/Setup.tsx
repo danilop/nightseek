@@ -11,7 +11,7 @@ import {
 } from '@/lib/geo/location';
 import { useApp } from '@/stores/AppContext';
 import type { Location } from '@/types';
-import { APP_VERSION } from '@/version';
+import { version as APP_VERSION } from '../../../package.json';
 
 type SetupMode = 'choose' | 'detect' | 'search' | 'manual';
 
