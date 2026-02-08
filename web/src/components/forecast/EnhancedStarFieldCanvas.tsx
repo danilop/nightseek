@@ -225,24 +225,17 @@ export default function EnhancedStarFieldCanvas({
     ctx.strokeRect(margin, margin, canvasWidth - margin * 2, canvasHeight - margin * 2);
     ctx.setLineDash([]);
 
-    // Draw object size circle
+    // Draw object size circle — draw at true scale so objects larger
+    // than the FOV visually extend beyond the blue FOV rectangle
     if (objectSizeArcmin > 0) {
       const objectSizeDeg = objectSizeArcmin / 60;
       const objectRadiusPx = ((objectSizeDeg / fovWidthDeg) * canvasWidth) / 2;
-      const maxVisibleRadius = Math.min(canvasWidth, canvasHeight) / 2 - 15;
-      const isLargerThanFOV = objectRadiusPx > maxVisibleRadius;
 
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 1.5;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
-      ctx.arc(
-        canvasWidth / 2,
-        canvasHeight / 2,
-        isLargerThanFOV ? maxVisibleRadius : objectRadiusPx,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(canvasWidth / 2, canvasHeight / 2, objectRadiusPx, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
 
