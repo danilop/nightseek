@@ -321,8 +321,12 @@ export async function fetchEnhancedGaiaStarField(
     ? `${CACHE_KEYS.GAIA_ENHANCED_PREFIX}${objectName.toLowerCase().replace(/\s+/g, '_')}`
     : `${CACHE_KEYS.GAIA_ENHANCED_PREFIX}${raHours.toFixed(4)}_${decDeg.toFixed(4)}`;
 
-  const cached = await getCached<EnhancedGaiaStarField>(cacheKey, CACHE_TTLS.GAIA_ENHANCED);
-  if (cached) {
+  // Check cache — reuse if the cached search radius covers the requested area
+  const cached = await getCached<EnhancedGaiaStarField & { _searchRadius?: number }>(
+    cacheKey,
+    CACHE_TTLS.GAIA_ENHANCED
+  );
+  if (cached && (cached._searchRadius ?? 0) >= radiusDeg) {
     return {
       ...cached,
       fetchedAt: new Date(cached.fetchedAt),
@@ -351,8 +355,8 @@ export async function fetchEnhancedGaiaStarField(
     extragalacticObjects,
   };
 
-  // Cache the result
-  await setCache(cacheKey, enhancedField);
+  // Cache the result with the search radius for future coverage checks
+  await setCache(cacheKey, { ...enhancedField, _searchRadius: radiusDeg });
 
   return enhancedField;
 }

@@ -53,6 +53,11 @@ export default function ObjectDetailPanel({
     fov,
     visibility.minorAxisArcmin
   );
+  // Search radius: half-diagonal of mosaic area (or FOV when no mosaic)
+  // Uses primitive result for stable useEffect dependency
+  const mosaicW = fov.width * (mosaic ? mosaic.cols : 1);
+  const mosaicH = fov.height * (mosaic ? mosaic.rows : 1);
+  const searchRadiusDeg = (Math.sqrt(mosaicW ** 2 + mosaicH ** 2) / 2 / 60) * 1.1;
   // Only show star field for DSOs (Gaia queries don't work well for planets/solar-system objects)
   const showStarField = category === 'dso' && visibility.angularSizeArcmin > 0;
 
@@ -122,7 +127,7 @@ export default function ObjectDetailPanel({
       setError(null);
 
       try {
-        const searchRadiusDeg = Math.max(fov.width, fov.height) / 60 / 2;
+        // Search radius pre-computed outside effect as half-diagonal of mosaic area
         const field = await fetchEnhancedGaiaStarField(
           visibility.raHours,
           visibility.decDegrees,
@@ -157,9 +162,8 @@ export default function ObjectDetailPanel({
     showStarField,
     visibility.raHours,
     visibility.decDegrees,
-    fov.width,
-    fov.height,
     object.objectName,
+    searchRadiusDeg,
   ]);
 
   // Close on Escape key

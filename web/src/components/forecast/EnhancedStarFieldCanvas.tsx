@@ -11,7 +11,6 @@ interface EnhancedStarFieldCanvasProps {
 }
 
 interface OverlaySettings {
-  showStars: boolean;
   showVariables: boolean;
   showGalaxies: boolean;
   showQSOs: boolean;
@@ -52,7 +51,6 @@ export default function EnhancedStarFieldCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [overlays, setOverlays] = useState<OverlaySettings>({
-    showStars: true,
     showVariables: true,
     showGalaxies: true,
     showQSOs: true,
@@ -140,33 +138,51 @@ export default function EnhancedStarFieldCanvas({
       return { x, y };
     };
 
-    // Draw stars
-    if (overlays.showStars) {
-      const sortedStars = [...stars].sort((a, b) => b.magnitude - a.magnitude);
+    // Pixel sizes for FOV and mosaic in current view
+    const fovPixelW = (fovWidth / viewWidthArcmin) * canvasWidth;
+    const fovPixelH = (fovHeight / viewHeightArcmin) * canvasHeight;
 
-      for (const star of sortedStars) {
-        const pos = raDecToCanvas(star.ra, star.dec);
-        if (!pos) continue;
+    // When mosaic is active, clip stars to the mosaic boundary
+    if (mosaicView) {
+      const mosaicW = mosaic.cols * fovPixelW;
+      const mosaicH = mosaic.rows * fovPixelH;
+      const mosaicX = (canvasWidth - mosaicW) / 2;
+      const mosaicY = (canvasHeight - mosaicH) / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(mosaicX, mosaicY, mosaicW, mosaicH);
+      ctx.clip();
+    }
 
-        const radius = getStarRadius(star.magnitude, minMag, maxMag);
-        const color = getStarColor(star.bpRp);
+    // Draw stars (always visible as background context)
+    const sortedStars = [...stars].sort((a, b) => b.magnitude - a.magnitude);
 
-        // Draw glow for bright stars
-        if (star.magnitude < minMag + 1) {
-          const gradient = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, radius * 3);
-          gradient.addColorStop(0, `${color}80`);
-          gradient.addColorStop(1, `${color}00`);
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, radius * 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
+    for (const star of sortedStars) {
+      const pos = raDecToCanvas(star.ra, star.dec);
+      if (!pos) continue;
 
-        ctx.fillStyle = color;
+      const radius = getStarRadius(star.magnitude, minMag, maxMag);
+      const color = getStarColor(star.bpRp);
+
+      // Draw glow for bright stars
+      if (star.magnitude < minMag + 1) {
+        const gradient = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, radius * 3);
+        gradient.addColorStop(0, `${color}80`);
+        gradient.addColorStop(1, `${color}00`);
+        ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, radius * 3, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (mosaicView) {
+      ctx.restore();
     }
 
     // Draw variable stars overlay
@@ -226,10 +242,6 @@ export default function EnhancedStarFieldCanvas({
         }
       }
     }
-
-    // Pixel sizes for FOV and mosaic in current view
-    const fovPixelW = (fovWidth / viewWidthArcmin) * canvasWidth;
-    const fovPixelH = (fovHeight / viewHeightArcmin) * canvasHeight;
 
     // Draw mosaic grid (fully visible in zoomed-out view)
     if (mosaicView) {
@@ -324,12 +336,6 @@ export default function EnhancedStarFieldCanvas({
     <div className="space-y-3">
       {/* Overlay Toggle Pills */}
       <div className="flex flex-wrap gap-2">
-        <TogglePill
-          label="Stars"
-          active={overlays.showStars}
-          onClick={() => toggleOverlay('showStars')}
-          color="#ffffff"
-        />
         {hasVariables && (
           <TogglePill
             label={`Variables (${starField.variableStars.length})`}
