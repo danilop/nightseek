@@ -325,7 +325,7 @@ export default function EnhancedStarFieldCanvas({
       {/* Overlay Toggle Pills */}
       <div className="flex flex-wrap gap-2">
         <TogglePill
-          label={`Stars (${starField.stars.length})`}
+          label="Stars"
           active={overlays.showStars}
           onClick={() => toggleOverlay('showStars')}
           color="#ffffff"
