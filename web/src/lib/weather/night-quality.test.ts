@@ -228,5 +228,75 @@ describe('night-quality', () => {
       expect(quality.score).toBeGreaterThanOrEqual(0);
       expect(quality.score).toBeLessThanOrEqual(100);
     });
+
+    it('should cap at 2 stars when cloud cover exceeds 80%', () => {
+      const nightInfo = createMockNightInfo({
+        moonIllumination: 5,
+        seeingForecast: {
+          rating: 'excellent',
+          estimatedArcsec: 0.8,
+          confidence: 0.9,
+          recommendation: 'Excellent',
+        },
+      });
+      // Great conditions except for heavy clouds
+      const weather = createMockWeather({
+        avgCloudCover: 96,
+        transparencyScore: 70,
+        avgWindSpeedKmh: 5,
+        dewRiskHours: 0,
+      });
+
+      const quality = calculateNightQuality(weather, nightInfo);
+
+      expect(quality.rating.stars).toBeLessThanOrEqual(2);
+      expect(quality.score).toBeLessThanOrEqual(34);
+    });
+
+    it('should cap at 3 stars when cloud cover exceeds 70%', () => {
+      const nightInfo = createMockNightInfo({
+        moonIllumination: 5,
+        seeingForecast: {
+          rating: 'excellent',
+          estimatedArcsec: 0.8,
+          confidence: 0.9,
+          recommendation: 'Excellent',
+        },
+      });
+      const weather = createMockWeather({
+        avgCloudCover: 75,
+        transparencyScore: 90,
+        avgWindSpeedKmh: 5,
+        dewRiskHours: 0,
+      });
+
+      const quality = calculateNightQuality(weather, nightInfo);
+
+      expect(quality.rating.stars).toBeLessThanOrEqual(3);
+      expect(quality.score).toBeLessThanOrEqual(49);
+    });
+
+    it('should not cap rating when cloud cover is 70% or below', () => {
+      const nightInfo = createMockNightInfo({
+        moonIllumination: 5,
+        seeingForecast: {
+          rating: 'excellent',
+          estimatedArcsec: 0.8,
+          confidence: 0.9,
+          recommendation: 'Excellent',
+        },
+      });
+      const weather = createMockWeather({
+        avgCloudCover: 10,
+        transparencyScore: 95,
+        avgWindSpeedKmh: 5,
+        dewRiskHours: 0,
+      });
+
+      const quality = calculateNightQuality(weather, nightInfo);
+
+      // With ideal conditions and low clouds, should get 4+ stars
+      expect(quality.rating.stars).toBeGreaterThanOrEqual(4);
+    });
   });
 });

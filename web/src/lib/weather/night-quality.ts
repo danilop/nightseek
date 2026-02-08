@@ -183,7 +183,7 @@ export function calculateNightQuality(
   };
 
   // Calculate weighted total score
-  const score = Math.round(
+  let score = Math.round(
     factors.clouds * WEIGHTS.clouds +
       factors.transparency * WEIGHTS.transparency +
       factors.seeing * WEIGHTS.seeing +
@@ -191,6 +191,16 @@ export function calculateNightQuality(
       factors.dewRisk * WEIGHTS.dewRisk +
       factors.wind * WEIGHTS.wind
   );
+
+  // Cloud cover gate: heavy overcast caps the maximum rating regardless
+  // of other factors, since observation is physically impossible through clouds
+  if (weather) {
+    if (weather.avgCloudCover > 80) {
+      score = Math.min(score, 34); // Max "Fair" (2 stars)
+    } else if (weather.avgCloudCover > 70) {
+      score = Math.min(score, 49); // Max "Good" (3 stars)
+    }
+  }
 
   // Get rating display
   const rating = getRatingFromPercentage(score);
