@@ -1,4 +1,6 @@
+import { Calculator } from 'lucide-react';
 import { useState } from 'react';
+import FOVCalculatorDialog from '@/components/telescope/FOVCalculatorDialog';
 import {
   formatFOV,
   MAX_CUSTOM_FOV,
@@ -19,6 +21,7 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
   const [customWidth, setCustomWidth] = useState('');
   const [customHeight, setCustomHeight] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const handleContinue = () => {
     if (selected === 'custom') {
@@ -46,19 +49,19 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-md">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Choose Your Telescope</h2>
+    <div className="container mx-auto max-w-md px-4 py-8">
+      <div className="mb-6 text-center">
+        <h2 className="mb-2 font-bold text-2xl text-white">Choose Your Telescope</h2>
         <p className="text-gray-400">This determines how objects fill your field of view</p>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4 text-sm text-red-400">
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-red-400 text-sm">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 mb-6 max-h-[50vh] overflow-y-auto pr-1">
+      <div className="mb-6 grid max-h-[50vh] grid-cols-2 gap-3 overflow-y-auto pr-1">
         {TELESCOPE_PRESETS.map(preset => (
           <button
             key={preset.id}
@@ -67,29 +70,37 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
               setSelected(preset.id);
               setError(null);
             }}
-            className={`p-3 rounded-xl border text-left transition-colors ${
+            className={`rounded-xl border p-3 text-left transition-colors ${
               selected === preset.id
                 ? 'border-sky-500 bg-sky-500/10'
                 : 'border-night-600 bg-night-800 hover:bg-night-700'
             }`}
           >
-            <div className="font-medium text-white text-sm">{preset.name}</div>
+            <div className="font-medium text-sm text-white">{preset.name}</div>
             {preset.id !== 'custom' && (
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="mt-1 text-gray-400 text-xs">
                 {formatFOV(preset.fovWidth, preset.fovHeight)}
               </div>
             )}
             {preset.id === 'custom' && (
-              <div className="text-xs text-gray-400 mt-1">Enter your FOV</div>
+              <div className="mt-1 text-gray-400 text-xs">Enter your FOV</div>
             )}
           </button>
         ))}
       </div>
 
       {selected === 'custom' && (
-        <div className="space-y-3 mb-6">
+        <div className="mb-6 space-y-3">
+          <button
+            type="button"
+            onClick={() => setShowCalculator(true)}
+            className="flex items-center gap-1.5 text-sky-400 text-sm transition-colors hover:text-sky-300"
+          >
+            <Calculator className="h-3.5 w-3.5" />
+            Calculate from equipment
+          </button>
           <div>
-            <label htmlFor="custom-fov-width" className="block text-sm text-gray-300 mb-1">
+            <label htmlFor="custom-fov-width" className="mb-1 block text-gray-300 text-sm">
               FOV Width (arcmin)
             </label>
             <input
@@ -104,11 +115,11 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
                 setError(null);
               }}
               placeholder={`${MIN_CUSTOM_FOV}–${MAX_CUSTOM_FOV}`}
-              className="w-full px-4 py-2 bg-night-800 border border-night-600 rounded-xl text-white placeholder-gray-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+              className="w-full rounded-xl border border-night-600 bg-night-800 px-4 py-2 text-white placeholder-gray-500 transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             />
           </div>
           <div>
-            <label htmlFor="custom-fov-height" className="block text-sm text-gray-300 mb-1">
+            <label htmlFor="custom-fov-height" className="mb-1 block text-gray-300 text-sm">
               FOV Height (arcmin)
             </label>
             <input
@@ -123,7 +134,7 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
                 setError(null);
               }}
               placeholder={`${MIN_CUSTOM_FOV}–${MAX_CUSTOM_FOV}`}
-              className="w-full px-4 py-2 bg-night-800 border border-night-600 rounded-xl text-white placeholder-gray-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+              className="w-full rounded-xl border border-night-600 bg-night-800 px-4 py-2 text-white placeholder-gray-500 transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             />
           </div>
         </div>
@@ -133,18 +144,28 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
         <button
           type="button"
           onClick={handleSkip}
-          className="text-gray-400 hover:text-white transition-colors text-sm"
+          className="text-gray-400 text-sm transition-colors hover:text-white"
         >
           Skip
         </button>
         <button
           type="button"
           onClick={handleContinue}
-          className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-colors font-medium"
+          className="rounded-xl bg-sky-600 px-6 py-3 font-medium text-white transition-colors hover:bg-sky-500"
         >
           Continue
         </button>
       </div>
+
+      <FOVCalculatorDialog
+        isOpen={showCalculator}
+        onClose={() => setShowCalculator(false)}
+        onApply={fov => {
+          setCustomWidth(fov.width.toString());
+          setCustomHeight(fov.height.toString());
+          setError(null);
+        }}
+      />
     </div>
   );
 }

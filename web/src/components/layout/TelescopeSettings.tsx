@@ -1,5 +1,6 @@
-import { Focus, ScanLine } from 'lucide-react';
+import { Calculator, Focus, ScanLine } from 'lucide-react';
 import { useState } from 'react';
+import FOVCalculatorDialog from '@/components/telescope/FOVCalculatorDialog';
 import {
   formatFOV,
   getEffectiveFOV,
@@ -28,6 +29,7 @@ export default function TelescopeSettings({
     customFOV?.height?.toString() ?? '100'
   );
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const effectiveFOV = getEffectiveFOV(telescope, customFOV);
   const isCustom = telescope === 'custom';
@@ -61,8 +63,8 @@ export default function TelescopeSettings({
 
   return (
     <div>
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
-        <Focus className="w-4 h-4" />
+      <div className="mb-2 flex items-center gap-2 font-medium text-gray-300 text-sm">
+        <Focus className="h-4 w-4" />
         <span>Telescope</span>
       </div>
 
@@ -70,7 +72,7 @@ export default function TelescopeSettings({
       <select
         value={telescope}
         onChange={e => handleTelescopeChange(e.target.value as TelescopePresetId)}
-        className="w-full bg-night-800 border border-night-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+        className="w-full rounded-lg border border-night-700 bg-night-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
       >
         {TELESCOPE_PRESETS.map(preset => (
           <option key={preset.id} value={preset.id}>
@@ -83,13 +85,23 @@ export default function TelescopeSettings({
       {/* Custom FOV Inputs */}
       {isCustom && (
         <div className="mt-3 space-y-3">
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <ScanLine className="w-3 h-3" />
-            <span>Custom Field of View (arcminutes)</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-gray-400 text-xs">
+              <ScanLine className="h-3 w-3" />
+              <span>Custom Field of View (arcminutes)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCalculator(true)}
+              className="flex items-center gap-1 text-sky-400 text-xs transition-colors hover:text-sky-300"
+            >
+              <Calculator className="h-3 w-3" />
+              Calculate from equipment
+            </button>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="custom-fov-width" className="block text-xs text-gray-500 mb-1">
+              <label htmlFor="custom-fov-width" className="mb-1 block text-gray-500 text-xs">
                 Width
               </label>
               <input
@@ -99,11 +111,11 @@ export default function TelescopeSettings({
                 max={MAX_CUSTOM_FOV}
                 value={localCustomWidth}
                 onChange={e => handleCustomFOVChange(e.target.value, localCustomHeight)}
-                className="w-full bg-night-800 border border-night-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full rounded-lg border border-night-700 bg-night-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
               />
             </div>
             <div>
-              <label htmlFor="custom-fov-height" className="block text-xs text-gray-500 mb-1">
+              <label htmlFor="custom-fov-height" className="mb-1 block text-gray-500 text-xs">
                 Height
               </label>
               <input
@@ -113,12 +125,12 @@ export default function TelescopeSettings({
                 max={MAX_CUSTOM_FOV}
                 value={localCustomHeight}
                 onChange={e => handleCustomFOVChange(localCustomWidth, e.target.value)}
-                className="w-full bg-night-800 border border-night-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full rounded-lg border border-night-700 bg-night-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
               />
             </div>
           </div>
-          {validationError && <p className="text-xs text-red-400">{validationError}</p>}
-          <p className="text-xs text-gray-500">
+          {validationError && <p className="text-red-400 text-xs">{validationError}</p>}
+          <p className="text-gray-500 text-xs">
             Range: {MIN_CUSTOM_FOV} - {MAX_CUSTOM_FOV} arcminutes (up to{' '}
             {(MAX_CUSTOM_FOV / 60).toFixed(0)}°)
           </p>
@@ -128,10 +140,22 @@ export default function TelescopeSettings({
       {/* Current FOV Display */}
       <div className="mt-3 flex items-center justify-between text-xs">
         <span className="text-gray-500">Current FOV:</span>
-        <span className="text-sky-400 font-medium">
+        <span className="font-medium text-sky-400">
           {formatFOV(effectiveFOV.width, effectiveFOV.height)}
         </span>
       </div>
+
+      <FOVCalculatorDialog
+        isOpen={showCalculator}
+        onClose={() => setShowCalculator(false)}
+        onApply={fov => {
+          const w = fov.width.toString();
+          const h = fov.height.toString();
+          setLocalCustomWidth(w);
+          setLocalCustomHeight(h);
+          handleCustomFOVChange(w, h);
+        }}
+      />
     </div>
   );
 }
