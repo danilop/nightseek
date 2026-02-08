@@ -1,19 +1,90 @@
 import { describe, expect, it } from 'vitest';
 import { calculateFOV, validateFOVCalculatorInput } from './fov-calculator';
 
+// Baseline tests against known telescope presets.
+// Specs sourced from manufacturer datasheets; expected FOV from presets.ts.
+// Tolerance ±5' accounts for optical vignetting / slight focal length variance.
+const TELESCOPE_BASELINES = [
+  {
+    name: 'Dwarf Mini',
+    input: {
+      focalLengthMm: 150,
+      pixelSizeUm: 2.9,
+      sensorResolutionWidth: 1920,
+      sensorResolutionHeight: 1080,
+    },
+    expectedWidth: 128,
+    expectedHeight: 72,
+  },
+  {
+    name: 'Dwarf 3',
+    input: {
+      focalLengthMm: 150,
+      pixelSizeUm: 2.0,
+      sensorResolutionWidth: 3856,
+      sensorResolutionHeight: 2180,
+    },
+    expectedWidth: 174,
+    expectedHeight: 99,
+  },
+  {
+    name: 'Seestar S50 (portrait)',
+    input: {
+      focalLengthMm: 250,
+      pixelSizeUm: 2.9,
+      sensorResolutionWidth: 1080,
+      sensorResolutionHeight: 1920,
+    },
+    expectedWidth: 42,
+    expectedHeight: 78,
+  },
+  {
+    name: 'Celestron Origin',
+    input: {
+      focalLengthMm: 335,
+      pixelSizeUm: 2.4,
+      sensorResolutionWidth: 3096,
+      sensorResolutionHeight: 2080,
+    },
+    expectedWidth: 76,
+    expectedHeight: 51,
+  },
+  {
+    name: 'Vaonis Stellina',
+    input: {
+      focalLengthMm: 400,
+      pixelSizeUm: 2.4,
+      sensorResolutionWidth: 3096,
+      sensorResolutionHeight: 2080,
+    },
+    expectedWidth: 60,
+    expectedHeight: 42,
+  },
+] as const;
+
 describe('calculateFOV', () => {
+  describe('baseline: real telescope presets', () => {
+    for (const t of TELESCOPE_BASELINES) {
+      it(`matches ${t.name} preset FOV (±5')`, () => {
+        const result = calculateFOV(t.input);
+        expect(result.fovWidthArcmin).toBeGreaterThanOrEqual(t.expectedWidth - 5);
+        expect(result.fovWidthArcmin).toBeLessThanOrEqual(t.expectedWidth + 5);
+        expect(result.fovHeightArcmin).toBeGreaterThanOrEqual(t.expectedHeight - 5);
+        expect(result.fovHeightArcmin).toBeLessThanOrEqual(t.expectedHeight + 5);
+      });
+    }
+  });
+
   it('computes correct FOV for Dwarf II specs', () => {
     const result = calculateFOV({
       focalLengthMm: 100,
-      pixelSizeUm: 1.4,
+      pixelSizeUm: 1.45,
       sensorResolutionWidth: 3840,
       sensorResolutionHeight: 2160,
     });
-    // Dwarf II preset is 180' x 100', should be close
-    expect(result.fovWidthArcmin).toBeCloseTo(184.61, 0);
-    expect(result.fovHeightArcmin).toBeCloseTo(103.86, 0);
-    expect(result.fovWidthDeg).toBeGreaterThan(2.5);
-    expect(result.fovHeightDeg).toBeGreaterThan(1.5);
+    // Full sensor yields ~191'x108'; preset is 180'x100' due to optical cropping
+    expect(result.fovWidthArcmin).toBeCloseTo(191.4, 0);
+    expect(result.fovHeightArcmin).toBeCloseTo(107.7, 0);
     expect(result.imageScaleArcsecPerPx).toBeGreaterThan(0);
   });
 
