@@ -1,4 +1,4 @@
-import { Loader2, MapPin, Navigation, Search } from 'lucide-react';
+import { Coffee, Loader2, MapPin, Navigation, Search } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import NightSeekIcon from '@/components/ui/NightSeekIcon';
@@ -11,6 +11,7 @@ import {
 } from '@/lib/geo/location';
 import { useApp } from '@/stores/AppContext';
 import type { Location } from '@/types';
+import { APP_VERSION } from '@/version';
 
 type SetupMode = 'choose' | 'detect' | 'search' | 'manual';
 
@@ -139,17 +140,17 @@ export default function Setup({ onLocationSet }: SetupProps) {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-md">
-      <div className="text-center mb-8">
-        <NightSeekIcon className="w-20 h-20 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-white mb-2">Set Your Location</h2>
+    <div className="container mx-auto max-w-md px-4 py-8">
+      <div className="mb-8 text-center">
+        <NightSeekIcon className="mx-auto mb-4 h-20 w-20" />
+        <h2 className="mb-2 font-bold text-2xl text-white">Set Your Location</h2>
         <p className="text-gray-400">
           NightSeek needs your location to calculate accurate astronomical data
         </p>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-6 text-sm text-red-400">
+        <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-red-400 text-sm">
           {error}
         </div>
       )}
@@ -161,12 +162,12 @@ export default function Setup({ onLocationSet }: SetupProps) {
             <button
               type="button"
               onClick={handleUseDetected}
-              className="w-full flex items-center gap-3 p-4 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-colors"
+              className="flex w-full items-center gap-3 rounded-xl bg-sky-600 p-4 text-white transition-colors hover:bg-sky-500"
             >
-              <Navigation className="w-5 h-5" />
+              <Navigation className="h-5 w-5" />
               <div className="text-left">
                 <div className="font-medium">Use Detected Location</div>
-                <div className="text-sm text-sky-200">{detectedLocation.name}</div>
+                <div className="text-sky-200 text-sm">{detectedLocation.name}</div>
               </div>
             </button>
           )}
@@ -176,16 +177,16 @@ export default function Setup({ onLocationSet }: SetupProps) {
             type="button"
             onClick={handleBrowserDetect}
             disabled={isLoading}
-            className="w-full flex items-center gap-3 p-4 bg-night-800 hover:bg-night-700 text-white rounded-xl border border-night-600 transition-colors disabled:opacity-50"
+            className="flex w-full items-center gap-3 rounded-xl border border-night-600 bg-night-800 p-4 text-white transition-colors hover:bg-night-700 disabled:opacity-50"
           >
             {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <Navigation className="w-5 h-5 text-sky-400" />
+              <Navigation className="h-5 w-5 text-sky-400" />
             )}
             <div className="text-left">
               <div className="font-medium">Use Precise Location</div>
-              <div className="text-sm text-gray-400">Requires location permission</div>
+              <div className="text-gray-400 text-sm">Requires location permission</div>
             </div>
           </button>
 
@@ -193,12 +194,12 @@ export default function Setup({ onLocationSet }: SetupProps) {
           <button
             type="button"
             onClick={() => setMode('search')}
-            className="w-full flex items-center gap-3 p-4 bg-night-800 hover:bg-night-700 text-white rounded-xl border border-night-600 transition-colors"
+            className="flex w-full items-center gap-3 rounded-xl border border-night-600 bg-night-800 p-4 text-white transition-colors hover:bg-night-700"
           >
-            <Search className="w-5 h-5 text-sky-400" />
+            <Search className="h-5 w-5 text-sky-400" />
             <div className="text-left">
               <div className="font-medium">Search for Location</div>
-              <div className="text-sm text-gray-400">Enter city, address, or place name</div>
+              <div className="text-gray-400 text-sm">Enter city, address, or place name</div>
             </div>
           </button>
 
@@ -206,12 +207,12 @@ export default function Setup({ onLocationSet }: SetupProps) {
           <button
             type="button"
             onClick={() => setMode('manual')}
-            className="w-full flex items-center gap-3 p-4 bg-night-800 hover:bg-night-700 text-white rounded-xl border border-night-600 transition-colors"
+            className="flex w-full items-center gap-3 rounded-xl border border-night-600 bg-night-800 p-4 text-white transition-colors hover:bg-night-700"
           >
-            <MapPin className="w-5 h-5 text-sky-400" />
+            <MapPin className="h-5 w-5 text-sky-400" />
             <div className="text-left">
               <div className="font-medium">Enter Coordinates</div>
-              <div className="text-sm text-gray-400">Latitude and longitude</div>
+              <div className="text-gray-400 text-sm">Latitude and longitude</div>
             </div>
           </button>
         </div>
@@ -222,7 +223,7 @@ export default function Setup({ onLocationSet }: SetupProps) {
           <div>
             <label
               htmlFor="search-location"
-              className="block text-sm font-medium text-gray-300 mb-2"
+              className="mb-2 block font-medium text-gray-300 text-sm"
             >
               Search Location
             </label>
@@ -232,7 +233,7 @@ export default function Setup({ onLocationSet }: SetupProps) {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Enter city, address, or place..."
-              className="w-full px-4 py-3 bg-night-800 border border-night-600 rounded-xl text-white placeholder-gray-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+              className="w-full rounded-xl border border-night-600 bg-night-800 px-4 py-3 text-white placeholder-gray-500 transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             />
           </div>
 
@@ -240,20 +241,20 @@ export default function Setup({ onLocationSet }: SetupProps) {
             <button
               type="button"
               onClick={() => setMode('choose')}
-              className="flex-1 py-3 bg-night-700 hover:bg-night-600 text-white rounded-xl transition-colors"
+              className="flex-1 rounded-xl bg-night-700 py-3 text-white transition-colors hover:bg-night-600"
             >
               Back
             </button>
             <button
               type="submit"
               disabled={isLoading || !searchQuery.trim()}
-              className="flex-1 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-600 py-3 text-white transition-colors hover:bg-sky-500 disabled:opacity-50"
             >
               {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <>
-                  <Search className="w-5 h-5" />
+                  <Search className="h-5 w-5" />
                   Search
                 </>
               )}
@@ -267,7 +268,7 @@ export default function Setup({ onLocationSet }: SetupProps) {
           <div>
             <label
               htmlFor="manual-latitude"
-              className="block text-sm font-medium text-gray-300 mb-2"
+              className="mb-2 block font-medium text-gray-300 text-sm"
             >
               Latitude
             </label>
@@ -278,14 +279,14 @@ export default function Setup({ onLocationSet }: SetupProps) {
               value={manualLat}
               onChange={e => setManualLat(e.target.value)}
               placeholder="-90 to 90"
-              className="w-full px-4 py-3 bg-night-800 border border-night-600 rounded-xl text-white placeholder-gray-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+              className="w-full rounded-xl border border-night-600 bg-night-800 px-4 py-3 text-white placeholder-gray-500 transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             />
           </div>
 
           <div>
             <label
               htmlFor="manual-longitude"
-              className="block text-sm font-medium text-gray-300 mb-2"
+              className="mb-2 block font-medium text-gray-300 text-sm"
             >
               Longitude
             </label>
@@ -296,7 +297,7 @@ export default function Setup({ onLocationSet }: SetupProps) {
               value={manualLon}
               onChange={e => setManualLon(e.target.value)}
               placeholder="-180 to 180"
-              className="w-full px-4 py-3 bg-night-800 border border-night-600 rounded-xl text-white placeholder-gray-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+              className="w-full rounded-xl border border-night-600 bg-night-800 px-4 py-3 text-white placeholder-gray-500 transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             />
           </div>
 
@@ -304,20 +305,36 @@ export default function Setup({ onLocationSet }: SetupProps) {
             <button
               type="button"
               onClick={() => setMode('choose')}
-              className="flex-1 py-3 bg-night-700 hover:bg-night-600 text-white rounded-xl transition-colors"
+              className="flex-1 rounded-xl bg-night-700 py-3 text-white transition-colors hover:bg-night-600"
             >
               Back
             </button>
             <button
               type="submit"
               disabled={isLoading || !manualLat || !manualLon}
-              className="flex-1 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-600 py-3 text-white transition-colors hover:bg-sky-500 disabled:opacity-50"
             >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Location'}
+              {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save Location'}
             </button>
           </div>
         </form>
       )}
+
+      {/* Footer */}
+      <div className="mt-10 flex items-center justify-center gap-1.5 text-gray-600 text-xs">
+        <span>v{APP_VERSION}</span>
+        <span>·</span>
+        <span>Danilo Poccia</span>
+        <span>·</span>
+        <a
+          href="https://buymeacoffee.com/danilop"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-gray-600 transition-colors hover:text-amber-400"
+        >
+          <Coffee className="h-3 w-3" />
+        </a>
+      </div>
     </div>
   );
 }
