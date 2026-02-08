@@ -278,8 +278,9 @@ export default function EnhancedStarFieldCanvas({
     }
     ctx.setLineDash([]);
 
-    // Draw object size circle at true scale
-    if (objectSizeArcmin > 0) {
+    // Draw object size circle at true scale (skip when mosaic view is active
+    // since the mosaic grid already conveys the coverage)
+    if (objectSizeArcmin > 0 && !mosaicView) {
       const objectSizeDeg = objectSizeArcmin / 60;
       const objectRadiusPx = ((objectSizeDeg / viewWidthDeg) * canvasWidth) / 2;
 
