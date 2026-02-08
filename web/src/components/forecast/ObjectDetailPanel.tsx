@@ -257,6 +257,7 @@ export default function ObjectDetailPanel({
                 fovWidth={fov.width}
                 fovHeight={fov.height}
                 objectSizeArcmin={visibility.angularSizeArcmin}
+                mosaic={mosaic}
               />
             )}
           </div>

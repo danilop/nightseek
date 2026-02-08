@@ -7,6 +7,7 @@ interface EnhancedStarFieldCanvasProps {
   fovWidth: number; // arcminutes
   fovHeight: number; // arcminutes
   objectSizeArcmin?: number; // angular size of the target object
+  mosaic?: { cols: number; rows: number } | null;
 }
 
 interface OverlaySettings {
@@ -14,6 +15,7 @@ interface OverlaySettings {
   showVariables: boolean;
   showGalaxies: boolean;
   showQSOs: boolean;
+  showMosaic: boolean;
 }
 
 interface SelectedObject {
@@ -45,6 +47,7 @@ export default function EnhancedStarFieldCanvas({
   fovWidth,
   fovHeight,
   objectSizeArcmin = 0,
+  mosaic,
 }: EnhancedStarFieldCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,6 +56,7 @@ export default function EnhancedStarFieldCanvas({
     showVariables: true,
     showGalaxies: true,
     showQSOs: true,
+    showMosaic: true,
   });
   const [selectedObject, setSelectedObject] = useState<SelectedObject | null>(null);
 
@@ -217,6 +221,40 @@ export default function EnhancedStarFieldCanvas({
       }
     }
 
+    // Draw mosaic grid
+    if (mosaic && overlays.showMosaic) {
+      const panelW = canvasWidth;
+      const panelH = canvasHeight;
+      const totalW = mosaic.cols * panelW;
+      const totalH = mosaic.rows * panelH;
+      const startX = (canvasWidth - totalW) / 2;
+      const startY = (canvasHeight - totalH) / 2;
+
+      // Outer boundary
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(startX, startY, totalW, totalH);
+
+      // Internal grid lines
+      ctx.lineWidth = 0.75;
+      for (let i = 1; i < mosaic.cols; i++) {
+        const x = startX + i * panelW;
+        ctx.beginPath();
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, startY + totalH);
+        ctx.stroke();
+      }
+      for (let j = 1; j < mosaic.rows; j++) {
+        const y = startY + j * panelH;
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(startX + totalW, y);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
     // Draw FOV rectangle
     ctx.strokeStyle = '#3b82f6';
     ctx.lineWidth = 2;
@@ -261,7 +299,7 @@ export default function EnhancedStarFieldCanvas({
     ctx.fillText('E', 8, canvasHeight / 2);
     ctx.textAlign = 'right';
     ctx.fillText('W', canvasWidth - 8, canvasHeight / 2);
-  }, [starField, fovWidth, fovHeight, objectSizeArcmin, overlays]);
+  }, [starField, fovWidth, fovHeight, objectSizeArcmin, mosaic, overlays]);
 
   const hasVariables = starField.variableStars.length > 0;
   const galaxyCount = starField.extragalacticObjects.filter(o => o.type === 'galaxy').length;
@@ -301,6 +339,14 @@ export default function EnhancedStarFieldCanvas({
             color="#22d3ee"
           />
         )}
+        {mosaic && (
+          <TogglePill
+            label={`Mosaic (${mosaic.cols}\u00d7${mosaic.rows})`}
+            active={overlays.showMosaic}
+            onClick={() => toggleOverlay('showMosaic')}
+            color="#f59e0b"
+          />
+        )}
       </div>
 
       {/* Canvas */}
@@ -331,6 +377,12 @@ export default function EnhancedStarFieldCanvas({
           <div className="flex items-center gap-1">
             <span className="text-cyan-400">◆</span>
             <span>Quasar</span>
+          </div>
+        )}
+        {mosaic && (
+          <div className="flex items-center gap-1">
+            <span className="h-3 w-3 border border-amber-500 border-dashed" />
+            <span>Mosaic grid</span>
           </div>
         )}
       </div>
