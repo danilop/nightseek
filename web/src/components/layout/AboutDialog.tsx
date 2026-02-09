@@ -2,6 +2,7 @@ import { Coffee, Heart, X } from 'lucide-react';
 import { useEffect } from 'react';
 import NightSeekIcon from '@/components/ui/NightSeekIcon';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { version as APP_VERSION } from '../../../package.json';
 
 interface AboutDialogProps {
@@ -10,6 +11,7 @@ interface AboutDialogProps {
 
 export default function AboutDialog({ onClose }: AboutDialogProps) {
   useBodyScrollLock();
+  const focusTrapRef = useFocusTrap<HTMLDivElement>();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -20,9 +22,12 @@ export default function AboutDialog({ onClose }: AboutDialogProps) {
   }, [onClose]);
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss pattern
     // biome-ignore lint/a11y/useKeyWithClickEvents: ESC handled via global keydown listener
     <div
+      ref={focusTrapRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="about-dialog-title"
       className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50 p-4 backdrop-blur-sm"
       onClick={e => {
         if (e.target === e.currentTarget) onClose();
@@ -34,6 +39,7 @@ export default function AboutDialog({ onClose }: AboutDialogProps) {
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="rounded-lg p-1 text-gray-400 transition-colors hover:text-white"
           >
             <X className="h-5 w-5" />
@@ -43,7 +49,9 @@ export default function AboutDialog({ onClose }: AboutDialogProps) {
         {/* Content */}
         <div className="flex flex-col items-center px-6 pb-6 text-center">
           <NightSeekIcon className="mb-3 h-16 w-16" />
-          <h2 className="font-bold text-2xl text-white">NightSeek</h2>
+          <h2 id="about-dialog-title" className="font-bold text-2xl text-white">
+            NightSeek
+          </h2>
           <span className="mt-1 text-gray-500 text-sm">v{APP_VERSION}</span>
 
           <p className="mt-4 text-gray-400">Plan your perfect night of astrophotography</p>

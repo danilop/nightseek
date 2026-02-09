@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "ignore": ["coverage/**", "dist/**"],
-  "ignoreDependencies": ["d3-celestial"],
+  "ignore": ["coverage/**", "dist/**", "src/test/**"],
+  "ignoreDependencies": [],
   "entry": ["src/main.tsx"],
   "project": ["src/**/*.{ts,tsx}"]
 }

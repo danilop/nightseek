@@ -1,4 +1,5 @@
 import { del, get, keys, set } from 'idb-keyval';
+import { logger } from './logger';
 
 /**
  * Cache entry with timestamp
@@ -23,8 +24,8 @@ export async function getCached<T>(key: string, maxAge: number): Promise<T | nul
     }
 
     return entry.data;
-  } catch (_error) {
-    // Silently fail for cache operations
+  } catch (e) {
+    logger.warn('Cache read failed', e);
     return null;
   }
 }
@@ -39,8 +40,8 @@ export async function setCache<T>(key: string, data: T): Promise<void> {
       timestamp: Date.now(),
     };
     await set(key, entry);
-  } catch {
-    // Silently fail for cache operations
+  } catch (e) {
+    logger.warn('Cache write failed', e);
   }
 }
 
@@ -55,8 +56,8 @@ export async function clearAllCache(): Promise<void> {
         await del(key);
       }
     }
-  } catch {
-    // Silently fail for cache operations
+  } catch (e) {
+    logger.warn('Cache clear failed', e);
   }
 }
 
@@ -80,8 +81,8 @@ export async function cleanupOldCaches(): Promise<void> {
         await del(key);
       }
     }
-  } catch {
-    // Silently fail for cache operations
+  } catch (e) {
+    logger.warn('Cache cleanup failed', e);
   }
 }
 

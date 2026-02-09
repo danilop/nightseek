@@ -1,4 +1,5 @@
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '@/lib/utils/cache';
+import { logger } from '@/lib/utils/logger';
 import type { GaiaStar, GaiaStarField } from '@/types';
 
 // Use VizieR TAP service which supports CORS (ESA Gaia TAP does not)
@@ -107,7 +108,8 @@ export async function fetchGaiaStarField(
     await setCache(cacheKey, starField);
 
     return starField;
-  } catch {
+  } catch (e) {
+    logger.warn('Gaia TAP query failed', e);
     return null;
   }
 }

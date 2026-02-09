@@ -14,7 +14,6 @@ import {
   getMoonPhaseEmoji,
   getMoonPhaseName,
   getStarRating,
-  getTierColorClass,
   getWeatherDescription,
   getWeatherEmoji,
 } from './format';
@@ -207,29 +206,6 @@ describe('format utils', () => {
 
     it('should format score with custom max', () => {
       expect(formatScore(75, 100)).toBe('75/100');
-    });
-  });
-
-  describe('getTierColorClass', () => {
-    // New color scale: blue (poor) → red (fair) → orange (good) → yellow (very_good) → green (excellent)
-    it('should return green for excellent', () => {
-      expect(getTierColorClass('excellent')).toBe('text-green-400');
-    });
-
-    it('should return yellow for very_good', () => {
-      expect(getTierColorClass('very_good')).toBe('text-yellow-400');
-    });
-
-    it('should return orange for good', () => {
-      expect(getTierColorClass('good')).toBe('text-orange-400');
-    });
-
-    it('should return red for fair', () => {
-      expect(getTierColorClass('fair')).toBe('text-red-400');
-    });
-
-    it('should return blue for poor', () => {
-      expect(getTierColorClass('poor')).toBe('text-blue-400');
     });
   });
 

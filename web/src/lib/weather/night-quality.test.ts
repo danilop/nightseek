@@ -1,61 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { NightInfo, NightWeather } from '@/types';
+import { createMockNightInfo, createMockNightWeather } from '@/test/factories';
 import { calculateNightQuality } from './night-quality';
 
-// Helper to create mock NightInfo
-function createMockNightInfo(overrides: Partial<NightInfo> = {}): NightInfo {
-  return {
-    date: new Date('2025-01-15'),
-    sunset: new Date('2025-01-15T17:00:00'),
-    sunrise: new Date('2025-01-16T07:00:00'),
-    astronomicalDusk: new Date('2025-01-15T18:30:00'),
-    astronomicalDawn: new Date('2025-01-16T05:30:00'),
-    moonPhase: 0.25,
-    moonIllumination: 50,
-    moonRise: new Date('2025-01-15T12:00:00'),
-    moonSet: new Date('2025-01-16T02:00:00'),
-    moonPhaseExact: null,
-    localSiderealTimeAtMidnight: '12:00:00',
-    seeingForecast: null,
-    ...overrides,
-  };
-}
-
-// Helper to create mock NightWeather
-function createMockWeather(overrides: Partial<NightWeather> = {}): NightWeather {
-  return {
-    date: new Date('2025-01-15'),
-    avgCloudCover: 20,
-    minCloudCover: 10,
-    maxCloudCover: 30,
-    clearDurationHours: 8,
-    clearWindows: [],
-    hourlyData: new Map(),
-    avgVisibilityKm: 10,
-    avgWindSpeedKmh: 15,
-    maxWindSpeedKmh: 25,
-    avgHumidity: 60,
-    avgTemperatureC: 5,
-    transparencyScore: 75,
-    cloudCoverLow: 10,
-    cloudCoverMid: 15,
-    cloudCoverHigh: 20,
-    minPrecipProbability: 0,
-    maxPrecipProbability: 10,
-    totalPrecipitationMm: 0,
-    minDewMargin: 5,
-    dewRiskHours: 1,
-    avgPressureHpa: 1013,
-    pressureTrend: 'steady',
-    maxCape: 0,
-    bestTime: null,
-    avgAerosolOpticalDepth: 0.1,
-    avgPm25: 10,
-    avgPm10: 20,
-    avgDust: 5,
-    ...overrides,
-  };
-}
+const createMockWeather = createMockNightWeather;
 
 describe('night-quality', () => {
   describe('calculateNightQuality', () => {

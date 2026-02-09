@@ -1,6 +1,12 @@
 import cometsJson from '@/data/comets.json';
 import type { NightInfo, ObjectVisibility } from '@/types';
 import type { SkyCalculator } from '../astronomy/calculator';
+import {
+  heliocentricToEquatorial,
+  meanMotion,
+  orbitalToEcliptic,
+  solveKepler,
+} from '../astronomy/orbital-mechanics';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
 
 // MPC Comet data URL - we'll use a CORS proxy or fetch directly
@@ -174,37 +180,6 @@ function dateToJulian(year: number, month: number, day: number): number {
 }
 
 /**
- * Solve Kepler's equation for eccentric anomaly
- * M = E - e*sin(E) for elliptical orbits
- * Using Newton-Raphson iteration
- */
-function solveKepler(meanAnomaly: number, eccentricity: number): number {
-  const M = meanAnomaly;
-  const e = eccentricity;
-
-  if (e >= 1) {
-    // Hyperbolic orbit - use different equation
-    // M = e*sinh(H) - H
-    let H = M;
-    for (let i = 0; i < 50; i++) {
-      const dH = (e * Math.sinh(H) - H - M) / (e * Math.cosh(H) - 1);
-      H -= dH;
-      if (Math.abs(dH) < 1e-10) break;
-    }
-    return H;
-  }
-
-  // Elliptical orbit
-  let E = M;
-  for (let i = 0; i < 50; i++) {
-    const dE = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
-    E -= dE;
-    if (Math.abs(dE) < 1e-10) break;
-  }
-  return E;
-}
-
-/**
  * Calculate comet position in heliocentric ecliptic coordinates
  * Returns [x, y, z] in AU
  */
@@ -232,37 +207,28 @@ export function calculateCometPosition(
   // Semi-major axis (or use q for parabolic)
   let a: number;
   if (Math.abs(e - 1) < 0.0001) {
-    // Parabolic - use perihelion distance
-    a = q;
+    a = q; // Parabolic
   } else if (e < 1) {
-    // Elliptical
-    a = q / (1 - e);
+    a = q / (1 - e); // Elliptical
   } else {
-    // Hyperbolic
-    a = q / (e - 1);
+    a = q / (e - 1); // Hyperbolic
   }
 
-  // Mean motion (radians per day)
-  // n = sqrt(GM_sun / a^3) where GM_sun ≈ 0.01720209895^2 AU^3/day^2
-  const k = 0.01720209895; // Gaussian gravitational constant
-  const n = k / Math.abs(a) ** 1.5;
-
-  // Mean anomaly
+  // Mean motion and mean anomaly
+  const n = meanMotion(a);
   const M = n * dt;
 
-  // Solve Kepler's equation
-  const E = solveKepler(M, e);
+  // Solve Kepler's equation (use comets' original tolerance for compatibility)
+  const E = solveKepler(M, e, 50, 1e-10);
 
   // True anomaly and distance
   let nu: number;
   let r: number;
 
   if (e < 1) {
-    // Elliptical
     nu = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
     r = a * (1 - e * Math.cos(E));
   } else {
-    // Hyperbolic
     nu = 2 * Math.atan2(Math.sqrt(e + 1) * Math.sinh(E / 2), Math.sqrt(e - 1) * Math.cosh(E / 2));
     r = a * (e * Math.cosh(E) - 1);
   }
@@ -271,101 +237,14 @@ export function calculateCometPosition(
   const xOrbital = r * Math.cos(nu);
   const yOrbital = r * Math.sin(nu);
 
-  // Rotation matrices to ecliptic coordinates
-  const cosOmega = Math.cos(OmegaRad);
-  const sinOmega = Math.sin(OmegaRad);
-  const cosI = Math.cos(iRad);
-  const sinI = Math.sin(iRad);
-  const cosOmegaArg = Math.cos(omegaRad);
-  const sinOmegaArg = Math.sin(omegaRad);
-
   // Transform to heliocentric ecliptic coordinates
-  const x =
-    (cosOmega * cosOmegaArg - sinOmega * sinOmegaArg * cosI) * xOrbital +
-    (-cosOmega * sinOmegaArg - sinOmega * cosOmegaArg * cosI) * yOrbital;
-  const y =
-    (sinOmega * cosOmegaArg + cosOmega * sinOmegaArg * cosI) * xOrbital +
-    (-sinOmega * sinOmegaArg + cosOmega * cosOmegaArg * cosI) * yOrbital;
-  const z = sinOmegaArg * sinI * xOrbital + cosOmegaArg * sinI * yOrbital;
+  const ecliptic = orbitalToEcliptic(xOrbital, yOrbital, omegaRad, OmegaRad, iRad);
 
-  return { x, y, z, r };
+  return { ...ecliptic, r };
 }
 
-/**
- * Get Earth's position at a given Julian date
- * Returns heliocentric ecliptic coordinates in AU
- */
-function getEarthPosition(julianDate: number): { x: number; y: number; z: number } {
-  // Simplified calculation using mean orbital elements
-  // More accurate would use VSOP87 or astronomy-engine
-  const T = (julianDate - 2451545.0) / 36525; // Julian centuries from J2000
-
-  // Mean longitude of Earth
-  const L = ((100.46646 + 36000.76983 * T) * Math.PI) / 180;
-
-  // Earth's orbital elements (simplified)
-  const a = 1.00000261; // Semi-major axis in AU
-  const e = 0.01671123 - 0.00004392 * T; // Eccentricity
-
-  // Mean anomaly
-  const M = ((357.52911 + 35999.05029 * T) * Math.PI) / 180;
-
-  // Equation of center (approximate)
-  const C = (1.9146 - 0.004817 * T) * Math.sin(M) + 0.019993 * Math.sin(2 * M);
-
-  // True anomaly
-  const nu = M + (C * Math.PI) / 180;
-
-  // Distance
-  const r = (a * (1 - e * e)) / (1 + e * Math.cos(nu));
-
-  // Heliocentric ecliptic longitude
-  const lon = L + (C * Math.PI) / 180;
-
-  return {
-    x: r * Math.cos(lon),
-    y: r * Math.sin(lon),
-    z: 0, // Earth is in the ecliptic plane (approximately)
-  };
-}
-
-/**
- * Calculate RA/Dec from heliocentric position
- */
-export function heliocentricToEquatorial(
-  helioX: number,
-  helioY: number,
-  helioZ: number,
-  julianDate: number
-): { ra: number; dec: number; distance: number } {
-  // Get Earth's position
-  const earth = getEarthPosition(julianDate);
-
-  // Geocentric position (relative to Earth)
-  const geoX = helioX - earth.x;
-  const geoY = helioY - earth.y;
-  const geoZ = helioZ - earth.z;
-
-  // Distance from Earth
-  const distance = Math.sqrt(geoX * geoX + geoY * geoY + geoZ * geoZ);
-
-  // Obliquity of the ecliptic
-  const eps = (23.4393 * Math.PI) / 180;
-
-  // Convert ecliptic to equatorial
-  const eqX = geoX;
-  const eqY = geoY * Math.cos(eps) - geoZ * Math.sin(eps);
-  const eqZ = geoY * Math.sin(eps) + geoZ * Math.cos(eps);
-
-  // RA and Dec
-  let ra = (Math.atan2(eqY, eqX) * 180) / Math.PI;
-  if (ra < 0) ra += 360;
-  // Clamp to [-1, 1] to handle floating point precision issues
-  const sinDec = Math.max(-1, Math.min(1, eqZ / distance));
-  const dec = (Math.asin(sinDec) * 180) / Math.PI;
-
-  return { ra: ra / 15, dec, distance }; // ra in hours
-}
+// heliocentricToEquatorial is re-exported from orbital-mechanics for backward compatibility
+export { heliocentricToEquatorial } from '../astronomy/orbital-mechanics';
 
 /**
  * Get comet data from bundled static JSON, with IndexedDB cache and MPC live fallback.

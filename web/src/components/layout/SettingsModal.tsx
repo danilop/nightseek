@@ -13,9 +13,10 @@ import {
   Wind,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppFooter from '@/components/ui/AppFooter';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useApp } from '@/stores/AppContext';
 import type { DistanceUnit, PressureUnit, SpeedUnit, TemperatureUnit } from '@/types';
@@ -33,19 +34,32 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   // Lock body scroll when modal is open
   useBodyScrollLock();
+  const focusTrapRef = useFocusTrap<HTMLDivElement>();
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  // Update settings live while dragging (for visual feedback), but only
+  // clear forecast on pointer release to avoid redundant recomputation.
   const handleForecastDaysChange = (value: number) => {
     updateSettings({ forecastDays: Math.max(1, Math.min(30, value)) });
-    dispatch({ type: 'CLEAR_FORECAST' });
   };
 
   const handleMaxObjectsChange = (value: number) => {
     updateSettings({ maxObjects: Math.max(1, Math.min(50, value)) });
-    dispatch({ type: 'CLEAR_FORECAST' });
   };
 
   const handleDsoMagnitudeChange = (value: number) => {
     updateSettings({ dsoMagnitude: Math.max(6, Math.min(18, value)) });
+  };
+
+  const handleSliderCommit = () => {
     dispatch({ type: 'CLEAR_FORECAST' });
   };
 
@@ -55,14 +69,23 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50 p-4 backdrop-blur-sm">
+    <div
+      ref={focusTrapRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50 p-4 backdrop-blur-sm"
+    >
       <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-xl border border-night-700 bg-night-900 shadow-xl">
         {/* Header */}
         <div className="flex flex-shrink-0 items-center justify-between border-night-700 border-b p-4">
-          <h2 className="font-semibold text-lg text-white">Settings</h2>
+          <h2 id="settings-modal-title" className="font-semibold text-lg text-white">
+            Settings
+          </h2>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="rounded-lg p-1 text-gray-400 transition-colors hover:text-white"
           >
             <X className="h-5 w-5" />
@@ -111,6 +134,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 max="30"
                 value={settings.forecastDays}
                 onChange={e => handleForecastDaysChange(parseInt(e.target.value, 10))}
+                onPointerUp={handleSliderCommit}
                 className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-sky-500"
               />
               <span className="w-12 rounded-lg bg-night-800 py-1 text-center text-sm text-white">
@@ -137,6 +161,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 max="50"
                 value={settings.maxObjects}
                 onChange={e => handleMaxObjectsChange(parseInt(e.target.value, 10))}
+                onPointerUp={handleSliderCommit}
                 className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-sky-500"
               />
               <span className="w-12 rounded-lg bg-night-800 py-1 text-center text-sm text-white">
@@ -163,6 +188,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 step="0.5"
                 value={settings.dsoMagnitude}
                 onChange={e => handleDsoMagnitudeChange(parseFloat(e.target.value))}
+                onPointerUp={handleSliderCommit}
                 className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-sky-500"
               />
               <span className="w-12 rounded-lg bg-night-800 py-1 text-center text-sm text-white">
@@ -300,6 +326,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               </div>
               <button
                 type="button"
+                role="switch"
+                aria-checked={settings.showSatellitePasses}
+                aria-label="Show satellite passes"
                 onClick={() =>
                   updateSettings({ showSatellitePasses: !settings.showSatellitePasses })
                 }
@@ -398,13 +427,26 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
       {/* Reset Confirmation Dialog */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-confirm-title"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6"
+          onClick={e => {
+            if (e.target === e.currentTarget) setShowResetConfirm(false);
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Escape') setShowResetConfirm(false);
+          }}
+        >
           <div className="w-full max-w-sm rounded-xl border border-night-600 bg-night-800 p-5 shadow-2xl">
             <div className="mb-3 flex items-center gap-3">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-500/20">
                 <Trash2 className="h-5 w-5 text-red-400" />
               </div>
-              <h3 className="font-semibold text-lg text-white">Reset All Data?</h3>
+              <h3 id="reset-confirm-title" className="font-semibold text-lg text-white">
+                Reset All Data?
+              </h3>
             </div>
             <p className="mb-5 text-gray-400 text-sm">
               This will reset all settings to defaults, clear cached forecasts, and return to the

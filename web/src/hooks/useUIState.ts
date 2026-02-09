@@ -47,6 +47,7 @@ const DEFAULT_UI_STATE: UIState = {
   activeTab: 'overview',
 };
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: localStorage validation with type guards
 function loadUIState(): UIState {
   if (typeof window === 'undefined') return DEFAULT_UI_STATE;
 
@@ -54,16 +55,38 @@ function loadUIState(): UIState {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Merge with defaults to handle new fields
+      // Validate that parsed is a plain object with expected shapes
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return DEFAULT_UI_STATE;
+      }
+      const VALID_TABS: readonly string[] = ['overview', 'targets', 'sky', 'events'];
+      const activeTab =
+        typeof parsed.activeTab === 'string' && VALID_TABS.includes(parsed.activeTab)
+          ? (parsed.activeTab as ActiveTab)
+          : DEFAULT_UI_STATE.activeTab;
+      const expandedCategories =
+        typeof parsed.expandedCategories === 'object' &&
+        parsed.expandedCategories !== null &&
+        !Array.isArray(parsed.expandedCategories)
+          ? parsed.expandedCategories
+          : {};
+      const categoryOrder = Array.isArray(parsed.categoryOrder) ? parsed.categoryOrder : [];
       return {
         ...DEFAULT_UI_STATE,
-        ...parsed,
+        jupiterMoonsExpanded:
+          typeof parsed.jupiterMoonsExpanded === 'boolean'
+            ? parsed.jupiterMoonsExpanded
+            : DEFAULT_UI_STATE.jupiterMoonsExpanded,
+        weatherDetailsExpanded:
+          typeof parsed.weatherDetailsExpanded === 'boolean'
+            ? parsed.weatherDetailsExpanded
+            : DEFAULT_UI_STATE.weatherDetailsExpanded,
+        activeTab,
         expandedCategories: {
           ...DEFAULT_UI_STATE.expandedCategories,
-          ...parsed.expandedCategories,
+          ...expandedCategories,
         },
-        // Ensure categoryOrder includes all categories (handles new categories)
-        categoryOrder: mergeOrder(parsed.categoryOrder || [], DEFAULT_CATEGORY_ORDER),
+        categoryOrder: mergeOrder(categoryOrder, DEFAULT_CATEGORY_ORDER),
       };
     }
   } catch {

@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import ForecastView from './components/forecast/ForecastView';
 import Header from './components/layout/Header';
 import OnboardingWizard from './components/setup/OnboardingWizard';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 import ErrorMessage from './components/ui/ErrorMessage';
 import LoadingScreen from './components/ui/LoadingScreen';
 import OfflineBanner from './components/ui/OfflineBanner';
@@ -80,13 +81,15 @@ export default function App() {
       )}
 
       {!isLoading && !error && forecasts && (
-        <ForecastView
-          forecasts={forecasts}
-          scoredObjects={state.scoredObjects}
-          bestNights={state.bestNights}
-          location={location}
-          onRefresh={loadForecast}
-        />
+        <ErrorBoundary>
+          <ForecastView
+            forecasts={forecasts}
+            scoredObjects={state.scoredObjects}
+            bestNights={state.bestNights}
+            location={location}
+            onRefresh={loadForecast}
+          />
+        </ErrorBoundary>
       )}
     </div>
   );

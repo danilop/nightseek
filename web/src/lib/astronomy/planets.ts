@@ -1,4 +1,5 @@
 import type { PlanetData } from '@/types';
+import { RADIANS_TO_ARCSEC } from './constants';
 
 // Physical diameters in km
 const PLANET_DIAMETERS: Record<string, number> = {
@@ -54,5 +55,5 @@ export function calculateApparentDiameter(planetName: string, distanceKm: number
   if (!physicalDiameter || distanceKm <= 0) return 0;
 
   const angularDiameterRad = physicalDiameter / distanceKm;
-  return angularDiameterRad * 206265; // Convert to arcseconds
+  return angularDiameterRad * RADIANS_TO_ARCSEC;
 }

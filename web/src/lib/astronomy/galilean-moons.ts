@@ -1,5 +1,6 @@
 import * as Astronomy from 'astronomy-engine';
 import type { GalileanMoonEvent, GalileanMoonPosition, NightInfo } from '@/types';
+import { AU_TO_KM } from './constants';
 
 type MoonName = 'Io' | 'Europa' | 'Ganymede' | 'Callisto';
 
@@ -18,7 +19,7 @@ function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
     const positions: GalileanMoonPosition[] = [];
 
     // Jupiter's equatorial radius in AU for conversion
-    const JUPITER_RADIUS = 71492 / 149597870.7; // km to AU
+    const JUPITER_RADIUS = 71492 / AU_TO_KM; // km to AU
 
     // Moon data from the JupiterMoons result
     const moonObjects: Array<{ name: MoonName; data: Astronomy.StateVector }> = [

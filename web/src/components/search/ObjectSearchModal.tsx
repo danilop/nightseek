@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { searchCelestialObjects } from '@/lib/search/object-search';
 import { azimuthToCardinal } from '@/lib/utils/format';
 import type { Location, ObjectSearchResult, ObjectVisibilityStatus } from '@/types';
@@ -42,35 +43,35 @@ function getStatusInfo(status: ObjectVisibilityStatus): {
       return {
         label: 'Visible Tonight',
         color: 'text-green-400',
-        icon: <Eye className="w-4 h-4" />,
+        icon: <Eye className="h-4 w-4" />,
         bgColor: 'bg-green-500/10',
       };
     case 'visible_soon':
       return {
         label: 'Visible Soon',
         color: 'text-sky-400',
-        icon: <Calendar className="w-4 h-4" />,
+        icon: <Calendar className="h-4 w-4" />,
         bgColor: 'bg-sky-500/10',
       };
     case 'visible_later':
       return {
         label: 'Visible Later',
         color: 'text-yellow-400',
-        icon: <Clock className="w-4 h-4" />,
+        icon: <Clock className="h-4 w-4" />,
         bgColor: 'bg-yellow-500/10',
       };
     case 'below_horizon':
       return {
         label: 'Below Horizon',
         color: 'text-orange-400',
-        icon: <EyeOff className="w-4 h-4" />,
+        icon: <EyeOff className="h-4 w-4" />,
         bgColor: 'bg-orange-500/10',
       };
     case 'never_visible':
       return {
         label: 'Never Visible',
         color: 'text-red-400',
-        icon: <AlertCircle className="w-4 h-4" />,
+        icon: <AlertCircle className="h-4 w-4" />,
         bgColor: 'bg-red-500/10',
       };
   }
@@ -143,7 +144,7 @@ function SearchResultCard({
     <button
       type="button"
       onClick={onToggle}
-      className={`w-full rounded-lg border transition-all text-left ${
+      className={`w-full rounded-lg border text-left transition-all ${
         isExpanded
           ? 'border-sky-500/50 bg-night-800/50'
           : 'border-night-700 bg-night-800/30 hover:border-night-600'
@@ -154,24 +155,24 @@ function SearchResultCard({
         {/* Top row: Icon + Name + Messier badge */}
         <div className="flex items-start gap-3">
           {/* Status indicator */}
-          <div className={`p-2 rounded-lg shrink-0 ${statusInfo.bgColor} ${statusInfo.color}`}>
+          <div className={`shrink-0 rounded-lg p-2 ${statusInfo.bgColor} ${statusInfo.color}`}>
             {statusInfo.icon}
           </div>
 
           {/* Object info */}
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             {/* Name row */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-medium text-white">{result.displayName}</h3>
               {result.messierNumber && (
-                <span className="text-xs bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded shrink-0">
+                <span className="shrink-0 rounded bg-purple-500/20 px-1.5 py-0.5 text-purple-300 text-xs">
                   M{result.messierNumber}
                 </span>
               )}
             </div>
 
             {/* Object type and details - wrapped for mobile */}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-400 mt-1">
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-gray-400 text-xs">
               <span>{getObjectTypeDisplay(result.objectType)}</span>
               {result.subtype && (
                 <>
@@ -195,12 +196,12 @@ function SearchResultCard({
 
             {/* Status badge - on its own row */}
             <div
-              className={`inline-flex items-center gap-1.5 mt-2 px-2 py-1 rounded-md text-xs font-medium ${statusInfo.bgColor} ${statusInfo.color}`}
+              className={`mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-xs ${statusInfo.bgColor} ${statusInfo.color}`}
             >
               {statusInfo.icon}
               <span>{statusInfo.label}</span>
               {!result.visibleTonight && result.nextVisibleDate && !result.neverVisible && (
-                <span className="text-gray-400 ml-1">• {formatDate(result.nextVisibleDate)}</span>
+                <span className="ml-1 text-gray-400">• {formatDate(result.nextVisibleDate)}</span>
               )}
             </div>
           </div>
@@ -209,11 +210,11 @@ function SearchResultCard({
 
       {/* Expanded details */}
       {isExpanded && (
-        <div className="px-3 pb-3 pt-0 border-t border-night-700 mt-0">
-          <div className="pt-3 space-y-3">
+        <div className="mt-0 border-night-700 border-t px-3 pt-0 pb-3">
+          <div className="space-y-3 pt-3">
             {/* Visibility details */}
             {result.visibleTonight && result.visibility && (
-              <div className="bg-green-500/10 rounded-lg p-3 border border-green-500/20">
+              <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-3">
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-gray-400">Peak Altitude</span>
@@ -261,7 +262,7 @@ function SearchResultCard({
                     !result.canReachOptimal &&
                     result.optimalAltitudeNote && (
                       <div className="col-span-2">
-                        <span className="text-yellow-400 text-xs">
+                        <span className="text-xs text-yellow-400">
                           {result.optimalAltitudeNote}
                         </span>
                       </div>
@@ -281,7 +282,7 @@ function SearchResultCard({
 
             {/* Next visible date */}
             {!result.visibleTonight && result.nextVisibleDate && !result.neverVisible && (
-              <div className="bg-sky-500/10 rounded-lg p-3 border border-sky-500/20">
+              <div className="rounded-lg border border-sky-500/20 bg-sky-500/10 p-3">
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-gray-400">Peak Altitude</span>
@@ -305,7 +306,7 @@ function SearchResultCard({
                   {/* Optimal viewing info */}
                   {!result.canReachOptimal && result.optimalAltitudeNote && (
                     <div className="col-span-2">
-                      <span className="text-yellow-400 text-xs">{result.optimalAltitudeNote}</span>
+                      <span className="text-xs text-yellow-400">{result.optimalAltitudeNote}</span>
                     </div>
                   )}
                   {result.canReachOptimal &&
@@ -323,10 +324,10 @@ function SearchResultCard({
 
             {/* Never visible reason */}
             {result.neverVisible && result.neverVisibleReason && (
-              <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/20">
-                <p className="text-sm text-gray-300">{result.neverVisibleReason}</p>
+              <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+                <p className="text-gray-300 text-sm">{result.neverVisibleReason}</p>
                 {result.maxPossibleAltitude > -90 && (
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="mt-1 text-gray-400 text-xs">
                     Maximum possible altitude: {result.maxPossibleAltitude.toFixed(1)}°
                   </p>
                 )}
@@ -334,7 +335,7 @@ function SearchResultCard({
             )}
 
             {/* Coordinates */}
-            <div className="text-xs text-gray-400 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-gray-400 text-xs">
               <span>
                 RA: {result.raHours.toFixed(2)}h | Dec: {result.decDegrees.toFixed(1)}°
               </span>
@@ -360,9 +361,19 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
   const [hasSearched, setHasSearched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusTrapRef = useFocusTrap<HTMLDivElement>();
 
   // Lock body scroll when modal is open
   useBodyScrollLock();
+
+  // Close on Escape (global listener for when focus is outside input)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [onClose]);
 
   // Focus input on mount
   useEffect(() => {
@@ -420,11 +431,9 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
     }, 300);
   };
 
-  // Handle keyboard
+  // Handle keyboard on input
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    } else if (e.key === 'Enter' && query.trim().length >= 2) {
+    if (e.key === 'Enter' && query.trim().length >= 2) {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
@@ -433,47 +442,64 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 bg-black/60 backdrop-blur-sm overflow-hidden">
-      <div className="bg-night-900 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col border border-night-700">
+    <div
+      ref={focusTrapRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="object-search-title"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden bg-black/60 p-4 pt-16 backdrop-blur-sm"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
+      <div className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl border border-night-700 bg-night-900 shadow-xl">
         {/* Header with search input */}
-        <div className="p-4 border-b border-night-700 flex-shrink-0">
+        <div className="flex-shrink-0 border-night-700 border-b p-4">
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search
+                aria-hidden="true"
+                className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400"
+              />
               <input
+                id="object-search-title"
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Search objects (e.g., M31, Andromeda, Jupiter, C/2023...)"
-                className="w-full pl-10 pr-4 py-3 bg-night-800 border border-night-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                className="w-full rounded-lg border border-night-600 bg-night-800 py-3 pr-4 pl-10 text-white placeholder-gray-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
               />
               {isSearching && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-sky-400 animate-spin" />
+                <Loader2 className="absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 animate-spin text-sky-400" />
               )}
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-white rounded-lg transition-colors"
+              aria-label="Close"
+              className="rounded-lg p-2 text-gray-400 transition-colors hover:text-white"
             >
-              <X className="w-5 h-5" />
+              <X className="h-5 w-5" />
             </button>
           </div>
-          {searchMessage && <p className="text-xs text-gray-400 mt-2 pl-1">{searchMessage}</p>}
+          {searchMessage && <p className="mt-2 pl-1 text-gray-400 text-xs">{searchMessage}</p>}
         </div>
 
         {/* Results */}
         <div className="flex-1 overflow-y-auto p-4">
           {/* Empty state - no search yet */}
           {!hasSearched && (
-            <div className="text-center py-8">
-              <Star className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+            <div className="py-8 text-center">
+              <Star className="mx-auto mb-3 h-12 w-12 text-gray-600" />
               <p className="text-gray-400 text-sm">
                 Search for celestial objects by name or catalog code
               </p>
-              <p className="text-gray-500 text-xs mt-2">
+              <p className="mt-2 text-gray-500 text-xs">
                 Examples: M31, NGC 7000, Orion Nebula, Jupiter, Pluto, 12P
               </p>
             </div>
@@ -481,10 +507,10 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
 
           {/* No results */}
           {hasSearched && !isSearching && results.length === 0 && (
-            <div className="text-center py-8">
-              <Search className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+            <div className="py-8 text-center">
+              <Search className="mx-auto mb-3 h-12 w-12 text-gray-600" />
               <p className="text-gray-400 text-sm">No objects found matching "{query}"</p>
-              <p className="text-gray-500 text-xs mt-2">Try a different name or catalog number</p>
+              <p className="mt-2 text-gray-500 text-xs">Try a different name or catalog number</p>
             </div>
           )}
 
@@ -504,9 +530,9 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
         </div>
 
         {/* Footer with location info */}
-        <div className="p-3 border-t border-night-700 flex-shrink-0">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <MapPin className="w-3 h-3" />
+        <div className="flex-shrink-0 border-night-700 border-t p-3">
+          <div className="flex items-center gap-2 text-gray-500 text-xs">
+            <MapPin className="h-3 w-3" />
             <span>
               Visibility calculated for{' '}
               {location.name ||

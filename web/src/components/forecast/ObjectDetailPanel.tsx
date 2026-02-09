@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { formatDistance } from '@/lib/gaia';
 import { fetchEnhancedGaiaStarField } from '@/lib/gaia/enhanced-queries';
 import { formatAsteroidDiameter, formatRotationPeriod } from '@/lib/jpl/sbdb';
@@ -43,6 +44,7 @@ export default function ObjectDetailPanel({
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
+  const focusTrapRef = useFocusTrap<HTMLDivElement>();
   const { state } = useApp();
   const { visibility, magnitude, category, subtype, totalScore } = object;
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
@@ -176,13 +178,13 @@ export default function ObjectDetailPanel({
   }, [handleClose]);
 
   const panelContent = (
-    <div className="flex min-h-0 h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Header */}
       <div className="flex flex-shrink-0 items-center justify-between border-night-700 border-b p-4">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex-shrink-0 text-3xl">{icon}</span>
           <div className="min-w-0">
-            <h2 className="truncate font-semibold text-lg text-white">
+            <h2 id="object-detail-title" className="truncate font-semibold text-lg text-white">
               {visibility.commonName || visibility.objectName}
             </h2>
             {visibility.commonName && visibility.commonName !== visibility.objectName && (
@@ -193,6 +195,7 @@ export default function ObjectDetailPanel({
         <button
           type="button"
           onClick={handleClose}
+          aria-label="Close"
           className="flex-shrink-0 rounded-lg p-2 text-gray-400 transition-colors hover:bg-night-800 hover:text-white"
         >
           <X className="h-5 w-5" />
@@ -394,14 +397,19 @@ export default function ObjectDetailPanel({
 
       {/* Single panel — side panel on desktop, bottom sheet on mobile */}
       <div
-        ref={panelRef}
-        className={`fixed z-50 border-night-700 bg-night-900 shadow-xl transition-transform duration-300 ease-out
-          inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-2xl border-t
-          sm:inset-x-auto sm:top-0 sm:right-0 sm:bottom-auto sm:h-full sm:w-[400px] sm:max-h-full sm:rounded-none sm:border-t-0 sm:border-l ${
-            isOpen
-              ? 'translate-y-0 sm:translate-x-0'
-              : 'translate-y-full sm:translate-y-0 sm:translate-x-full'
-          }`}
+        ref={node => {
+          // Merge panelRef and focusTrapRef
+          panelRef.current = node;
+          (focusTrapRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="object-detail-title"
+        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col rounded-t-2xl border-night-700 border-t bg-night-900 shadow-xl transition-transform duration-300 ease-out sm:inset-x-auto sm:top-0 sm:right-0 sm:bottom-auto sm:h-full sm:max-h-full sm:w-[400px] sm:rounded-none sm:border-t-0 sm:border-l ${
+          isOpen
+            ? 'translate-y-0 sm:translate-x-0'
+            : 'translate-y-full sm:translate-x-full sm:translate-y-0'
+        }`}
       >
         {/* Drag handle — mobile only, swipe down to dismiss */}
         <div

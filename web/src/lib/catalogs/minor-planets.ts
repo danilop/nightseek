@@ -1,5 +1,12 @@
 import type { NightInfo, ObjectVisibility } from '@/types';
 import type { SkyCalculator } from '../astronomy/calculator';
+import { AU_TO_KM, RADIANS_TO_ARCSEC } from '../astronomy/constants';
+import {
+  getEarthPosition,
+  meanMotion,
+  orbitalToEcliptic,
+  solveKepler,
+} from '../astronomy/orbital-mechanics';
 
 /**
  * Minor planet data structure
@@ -160,20 +167,6 @@ export const NOTABLE_ASTEROIDS: MinorPlanetData[] = [
 ];
 
 /**
- * Solve Kepler's equation for eccentric anomaly
- * M = E - e*sin(E) using Newton-Raphson iteration
- */
-function solveKepler(meanAnomaly: number, eccentricity: number): number {
-  let E = meanAnomaly;
-  for (let i = 0; i < 30; i++) {
-    const dE = (E - eccentricity * Math.sin(E) - meanAnomaly) / (1 - eccentricity * Math.cos(E));
-    E -= dE;
-    if (Math.abs(dE) < 1e-12) break;
-  }
-  return E;
-}
-
-/**
  * Calculate minor planet position at a given Julian date
  */
 export function calculateMinorPlanetPosition(
@@ -199,11 +192,8 @@ export function calculateMinorPlanetPosition(
   // Days since epoch
   const dt = julianDate - epochJD;
 
-  // Mean motion (radians per day)
-  const k = 0.01720209895; // Gaussian gravitational constant
-  const n = k / a ** 1.5;
-
   // Mean anomaly at current time
+  const n = meanMotion(a);
   let M = M0Rad + n * dt;
   // Normalize to 0-2π
   M %= 2 * Math.PI;
@@ -218,43 +208,17 @@ export function calculateMinorPlanetPosition(
   // Distance from Sun
   const r = a * (1 - e * Math.cos(E));
 
-  // Position in orbital plane
+  // Position in orbital plane → heliocentric ecliptic
   const xOrbital = r * Math.cos(nu);
   const yOrbital = r * Math.sin(nu);
+  const { x, y, z } = orbitalToEcliptic(xOrbital, yOrbital, omegaRad, OmegaRad, iRad);
 
-  // Rotation matrices to heliocentric ecliptic coordinates
-  const cosOmega = Math.cos(OmegaRad);
-  const sinOmega = Math.sin(OmegaRad);
-  const cosI = Math.cos(iRad);
-  const sinI = Math.sin(iRad);
-  const cosOmegaArg = Math.cos(omegaRad);
-  const sinOmegaArg = Math.sin(omegaRad);
+  // Get Earth's position and convert to equatorial
+  const earth = getEarthPosition(julianDate);
+  const geoX = x - earth.x;
+  const geoY = y - earth.y;
+  const geoZ = z - earth.z;
 
-  const x =
-    (cosOmega * cosOmegaArg - sinOmega * sinOmegaArg * cosI) * xOrbital +
-    (-cosOmega * sinOmegaArg - sinOmega * cosOmegaArg * cosI) * yOrbital;
-  const y =
-    (sinOmega * cosOmegaArg + cosOmega * sinOmegaArg * cosI) * xOrbital +
-    (-sinOmega * sinOmegaArg + cosOmega * cosOmegaArg * cosI) * yOrbital;
-  const z = sinOmegaArg * sinI * xOrbital + cosOmegaArg * sinI * yOrbital;
-
-  // Get Earth's position (simplified)
-  const T = (julianDate - 2451545.0) / 36525;
-  const earthL = ((100.46646 + 36000.76983 * T) * Math.PI) / 180;
-  const earthM = ((357.52911 + 35999.05029 * T) * Math.PI) / 180;
-  const earthC = ((1.9146 * Math.sin(earthM) + 0.019993 * Math.sin(2 * earthM)) * Math.PI) / 180;
-  const earthR =
-    (1.00000261 * (1 - 0.01671123 * 0.01671123)) / (1 + 0.01671123 * Math.cos(earthM + earthC));
-  const earthLon = earthL + earthC;
-  const earthX = earthR * Math.cos(earthLon);
-  const earthY = earthR * Math.sin(earthLon);
-
-  // Geocentric position
-  const geoX = x - earthX;
-  const geoY = y - earthY;
-  const geoZ = z; // Earth Z is ~0
-
-  // Distance from Earth
   const earthDist = Math.sqrt(geoX * geoX + geoY * geoY + geoZ * geoZ);
 
   // Obliquity of ecliptic
@@ -265,14 +229,12 @@ export function calculateMinorPlanetPosition(
   const eqY = geoY * Math.cos(eps) - geoZ * Math.sin(eps);
   const eqZ = geoY * Math.sin(eps) + geoZ * Math.cos(eps);
 
-  // RA and Dec
   let ra = (Math.atan2(eqY, eqX) * 180) / Math.PI;
   if (ra < 0) ra += 360;
-  // Clamp to [-1, 1] to handle floating point precision issues
   const sinDec = Math.max(-1, Math.min(1, eqZ / earthDist));
   const dec = (Math.asin(sinDec) * 180) / Math.PI;
 
-  return { x, y, z, r, earthDist, ra: ra / 15, dec }; // ra in hours
+  return { x, y, z, r, earthDist, ra: ra / 15, dec };
 }
 
 /**
@@ -284,8 +246,7 @@ export function calculateMinorPlanetPosition(
 export function calculateMinorPlanetMagnitude(
   absoluteMagnitude: number,
   sunDistanceAU: number,
-  earthDistanceAU: number,
-  _phaseAngle: number = 0 // degrees, simplified (unused but kept for API compatibility)
+  earthDistanceAU: number
 ): number {
   if (sunDistanceAU <= 0 || earthDistanceAU <= 0) return 99.0;
 
@@ -299,9 +260,9 @@ export function calculateMinorPlanetMagnitude(
  */
 function calculateApparentDiameter(physicalDiameterKm: number, distanceAU: number): number {
   if (distanceAU <= 0) return 0;
-  const distanceKm = distanceAU * 149597870.7;
+  const distanceKm = distanceAU * AU_TO_KM;
   const angularDiameterRad = physicalDiameterKm / distanceKm;
-  return angularDiameterRad * 206265; // radians to arcseconds
+  return angularDiameterRad * RADIANS_TO_ARCSEC;
 }
 
 /**

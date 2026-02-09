@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, Clock, Compass, Crosshair, Map as MapIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeviceCompass } from '@/hooks/useDeviceCompass';
 import { getNightLabel } from '@/lib/utils/format';
 import type { Location, NightInfo } from '@/types';
 
@@ -47,10 +48,10 @@ function ToggleButton({
     <button
       type="button"
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+      className={`rounded-full px-3 py-1.5 font-medium text-xs transition-colors ${
         active
-          ? 'bg-white/10 text-white border border-white/30'
-          : 'bg-night-800 text-gray-500 border border-night-700'
+          ? 'border border-white/30 bg-white/10 text-white'
+          : 'border border-night-700 bg-night-800 text-gray-500'
       }`}
     >
       {label}
@@ -143,10 +144,8 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   const [showPlanets, setShowPlanets] = useState(true);
   const [showNames, setShowNames] = useState(() => !getIsSmallScreen()); // Names OFF on mobile
 
-  // Compass state
-  const [compassAvailable, setCompassAvailable] = useState(false);
-  const [compassEnabled, setCompassEnabled] = useState(false);
-  const [compassHeading, setCompassHeading] = useState<number | null>(null);
+  // Compass via custom hook
+  const { compassAvailable, compassEnabled, compassHeading, toggleCompass } = useDeviceCompass();
   const lastOrientationRef = useRef<number>(0); // Track current orientation for smooth rotation
 
   const celestialInitialized = useRef(false);
@@ -176,7 +175,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     // Capture current time at init start
     initialTimeRef.current = currentTime;
 
-    const loadScript = (src: string): Promise<void> => {
+    const loadScript = (src: string, integrity?: string): Promise<void> => {
       return new Promise((resolve, reject) => {
         if (document.querySelector(`script[src="${src}"]`)) {
           resolve();
@@ -185,6 +184,10 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
         const script = document.createElement('script');
         script.src = src;
         script.async = false;
+        if (integrity) {
+          script.integrity = integrity;
+          script.crossOrigin = 'anonymous';
+        }
         script.onload = () => resolve();
         script.onerror = () => reject(new Error(`Failed to load ${src}`));
         document.head.appendChild(script);
@@ -196,9 +199,15 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
       // biome-ignore lint/suspicious/noExplicitAny: d3 loaded via global script
       if (typeof (window as any).d3 === 'undefined') {
-        await loadScript('https://unpkg.com/d3@3/d3.min.js');
+        await loadScript(
+          'https://unpkg.com/d3@3.5.17/d3.min.js',
+          'sha384-N8EP0Yml0jN7e0DcXlZ6rt+iqKU9Ck6f1ZQ+j2puxatnBq4k9E8Q6vqBcY34LNbn'
+        );
       }
-      await loadScript('https://unpkg.com/d3-celestial/celestial.min.js');
+      await loadScript(
+        'https://unpkg.com/d3-celestial@0.7.35/celestial.min.js',
+        'sha384-2dC5WLJBbDzernjwxbynShiaH7BONv9FkNAh7pxDsJiBCe10tB419KJXHzsRZEAr'
+      );
 
       await new Promise<void>(resolve => {
         const checkLoaded = setInterval(() => {
@@ -233,7 +242,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
         checkReady();
       });
 
-      const dataPath = 'https://unpkg.com/d3-celestial/data/';
+      const dataPath = 'https://unpkg.com/d3-celestial@0.7.35/data/';
 
       // Check container width for responsive config
       const containerWidth = containerRef.current?.clientWidth ?? window.innerWidth;
@@ -470,111 +479,11 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     };
   }, []);
 
-  // Detect compass availability
+  // Reset orientation tracking when compass is disabled
   useEffect(() => {
-    // Check if DeviceOrientationEvent is available and has the 'absolute' property
-    // or if we can use webkitCompassHeading (iOS)
-    const hasDeviceOrientation =
-      typeof window !== 'undefined' &&
-      ('DeviceOrientationEvent' in window || 'ondeviceorientationabsolute' in window);
-
-    if (hasDeviceOrientation) {
-      // On iOS 13+, we need to check if permission API exists
-      // biome-ignore lint/suspicious/noExplicitAny: DeviceOrientationEvent permission API
-      const DOE = DeviceOrientationEvent as any;
-      if (typeof DOE.requestPermission === 'function') {
-        // iOS - compass available but needs permission request on toggle
-        setCompassAvailable(true);
-      } else {
-        // Android/other - test if we get orientation events
-        const testHandler = (event: DeviceOrientationEvent) => {
-          // Check if we have a valid heading (alpha or webkitCompassHeading)
-          // biome-ignore lint/suspicious/noExplicitAny: webkitCompassHeading is iOS-specific
-          const heading = (event as any).webkitCompassHeading ?? event.alpha;
-          if (heading !== null && heading !== undefined) {
-            setCompassAvailable(true);
-          }
-          window.removeEventListener('deviceorientation', testHandler);
-        };
-        window.addEventListener('deviceorientation', testHandler, { once: true });
-
-        // Also try absolute orientation
-        const testAbsoluteHandler = (event: DeviceOrientationEvent) => {
-          if (event.alpha !== null) {
-            setCompassAvailable(true);
-          }
-          window.removeEventListener('deviceorientationabsolute', testAbsoluteHandler);
-        };
-        window.addEventListener('deviceorientationabsolute', testAbsoluteHandler, { once: true });
-      }
+    if (!compassEnabled) {
+      lastOrientationRef.current = 0;
     }
-  }, []);
-
-  // Handle compass toggle
-  const handleCompassToggle = useCallback(async () => {
-    if (compassEnabled) {
-      // Turn off compass
-      setCompassEnabled(false);
-      setCompassHeading(null);
-      lastOrientationRef.current = 0; // Reset orientation tracking
-      return;
-    }
-
-    // Turn on compass - may need permission on iOS
-    // biome-ignore lint/suspicious/noExplicitAny: DeviceOrientationEvent permission API
-    const DOE = DeviceOrientationEvent as any;
-    if (typeof DOE.requestPermission === 'function') {
-      try {
-        const permission = await DOE.requestPermission();
-        if (permission === 'granted') {
-          setCompassEnabled(true);
-        }
-      } catch {
-        // Permission denied or error
-      }
-    } else {
-      // No permission needed (Android/desktop)
-      setCompassEnabled(true);
-    }
-  }, [compassEnabled]);
-
-  // Listen to device orientation when compass is enabled
-  useEffect(() => {
-    if (!compassEnabled) return;
-
-    const handleOrientation = (event: DeviceOrientationEvent) => {
-      // webkitCompassHeading is iOS-specific and gives true north
-      // alpha gives orientation relative to arbitrary starting point
-      // For absolute heading, prefer webkitCompassHeading or deviceorientationabsolute
-      // biome-ignore lint/suspicious/noExplicitAny: webkitCompassHeading is iOS-specific
-      const e = event as any;
-      let heading: number | null = null;
-
-      if (e.webkitCompassHeading !== undefined) {
-        // iOS - webkitCompassHeading is degrees from true north (0-360)
-        heading = e.webkitCompassHeading;
-      } else if (event.alpha !== null && event.absolute) {
-        // Android with absolute orientation - alpha is degrees from north
-        heading = (360 - event.alpha) % 360;
-      } else if (event.alpha !== null) {
-        // Fallback - use alpha directly (may not be true north)
-        heading = (360 - event.alpha) % 360;
-      }
-
-      if (heading !== null) {
-        setCompassHeading(heading);
-      }
-    };
-
-    // Try absolute orientation first (Android)
-    window.addEventListener('deviceorientationabsolute', handleOrientation);
-    // Also listen to regular orientation (iOS uses this with webkitCompassHeading)
-    window.addEventListener('deviceorientation', handleOrientation);
-
-    return () => {
-      window.removeEventListener('deviceorientationabsolute', handleOrientation);
-      window.removeEventListener('deviceorientation', handleOrientation);
-    };
   }, [compassEnabled]);
 
   // Update sky chart rotation when compass heading changes
@@ -611,33 +520,33 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   }, [compassEnabled, compassHeading]);
 
   return (
-    <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
+    <div className="overflow-hidden rounded-xl border border-night-700 bg-night-900">
       {/* Header */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-night-800 transition-colors"
+        className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-night-800"
       >
         <div className="flex items-center gap-3">
-          <MapIcon className="w-5 h-5 text-indigo-400" />
+          <MapIcon className="h-5 w-5 text-indigo-400" />
           <h3 className="font-semibold text-white">Sky Chart</h3>
-          <span className="text-xs text-gray-500">Interactive sky view</span>
+          <span className="text-gray-500 text-xs">Interactive sky view</span>
         </div>
         {expanded ? (
-          <ChevronDown className="w-5 h-5 text-gray-400" />
+          <ChevronDown className="h-5 w-5 text-gray-400" />
         ) : (
-          <ChevronRight className="w-5 h-5 text-gray-400" />
+          <ChevronRight className="h-5 w-5 text-gray-400" />
         )}
       </button>
 
       {/* Content */}
       {expanded && (
-        <div className="border-t border-night-700 p-4">
+        <div className="border-night-700 border-t p-4">
           {/* Time Slider */}
           <div className="mb-4">
-            <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+            <div className="mb-2 flex items-center justify-between text-gray-400 text-xs">
               <span>{formatTime(nightInfo.sunset)}</span>
-              <span className="text-indigo-400 font-medium">{formatTime(currentTime)}</span>
+              <span className="font-medium text-indigo-400">{formatTime(currentTime)}</span>
               <span>{formatTime(nightInfo.sunrise)}</span>
             </div>
             <div className="flex items-center gap-2">
@@ -646,10 +555,10 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                 type="button"
                 onClick={handleNowClick}
                 disabled={!isNowInNightRange}
-                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1 rounded px-2 py-1 font-medium text-xs transition-colors ${
                   isNowInNightRange
                     ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
-                    : 'bg-night-800 text-gray-600 cursor-not-allowed'
+                    : 'cursor-not-allowed bg-night-800 text-gray-600'
                 }`}
                 title={
                   isNowInNightRange
@@ -657,7 +566,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                     : `Current time is outside ${getNightLabel(nightInfo.date, true)} range`
                 }
               >
-                <Clock className="w-3 h-3" />
+                <Clock className="h-3 w-3" />
                 Now
               </button>
               {/* Slider */}
@@ -667,16 +576,16 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                 max="100"
                 value={selectedTime}
                 onChange={e => setSelectedTime(Number(e.target.value))}
-                className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-indigo-500"
               />
               {/* Center button - disabled when compass is on */}
               <button
                 type="button"
                 onClick={handleCenterView}
                 disabled={compassEnabled}
-                className={`p-1.5 rounded text-xs font-medium transition-colors outline-none focus:outline-none active:outline-none ${
+                className={`rounded p-1.5 font-medium text-xs outline-none transition-colors focus:outline-none active:outline-none ${
                   compassEnabled
-                    ? 'bg-night-800/50 text-gray-600 cursor-not-allowed'
+                    ? 'cursor-not-allowed bg-night-800/50 text-gray-600'
                     : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white active:bg-night-600'
                 }`}
                 title={
@@ -685,17 +594,17 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                     : 'Center view (zenith, north up)'
                 }
               >
-                <Crosshair className="w-4 h-4" />
+                <Crosshair className="h-4 w-4" />
               </button>
               {/* Compass button - only shown when compass is available */}
               {compassAvailable && (
                 <button
                   type="button"
-                  onClick={handleCompassToggle}
-                  className={`p-1.5 rounded text-xs font-medium transition-colors outline-none focus:outline-none active:outline-none ${
+                  onClick={toggleCompass}
+                  className={`rounded p-1.5 font-medium text-xs outline-none transition-colors focus:outline-none active:outline-none ${
                     compassEnabled
-                      ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
-                      : 'bg-night-800/50 text-gray-500 border border-night-700 hover:border-gray-500 active:bg-night-700'
+                      ? 'bg-indigo-500 text-white shadow-indigo-500/30 shadow-lg'
+                      : 'border border-night-700 bg-night-800/50 text-gray-500 hover:border-gray-500 active:bg-night-700'
                   }`}
                   title={
                     compassEnabled
@@ -703,18 +612,18 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                       : 'Enable compass mode (rotate device to look around)'
                   }
                 >
-                  <Compass className="w-4 h-4" />
+                  <Compass className="h-4 w-4" />
                 </button>
               )}
             </div>
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <div className="mt-1 flex justify-between text-gray-500 text-xs">
               <span>Sunset</span>
               <span>Sunrise</span>
             </div>
           </div>
 
           {/* Display Options - matching d3-celestial viewer demo */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="mb-4 flex flex-wrap gap-2">
             <ToggleButton
               label="Stars"
               active={showStars}
@@ -752,7 +661,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           <div
             ref={containerRef}
             id="celestial-map"
-            className="w-full min-h-[300px] sm:min-h-[400px] lg:min-h-[500px] xl:min-h-[600px] bg-night-950 rounded-lg overflow-hidden"
+            className="min-h-[300px] w-full overflow-hidden rounded-lg bg-night-950 sm:min-h-[400px] lg:min-h-[500px] xl:min-h-[600px]"
           />
         </div>
       )}

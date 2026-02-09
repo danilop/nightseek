@@ -1,5 +1,6 @@
 import { Calculator, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { MAX_CUSTOM_FOV } from '@/lib/telescopes';
 import {
   calculateFOV,
@@ -68,11 +69,16 @@ export default function FOVCalculatorDialog({
     onClose();
   }, [computed, exceedsMax, onApply, onClose]);
 
+  const focusTrapRef = useFocusTrap<HTMLDivElement>();
+
   if (!isOpen) return null;
 
   return (
     <div
+      ref={focusTrapRef}
       role="dialog"
+      aria-modal="true"
+      aria-labelledby="fov-calculator-title"
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
       onClick={e => {
         if (e.target === e.currentTarget) onClose();
@@ -86,11 +92,14 @@ export default function FOVCalculatorDialog({
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calculator className="h-4 w-4 text-sky-400" />
-            <h3 className="font-semibold text-base text-white">Calculate FOV</h3>
+            <h3 id="fov-calculator-title" className="font-semibold text-base text-white">
+              Calculate FOV
+            </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="text-gray-400 transition-colors hover:text-white"
           >
             <X className="h-4 w-4" />

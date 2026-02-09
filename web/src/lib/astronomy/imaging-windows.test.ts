@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { NightInfo, NightWeather, ObjectVisibility } from '@/types';
+import {
+  createMockNightInfo as createBaseNightInfo,
+  createMockNightWeather,
+  createMockObjectVisibility,
+} from '@/test/factories';
 import {
   calculateImagingWindows,
   formatImagingWindow,
@@ -8,104 +12,67 @@ import {
 } from './imaging-windows';
 
 describe('imaging-windows', () => {
-  // Helper to create mock visibility
-  const createMockVisibility = (maxAlt: number): ObjectVisibility => {
+  // Wrap factory with altitude-specific samples
+  const createMockVisibility = (maxAlt: number) => {
     const baseTime = new Date('2025-01-15T22:00:00Z');
     const samples: [Date, number][] = [];
-
-    // Create samples over 8 hours (every 10 minutes = 48 samples)
     for (let i = 0; i < 48; i++) {
       const time = new Date(baseTime.getTime() + i * 10 * 60 * 1000);
-      // Simulate altitude curve peaking in the middle
       const progress = i / 48;
       const altitude = Math.sin(progress * Math.PI) * maxAlt;
       samples.push([time, altitude]);
     }
-
-    return {
+    return createMockObjectVisibility({
       objectName: 'Test Object',
-      objectType: 'dso',
-      isVisible: true,
       maxAltitude: maxAlt,
       maxAltitudeTime: new Date(baseTime.getTime() + 4 * 60 * 60 * 1000),
       above45Start: null,
       above45End: null,
       above60Start: null,
       above60End: null,
-      above75Start: null,
-      above75End: null,
-      moonSeparation: 90,
-      moonWarning: false,
       magnitude: 8.0,
-      isInterstellar: false,
       altitudeSamples: samples,
-      subtype: 'galaxy',
       angularSizeArcmin: 10,
       surfaceBrightness: 22,
       raHours: 12,
       decDegrees: 45,
       commonName: 'Test Object',
-      minAirmass: 1.1,
-      azimuthAtPeak: 180,
-      apparentDiameterArcsec: null,
-      apparentDiameterMin: null,
-      apparentDiameterMax: null,
-      positionAngle: null,
-    };
+    });
   };
 
-  const createMockNightInfo = (): NightInfo => {
-    const date = new Date('2025-01-15T12:00:00Z');
-    const sunset = new Date('2025-01-15T17:30:00Z');
-    const sunrise = new Date('2025-01-16T07:30:00Z');
-
-    return {
-      date,
-      sunset,
-      sunrise,
+  const createMockNightInfo = () =>
+    createBaseNightInfo({
+      date: new Date('2025-01-15T12:00:00Z'),
+      sunset: new Date('2025-01-15T17:30:00Z'),
+      sunrise: new Date('2025-01-16T07:30:00Z'),
       astronomicalDusk: new Date('2025-01-15T19:00:00Z'),
       astronomicalDawn: new Date('2025-01-16T06:00:00Z'),
-      moonPhase: 0.25,
-      moonIllumination: 50,
       moonRise: new Date('2025-01-15T23:00:00Z'),
       moonSet: new Date('2025-01-16T10:00:00Z'),
-      moonPhaseExact: null,
       localSiderealTimeAtMidnight: null,
-      seeingForecast: null,
-    };
-  };
+    });
 
-  const createMockWeather = (cloudCover: number): NightWeather => ({
-    date: new Date('2025-01-15'),
-    avgCloudCover: cloudCover,
-    minCloudCover: cloudCover - 5,
-    maxCloudCover: cloudCover + 10,
-    clearDurationHours: 6,
-    clearWindows: [],
-    hourlyData: new Map(),
-    avgVisibilityKm: 20,
-    avgWindSpeedKmh: 10,
-    maxWindSpeedKmh: 15,
-    avgHumidity: 50,
-    avgTemperatureC: 10,
-    transparencyScore: 80,
-    cloudCoverLow: cloudCover,
-    cloudCoverMid: cloudCover,
-    cloudCoverHigh: cloudCover,
-    minPrecipProbability: 0,
-    maxPrecipProbability: 10,
-    totalPrecipitationMm: 0,
-    minDewMargin: 8,
-    dewRiskHours: 0,
-    avgPressureHpa: 1013,
-    pressureTrend: 'steady',
-    maxCape: 0,
-    bestTime: null,
-    avgAerosolOpticalDepth: 0.1,
-    avgPm25: 5,
-    avgPm10: 10,
-    avgDust: 5,
-  });
+  const createMockWeather = (cloudCover: number) =>
+    createMockNightWeather({
+      avgCloudCover: cloudCover,
+      minCloudCover: cloudCover - 5,
+      maxCloudCover: cloudCover + 10,
+      clearDurationHours: 6,
+      avgVisibilityKm: 20,
+      avgWindSpeedKmh: 10,
+      maxWindSpeedKmh: 15,
+      avgHumidity: 50,
+      avgTemperatureC: 10,
+      transparencyScore: 80,
+      cloudCoverLow: cloudCover,
+      cloudCoverMid: cloudCover,
+      cloudCoverHigh: cloudCover,
+      minDewMargin: 8,
+      dewRiskHours: 0,
+      avgPm25: 5,
+      avgPm10: 10,
+      avgDust: 5,
+    });
 
   describe('calculateImagingWindows', () => {
     it('should return empty array for invisible object', () => {

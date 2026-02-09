@@ -4,6 +4,7 @@ import type {
   DSOCatalogEntry,
   Location,
   NightForecast,
+  NightInfo,
   NightWeather,
   ObjectVisibility,
   ScoredObject,
@@ -60,6 +61,295 @@ export interface ForecastResult {
   forecasts: NightForecast[];
   scoredObjects: Map<string, ScoredObject[]>; // keyed by date ISO string
   bestNights: string[]; // ISO date strings of best nights
+}
+
+interface AllVisibilities {
+  planets: ObjectVisibility[];
+  dsos: ObjectVisibility[];
+  comets: ObjectVisibility[];
+  dwarfPlanets: ObjectVisibility[];
+  asteroids: ObjectVisibility[];
+  milkyWay: ObjectVisibility;
+  moon: ObjectVisibility;
+  jupiterVisible: boolean;
+}
+
+/**
+ * Calculate visibility for all object types for a given night.
+ */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Visibility calculation covers many object types
+async function calculateAllVisibilities(
+  calculator: SkyCalculator,
+  observer: Astronomy.Observer,
+  nightInfo: NightInfo,
+  nightDate: Date,
+  dsoCatalog: DSOCatalogEntry[],
+  cometCatalog: Awaited<ReturnType<typeof fetchComets>>,
+  dwarfPlanetList: ReturnType<typeof getDwarfPlanets>,
+  asteroidList: ReturnType<typeof getNotableAsteroids>,
+  settings: Settings
+): Promise<AllVisibilities> {
+  const planets: ObjectVisibility[] = [];
+  let jupiterVisible = false;
+
+  for (const planet of PLANETS) {
+    try {
+      const visibility = calculator.calculatePlanetVisibility(planet.name, nightInfo);
+
+      if (visibility.isVisible) {
+        const body = Astronomy.Body[planet.name as keyof typeof Astronomy.Body];
+
+        visibility.constellation = getPlanetConstellation(
+          body,
+          nightInfo.astronomicalDusk,
+          observer
+        );
+
+        if (isInnerPlanet(planet.name)) {
+          const elongInfo = getElongationForPlanet(planet.name, nightDate);
+          if (elongInfo) visibility.elongationDeg = elongInfo.elongationDeg;
+        }
+
+        if (isOuterPlanet(planet.name)) {
+          const oppInfo = getOppositionForPlanet(planet.name, nightDate);
+          if (oppInfo) visibility.isAtOpposition = oppInfo.isActive;
+        }
+
+        if (visibility.maxAltitudeTime) {
+          visibility.hourAngle = calculator.getHourAngle(body, visibility.maxAltitudeTime);
+          const meridianTime = calculator.getMeridianTransitTime(body, nightInfo.astronomicalDusk);
+          if (
+            meridianTime &&
+            meridianTime >= nightInfo.sunset &&
+            meridianTime <= nightInfo.sunrise
+          ) {
+            visibility.meridianTransitTime = meridianTime;
+          }
+        }
+
+        visibility.sunAngle = calculator.getSunAngle(body, nightInfo.astronomicalDusk);
+        visibility.heliocentricDistanceAU = calculator.getHeliocentricDistance(body, nightDate);
+        visibility.geocentricDistanceAU = calculator.getGeocentricDistance(body, nightDate);
+
+        const perihelionInfo = isNearPerihelion(planet.name, nightDate);
+        visibility.isNearPerihelion = perihelionInfo.isNear;
+        visibility.perihelionBoostPercent = perihelionInfo.brightnessBoostPercent;
+
+        if (planet.name.toLowerCase() === 'saturn') {
+          visibility.saturnRings = calculator.getSaturnRingInfo(nightDate);
+        }
+
+        if (planet.name.toLowerCase() === 'jupiter') {
+          jupiterVisible = true;
+        }
+
+        planets.push(visibility);
+      }
+    } catch {
+      // Planet visibility calculation failed - skip
+    }
+  }
+
+  const dsos: ObjectVisibility[] = [];
+  for (const dso of dsoCatalog) {
+    const baseCommonName = dso.commonName || getCommonName(dso.name);
+    let formattedCommonName: string;
+    if (dso.messierNumber !== null) {
+      formattedCommonName = baseCommonName
+        ? `M${dso.messierNumber} ${baseCommonName}`
+        : `M${dso.messierNumber}`;
+    } else {
+      formattedCommonName = baseCommonName ?? dso.name;
+    }
+
+    const constellation = dso.constellation
+      ? getConstellationFullName(dso.constellation)
+      : getConstellation(dso.raHours, dso.decDegrees);
+
+    const visibility = calculator.calculateVisibility(
+      dso.raHours,
+      dso.decDegrees,
+      nightInfo,
+      dso.name,
+      'dso',
+      {
+        magnitude: dso.magnitude,
+        subtype: dso.type,
+        angularSizeArcmin: dso.majorAxisArcmin ?? 0,
+        minorAxisArcmin: dso.minorAxisArcmin ?? undefined,
+        surfaceBrightness: dso.surfaceBrightness,
+        commonName: formattedCommonName,
+        isMessier: dso.messierNumber !== null,
+        constellation,
+      }
+    );
+
+    if (visibility.isVisible) {
+      if (visibility.maxAltitudeTime) {
+        visibility.hourAngle = calculator.getHourAngleForRA(
+          dso.raHours,
+          visibility.maxAltitudeTime
+        );
+        visibility.meridianTransitTime =
+          calculator.getMeridianTransitTimeForRA(dso.raHours, nightInfo.astronomicalDusk) ??
+          undefined;
+      }
+      visibility.sunAngle = calculator.getSunAngleForPosition(
+        dso.raHours,
+        dso.decDegrees,
+        nightInfo.astronomicalDusk
+      );
+      dsos.push(visibility);
+    }
+  }
+
+  const comets: ObjectVisibility[] = [];
+  for (const comet of cometCatalog) {
+    const visibility = calculateCometVisibility(
+      comet,
+      calculator,
+      nightInfo,
+      settings.cometMagnitude
+    );
+    if (visibility) comets.push(visibility);
+  }
+
+  const dwarfPlanetVis: ObjectVisibility[] = [];
+  for (const dp of dwarfPlanetList) {
+    const visibility = calculateMinorPlanetVisibility(
+      dp,
+      calculator,
+      nightInfo,
+      settings.cometMagnitude
+    );
+    if (visibility) dwarfPlanetVis.push(visibility);
+  }
+
+  const asteroidVis: ObjectVisibility[] = [];
+  for (const asteroid of asteroidList) {
+    const visibility = calculateMinorPlanetVisibility(
+      asteroid,
+      calculator,
+      nightInfo,
+      settings.cometMagnitude
+    );
+    if (visibility) {
+      const physicalData = await fetchAsteroidPhysicalData(asteroid.name);
+      if (physicalData) visibility.physicalData = physicalData;
+      asteroidVis.push(visibility);
+    }
+  }
+
+  const milkyWay = calculator.calculateMilkyWayVisibility(nightInfo);
+  milkyWay.constellation = 'Sagittarius';
+
+  const moon = calculator.calculateMoonVisibility(nightInfo);
+  moon.libration = getLibrationForNight(nightDate);
+
+  return {
+    planets,
+    dsos,
+    comets,
+    dwarfPlanets: dwarfPlanetVis,
+    asteroids: asteroidVis,
+    milkyWay,
+    moon,
+    jupiterVisible,
+  };
+}
+
+/**
+ * Build the AstronomicalEvents object for a night.
+ */
+function buildNightAstronomicalEvents(
+  nightDate: Date,
+  nightInfo: NightInfo,
+  observer: Astronomy.Observer,
+  oppositions: ReturnType<typeof detectOppositions>,
+  maxElongations: ReturnType<typeof detectMaxElongations>,
+  neoDataByDate: Map<
+    string,
+    Awaited<ReturnType<typeof fetchNeoCloseApproachesRange>> extends Map<string, infer V>
+      ? V
+      : never
+  >,
+  spaceWeather: Awaited<ReturnType<typeof fetchSpaceWeather>>,
+  latitude: number,
+  jupiterVisible: boolean
+): AstronomicalEvents {
+  const lunarApsis = getLunarApsisForNight(nightInfo);
+  const eclipses = detectEclipses(nightDate, observer, 1);
+  const seasonalMarker = detectSeasonalMarkers(nightDate, 1);
+  const jupiterMoons = jupiterVisible ? getJupiterMoonsData(nightInfo, true) : null;
+  const eclipseSeason = getEclipseSeasonInfo(nightDate);
+  const planetaryTransit = getTransitForDisplay(nightDate);
+  const nightDateStr = nightDate.toISOString().split('T')[0];
+  const neoCloseApproaches = neoDataByDate.get(nightDateStr) ?? [];
+  const moonPhaseEvents = getMoonPhaseEvents(nightDate, nightInfo);
+  const planetsNearPerihelion = getPlanetsNearPerihelion(nightDate);
+  const venusPeak = getVenusPeakInfo(nightDate);
+
+  return {
+    lunarEclipse: eclipses.lunar,
+    solarEclipse: eclipses.solar,
+    jupiterMoons,
+    lunarApsis,
+    oppositions: oppositions.filter(o => {
+      const daysDiff = (o.date.getTime() - nightDate.getTime()) / (1000 * 60 * 60 * 24);
+      return Math.abs(daysDiff) <= 14;
+    }),
+    maxElongations: maxElongations.filter(e => {
+      const daysDiff = (e.date.getTime() - nightDate.getTime()) / (1000 * 60 * 60 * 24);
+      return Math.abs(daysDiff) <= 7;
+    }),
+    seasonalMarker,
+    moonPhaseEvent: moonPhaseEvents.tonightEvent,
+    nextMoonPhase: moonPhaseEvents.next,
+    planetPerihelia: planetsNearPerihelion,
+    eclipseSeason: eclipseSeason?.isActive ? eclipseSeason : null,
+    venusPeak,
+    planetaryTransit,
+    neoCloseApproaches,
+    spaceWeather,
+    auroraForecast: spaceWeather ? computeAuroraForecast(spaceWeather, nightDate, latitude) : null,
+  };
+}
+
+/**
+ * Score all visible objects for a night.
+ */
+function scoreNightObjects(
+  allObjects: ObjectVisibility[],
+  nightInfo: NightInfo,
+  weather: NightWeather | null,
+  calculator: SkyCalculator,
+  nightDate: Date,
+  events: AstronomicalEvents,
+  fov: { width: number; height: number } | null
+): ScoredObject[] {
+  const sunPos = calculator.getSunPosition(nightDate);
+
+  // Calculate imaging windows
+  for (const obj of allObjects) {
+    const imagingWindow = getBestImagingWindow(obj, nightInfo, weather);
+    if (imagingWindow) obj.imagingWindow = imagingWindow;
+  }
+
+  return allObjects
+    .map(obj =>
+      calculateTotalScore(
+        obj,
+        nightInfo,
+        weather,
+        sunPos.ra,
+        events.oppositions,
+        events.lunarApsis,
+        events.venusPeak,
+        fov
+      )
+    )
+    .filter(s => s.totalScore >= MIN_SCORE_THRESHOLD)
+    .sort((a, b) => b.totalScore - a.totalScore);
 }
 
 /**
@@ -165,221 +455,29 @@ export async function generateForecast(
       calculator.getLongitude()
     );
 
-    // Calculate planet visibility with constellation and planetary events
-    const planets: ObjectVisibility[] = [];
-    let jupiterVisible = false;
+    // Calculate all object visibilities
+    const vis = await calculateAllVisibilities(
+      calculator,
+      observer,
+      nightInfo,
+      nightDate,
+      dsoCatalog,
+      cometCatalog,
+      dwarfPlanets,
+      asteroids,
+      settings
+    );
 
-    // Get Venus peak info for scoring
-    const venusPeak = getVenusPeakInfo(nightDate);
-
-    // Get planets near perihelion
-    const planetsNearPerihelion = getPlanetsNearPerihelion(nightDate);
-
-    for (const planet of PLANETS) {
-      try {
-        const visibility = calculator.calculatePlanetVisibility(planet.name, nightInfo);
-
-        if (visibility.isVisible) {
-          const body = Astronomy.Body[planet.name as keyof typeof Astronomy.Body];
-
-          // Add constellation
-          const constellation = getPlanetConstellation(body, nightInfo.astronomicalDusk, observer);
-          visibility.constellation = constellation;
-
-          // Add elongation for inner planets
-          if (isInnerPlanet(planet.name)) {
-            const elongInfo = getElongationForPlanet(planet.name, nightDate);
-            if (elongInfo) {
-              visibility.elongationDeg = elongInfo.elongationDeg;
-            }
-          }
-
-          // Add opposition status for outer planets
-          if (isOuterPlanet(planet.name)) {
-            const oppInfo = getOppositionForPlanet(planet.name, nightDate);
-            if (oppInfo) {
-              visibility.isAtOpposition = oppInfo.isActive;
-            }
-          }
-
-          // Calculate hour angle at peak altitude time
-          if (visibility.maxAltitudeTime) {
-            visibility.hourAngle = calculator.getHourAngle(body, visibility.maxAltitudeTime);
-
-            // Calculate meridian transit time during the night
-            const meridianTime = calculator.getMeridianTransitTime(
-              body,
-              nightInfo.astronomicalDusk
-            );
-            if (
-              meridianTime &&
-              meridianTime >= nightInfo.sunset &&
-              meridianTime <= nightInfo.sunrise
-            ) {
-              visibility.meridianTransitTime = meridianTime;
-            }
-          }
-
-          // Calculate sun angle for twilight penalty
-          visibility.sunAngle = calculator.getSunAngle(body, nightInfo.astronomicalDusk);
-
-          // Calculate heliocentric and geocentric distances
-          visibility.heliocentricDistanceAU = calculator.getHeliocentricDistance(body, nightDate);
-          visibility.geocentricDistanceAU = calculator.getGeocentricDistance(body, nightDate);
-
-          // Check perihelion status
-          const perihelionInfo = isNearPerihelion(planet.name, nightDate);
-          visibility.isNearPerihelion = perihelionInfo.isNear;
-          visibility.perihelionBoostPercent = perihelionInfo.brightnessBoostPercent;
-
-          // Add Saturn ring info
-          if (planet.name.toLowerCase() === 'saturn') {
-            visibility.saturnRings = calculator.getSaturnRingInfo(nightDate);
-          }
-
-          // Track if Jupiter is visible for moon calculations
-          if (planet.name.toLowerCase() === 'jupiter') {
-            jupiterVisible = true;
-          }
-
-          planets.push(visibility);
-        }
-      } catch {
-        // Planet visibility calculation failed - skip this planet
-      }
-    }
-
-    // Calculate DSO visibility (full catalog - filtering done in loadOpenNGCCatalog)
-    const dsos: ObjectVisibility[] = [];
-    for (const dso of dsoCatalog) {
-      // Get common name - try catalog first, then lookup by NGC name as fallback
-      const baseCommonName = dso.commonName || getCommonName(dso.name);
-
-      // Format common name like CLI: "M42 Orion Nebula" or "Andromeda Galaxy" or just NGC name
-      let formattedCommonName: string;
-      if (dso.messierNumber !== null) {
-        // Messier object: "M{number} {commonName}" or just "M{number}"
-        formattedCommonName = baseCommonName
-          ? `M${dso.messierNumber} ${baseCommonName}`
-          : `M${dso.messierNumber}`;
-      } else {
-        // Non-Messier: use common name if available, otherwise NGC name
-        formattedCommonName = baseCommonName ?? dso.name;
-      }
-
-      // Use constellation from catalog (convert abbreviation to full name), or calculate if not available
-      const constellation = dso.constellation
-        ? getConstellationFullName(dso.constellation)
-        : getConstellation(dso.raHours, dso.decDegrees);
-
-      const visibility = calculator.calculateVisibility(
-        dso.raHours,
-        dso.decDegrees,
-        nightInfo,
-        dso.name,
-        'dso',
-        {
-          magnitude: dso.magnitude,
-          subtype: dso.type,
-          angularSizeArcmin: dso.majorAxisArcmin ?? 0,
-          minorAxisArcmin: dso.minorAxisArcmin ?? undefined,
-          surfaceBrightness: dso.surfaceBrightness,
-          commonName: formattedCommonName,
-          isMessier: dso.messierNumber !== null,
-          constellation,
-        }
-      );
-
-      if (visibility.isVisible) {
-        // Add hour angle and meridian transit for DSOs
-        if (visibility.maxAltitudeTime) {
-          visibility.hourAngle = calculator.getHourAngleForRA(
-            dso.raHours,
-            visibility.maxAltitudeTime
-          );
-          visibility.meridianTransitTime =
-            calculator.getMeridianTransitTimeForRA(dso.raHours, nightInfo.astronomicalDusk) ??
-            undefined;
-        }
-
-        // Calculate sun angle
-        visibility.sunAngle = calculator.getSunAngleForPosition(
-          dso.raHours,
-          dso.decDegrees,
-          nightInfo.astronomicalDusk
-        );
-
-        dsos.push(visibility);
-      }
-    }
-
-    // Calculate comet visibility
-    const comets: ObjectVisibility[] = [];
-    for (const comet of cometCatalog) {
-      const visibility = calculateCometVisibility(
-        comet,
-        calculator,
-        nightInfo,
-        settings.cometMagnitude
-      );
-      if (visibility) {
-        comets.push(visibility);
-      }
-    }
-
-    // Calculate dwarf planet visibility
-    const dwarfPlanetVisibility: ObjectVisibility[] = [];
-    for (const dp of dwarfPlanets) {
-      const visibility = calculateMinorPlanetVisibility(
-        dp,
-        calculator,
-        nightInfo,
-        settings.cometMagnitude // Use comet magnitude limit for minor planets
-      );
-      if (visibility) {
-        dwarfPlanetVisibility.push(visibility);
-      }
-    }
-
-    // Calculate asteroid visibility
-    const asteroidVisibility: ObjectVisibility[] = [];
-    for (const asteroid of asteroids) {
-      const visibility = calculateMinorPlanetVisibility(
-        asteroid,
-        calculator,
-        nightInfo,
-        settings.cometMagnitude
-      );
-      if (visibility) {
-        // Fetch physical data from JPL SBDB (cached for 30 days)
-        const physicalData = await fetchAsteroidPhysicalData(asteroid.name);
-        if (physicalData) {
-          visibility.physicalData = physicalData;
-        }
-        asteroidVisibility.push(visibility);
-      }
-    }
-
-    // Calculate Milky Way visibility
-    const milkyWay = calculator.calculateMilkyWayVisibility(nightInfo);
-    // Add constellation for Milky Way center
-    milkyWay.constellation = 'Sagittarius';
-
-    // Calculate Moon visibility with libration
-    const moon = calculator.calculateMoonVisibility(nightInfo);
-    moon.libration = getLibrationForNight(nightDate);
-
-    // Parse weather for this night (returns null if night is beyond API range)
+    // Parse weather for this night
     let weather: NightWeather | null = null;
     if (weatherData) {
       try {
         weather = parseNightWeather(weatherData, airQualityData, nightInfo);
       } catch {
-        // Weather parsing failed - continue without weather data
+        // Weather parsing failed
       }
     }
 
-    // Determine forecast confidence tier
     const forecastConfidence: 'high' | 'medium' | 'low' =
       weather !== null && weather.avgAerosolOpticalDepth !== null
         ? 'high'
@@ -387,72 +485,33 @@ export async function generateForecast(
           ? 'medium'
           : 'low';
 
-    // Calculate seeing forecast based on weather
     nightInfo.seeingForecast = getSeeingFromWeather(weather);
 
-    // Detect conjunctions
-    const conjunctions = detectConjunctions(observer, planets, nightInfo);
-
-    // Detect meteor showers
+    // Build events
+    const conjunctions = detectConjunctions(observer, vis.planets, nightInfo);
     const meteorShowers = detectMeteorShowers(calculator, nightInfo);
-
-    // Calculate astronomical events for this night
-    const lunarApsis = getLunarApsisForNight(nightInfo);
-    const eclipses = detectEclipses(nightDate, observer, 1); // Just check this day
-    const seasonalMarker = detectSeasonalMarkers(nightDate, 1); // Check if today has a marker
-    const jupiterMoons = jupiterVisible ? getJupiterMoonsData(nightInfo, true) : null;
-
-    // Get eclipse season info
-    const eclipseSeason = getEclipseSeasonInfo(nightDate);
-
-    // Get planetary transit info (rare events)
-    const planetaryTransit = getTransitForDisplay(nightDate);
-
-    // Look up pre-fetched NEO close approaches for this night
-    const nightDateStr = nightDate.toISOString().split('T')[0];
-    const neoCloseApproaches = neoDataByDate.get(nightDateStr) ?? [];
-
-    // Build astronomical events object
-    const astronomicalEvents: AstronomicalEvents = {
-      lunarEclipse: eclipses.lunar,
-      solarEclipse: eclipses.solar,
-      jupiterMoons,
-      lunarApsis,
-      oppositions: oppositions.filter(o => {
-        // Include oppositions that are active or within a few days
-        const daysDiff = (o.date.getTime() - nightDate.getTime()) / (1000 * 60 * 60 * 24);
-        return Math.abs(daysDiff) <= 14;
-      }),
-      maxElongations: maxElongations.filter(e => {
-        const daysDiff = (e.date.getTime() - nightDate.getTime()) / (1000 * 60 * 60 * 24);
-        return Math.abs(daysDiff) <= 7;
-      }),
-      seasonalMarker,
-      // New event fields
-      moonPhaseEvent: moonPhaseEvents.tonightEvent,
-      nextMoonPhase: moonPhaseEvents.next,
-      planetPerihelia: planetsNearPerihelion,
-      eclipseSeason: eclipseSeason?.isActive ? eclipseSeason : null,
-      venusPeak,
-      planetaryTransit,
-      neoCloseApproaches,
-      // NASA DONKI space weather
+    const astronomicalEvents = buildNightAstronomicalEvents(
+      nightDate,
+      nightInfo,
+      observer,
+      oppositions,
+      maxElongations,
+      neoDataByDate,
       spaceWeather,
-      auroraForecast: spaceWeather
-        ? computeAuroraForecast(spaceWeather, nightDate, latitude)
-        : null,
-    };
+      latitude,
+      vis.jupiterVisible
+    );
 
     // Create forecast
     const forecast: NightForecast = {
       nightInfo,
-      planets,
-      dsos,
-      comets,
-      dwarfPlanets: dwarfPlanetVisibility,
-      asteroids: asteroidVisibility,
-      milkyWay: milkyWay.isVisible ? milkyWay : null,
-      moon,
+      planets: vis.planets,
+      dsos: vis.dsos,
+      comets: vis.comets,
+      dwarfPlanets: vis.dwarfPlanets,
+      asteroids: vis.asteroids,
+      milkyWay: vis.milkyWay.isVisible ? vis.milkyWay : null,
+      moon: vis.moon,
       weather,
       forecastConfidence,
       conjunctions,
@@ -463,42 +522,25 @@ export async function generateForecast(
     forecasts.push(forecast);
 
     // Score all objects
-    const sunPos = calculator.getSunPosition(nightDate);
     const allObjects: ObjectVisibility[] = [
-      ...planets,
-      ...dsos,
-      ...comets,
-      ...dwarfPlanetVisibility,
-      ...asteroidVisibility,
-      ...(milkyWay.isVisible ? [milkyWay] : []),
-      ...(moon.isVisible ? [moon] : []),
+      ...vis.planets,
+      ...vis.dsos,
+      ...vis.comets,
+      ...vis.dwarfPlanets,
+      ...vis.asteroids,
+      ...(vis.milkyWay.isVisible ? [vis.milkyWay] : []),
+      ...(vis.moon.isVisible ? [vis.moon] : []),
     ];
 
-    // Calculate imaging windows for all visible objects
-    for (const obj of allObjects) {
-      const imagingWindow = getBestImagingWindow(obj, nightInfo, weather);
-      if (imagingWindow) {
-        obj.imagingWindow = imagingWindow;
-      }
-    }
-
-    // Score all objects and filter by minimum threshold
-    // Don't limit here - let the UI handle display with category grouping
-    const scored = allObjects
-      .map(obj =>
-        calculateTotalScore(
-          obj,
-          nightInfo,
-          weather,
-          sunPos.ra,
-          astronomicalEvents.oppositions,
-          lunarApsis,
-          venusPeak,
-          fov
-        )
-      )
-      .filter(s => s.totalScore >= MIN_SCORE_THRESHOLD)
-      .sort((a, b) => b.totalScore - a.totalScore);
+    const scored = scoreNightObjects(
+      allObjects,
+      nightInfo,
+      weather,
+      calculator,
+      nightDate,
+      astronomicalEvents,
+      fov
+    );
 
     scoredObjects.set(nightDate.toISOString().split('T')[0], scored);
   }

@@ -24,7 +24,6 @@ CometEls.txt
 # Editor/AI tool configs (user-specific)
 .kiro/
 .claude/
-.husky/
 
 # Test artifacts
 *.png

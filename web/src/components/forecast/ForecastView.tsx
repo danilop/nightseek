@@ -1,15 +1,17 @@
 import { RefreshCw, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useUIState } from '@/hooks/useUIState';
 import { formatDateRange } from '@/lib/utils/format';
 import type { Location, NightForecast, ScoredObject } from '@/types';
 import NightStrip from './NightStrip';
 import ObjectDetailPanel from './ObjectDetailPanel';
 import TabBar from './TabBar';
-import EventsTab from './tabs/EventsTab';
 import OverviewTab from './tabs/OverviewTab';
-import SkyTab from './tabs/SkyTab';
-import TargetsTab from './tabs/TargetsTab';
+
+// Lazy-load heavier tabs to defer loading DnD Kit (TargetsTab) and d3-celestial init (SkyTab)
+const TargetsTab = lazy(() => import('./tabs/TargetsTab'));
+const SkyTab = lazy(() => import('./tabs/SkyTab'));
+const EventsTab = lazy(() => import('./tabs/EventsTab'));
 
 interface ForecastViewProps {
   forecasts: NightForecast[];
@@ -83,20 +85,29 @@ export default function ForecastView({
       </div>
 
       {/* Tab content — add bottom padding on mobile for the fixed nav bar */}
-      <div className="pb-20 sm:pb-0">
+      <div
+        id={`tabpanel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`tab-${activeTab}`}
+        className="pb-20 sm:pb-0"
+      >
         {activeTab === 'overview' && <OverviewTab forecast={selectedNight} />}
-        {activeTab === 'targets' && (
-          <TargetsTab
-            objects={selectedObjects}
-            nightInfo={selectedNight.nightInfo}
-            weather={selectedNight.weather}
-            astronomicalEvents={selectedNight.astronomicalEvents}
-            latitude={location.latitude}
-            onObjectSelect={setSelectedObject}
-          />
-        )}
-        {activeTab === 'sky' && <SkyTab nightInfo={selectedNight.nightInfo} location={location} />}
-        {activeTab === 'events' && <EventsTab forecast={selectedNight} location={location} />}
+        <Suspense fallback={<TabSkeleton />}>
+          {activeTab === 'targets' && (
+            <TargetsTab
+              objects={selectedObjects}
+              nightInfo={selectedNight.nightInfo}
+              weather={selectedNight.weather}
+              astronomicalEvents={selectedNight.astronomicalEvents}
+              latitude={location.latitude}
+              onObjectSelect={setSelectedObject}
+            />
+          )}
+          {activeTab === 'sky' && (
+            <SkyTab nightInfo={selectedNight.nightInfo} location={location} />
+          )}
+          {activeTab === 'events' && <EventsTab forecast={selectedNight} location={location} />}
+        </Suspense>
       </div>
 
       {/* Mobile: bottom tab bar */}
@@ -114,5 +125,15 @@ export default function ForecastView({
         />
       )}
     </main>
+  );
+}
+
+function TabSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4 py-4">
+      <div className="h-6 w-48 rounded bg-night-800" />
+      <div className="h-32 rounded-lg bg-night-800" />
+      <div className="h-32 rounded-lg bg-night-800" />
+    </div>
   );
 }

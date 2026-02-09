@@ -7,6 +7,7 @@ import type {
   SaturnRingInfo,
 } from '@/types';
 import { calculateAirmass } from './airmass';
+import { AU_TO_KM } from './constants';
 import { calculateApparentDiameter, PLANET_DIAMETER_RANGES } from './planets';
 
 /**
@@ -364,7 +365,7 @@ export class SkyCalculator {
       const illum = Astronomy.Illumination(body, maxAltitudeTime);
       const equator = Astronomy.Equator(body, maxAltitudeTime, observer, true, true);
       peakMagnitude = illum.mag;
-      peakDistance = equator.dist * 149597870.7; // AU to km
+      peakDistance = equator.dist * AU_TO_KM;
     }
 
     const windows = this.findAllAltitudeWindows(samples);

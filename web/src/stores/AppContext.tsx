@@ -128,6 +128,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Load saved location and settings on mount
   useEffect(() => {
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: sequential load with validation
     async function loadSavedData() {
       // Load location
       const savedLocation = await getCached<Location>(CACHE_KEYS.LOCATION, Infinity);
@@ -141,8 +142,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (savedSettings) {
         try {
           const parsed = JSON.parse(savedSettings);
-          // Merge with defaults to handle any new settings added in updates
-          dispatch({ type: 'SET_SETTINGS', payload: parsed });
+          // Validate that parsed is a plain object with expected types
+          if (
+            parsed !== null &&
+            typeof parsed === 'object' &&
+            !Array.isArray(parsed) &&
+            (parsed.forecastDays === undefined || typeof parsed.forecastDays === 'number') &&
+            (parsed.maxObjects === undefined || typeof parsed.maxObjects === 'number') &&
+            (parsed.cometMagnitude === undefined || typeof parsed.cometMagnitude === 'number') &&
+            (parsed.dsoMagnitude === undefined || typeof parsed.dsoMagnitude === 'number') &&
+            (parsed.theme === undefined || ['light', 'dark', 'system'].includes(parsed.theme)) &&
+            (parsed.showSatellitePasses === undefined ||
+              typeof parsed.showSatellitePasses === 'boolean') &&
+            (parsed.telescope === undefined || typeof parsed.telescope === 'string') &&
+            (parsed.units === undefined ||
+              (typeof parsed.units === 'object' && parsed.units !== null))
+          ) {
+            dispatch({ type: 'SET_SETTINGS', payload: parsed });
+          } else {
+            dispatch({ type: 'RESET_SETTINGS' });
+          }
         } catch {
           // Ignore parse errors, use locale defaults
           dispatch({ type: 'RESET_SETTINGS' });

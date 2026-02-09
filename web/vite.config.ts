@@ -77,6 +77,17 @@ export default defineConfig({
               expiration: {
                 maxAgeSeconds: 60 * 60, // 1 hour
               },
+              networkTimeoutSeconds: 10,
+            },
+          },
+          {
+            urlPattern: /^https:\/\/unpkg\.com\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'cdn-scripts',
+              expiration: {
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+              },
             },
           },
           {

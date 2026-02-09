@@ -7,28 +7,40 @@ interface LoadingScreenProps {
 
 export default function LoadingScreen({ message, percent }: LoadingScreenProps) {
   return (
-    <div className="fixed inset-0 z-40 bg-night-950/95 flex items-center justify-center">
-      <div className="text-center px-4">
-        <div className="relative w-20 h-20 mx-auto mb-6">
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-night-950/95"
+      role="status"
+      aria-label="Loading forecast"
+    >
+      <div className="px-4 text-center">
+        <div className="relative mx-auto mb-6 h-20 w-20">
           <div
-            className="absolute inset-0 border-4 border-sky-500 rounded-full border-t-transparent animate-spin"
+            className="absolute inset-0 animate-spin rounded-full border-4 border-sky-500 border-t-transparent"
             style={{ animationDuration: '1.5s' }}
           />
           <div className="absolute inset-0 flex items-center justify-center">
-            <NightSeekIcon className="w-12 h-12" />
+            <NightSeekIcon className="h-12 w-12" />
           </div>
         </div>
 
-        <p className="text-lg text-white mb-2">{message}</p>
+        <p className="mb-2 text-lg text-white" aria-live="polite">
+          {message}
+        </p>
 
-        <div className="w-64 mx-auto">
-          <div className="h-2 bg-night-800 rounded-full overflow-hidden">
+        <div className="mx-auto w-64">
+          <div
+            className="h-2 overflow-hidden rounded-full bg-night-800"
+            role="progressbar"
+            aria-valuenow={percent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
             <div
-              className="h-full bg-gradient-to-r from-sky-500 to-sky-400 rounded-full transition-all duration-300"
+              className="h-full rounded-full bg-gradient-to-r from-sky-500 to-sky-400 transition-all duration-300"
               style={{ width: `${percent}%` }}
             />
           </div>
-          <p className="text-sm text-gray-500 mt-2">{percent}%</p>
+          <p className="mt-2 text-gray-500 text-sm">{percent}%</p>
         </div>
       </div>
     </div>

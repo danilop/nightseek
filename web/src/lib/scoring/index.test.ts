@@ -6,6 +6,7 @@ import type {
   SeeingForecast,
   VenusPeakInfo,
 } from '@/types';
+import { getTierConfig, normalizeScore } from '../utils/rating';
 import {
   calculateAltitudeScore,
   calculateDewRiskPenalty,
@@ -26,8 +27,6 @@ import {
   calculateVenusPeakBonus,
   calculateWeatherScore,
   getScoreTier,
-  getTierDisplay,
-  normalizeScore,
 } from './index';
 
 describe('scoring', () => {
@@ -473,16 +472,16 @@ describe('scoring', () => {
     });
   });
 
-  describe('getTierDisplay', () => {
+  describe('getTierConfig', () => {
     it('should return correct display for excellent', () => {
-      const display = getTierDisplay('excellent');
+      const display = getTierConfig('excellent');
       expect(display.stars).toBe(5);
       expect(display.label).toBe('Excellent');
       expect(display.color).toBe('text-green-400');
     });
 
     it('should return correct display for poor', () => {
-      const display = getTierDisplay('poor');
+      const display = getTierConfig('poor');
       expect(display.stars).toBe(1);
       expect(display.label).toBe('Poor');
       expect(display.color).toBe('text-blue-400');
@@ -490,11 +489,11 @@ describe('scoring', () => {
 
     it('should include correct color class for each tier', () => {
       // New color scale: blue (poor) → red (fair) → orange (good) → yellow (very_good) → green (excellent)
-      expect(getTierDisplay('excellent').color).toBe('text-green-400');
-      expect(getTierDisplay('very_good').color).toBe('text-yellow-400');
-      expect(getTierDisplay('good').color).toBe('text-orange-400');
-      expect(getTierDisplay('fair').color).toBe('text-red-400');
-      expect(getTierDisplay('poor').color).toBe('text-blue-400');
+      expect(getTierConfig('excellent').color).toBe('text-green-400');
+      expect(getTierConfig('very_good').color).toBe('text-yellow-400');
+      expect(getTierConfig('good').color).toBe('text-orange-400');
+      expect(getTierConfig('fair').color).toBe('text-red-400');
+      expect(getTierConfig('poor').color).toBe('text-blue-400');
     });
   });
 

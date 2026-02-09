@@ -1,5 +1,4 @@
 import { format, formatInTimeZone } from 'date-fns-tz';
-import type { ScoreTier } from '@/types';
 
 /**
  * Format time in local timezone
@@ -178,31 +177,6 @@ export function getAltitudeQualityClass(altitude: number): string {
  */
 export function formatScore(score: number, maxScore: number = 235): string {
   return `${score}/${maxScore}`;
-}
-
-/**
- * Get tier color class
- *
- * Color Scale (Worst → Best):
- * - Poor: blue-400
- * - Fair: red-400
- * - Good: orange-400
- * - Very Good: yellow-400
- * - Excellent: green-400
- */
-export function getTierColorClass(tier: ScoreTier): string {
-  switch (tier) {
-    case 'excellent':
-      return 'text-green-400';
-    case 'very_good':
-      return 'text-yellow-400';
-    case 'good':
-      return 'text-orange-400';
-    case 'fair':
-      return 'text-red-400';
-    case 'poor':
-      return 'text-blue-400';
-  }
 }
 
 /**

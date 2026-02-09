@@ -8,6 +8,7 @@
 import neoJson from '@/data/neo.json';
 import type { NeoCloseApproach } from '@/types';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
+import { logger } from '../utils/logger';
 
 // NASA API key - DEMO_KEY works for light usage (30 requests/hour)
 // For production, consider registering at https://api.nasa.gov for a free key
@@ -86,7 +87,8 @@ async function fetchFromApi(startDate: Date, endDate: Date): Promise<NeoWsApiRes
     }
 
     return (await response.json()) as NeoWsApiResponse;
-  } catch {
+  } catch (e) {
+    logger.warn('NeoWs API fetch failed', e);
     return null;
   }
 }
