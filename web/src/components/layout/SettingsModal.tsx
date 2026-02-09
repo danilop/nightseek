@@ -4,6 +4,7 @@ import {
   Download,
   Eye,
   MapPin,
+  MessageCircle,
   Ruler,
   Satellite,
   Share,
@@ -344,6 +345,22 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               </p>
             </div>
           )}
+
+          {/* Feedback Section */}
+          <div className="border-night-700 border-t pt-4">
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLSddv3zfYI43vXdYqwoer2m6qAyLTE6LIf4e_FET_lBYcitftw/viewform"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-between rounded-lg bg-night-800 p-3 transition-colors hover:bg-night-700"
+            >
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-gray-400" />
+                <span className="font-medium text-gray-300 text-sm">Send Feedback</span>
+              </div>
+              <span className="text-gray-500 text-xs">Bugs, features &amp; suggestions</span>
+            </a>
+          </div>
 
           {/* Reset Section */}
           <div className="border-night-700 border-t pt-4">
