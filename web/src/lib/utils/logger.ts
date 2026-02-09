@@ -1,18 +1,18 @@
 /**
  * Development-mode logger.
- * In production builds, the dead-code elimination in Vite
- * will tree-shake away the console calls since NODE_ENV === 'production'.
+ * In production builds, Vite replaces import.meta.env.DEV with false,
+ * so the dead-code elimination will tree-shake away the console calls.
  */
 
 export const logger = {
   warn(context: string, error?: unknown) {
-    if (process.env.NODE_ENV !== 'production') {
+    if (import.meta.env.DEV) {
       // biome-ignore lint/suspicious/noConsole: intentional dev-mode logging
       console.warn(`[NightSeek] ${context}`, error ?? '');
     }
   },
   error(context: string, error?: unknown) {
-    if (process.env.NODE_ENV !== 'production') {
+    if (import.meta.env.DEV) {
       // biome-ignore lint/suspicious/noConsole: intentional dev-mode logging
       console.error(`[NightSeek] ${context}`, error ?? '');
     }
