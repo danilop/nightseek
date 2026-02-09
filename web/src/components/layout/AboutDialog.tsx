@@ -1,4 +1,5 @@
 import { Coffee, X } from 'lucide-react';
+import { useEffect } from 'react';
 import NightSeekIcon from '@/components/ui/NightSeekIcon';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { version as APP_VERSION } from '../../../package.json';
@@ -10,15 +11,21 @@ interface AboutDialogProps {
 export default function AboutDialog({ onClose }: AboutDialogProps) {
   useBodyScrollLock();
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss pattern
+    // biome-ignore lint/a11y/useKeyWithClickEvents: ESC handled via global keydown listener
     <div
       className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50 p-4 backdrop-blur-sm"
       onClick={e => {
         if (e.target === e.currentTarget) onClose();
-      }}
-      onKeyDown={e => {
-        if (e.key === 'Escape') onClose();
       }}
     >
       <div className="w-full max-w-sm rounded-xl border border-night-700 bg-night-900 shadow-xl">
