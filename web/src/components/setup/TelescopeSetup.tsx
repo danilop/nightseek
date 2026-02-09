@@ -1,5 +1,5 @@
 import { Calculator } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import FOVCalculatorDialog from '@/components/telescope/FOVCalculatorDialog';
 import {
   formatFOV,
@@ -9,10 +9,51 @@ import {
   validateCustomFOV,
 } from '@/lib/telescopes';
 import { useApp } from '@/stores/AppContext';
-import type { TelescopePresetId } from '@/types';
+import type { TelescopePreset, TelescopePresetId } from '@/types';
 
 interface TelescopeSetupProps {
   onComplete: () => void;
+}
+
+interface BrandGroup {
+  brand: string;
+  presets: TelescopePreset[];
+}
+
+function groupPresetsByBrand(): BrandGroup[] {
+  const brandPrefixes: [string, string][] = [
+    ['Dwarf', 'DWARF'],
+    ['Seestar', 'Seestar'],
+    ['Unistellar', 'Unistellar'],
+    ['Vaonis', 'Vaonis'],
+  ];
+
+  const groups = new Map<string, TelescopePreset[]>();
+  const other: TelescopePreset[] = [];
+
+  for (const preset of TELESCOPE_PRESETS) {
+    const matched = brandPrefixes.find(([prefix]) => preset.name.startsWith(prefix));
+    if (matched) {
+      const [, brand] = matched;
+      const existing = groups.get(brand) ?? [];
+      existing.push(preset);
+      groups.set(brand, existing);
+    } else {
+      other.push(preset);
+    }
+  }
+
+  const result: BrandGroup[] = [];
+  for (const [, brand] of brandPrefixes) {
+    const presets = groups.get(brand);
+    if (presets?.length) {
+      result.push({ brand, presets });
+    }
+  }
+  if (other.length) {
+    result.push({ brand: 'Other', presets: other });
+  }
+  return result;
 }
 
 export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
@@ -22,6 +63,8 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
   const [customHeight, setCustomHeight] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showCalculator, setShowCalculator] = useState(false);
+
+  const brandGroups = useMemo(groupPresetsByBrand, []);
 
   const handleContinue = () => {
     if (selected === 'custom') {
@@ -61,31 +104,40 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
         </div>
       )}
 
-      <div className="mb-6 grid max-h-[50vh] grid-cols-2 gap-3 overflow-y-auto pr-1">
-        {TELESCOPE_PRESETS.map(preset => (
-          <button
-            key={preset.id}
-            type="button"
-            onClick={() => {
-              setSelected(preset.id);
-              setError(null);
-            }}
-            className={`rounded-xl border p-3 text-left transition-colors ${
-              selected === preset.id
-                ? 'border-sky-500 bg-sky-500/10'
-                : 'border-night-600 bg-night-800 hover:bg-night-700'
-            }`}
-          >
-            <div className="font-medium text-sm text-white">{preset.name}</div>
-            {preset.id !== 'custom' && (
-              <div className="mt-1 text-gray-400 text-xs">
-                {formatFOV(preset.fovWidth, preset.fovHeight)}
-              </div>
-            )}
-            {preset.id === 'custom' && (
-              <div className="mt-1 text-gray-400 text-xs">Enter your FOV</div>
-            )}
-          </button>
+      <div className="mb-6 max-h-[50vh] space-y-5 overflow-y-auto pr-1">
+        {brandGroups.map(group => (
+          <div key={group.brand}>
+            <h3 className="mb-2 font-medium text-gray-400 text-xs uppercase tracking-wider">
+              {group.brand}
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              {group.presets.map(preset => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => {
+                    setSelected(preset.id);
+                    setError(null);
+                  }}
+                  className={`rounded-xl border p-3 text-left transition-colors ${
+                    selected === preset.id
+                      ? 'border-sky-500 bg-sky-500/10 ring-1 ring-sky-500/50'
+                      : 'border-night-600 bg-night-800 hover:bg-night-700'
+                  }`}
+                >
+                  <div className="font-medium text-sm text-white">{preset.name}</div>
+                  {preset.id !== 'custom' && (
+                    <div className="mt-1 text-gray-400 text-xs">
+                      {formatFOV(preset.fovWidth, preset.fovHeight)}
+                    </div>
+                  )}
+                  {preset.id === 'custom' && (
+                    <div className="mt-1 text-gray-400 text-xs">Enter your FOV</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 
@@ -141,13 +193,16 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
       )}
 
       <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={handleSkip}
-          className="text-gray-400 text-sm transition-colors hover:text-white"
-        >
-          Skip
-        </button>
+        <div>
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="text-gray-400 text-sm transition-colors hover:text-white"
+          >
+            Skip
+          </button>
+          <p className="mt-1 text-gray-500 text-xs">You can always change this in Settings</p>
+        </div>
         <button
           type="button"
           onClick={handleContinue}
