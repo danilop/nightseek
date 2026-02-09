@@ -34,7 +34,9 @@ pages:
 
 invalidate-cdn:
   stage: invalidate
-  image: amazon/aws-cli:latest
+  image:
+    name: amazon/aws-cli:latest
+    entrypoint: [""]
   id_tokens:
     AWS_TOKEN:
       aud: https://gitlab.com
