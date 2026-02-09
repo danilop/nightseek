@@ -1,7 +1,6 @@
 import {
   Calendar,
   CircleDot,
-  Coffee,
   Eye,
   MapPin,
   Ruler,
@@ -12,10 +11,10 @@ import {
   X,
 } from 'lucide-react';
 import { useState } from 'react';
+import AppFooter from '@/components/ui/AppFooter';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useApp } from '@/stores/AppContext';
 import type { DistanceUnit, PressureUnit, SpeedUnit, TemperatureUnit } from '@/types';
-import { version as APP_VERSION } from '../../../package.json';
 import TelescopeSettings from './TelescopeSettings';
 
 interface SettingsModalProps {
@@ -334,20 +333,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           </div>
 
           {/* About footer */}
-          <div className="flex items-center justify-center gap-1.5 pt-6 text-gray-500 text-xs">
-            <span>v{APP_VERSION}</span>
-            <span>·</span>
-            <span>Danilo Poccia</span>
-            <span>·</span>
-            <a
-              href="https://buymeacoffee.com/danilop"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded p-1 text-gray-500 transition-colors hover:text-amber-400"
-            >
-              <Coffee className="h-3.5 w-3.5" />
-            </a>
-          </div>
+          <AppFooter className="pt-6" />
         </div>
 
         {/* Footer */}

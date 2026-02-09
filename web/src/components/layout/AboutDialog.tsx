@@ -1,4 +1,4 @@
-import { Coffee, X } from 'lucide-react';
+import { Coffee, Heart, X } from 'lucide-react';
 import { useEffect } from 'react';
 import NightSeekIcon from '@/components/ui/NightSeekIcon';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -70,7 +70,9 @@ export default function AboutDialog({ onClose }: AboutDialogProps) {
             Buy Me a Coffee
           </a>
 
-          <p className="mt-5 text-gray-500 text-sm">Built by Danilo Poccia</p>
+          <p className="mt-5 inline-flex items-center gap-1 text-gray-500 text-sm">
+            Built with <Heart className="h-3.5 w-3.5 fill-red-500 text-red-500" /> by Danilo Poccia
+          </p>
 
           <button
             type="button"

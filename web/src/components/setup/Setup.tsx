@@ -1,6 +1,7 @@
-import { Coffee, Loader2, MapPin, Navigation, Search } from 'lucide-react';
+import { Loader2, MapPin, Navigation, Search } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import AppFooter from '@/components/ui/AppFooter';
 import NightSeekIcon from '@/components/ui/NightSeekIcon';
 import {
   detectLocationByBrowser,
@@ -11,7 +12,6 @@ import {
 } from '@/lib/geo/location';
 import { useApp } from '@/stores/AppContext';
 import type { Location } from '@/types';
-import { version as APP_VERSION } from '../../../package.json';
 
 type SetupMode = 'choose' | 'detect' | 'search' | 'manual';
 
@@ -321,20 +321,7 @@ export default function Setup({ onLocationSet }: SetupProps) {
       )}
 
       {/* Footer */}
-      <div className="mt-10 flex items-center justify-center gap-1.5 text-gray-500 text-xs">
-        <span>v{APP_VERSION}</span>
-        <span>·</span>
-        <span>Danilo Poccia</span>
-        <span>·</span>
-        <a
-          href="https://buymeacoffee.com/danilop"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 rounded p-1 text-gray-500 transition-colors hover:text-amber-400"
-        >
-          <Coffee className="h-3.5 w-3.5" />
-        </a>
-      </div>
+      <AppFooter className="mt-10" />
     </div>
   );
 }
