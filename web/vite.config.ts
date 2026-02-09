@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-// GitHub Pages base path - set to repo name for GitHub Pages, '/' for other hosting
-const base = process.env.GITHUB_ACTIONS ? '/nightseek/' : '/';
+// CI base path - set to repo name for GitHub/GitLab Pages, '/' for local dev
+const base = process.env.GITHUB_ACTIONS || process.env.GITLAB_CI ? '/nightseek/' : '/';
 
 export default defineConfig({
   base,

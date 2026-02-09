@@ -1,0 +1,32 @@
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: node:20
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@8 --activate
+    - cd web
+    - pnpm install
+  script:
+    - pnpm build
+  artifacts:
+    paths:
+      - web/dist
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+pages:
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - rm -rf public
+    - cp -r web/dist public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
