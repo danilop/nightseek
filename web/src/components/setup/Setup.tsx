@@ -321,7 +321,7 @@ export default function Setup({ onLocationSet }: SetupProps) {
       )}
 
       {/* Footer */}
-      <div className="mt-10 flex items-center justify-center gap-1.5 text-gray-600 text-xs">
+      <div className="mt-10 flex items-center justify-center gap-1.5 text-gray-500 text-xs">
         <span>v{APP_VERSION}</span>
         <span>·</span>
         <span>Danilo Poccia</span>
@@ -330,9 +330,9 @@ export default function Setup({ onLocationSet }: SetupProps) {
           href="https://buymeacoffee.com/danilop"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-gray-600 transition-colors hover:text-amber-400"
+          className="inline-flex items-center gap-1 rounded p-1 text-gray-500 transition-colors hover:text-amber-400"
         >
-          <Coffee className="h-3 w-3" />
+          <Coffee className="h-3.5 w-3.5" />
         </a>
       </div>
     </div>

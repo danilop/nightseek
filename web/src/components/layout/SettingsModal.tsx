@@ -1,6 +1,7 @@
 import {
   Calendar,
   CircleDot,
+  Coffee,
   Eye,
   MapPin,
   Ruler,
@@ -14,6 +15,7 @@ import { useState } from 'react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useApp } from '@/stores/AppContext';
 import type { DistanceUnit, PressureUnit, SpeedUnit, TemperatureUnit } from '@/types';
+import { version as APP_VERSION } from '../../../package.json';
 import TelescopeSettings from './TelescopeSettings';
 
 interface SettingsModalProps {
@@ -49,38 +51,38 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-hidden">
-      <div className="bg-night-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col border border-night-700">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-xl border border-night-700 bg-night-900 shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-night-700 flex-shrink-0">
-          <h2 className="text-lg font-semibold text-white">Settings</h2>
+        <div className="flex flex-shrink-0 items-center justify-between border-night-700 border-b p-4">
+          <h2 className="font-semibold text-lg text-white">Settings</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-white rounded-lg transition-colors"
+            className="rounded-lg p-1 text-gray-400 transition-colors hover:text-white"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-6 overflow-y-auto flex-1">
+        <div className="flex-1 space-y-6 overflow-y-auto p-4">
           {/* Location */}
           {location && (
             <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
-                <MapPin className="w-4 h-4" />
+              <div className="mb-2 flex items-center gap-2 font-medium text-gray-300 text-sm">
+                <MapPin className="h-4 w-4" />
                 <span>Location</span>
               </div>
-              <div className="flex items-center justify-between bg-night-800 rounded-lg p-3">
-                <span className="text-sm text-gray-400 truncate">
+              <div className="flex items-center justify-between rounded-lg bg-night-800 p-3">
+                <span className="truncate text-gray-400 text-sm">
                   {location.name ||
                     `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`}
                 </span>
                 <button
                   type="button"
                   onClick={handleChangeLocation}
-                  className="text-sm text-sky-400 hover:text-sky-300 transition-colors"
+                  className="text-sky-400 text-sm transition-colors hover:text-sky-300"
                 >
                   Change
                 </button>
@@ -92,9 +94,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           <div>
             <label
               htmlFor="forecast-days"
-              className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2"
+              className="mb-2 flex items-center gap-2 font-medium text-gray-300 text-sm"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="h-4 w-4" />
               Forecast Days
             </label>
             <div className="flex items-center gap-4">
@@ -105,22 +107,22 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 max="30"
                 value={settings.forecastDays}
                 onChange={e => handleForecastDaysChange(parseInt(e.target.value, 10))}
-                className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-sky-500"
               />
-              <span className="w-12 text-center text-sm text-white bg-night-800 rounded-lg py-1">
+              <span className="w-12 rounded-lg bg-night-800 py-1 text-center text-sm text-white">
                 {settings.forecastDays}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Weather data available for up to 16 days</p>
+            <p className="mt-1 text-gray-500 text-xs">Weather data available for up to 16 days</p>
           </div>
 
           {/* Max Objects */}
           <div>
             <label
               htmlFor="max-objects"
-              className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2"
+              className="mb-2 flex items-center gap-2 font-medium text-gray-300 text-sm"
             >
-              <Eye className="w-4 h-4" />
+              <Eye className="h-4 w-4" />
               Objects Per Night
             </label>
             <div className="flex items-center gap-4">
@@ -131,9 +133,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 max="50"
                 value={settings.maxObjects}
                 onChange={e => handleMaxObjectsChange(parseInt(e.target.value, 10))}
-                className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-sky-500"
               />
-              <span className="w-12 text-center text-sm text-white bg-night-800 rounded-lg py-1">
+              <span className="w-12 rounded-lg bg-night-800 py-1 text-center text-sm text-white">
                 {settings.maxObjects}
               </span>
             </div>
@@ -143,9 +145,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           <div>
             <label
               htmlFor="dso-magnitude"
-              className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2"
+              className="mb-2 flex items-center gap-2 font-medium text-gray-300 text-sm"
             >
-              <CircleDot className="w-4 h-4" />
+              <CircleDot className="h-4 w-4" />
               DSO Magnitude Limit
             </label>
             <div className="flex items-center gap-4">
@@ -157,26 +159,26 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 step="0.5"
                 value={settings.dsoMagnitude}
                 onChange={e => handleDsoMagnitudeChange(parseFloat(e.target.value))}
-                className="flex-1 h-2 bg-night-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-sky-500"
               />
-              <span className="w-12 text-center text-sm text-white bg-night-800 rounded-lg py-1">
+              <span className="w-12 rounded-lg bg-night-800 py-1 text-center text-sm text-white">
                 {settings.dsoMagnitude.toFixed(1)}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Lower values show brighter objects only</p>
+            <p className="mt-1 text-gray-500 text-xs">Lower values show brighter objects only</p>
           </div>
 
           {/* Units Section */}
-          <div className="pt-4 border-t border-night-700">
-            <h3 className="text-sm font-medium text-gray-300 mb-4 flex items-center gap-2">
-              <Ruler className="w-4 h-4" />
+          <div className="border-night-700 border-t pt-4">
+            <h3 className="mb-4 flex items-center gap-2 font-medium text-gray-300 text-sm">
+              <Ruler className="h-4 w-4" />
               Units
             </h3>
 
             {/* Temperature Unit */}
             <div className="mb-4">
-              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                <Thermometer className="w-4 h-4" />
+              <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
+                <Thermometer className="h-4 w-4" />
                 <span>Temperature</span>
               </div>
               <div className="flex gap-2">
@@ -201,8 +203,8 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
             {/* Speed Unit */}
             <div className="mb-4">
-              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                <Wind className="w-4 h-4" />
+              <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
+                <Wind className="h-4 w-4" />
                 <span>Wind Speed</span>
               </div>
               <div className="flex gap-2">
@@ -225,8 +227,8 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
             {/* Pressure Unit */}
             <div className="mb-4">
-              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                <CircleDot className="w-4 h-4" />
+              <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
+                <CircleDot className="h-4 w-4" />
                 <span>Pressure</span>
               </div>
               <div className="flex gap-2">
@@ -253,8 +255,8 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
             {/* Distance Unit */}
             <div>
-              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                <Ruler className="w-4 h-4" />
+              <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
+                <Ruler className="h-4 w-4" />
                 <span>Distance</span>
               </div>
               <div className="flex gap-2">
@@ -277,7 +279,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           </div>
 
           {/* Telescope Section */}
-          <div className="pt-4 border-t border-night-700">
+          <div className="border-night-700 border-t pt-4">
             <TelescopeSettings
               telescope={settings.telescope}
               customFOV={settings.customFOV}
@@ -286,10 +288,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           </div>
 
           {/* Satellite Passes Section */}
-          <div className="pt-4 border-t border-night-700">
+          <div className="border-night-700 border-t pt-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                <Satellite className="w-4 h-4" />
+              <div className="flex items-center gap-2 font-medium text-gray-300 text-sm">
+                <Satellite className="h-4 w-4" />
                 <span>Satellite Passes</span>
               </div>
               <button
@@ -308,36 +310,52 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 />
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="mt-2 text-gray-500 text-xs">
               Show ISS and satellite pass predictions in the forecast
             </p>
           </div>
 
           {/* Reset Section */}
-          <div className="pt-4 border-t border-night-700">
-            <h3 className="text-sm font-medium text-gray-300 mb-3">Reset</h3>
+          <div className="border-night-700 border-t pt-4">
+            <h3 className="mb-3 font-medium text-gray-300 text-sm">Reset</h3>
             <button
               type="button"
               onClick={() => setShowResetConfirm(true)}
-              className="w-full flex items-center justify-between p-3 bg-night-800 hover:bg-red-500/10 rounded-lg transition-colors group"
+              className="group flex w-full items-center justify-between rounded-lg bg-night-800 p-3 transition-colors hover:bg-red-500/10"
             >
               <div className="flex items-center gap-2">
-                <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-400" />
-                <span className="text-sm text-gray-300 group-hover:text-red-400">
+                <Trash2 className="h-4 w-4 text-gray-400 group-hover:text-red-400" />
+                <span className="text-gray-300 text-sm group-hover:text-red-400">
                   Reset All Data
                 </span>
               </div>
-              <span className="text-xs text-gray-500">Settings, cache &amp; location</span>
+              <span className="text-gray-500 text-xs">Settings, cache &amp; location</span>
             </button>
+          </div>
+
+          {/* About footer */}
+          <div className="flex items-center justify-center gap-1.5 pt-6 text-gray-500 text-xs">
+            <span>v{APP_VERSION}</span>
+            <span>·</span>
+            <span>Danilo Poccia</span>
+            <span>·</span>
+            <a
+              href="https://buymeacoffee.com/danilop"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded p-1 text-gray-500 transition-colors hover:text-amber-400"
+            >
+              <Coffee className="h-3.5 w-3.5" />
+            </a>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-night-700 flex-shrink-0">
+        <div className="flex-shrink-0 border-night-700 border-t p-4">
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded-lg transition-colors"
+            className="w-full rounded-lg bg-sky-600 py-2 font-medium text-white transition-colors hover:bg-sky-500"
           >
             Done
           </button>
@@ -346,15 +364,15 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
       {/* Reset Confirmation Dialog */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/60">
-          <div className="bg-night-800 rounded-xl border border-night-600 p-5 w-full max-w-sm shadow-2xl">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                <Trash2 className="w-5 h-5 text-red-400" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6">
+          <div className="w-full max-w-sm rounded-xl border border-night-600 bg-night-800 p-5 shadow-2xl">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-500/20">
+                <Trash2 className="h-5 w-5 text-red-400" />
               </div>
-              <h3 className="text-lg font-semibold text-white">Reset All Data?</h3>
+              <h3 className="font-semibold text-lg text-white">Reset All Data?</h3>
             </div>
-            <p className="text-sm text-gray-400 mb-5">
+            <p className="mb-5 text-gray-400 text-sm">
               This will reset all settings to defaults, clear cached forecasts, and return to the
               location setup screen.
             </p>
@@ -362,7 +380,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               <button
                 type="button"
                 onClick={() => setShowResetConfirm(false)}
-                className="flex-1 py-2.5 bg-night-700 hover:bg-night-600 text-gray-300 text-sm font-medium rounded-lg transition-colors"
+                className="flex-1 rounded-lg bg-night-700 py-2.5 font-medium text-gray-300 text-sm transition-colors hover:bg-night-600"
               >
                 Cancel
               </button>
@@ -372,7 +390,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   resetAllData();
                   onClose();
                 }}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-colors"
+                className="flex-1 rounded-lg bg-red-600 py-2.5 font-medium text-sm text-white transition-colors hover:bg-red-500"
               >
                 Reset Everything
               </button>
@@ -397,7 +415,7 @@ function UnitButton({
     <button
       type="button"
       onClick={onClick}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+      className={`rounded-lg px-4 py-2 font-medium text-sm transition-colors ${
         active
           ? 'bg-sky-600 text-white'
           : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white'
