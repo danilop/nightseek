@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-// GitHub Pages serves at /nightseek/, GitLab unique domains serve at /
-const base = process.env.GITHUB_ACTIONS ? '/nightseek/' : '/';
+// Override base path via VITE_BASE_PATH env var, defaults to '/'
+const base = process.env.VITE_BASE_PATH || '/';
 
 export default defineConfig({
   base,
