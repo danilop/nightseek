@@ -20,6 +20,8 @@ interface BrandGroup {
   presets: TelescopePreset[];
 }
 
+const GENERIC_PRESET = TELESCOPE_PRESETS.find(p => p.id === 'generic')!;
+
 function groupPresetsByBrand(): BrandGroup[] {
   const brandPrefixes: [string, string][] = [
     ['Dwarf', 'DWARF'],
@@ -32,6 +34,7 @@ function groupPresetsByBrand(): BrandGroup[] {
   const other: TelescopePreset[] = [];
 
   for (const preset of TELESCOPE_PRESETS) {
+    if (preset.id === 'generic') continue;
     const matched = brandPrefixes.find(([prefix]) => preset.name.startsWith(prefix));
     if (matched) {
       const [, brand] = matched;
@@ -58,7 +61,7 @@ function groupPresetsByBrand(): BrandGroup[] {
 
 export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
   const { updateSettings } = useApp();
-  const [selected, setSelected] = useState<TelescopePresetId>('dwarf_mini');
+  const [selected, setSelected] = useState<TelescopePresetId>('generic');
   const [customWidth, setCustomWidth] = useState('');
   const [customHeight, setCustomHeight] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +90,7 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
   };
 
   const handleSkip = () => {
-    // Keep default (dwarf_mini)
+    updateSettings({ telescope: 'generic', customFOV: null });
     onComplete();
   };
 
@@ -105,6 +108,26 @@ export default function TelescopeSetup({ onComplete }: TelescopeSetupProps) {
       )}
 
       <div className="mb-6 max-h-[50vh] space-y-5 overflow-y-auto pr-1">
+        {/* Generic / no telescope option */}
+        <button
+          type="button"
+          onClick={() => {
+            setSelected('generic');
+            setError(null);
+          }}
+          className={`w-full rounded-xl border p-4 text-left transition-colors ${
+            selected === 'generic'
+              ? 'border-sky-500 bg-sky-500/10 ring-1 ring-sky-500/50'
+              : 'border-night-600 bg-night-800 hover:bg-night-700'
+          }`}
+        >
+          <div className="font-medium text-white">{GENERIC_PRESET.name}</div>
+          <div className="mt-1 text-gray-400 text-xs">
+            I don't have a telescope yet or it's not listed
+          </div>
+        </button>
+
+        {/* Brand groups */}
         {brandGroups.map(group => (
           <div key={group.brand}>
             <h3 className="mb-2 font-medium text-gray-400 text-xs uppercase tracking-wider">

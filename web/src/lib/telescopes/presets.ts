@@ -5,6 +5,7 @@ import type { TelescopePreset, TelescopePresetId } from '@/types';
  * FOV values in arcminutes
  */
 export const TELESCOPE_PRESETS: TelescopePreset[] = [
+  { id: 'generic', name: 'Just exploring', fovWidth: 90, fovHeight: 80 },
   { id: 'dwarf_mini', name: 'Dwarf Mini', fovWidth: 128, fovHeight: 72 },
   { id: 'dwarf_ii', name: 'Dwarf II', fovWidth: 180, fovHeight: 100 },
   { id: 'dwarf_3', name: 'Dwarf 3', fovWidth: 174, fovHeight: 99 },

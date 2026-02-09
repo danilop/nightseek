@@ -551,6 +551,7 @@ export interface GaiaStarField {
 
 // Telescope Presets
 export type TelescopePresetId =
+  | 'generic'
   | 'dwarf_mini'
   | 'dwarf_ii'
   | 'dwarf_3'
