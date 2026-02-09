@@ -91,7 +91,7 @@ export default function ForecastView({
         aria-labelledby={`tab-${activeTab}`}
         className="pb-20 sm:pb-0"
       >
-        {activeTab === 'overview' && <OverviewTab forecast={selectedNight} />}
+        {activeTab === 'overview' && <OverviewTab forecast={selectedNight} location={location} />}
         <Suspense fallback={<TabSkeleton />}>
           {activeTab === 'targets' && (
             <TargetsTab

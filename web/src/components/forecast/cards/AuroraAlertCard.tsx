@@ -1,5 +1,7 @@
 import { Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
+import { fetchSWPCData, getCurrentKp, type SWPCData } from '@/lib/nasa/swpc';
 import type { AuroraForecast } from '@/types';
 
 interface AuroraAlertCardProps {
@@ -7,6 +9,12 @@ interface AuroraAlertCardProps {
 }
 
 export default function AuroraAlertCard({ forecast }: AuroraAlertCardProps) {
+  const [swpcData, setSwpcData] = useState<SWPCData | null>(null);
+
+  useEffect(() => {
+    fetchSWPCData().then(setSwpcData);
+  }, []);
+
   // Only show when chance >= 'possible'
   if (forecast.chance === 'none' || forecast.chance === 'unlikely') {
     return null;
@@ -27,20 +35,23 @@ export default function AuroraAlertCard({ forecast }: AuroraAlertCardProps) {
   };
 
   const badge = chanceBadge[forecast.chance];
+  const liveKp = swpcData ? getCurrentKp(swpcData) : null;
+  const displayKp = liveKp ?? forecast.currentMaxKp;
 
   return (
     <div className={`rounded-xl border p-4 ${borderClass}`}>
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Zap className={`w-5 h-5 ${glowClass}`} />
+          <Zap className={`h-5 w-5 ${glowClass}`} />
           <h3 className="font-semibold text-white">Aurora Alert</h3>
+          {liveKp !== null && <span className="text-xs text-green-500">Live</span>}
         </div>
         {badge && <Badge variant={badge.variant}>{badge.label}</Badge>}
       </div>
       <p className="text-sm text-gray-300">{forecast.description}</p>
-      <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+      <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
         <span>
-          Current Kp: <strong className={glowClass}>{forecast.currentMaxKp}</strong>
+          Current Kp: <strong className={glowClass}>{displayKp}</strong>
         </span>
         <span>Required Kp: {forecast.requiredKp}</span>
       </div>

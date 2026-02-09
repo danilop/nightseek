@@ -60,85 +60,115 @@ const BORTLE_DATA: Record<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9, Omit<BortleScore, '
   },
 };
 
-/**
- * Light pollution data grid - simplified dataset covering major population centers
- * Values represent estimated Bortle class based on population density and location
- * Format: [minLat, maxLat, minLon, maxLon, bortleValue]
- */
-const LIGHT_POLLUTION_ZONES: [number, number, number, number, 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9][] =
-  [
-    // Major US cities
-    [40.5, 41.0, -74.3, -73.7, 9], // New York City
-    [33.9, 34.2, -118.5, -118.1, 9], // Los Angeles
-    [41.7, 42.0, -87.9, -87.5, 9], // Chicago
-    [29.6, 29.9, -95.6, -95.2, 8], // Houston
-    [33.3, 33.6, -112.2, -111.9, 8], // Phoenix
-    [39.8, 40.1, -75.3, -75.0, 9], // Philadelphia
-    [29.3, 29.5, -98.6, -98.3, 7], // San Antonio
-    [32.6, 32.9, -117.3, -117.0, 8], // San Diego
-    [32.6, 32.9, -97.0, -96.6, 7], // Dallas
-    [37.3, 37.5, -122.1, -121.8, 8], // San Jose/Silicon Valley
-    [37.7, 37.9, -122.5, -122.3, 9], // San Francisco
-    [47.5, 47.7, -122.5, -122.2, 7], // Seattle
-    [39.6, 39.8, -105.1, -104.8, 7], // Denver
-    [42.3, 42.4, -71.2, -70.9, 9], // Boston
-    [25.7, 25.9, -80.3, -80.1, 8], // Miami
+// ─── Grid-based lookup ───────────────────────────────────────────────────────
 
-    // Major European cities
-    [51.4, 51.6, -0.3, 0.1, 9], // London
-    [48.8, 49.0, 2.2, 2.5, 9], // Paris
-    [52.4, 52.6, 13.2, 13.5, 8], // Berlin
-    [40.3, 40.5, -3.8, -3.5, 8], // Madrid
-    [41.8, 42.0, 12.4, 12.6, 8], // Rome
-    [50.8, 51.0, 4.2, 4.5, 8], // Brussels
-    [52.3, 52.5, 4.8, 5.0, 9], // Amsterdam
-    [48.1, 48.3, 16.3, 16.5, 8], // Vienna
-    [59.3, 59.4, 17.9, 18.2, 7], // Stockholm
-    [55.6, 55.8, 12.4, 12.7, 7], // Copenhagen
+interface LightPollutionGrid {
+  version: number;
+  resolution: number;
+  latMin: number;
+  latMax: number;
+  lonMin: number;
+  lonMax: number;
+  latSteps: number;
+  lonSteps: number;
+  grid: string; // base64-encoded Uint8Array
+}
 
-    // Major Asian cities
-    [35.6, 35.8, 139.6, 139.9, 9], // Tokyo
-    [37.5, 37.6, 126.9, 127.1, 9], // Seoul
-    [31.1, 31.4, 121.3, 121.6, 9], // Shanghai
-    [39.8, 40.0, 116.3, 116.5, 9], // Beijing
-    [22.2, 22.4, 114.1, 114.3, 9], // Hong Kong
-    [1.2, 1.4, 103.7, 104.0, 9], // Singapore
-    [13.7, 13.8, 100.4, 100.6, 8], // Bangkok
-    [28.5, 28.7, 77.1, 77.3, 8], // Delhi
-    [19.0, 19.2, 72.8, 73.0, 9], // Mumbai
-
-    // Australia
-    [-33.95, -33.8, 150.9, 151.3, 8], // Sydney
-    [-37.9, -37.7, 144.8, 145.1, 8], // Melbourne
-    [-27.55, -27.4, 152.9, 153.1, 7], // Brisbane
-    [-31.98, -31.9, 115.8, 116.0, 7], // Perth
-
-    // South America
-    [-23.65, -23.45, -46.8, -46.5, 9], // Sao Paulo
-    [-22.95, -22.85, -43.3, -43.1, 8], // Rio de Janeiro
-    [-34.7, -34.5, -58.5, -58.3, 8], // Buenos Aires
-    [-33.5, -33.4, -70.7, -70.5, 7], // Santiago
-  ];
+let gridData: Uint8Array | null = null;
+let gridMeta: LightPollutionGrid | null = null;
 
 /**
- * Calculate approximate Bortle score from latitude/longitude
- * Uses a combination of hardcoded zones and population density heuristics
+ * Lazily load and decode the light pollution grid.
+ * The grid is ~250KB compressed and loaded once into memory.
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Location-based heuristics require multiple conditions
+async function loadGrid(): Promise<{ data: Uint8Array; meta: LightPollutionGrid } | null> {
+  if (gridData && gridMeta) return { data: gridData, meta: gridMeta };
+
+  try {
+    const module = await import('@/data/light-pollution.json');
+    const json = module.default as LightPollutionGrid;
+
+    // Decode base64 grid to Uint8Array
+    const binaryStr = atob(json.grid);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+
+    gridData = bytes;
+    gridMeta = json;
+    return { data: bytes, meta: json };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Look up Bortle class from the pre-processed grid.
+ * Returns null if the grid is not available or the location is out of bounds.
+ */
+function lookupGrid(
+  lat: number,
+  lon: number,
+  data: Uint8Array,
+  meta: LightPollutionGrid
+): BortleScore['value'] | null {
+  if (lat < meta.latMin || lat >= meta.latMax) return null;
+  if (lon < meta.lonMin || lon >= meta.lonMax) return null;
+
+  const latIdx = Math.floor((lat - meta.latMin) / meta.resolution);
+  const lonIdx = Math.floor((lon - meta.lonMin) / meta.resolution);
+
+  if (latIdx < 0 || latIdx >= meta.latSteps) return null;
+  if (lonIdx < 0 || lonIdx >= meta.lonSteps) return null;
+
+  const value = data[latIdx * meta.lonSteps + lonIdx];
+  if (value < 1 || value > 9) return null;
+
+  return value as BortleScore['value'];
+}
+
+// ─── Synchronous grid cache for immediate lookups ────────────────────────────
+
+let syncGridLoaded = false;
+let syncGridPromise: Promise<void> | null = null;
+
+/**
+ * Kick off grid loading. Called early in app lifecycle.
+ */
+export function preloadLightPollutionGrid(): void {
+  if (syncGridPromise) return;
+  syncGridPromise = loadGrid().then(() => {
+    syncGridLoaded = true;
+  });
+}
+
+// ─── Public API ──────────────────────────────────────────────────────────────
+
+/**
+ * Calculate Bortle score from latitude/longitude.
+ *
+ * Uses a pre-processed 0.5-degree resolution grid derived from population
+ * density data and known dark sky sites. Falls back to latitude-based
+ * heuristics if the grid is not yet loaded.
+ */
 export function calculateBortle(lat: number, lon: number): BortleScore {
-  // Check if location falls within a known light pollution zone
-  for (const zone of LIGHT_POLLUTION_ZONES) {
-    const [minLat, maxLat, minLon, maxLon, bortle] = zone;
-    if (lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon) {
-      return {
-        value: bortle,
-        ...BORTLE_DATA[bortle],
-      };
+  // Try grid lookup first (available after preload completes)
+  if (syncGridLoaded && gridData && gridMeta) {
+    const gridValue = lookupGrid(lat, lon, gridData, gridMeta);
+    if (gridValue !== null) {
+      return { value: gridValue, ...BORTLE_DATA[gridValue] };
     }
   }
 
-  // Heuristic based on latitude bands (population density tends to follow latitude)
-  // Mid-latitudes (30-60°) in both hemispheres tend to be more populated
+  // Fallback: latitude-based heuristic (same as before grid was available)
+  return fallbackBortle(lat, lon);
+}
+
+/**
+ * Latitude/longitude heuristic fallback when grid is unavailable.
+ */
+function fallbackBortle(lat: number, lon: number): BortleScore {
   const absLat = Math.abs(lat);
 
   // Very high latitudes (Arctic/Antarctic) - typically dark
@@ -147,26 +177,20 @@ export function calculateBortle(lat: number, lon: number): BortleScore {
     return { value, ...BORTLE_DATA[value] };
   }
 
-  // Remote ocean locations (check if far from any major landmass)
-  // Pacific ocean (central Pacific)
+  // Remote ocean locations
   if (lat > -30 && lat < 30 && lon > -170 && lon < -100) {
     const value = 1 as const;
     return { value, ...BORTLE_DATA[value] };
   }
-
-  // Atlantic ocean (central)
   if (lat > -30 && lat < 30 && lon > -50 && lon < -10) {
     const value = 1 as const;
     return { value, ...BORTLE_DATA[value] };
   }
-
-  // Indian ocean
   if (lat > -30 && lat < 10 && lon > 60 && lon < 90) {
     const value = 1 as const;
     return { value, ...BORTLE_DATA[value] };
   }
 
-  // General heuristic based on latitude
   // Tropical regions outside cities
   if (absLat < 25) {
     const value = 4 as const;
@@ -175,7 +199,7 @@ export function calculateBortle(lat: number, lon: number): BortleScore {
 
   // Temperate mid-latitudes (most populated)
   if (absLat >= 25 && absLat <= 55) {
-    const value = 5 as const; // Suburban default
+    const value = 5 as const;
     return { value, ...BORTLE_DATA[value] };
   }
 

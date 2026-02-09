@@ -1,2 +1,7 @@
-export { azimuthToCompass, calculateSatellitePasses, formatPassDuration } from './passes';
-export { fetchISSTLE } from './tle';
+export {
+  azimuthToCompass,
+  calculateMultiSatellitePasses,
+  calculateSatellitePasses,
+  formatPassDuration,
+} from './passes';
+export { fetchBrightSatelliteTLEs, fetchISSTLE } from './tle';

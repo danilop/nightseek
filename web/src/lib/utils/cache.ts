@@ -107,6 +107,16 @@ export const CACHE_KEYS = {
   IAU_METEORS: 'nightseek:iau:showers',
   GAIA_ENHANCED_PREFIX: 'nightseek:gaia:enhanced:',
   DONKI: 'nightseek:donki',
+  // NOAA SWPC real-time space weather
+  SWPC_KP: 'nightseek:swpc:kp',
+  SWPC_FLARE_PROB: 'nightseek:swpc:flare-prob',
+  SWPC_SUNSPOTS: 'nightseek:swpc:sunspots',
+  SWPC_FLUX: 'nightseek:swpc:flux',
+  SWPC_COMBINED: 'nightseek:swpc:combined',
+  // Extended satellites (CelesTrak)
+  TLE_BRIGHT: 'nightseek:tle:bright',
+  // Open-Meteo historical weather
+  HISTORICAL_WEATHER_PREFIX: 'nightseek:hist-weather:',
 };
 
 // Cache TTLs (in milliseconds)
@@ -126,4 +136,11 @@ export const CACHE_TTLS = {
   IAU_METEORS: 48 * 60 * 60 * 1000, // 48 hours
   GAIA_ENHANCED: 7 * 24 * 60 * 60 * 1000, // 7 days
   DONKI: 4 * 60 * 60 * 1000, // 4 hours
+  // NOAA SWPC (short TTLs for real-time Kp, longer for others)
+  SWPC_KP: 15 * 60 * 1000, // 15 minutes
+  SWPC_GENERAL: 60 * 60 * 1000, // 1 hour
+  // Extended satellites
+  TLE_BRIGHT: 24 * 60 * 60 * 1000, // 24 hours
+  // Open-Meteo historical weather (rarely changes)
+  HISTORICAL_WEATHER: 30 * 24 * 60 * 60 * 1000, // 30 days
 };

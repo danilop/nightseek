@@ -6,10 +6,12 @@ import type {
   NightWeather,
 } from '@/types';
 import { avg, maxVal, minVal, sum } from '../utils/array-math';
+import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
 import { getOrDefault } from '../utils/map-helpers';
 
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1/forecast';
 const AIR_QUALITY_API_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
+const HISTORICAL_API_URL = 'https://archive-api.open-meteo.com/v1/archive';
 
 interface WeatherAPIResponse {
   hourly: {
@@ -459,4 +461,196 @@ function findBestObservingTime(
   }
 
   return null;
+}
+
+// ─── Historical Weather ──────────────────────────────────────────────────────
+
+interface HistoricalAPIResponse {
+  daily: {
+    time: string[];
+    cloud_cover_mean?: number[];
+    temperature_2m_mean?: number[];
+    relative_humidity_2m_mean?: number[];
+    precipitation_sum?: number[];
+  };
+}
+
+/** Monthly summary statistics for a location */
+export interface MonthlyWeatherStats {
+  month: number; // 1-12
+  monthName: string;
+  avgCloudCover: number;
+  avgTemperature: number | null;
+  avgHumidity: number | null;
+  totalPrecipitationMm: number;
+  clearNights: number; // nights with cloud_cover < 30%
+  totalNights: number;
+  clearNightPercentage: number;
+}
+
+/** Location quality summary based on historical weather data */
+export interface LocationWeatherHistory {
+  latitude: number;
+  longitude: number;
+  monthlyStats: MonthlyWeatherStats[];
+  bestMonths: MonthlyWeatherStats[];
+  annualClearNights: number;
+  annualClearNightPercentage: number;
+  fetchedAt: string;
+}
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/**
+ * Fetch historical weather data for a location (past 12 months).
+ * Uses the Open-Meteo Archive API (CORS-enabled, no API key).
+ * Cached aggressively (30 days) since historical data doesn't change.
+ */
+export async function fetchHistoricalWeather(
+  latitude: number,
+  longitude: number
+): Promise<LocationWeatherHistory | null> {
+  const cacheKey = `${CACHE_KEYS.HISTORICAL_WEATHER_PREFIX}${latitude.toFixed(2)},${longitude.toFixed(2)}`;
+  const cached = await getCached<LocationWeatherHistory>(cacheKey, CACHE_TTLS.HISTORICAL_WEATHER);
+  if (cached) return cached;
+
+  // Query past 12 months
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() - 1); // yesterday (archive may lag by 1 day)
+  const startDate = new Date(endDate);
+  startDate.setFullYear(startDate.getFullYear() - 1);
+
+  const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+  const params = new URLSearchParams({
+    latitude: latitude.toString(),
+    longitude: longitude.toString(),
+    start_date: formatDate(startDate),
+    end_date: formatDate(endDate),
+    daily: 'cloud_cover_mean,temperature_2m_mean,relative_humidity_2m_mean,precipitation_sum',
+    timezone: 'auto',
+  });
+
+  try {
+    const response = await fetch(`${HISTORICAL_API_URL}?${params}`, {
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as HistoricalAPIResponse;
+    if (!data.daily?.time) return null;
+
+    const result = computeMonthlyStats(data, latitude, longitude);
+    await setCache(cacheKey, result);
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+function computeMonthlyStats(
+  data: HistoricalAPIResponse,
+  latitude: number,
+  longitude: number
+): LocationWeatherHistory {
+  const { daily } = data;
+  const times = daily.time;
+
+  // Group by month
+  const monthBuckets: Map<
+    number,
+    { clouds: number[]; temps: number[]; humids: number[]; precips: number[]; clearNights: number }
+  > = new Map();
+
+  for (let i = 0; i < times.length; i++) {
+    const month = new Date(times[i]).getMonth() + 1; // 1-12
+    if (!monthBuckets.has(month)) {
+      monthBuckets.set(month, { clouds: [], temps: [], humids: [], precips: [], clearNights: 0 });
+    }
+    const bucket = monthBuckets.get(month)!;
+
+    const cloud = daily.cloud_cover_mean?.[i];
+    if (cloud != null) {
+      bucket.clouds.push(cloud);
+      // A "clear night" is a day with mean cloud cover < 30%
+      if (cloud < 30) bucket.clearNights++;
+    }
+
+    const temp = daily.temperature_2m_mean?.[i];
+    if (temp != null) bucket.temps.push(temp);
+
+    const humid = daily.relative_humidity_2m_mean?.[i];
+    if (humid != null) bucket.humids.push(humid);
+
+    const precip = daily.precipitation_sum?.[i];
+    if (precip != null) bucket.precips.push(precip);
+  }
+
+  const monthlyStats: MonthlyWeatherStats[] = [];
+  let totalClearNights = 0;
+  let totalNightsAll = 0;
+
+  for (let m = 1; m <= 12; m++) {
+    const bucket = monthBuckets.get(m);
+    if (!bucket) {
+      monthlyStats.push({
+        month: m,
+        monthName: MONTH_NAMES[m - 1],
+        avgCloudCover: 50,
+        avgTemperature: null,
+        avgHumidity: null,
+        totalPrecipitationMm: 0,
+        clearNights: 0,
+        totalNights: 0,
+        clearNightPercentage: 0,
+      });
+      continue;
+    }
+
+    const totalNights = bucket.clouds.length;
+    totalClearNights += bucket.clearNights;
+    totalNightsAll += totalNights;
+
+    monthlyStats.push({
+      month: m,
+      monthName: MONTH_NAMES[m - 1],
+      avgCloudCover: bucket.clouds.length > 0 ? avg(bucket.clouds) : 50,
+      avgTemperature: bucket.temps.length > 0 ? avg(bucket.temps) : null,
+      avgHumidity: bucket.humids.length > 0 ? avg(bucket.humids) : null,
+      totalPrecipitationMm: bucket.precips.length > 0 ? sum(bucket.precips) : 0,
+      clearNights: bucket.clearNights,
+      totalNights,
+      clearNightPercentage: totalNights > 0 ? (bucket.clearNights / totalNights) * 100 : 0,
+    });
+  }
+
+  // Best months = sorted by clear night percentage descending
+  const bestMonths = [...monthlyStats]
+    .filter(m => m.totalNights > 0)
+    .sort((a, b) => b.clearNightPercentage - a.clearNightPercentage)
+    .slice(0, 3);
+
+  return {
+    latitude,
+    longitude,
+    monthlyStats,
+    bestMonths,
+    annualClearNights: totalClearNights,
+    annualClearNightPercentage: totalNightsAll > 0 ? (totalClearNights / totalNightsAll) * 100 : 0,
+    fetchedAt: new Date().toISOString(),
+  };
 }

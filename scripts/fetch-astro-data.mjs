@@ -307,6 +307,140 @@ async function fetchDonkiData() {
   };
 }
 
+// ─── JPL Horizons Ephemeris (high-precision planet positions) ────────────────
+
+const HORIZONS_API_URL = 'https://ssd.jpl.nasa.gov/api/horizons.api';
+
+/**
+ * JPL Horizons body IDs for planets + Pluto + notable asteroids
+ */
+const HORIZONS_TARGETS = [
+  { id: '199', name: 'Mercury' },
+  { id: '299', name: 'Venus' },
+  { id: '499', name: 'Mars' },
+  { id: '599', name: 'Jupiter' },
+  { id: '699', name: 'Saturn' },
+  { id: '799', name: 'Uranus' },
+  { id: '899', name: 'Neptune' },
+  { id: '999', name: 'Pluto' },
+  { id: '4', name: 'Vesta' },       // asteroid
+  { id: '2', name: 'Pallas' },      // asteroid
+];
+
+/**
+ * Fetch ephemeris from JPL Horizons for a single body.
+ * Returns hourly RA/Dec/magnitude/illumination for the next 30 days.
+ * Horizons API has a one-request-at-a-time limit, so we serialize calls.
+ */
+async function fetchHorizonsBody(bodyId, bodyName, startDate, stopDate) {
+  const params = new URLSearchParams({
+    format: 'json',
+    COMMAND: `'${bodyId}'`,
+    EPHEM_TYPE: 'OBSERVER',
+    CENTER: "'500'",            // geocentric (no specific site)
+    START_TIME: `'${formatDate(startDate)}'`,
+    STOP_TIME: `'${formatDate(stopDate)}'`,
+    STEP_SIZE: "'1 h'",
+    QUANTITIES: "'1,9'",        // 1=RA/Dec, 9=visual magnitude
+  });
+
+  const response = await fetch(`${HORIZONS_API_URL}?${params}`);
+  if (!response.ok) {
+    throw new Error(`Horizons API ${response.status} for ${bodyName}`);
+  }
+
+  const json = await response.json();
+  const result = json.result;
+  if (!result) {
+    throw new Error(`No result field for ${bodyName}`);
+  }
+
+  // Parse the ephemeris table from the text result
+  const soeIndex = result.indexOf('$$SOE');
+  const eoeIndex = result.indexOf('$$EOE');
+  if (soeIndex < 0 || eoeIndex < 0) {
+    throw new Error(`No ephemeris data block for ${bodyName}`);
+  }
+
+  const dataBlock = result.substring(soeIndex + 5, eoeIndex).trim();
+  const dataLines = dataBlock.split('\n').filter((l) => l.trim().length > 0);
+
+  const entries = [];
+  for (const line of dataLines) {
+    // Horizons columns vary; parse positionally
+    // Typical format: date, RA(h m s), DEC(d m s), mag, ...
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 8) continue;
+
+    // Date is in first two columns (YYYY-Mon-DD HH:MM)
+    const dateStr = `${parts[0]} ${parts[1]}`;
+
+    // RA in hours, minutes, seconds (cols 2,3,4)
+    const raH = parseFloat(parts[2]);
+    const raM = parseFloat(parts[3]);
+    const raS = parseFloat(parts[4]);
+    if (Number.isNaN(raH) || Number.isNaN(raM) || Number.isNaN(raS)) continue;
+    const ra = raH + raM / 60 + raS / 3600; // hours
+
+    // Dec in degrees, minutes, seconds (cols 5,6,7)
+    const decD = parseFloat(parts[5]);
+    const decM = parseFloat(parts[6]);
+    const decS = parseFloat(parts[7]);
+    if (Number.isNaN(decD) || Number.isNaN(decM) || Number.isNaN(decS)) continue;
+    const decSign = parts[5].startsWith('-') ? -1 : 1;
+    const dec = decSign * (Math.abs(decD) + decM / 60 + decS / 3600); // degrees
+
+    // Magnitude (col 8, may be 'n.a.')
+    const mag = parseFloat(parts[8]);
+
+    entries.push({
+      date: dateStr,
+      ra: Math.round(ra * 10000) / 10000,
+      dec: Math.round(dec * 10000) / 10000,
+      mag: Number.isNaN(mag) ? null : Math.round(mag * 100) / 100,
+    });
+  }
+
+  return {
+    name: bodyName,
+    bodyId,
+    entries,
+  };
+}
+
+async function fetchHorizonsData() {
+  console.log('Fetching JPL Horizons ephemerides...');
+
+  const today = new Date();
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + 30);
+
+  const ephemerides = [];
+
+  // Serialize requests (Horizons has one-at-a-time limit)
+  for (const target of HORIZONS_TARGETS) {
+    try {
+      console.log(`  fetching ${target.name}...`);
+      const data = await fetchHorizonsBody(target.id, target.name, today, endDate);
+      ephemerides.push(data);
+      console.log(`    got ${data.entries.length} data points`);
+
+      // Small delay to be polite to JPL servers
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } catch (err) {
+      console.error(`    ${target.name} failed: ${err.message}`);
+      // Continue with other targets
+    }
+  }
+
+  return {
+    fetchedAt: new Date().toISOString(),
+    startDate: formatDate(today),
+    endDate: formatDate(endDate),
+    bodies: ephemerides,
+  };
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -350,6 +484,16 @@ async function main() {
   const asteroidContent = safeWrite('asteroids.json', asteroids);
   hashes['asteroids.json'] = sha256(asteroidContent);
 
+  // JPL Horizons ephemeris data
+  try {
+    const ephemeris = await fetchHorizonsData();
+    const content = safeWrite('ephemeris.json', ephemeris);
+    hashes['ephemeris.json'] = sha256(content);
+  } catch (err) {
+    console.error(`  Horizons fetch failed: ${err.message}`);
+    errors.push(`horizons: ${err.message}`);
+  }
+
   // Write meta
   const meta = {
     fetchedAt: new Date().toISOString(),
@@ -361,7 +505,7 @@ async function main() {
   console.log(`\nDone. ${errors.length > 0 ? `${errors.length} error(s).` : 'All sources succeeded.'}`);
 
   // Exit with error if most sources failed (partial success is OK)
-  if (errors.length >= 3) {
+  if (errors.length >= 4) {
     process.exit(1);
   }
 }

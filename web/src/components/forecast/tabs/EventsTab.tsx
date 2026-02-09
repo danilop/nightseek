@@ -1,4 +1,5 @@
 import type { Location, NightForecast } from '@/types';
+import VariableStarsCard from '../cards/VariableStarsCard';
 import EventsSection from '../EventsSection';
 import SatellitePassesCard from '../SatellitePassesCard';
 
@@ -17,6 +18,7 @@ export default function EventsTab({ forecast, location }: EventsTabProps) {
         latitude={location.latitude}
         nightDate={forecast.nightInfo.date}
       />
+      <VariableStarsCard nightDate={forecast.nightInfo.date} />
       <SatellitePassesCard nightInfo={forecast.nightInfo} location={location} />
     </div>
   );

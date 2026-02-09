@@ -1,14 +1,30 @@
 import * as satellite from 'satellite.js';
 import type { Location, NightInfo, SatellitePass, TLEData } from '@/types';
 
-// ISS standard magnitude at zenith (fully illuminated)
-const ISS_BASE_MAGNITUDE = -3.5;
+// Default magnitude at zenith when no specific value is known
+const DEFAULT_BASE_MAGNITUDE = -1.0;
 
 // Minimum altitude to consider a pass visible (degrees)
 const MIN_ALTITUDE_DEG = 10;
 
 // Time step for pass search (seconds)
 const TIME_STEP_SECONDS = 30;
+
+/**
+ * Approximate base (zenith) magnitudes for well-known satellites.
+ * Keyed by NORAD ID.
+ */
+const SATELLITE_MAGNITUDES: Record<number, number> = {
+  25544: -3.5, // ISS
+  48274: -2.0, // Tiangong (CSS)
+  20580: 1.5, // Hubble Space Telescope
+};
+
+/**
+ * Maximum magnitude (dimmest) we include in results.
+ * Anything dimmer than this is filtered out.
+ */
+const MAX_DISPLAY_MAGNITUDE = 3.0;
 
 /**
  * Calculate satellite passes for given nights
@@ -30,16 +46,43 @@ export function calculateSatellitePasses(
     height: 0, // meters above sea level (assume sea level)
   };
 
+  const baseMag = SATELLITE_MAGNITUDES[tle.noradId] ?? DEFAULT_BASE_MAGNITUDE;
+
   for (const night of nights) {
     // Search from astronomical dusk to dawn
     const startTime = night.astronomicalDusk;
     const endTime = night.astronomicalDawn;
 
-    const nightPasses = findPasses(satrec, observerGd, startTime, endTime, tle);
+    const nightPasses = findPasses(satrec, observerGd, startTime, endTime, tle, baseMag);
     passes.push(...nightPasses);
   }
 
   return passes;
+}
+
+/**
+ * Calculate passes for multiple satellites and return sorted by time.
+ * Filters to only include passes brighter than MAX_DISPLAY_MAGNITUDE.
+ */
+export function calculateMultiSatellitePasses(
+  tles: TLEData[],
+  location: Location,
+  nights: NightInfo[]
+): SatellitePass[] {
+  const allPasses: SatellitePass[] = [];
+
+  for (const tle of tles) {
+    try {
+      const passes = calculateSatellitePasses(tle, location, nights);
+      allPasses.push(...passes);
+    } catch {
+      // Skip satellites that fail propagation (stale TLE, etc.)
+    }
+  }
+
+  return allPasses
+    .filter(pass => pass.magnitude === null || pass.magnitude <= MAX_DISPLAY_MAGNITUDE)
+    .sort((a, b) => a.riseTime.getTime() - b.riseTime.getTime());
 }
 
 /**
@@ -51,7 +94,8 @@ function findPasses(
   observerGd: satellite.GeodeticLocation,
   startTime: Date,
   endTime: Date,
-  tle: TLEData
+  tle: TLEData,
+  baseMagnitude: number
 ): SatellitePass[] {
   const passes: SatellitePass[] = [];
   let currentPass: Partial<SatellitePass> | null = null;
@@ -101,8 +145,8 @@ function findPasses(
         (time.getTime() - (currentPass.riseTime?.getTime() ?? 0)) / 1000
       );
 
-      // Estimate magnitude based on max altitude
-      currentPass.magnitude = estimateMagnitude(maxAlt);
+      // Estimate magnitude based on max altitude and satellite's base magnitude
+      currentPass.magnitude = estimateMagnitude(maxAlt, baseMagnitude);
 
       passes.push(currentPass as SatellitePass);
       currentPass = null;
@@ -117,7 +161,7 @@ function findPasses(
     currentPass.duration = Math.round(
       (endTime.getTime() - (currentPass.riseTime?.getTime() ?? 0)) / 1000
     );
-    currentPass.magnitude = estimateMagnitude(maxAlt);
+    currentPass.magnitude = estimateMagnitude(maxAlt, baseMagnitude);
     passes.push(currentPass as SatellitePass);
   }
 
@@ -159,14 +203,14 @@ function normalizeAzimuth(azimuthDeg: number): number {
 }
 
 /**
- * Estimate ISS magnitude based on altitude
- * Higher altitude = brighter (closer to observer)
+ * Estimate satellite magnitude based on altitude and base magnitude.
+ * Higher altitude = brighter (closer to observer, better illumination angle).
  */
-function estimateMagnitude(altitudeDeg: number): number {
-  // At zenith (90°), magnitude is at base value
-  // At horizon (10°), magnitude is dimmer by ~2 magnitudes
+function estimateMagnitude(altitudeDeg: number, baseMagnitude: number): number {
+  // At zenith (90deg), magnitude is at base value
+  // At horizon (10deg), dimmer by ~2 magnitudes
   const factor = (90 - altitudeDeg) / 80;
-  return Math.round((ISS_BASE_MAGNITUDE + factor * 2) * 10) / 10;
+  return Math.round((baseMagnitude + factor * 2) * 10) / 10;
 }
 
 /**

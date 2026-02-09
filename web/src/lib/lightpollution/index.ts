@@ -1,1 +1,6 @@
-export { calculateBortle, getBortleBgClass, getBortleColorClass } from './bortle';
+export {
+  calculateBortle,
+  getBortleBgClass,
+  getBortleColorClass,
+  preloadLightPollutionGrid,
+} from './bortle';
