@@ -4,7 +4,7 @@ An astronomy observation planning tool with both a **Web App** and **CLI**. Gene
 
 ## Web App
 
-**Try it now**: https://danilop.github.io/nightseek/
+**Try it now**: https://nightseek.danilop.net/
 
 The web app is a Progressive Web App (PWA) that works on desktop and mobile:
 - **Offline Support**: Install as an app and use without internet

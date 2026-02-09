@@ -5,7 +5,5 @@
     "donki.json": "a00c6171d8cb",
     "asteroids.json": "472d75092f66"
   },
-  "errors": [
-    "comets: fetch failed"
-  ]
+  "errors": ["comets: fetch failed"]
 }

@@ -29,7 +29,6 @@ const MAX_EXTRAGALACTIC = 50;
  * 14 rm_period, 15 rm_amp, 16 mso_freq, 17 mso_amp,
  * 18 st_freq, 19 st_amp
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Single ADQL query joining 9 tables
 function buildVariableStarsQuery(raDeg: number, decDeg: number, radiusDeg: number): string {
   // No table aliases — VizieR rejects alias.column with quoted table names.
   const vc = '"I/358/vclassre"';

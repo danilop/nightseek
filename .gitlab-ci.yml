@@ -1,6 +1,7 @@
 stages:
   - build
   - deploy
+  - invalidate
 
 build:
   stage: build
@@ -11,7 +12,7 @@ build:
     - cd web
     - pnpm install
   script:
-    - pnpm build
+    - pnpm build --base ./
   artifacts:
     paths:
       - web/dist
@@ -28,5 +29,28 @@ pages:
   artifacts:
     paths:
       - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+invalidate-cdn:
+  stage: invalidate
+  image: amazon/aws-cli:latest
+  id_tokens:
+    AWS_TOKEN:
+      aud: https://gitlab.com
+  dependencies: []
+  before_script:
+    - >
+      export $(printf 'AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s'
+      $(aws sts assume-role-with-web-identity
+      --role-arn arn:aws:iam::600966831890:role/nightseek-cloudfront-invalidation
+      --role-session-name gitlab-ci-${CI_JOB_ID}
+      --web-identity-token "${AWS_TOKEN}"
+      --duration-seconds 900
+      --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]'
+      --output text
+      --region us-east-1))
+  script:
+    - aws cloudfront create-invalidation --distribution-id E2KBTPAF1A4T9O --paths "/*"
   rules:
     - if: $CI_COMMIT_BRANCH == "main"

@@ -37,7 +37,7 @@ jobs:
 
       - name: Build
         working-directory: ./web
-        run: pnpm build --base /nightseek/
+        run: pnpm build --base ./
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -57,3 +57,18 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  invalidate-cdn:
+    runs-on: ubuntu-latest
+    needs: deploy
+    permissions:
+      id-token: write
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::600966831890:role/nightseek-cloudfront-invalidation
+          aws-region: us-east-1
+
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id E2KBTPAF1A4T9O --paths "/*"
