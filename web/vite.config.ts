@@ -3,11 +3,7 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-// Override base path via VITE_BASE_PATH env var, defaults to '/'
-const base = process.env.VITE_BASE_PATH || '/';
-
 export default defineConfig({
-  base,
   plugins: [
     react(),
     VitePWA({
@@ -17,7 +13,7 @@ export default defineConfig({
         name: 'NightSeek - Astronomy Planner',
         short_name: 'NightSeek',
         description: 'Plan your astronomy observations with weather-integrated forecasts',
-        start_url: base,
+        start_url: '.',
         display: 'standalone',
         background_color: '#0f172a',
         theme_color: '#0ea5e9',

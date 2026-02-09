@@ -37,9 +37,7 @@ jobs:
 
       - name: Build
         working-directory: ./web
-        run: pnpm build
-        env:
-          VITE_BASE_PATH: /nightseek/
+        run: pnpm build --base /nightseek/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
