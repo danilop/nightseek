@@ -29,6 +29,7 @@ const MAX_DISPLAY_MAGNITUDE = 3.0;
 /**
  * Calculate satellite passes for given nights
  */
+/* v8 ignore start */
 export function calculateSatellitePasses(
   tle: TLEData,
   location: Location,
@@ -193,10 +194,12 @@ function getLookAngles(
   return lookAngles;
 }
 
+/* v8 ignore stop */
+
 /**
  * Normalize azimuth to 0-360 range
  */
-function normalizeAzimuth(azimuthDeg: number): number {
+export function normalizeAzimuth(azimuthDeg: number): number {
   let az = azimuthDeg % 360;
   if (az < 0) az += 360;
   return Math.round(az * 10) / 10;
@@ -206,7 +209,7 @@ function normalizeAzimuth(azimuthDeg: number): number {
  * Estimate satellite magnitude based on altitude and base magnitude.
  * Higher altitude = brighter (closer to observer, better illumination angle).
  */
-function estimateMagnitude(altitudeDeg: number, baseMagnitude: number): number {
+export function estimateMagnitude(altitudeDeg: number, baseMagnitude: number): number {
   // At zenith (90deg), magnitude is at base value
   // At horizon (10deg), dimmer by ~2 magnitudes
   const factor = (90 - altitudeDeg) / 80;

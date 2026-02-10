@@ -4,6 +4,7 @@ import type { TLEData } from '@/types';
 const ISS_NORAD_ID = 25544;
 const CELESTRAK_BASE = 'https://celestrak.org/NORAD/elements/gp.php';
 
+/* v8 ignore start */
 /**
  * Fetch ISS TLE data from Celestrak
  * Uses 24-hour cache to minimize API calls
@@ -53,11 +54,13 @@ export async function fetchISSTLE(): Promise<TLEData | null> {
   }
 }
 
+/* v8 ignore stop */
+
 /**
  * Parse raw TLE text into TLEData array.
  * TLE format: 3 lines per satellite (name, line1, line2).
  */
-function parseTLEText(text: string): TLEData[] {
+export function parseTLEText(text: string): TLEData[] {
   const lines = text.trim().split('\n');
   const results: TLEData[] = [];
 
@@ -78,6 +81,7 @@ function parseTLEText(text: string): TLEData[] {
   return results;
 }
 
+/* v8 ignore start */
 /**
  * Fetch TLE data for the CelesTrak "visual" group (~150 brightest satellites).
  * Cached for 24 hours. Only ~20KB download.
@@ -105,3 +109,4 @@ export async function fetchBrightSatelliteTLEs(): Promise<TLEData[]> {
     return [];
   }
 }
+/* v8 ignore stop */

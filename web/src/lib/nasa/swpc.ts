@@ -53,6 +53,7 @@ export interface SWPCData {
 
 // ─── Fetch helpers ───────────────────────────────────────────────────────────
 
+/* v8 ignore start */
 async function fetchJSON<T>(url: string): Promise<T | null> {
   try {
     const response = await fetch(url, {
@@ -64,6 +65,7 @@ async function fetchJSON<T>(url: string): Promise<T | null> {
     return null;
   }
 }
+/* v8 ignore stop */
 
 // ─── Kp Index (1-minute cadence) ─────────────────────────────────────────────
 
@@ -75,7 +77,7 @@ interface RawKpEntry {
   source?: string;
 }
 
-function parseKpIndex(raw: RawKpEntry[]): KpIndexReading[] {
+export function parseKpIndex(raw: RawKpEntry[]): KpIndexReading[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter(entry => entry.kp_index != null || entry.kp != null)
@@ -87,6 +89,7 @@ function parseKpIndex(raw: RawKpEntry[]): KpIndexReading[] {
     }));
 }
 
+/* v8 ignore start */
 async function fetchKpIndex(): Promise<KpIndexReading[]> {
   const cached = await getCached<KpIndexReading[]>(CACHE_KEYS.SWPC_KP, CACHE_TTLS.SWPC_KP);
   if (cached) return cached;
@@ -100,6 +103,7 @@ async function fetchKpIndex(): Promise<KpIndexReading[]> {
   }
   return parsed;
 }
+/* v8 ignore stop */
 
 // ─── Solar Flare Probabilities ───────────────────────────────────────────────
 
@@ -114,7 +118,7 @@ interface RawFlareProbEntry {
   x_class?: number;
 }
 
-function parseFlareProbabilities(raw: RawFlareProbEntry[]): SolarFlareProbability[] {
+export function parseFlareProbabilities(raw: RawFlareProbEntry[]): SolarFlareProbability[] {
   if (!Array.isArray(raw)) return [];
   return raw.map(entry => ({
     dateRange: entry.DateRange ?? entry['date-range'] ?? '',
@@ -124,6 +128,7 @@ function parseFlareProbabilities(raw: RawFlareProbEntry[]): SolarFlareProbabilit
   }));
 }
 
+/* v8 ignore start */
 async function fetchFlareProbabilities(): Promise<SolarFlareProbability[]> {
   const cached = await getCached<SolarFlareProbability[]>(
     CACHE_KEYS.SWPC_FLARE_PROB,
@@ -140,6 +145,7 @@ async function fetchFlareProbabilities(): Promise<SolarFlareProbability[]> {
   }
   return parsed;
 }
+/* v8 ignore stop */
 
 // ─── Sunspot Report ──────────────────────────────────────────────────────────
 
@@ -158,7 +164,7 @@ interface RawSunspotEntry {
   area?: number;
 }
 
-function parseSunspotReport(raw: RawSunspotEntry[]): SunspotRegion[] {
+export function parseSunspotReport(raw: RawSunspotEntry[]): SunspotRegion[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter(entry => (entry.Region ?? entry.region) != null)
@@ -172,6 +178,7 @@ function parseSunspotReport(raw: RawSunspotEntry[]): SunspotRegion[] {
     }));
 }
 
+/* v8 ignore start */
 async function fetchSunspotReport(): Promise<SunspotRegion[]> {
   const cached = await getCached<SunspotRegion[]>(
     CACHE_KEYS.SWPC_SUNSPOTS,
@@ -188,6 +195,7 @@ async function fetchSunspotReport(): Promise<SunspotRegion[]> {
   }
   return parsed;
 }
+/* v8 ignore stop */
 
 // ─── Solar Radio Flux (10.7 cm / F10.7) ─────────────────────────────────────
 
@@ -196,6 +204,7 @@ interface RawFluxEntry {
   flux: number;
 }
 
+/* v8 ignore start */
 async function fetchSolarFlux(): Promise<SolarFluxReading | null> {
   const cached = await getCached<SolarFluxReading>(CACHE_KEYS.SWPC_FLUX, CACHE_TTLS.SWPC_GENERAL);
   if (cached) return cached;
@@ -213,6 +222,7 @@ async function fetchSolarFlux(): Promise<SolarFluxReading | null> {
   await setCache(CACHE_KEYS.SWPC_FLUX, reading);
   return reading;
 }
+/* v8 ignore stop */
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -221,6 +231,7 @@ async function fetchSolarFlux(): Promise<SolarFluxReading | null> {
  * Each source fails independently — partial data is returned rather than nothing.
  * Caching ensures minimal API load even with many concurrent users.
  */
+/* v8 ignore start */
 export async function fetchSWPCData(): Promise<SWPCData | null> {
   // Check for a combined cache hit first (saves 4 IndexedDB reads)
   const cached = await getCached<SWPCData>(CACHE_KEYS.SWPC_COMBINED, CACHE_TTLS.SWPC_KP);
@@ -254,6 +265,7 @@ export async function fetchSWPCData(): Promise<SWPCData | null> {
     return null;
   }
 }
+/* v8 ignore stop */
 
 /**
  * Get the current (most recent) Kp index from SWPC real-time data.

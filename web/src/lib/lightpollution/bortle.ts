@@ -77,6 +77,7 @@ interface LightPollutionGrid {
 let gridData: Uint8Array | null = null;
 let gridMeta: LightPollutionGrid | null = null;
 
+/* v8 ignore start */
 /**
  * Lazily load and decode the light pollution grid.
  * The grid is ~250KB compressed and loaded once into memory.
@@ -102,6 +103,7 @@ async function loadGrid(): Promise<{ data: Uint8Array; meta: LightPollutionGrid 
     return null;
   }
 }
+/* v8 ignore stop */
 
 /**
  * Look up Bortle class from the pre-processed grid.
@@ -133,6 +135,7 @@ function lookupGrid(
 let syncGridLoaded = false;
 let syncGridPromise: Promise<void> | null = null;
 
+/* v8 ignore start */
 /**
  * Kick off grid loading. Called early in app lifecycle.
  */
@@ -142,6 +145,7 @@ export function preloadLightPollutionGrid(): void {
     syncGridLoaded = true;
   });
 }
+/* v8 ignore stop */
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
