@@ -1,9 +1,23 @@
 {
-  "fetchedAt": "2026-02-10T09:34:04.321Z",
-  "startDate": "2026-02-10",
-  "endDate": "2026-02-16",
+  "fetchedAt": "2026-02-11T07:01:34.151Z",
+  "startDate": "2026-02-11",
+  "endDate": "2026-02-17",
   "data": {
-    "2026-02-10": [],
+    "2026-02-17": [
+      {
+        "name": "2026 AJ17",
+        "neoId": "54597145",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0247602472,
+          "max": 0.0553655959
+        },
+        "closeApproachDate": "2026-Feb-17 21:29",
+        "missDistanceLunarDistances": 17.3163852588,
+        "relativeVelocityKmh": 21824.7365825542,
+        "absoluteMagnitude": 25.154
+      }
+    ],
     "2026-02-15": [],
     "2026-02-16": [
       {
@@ -45,8 +59,8 @@
           "max": 0.0986370281
         },
         "closeApproachDate": "2026-Feb-14 10:08",
-        "missDistanceLunarDistances": 10.4206319341,
-        "relativeVelocityKmh": 9689.2780834227,
+        "missDistanceLunarDistances": 10.4206597476,
+        "relativeVelocityKmh": 9689.2850670804,
         "absoluteMagnitude": 23.9
       },
       {
@@ -67,13 +81,13 @@
         "neoId": "54579463",
         "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.0388467756,
-          "max": 0.0868640309
+          "min": 0.0382432662,
+          "max": 0.0855145429
         },
-        "closeApproachDate": "2026-Feb-14 20:15",
-        "missDistanceLunarDistances": 19.4005145709,
-        "relativeVelocityKmh": 36677.3576880866,
-        "absoluteMagnitude": 24.176
+        "closeApproachDate": "2026-Feb-14 20:16",
+        "missDistanceLunarDistances": 19.4046888521,
+        "relativeVelocityKmh": 36684.484367472,
+        "absoluteMagnitude": 24.21
       }
     ],
     "2026-02-11": [
@@ -97,26 +111,26 @@
         "neoId": "54580733",
         "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.0261068802,
-          "max": 0.0583767589
+          "min": 0.0265433037,
+          "max": 0.0593526315
         },
-        "closeApproachDate": "2026-Feb-12 04:57",
-        "missDistanceLunarDistances": 9.9212017972,
-        "relativeVelocityKmh": 40472.7122827202,
-        "absoluteMagnitude": 25.039
+        "closeApproachDate": "2026-Feb-12 04:56",
+        "missDistanceLunarDistances": 9.9172894686,
+        "relativeVelocityKmh": 40457.8816973604,
+        "absoluteMagnitude": 25.003
       },
       {
         "name": "2026 CV",
         "neoId": "54597130",
         "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.0174162631,
-          "max": 0.0389439482
+          "min": 0.0174966529,
+          "max": 0.0391237053
         },
         "closeApproachDate": "2026-Feb-12 13:18",
-        "missDistanceLunarDistances": 13.7058105718,
-        "relativeVelocityKmh": 37247.772880327,
-        "absoluteMagnitude": 25.918
+        "missDistanceLunarDistances": 13.7011859842,
+        "relativeVelocityKmh": 37244.4813780318,
+        "absoluteMagnitude": 25.908
       },
       {
         "name": "2022 DV",
