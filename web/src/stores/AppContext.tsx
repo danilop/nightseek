@@ -196,6 +196,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setLocation = useCallback(async (location: Location) => {
     dispatch({ type: 'SET_LOCATION', payload: location });
+    dispatch({ type: 'CLEAR_FORECAST' });
     await setCache(CACHE_KEYS.LOCATION, location);
   }, []);
 
