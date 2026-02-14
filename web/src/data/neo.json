@@ -1,8 +1,49 @@
 {
-  "fetchedAt": "2026-02-13T06:59:43.036Z",
-  "startDate": "2026-02-13",
-  "endDate": "2026-02-19",
+  "fetchedAt": "2026-02-14T06:44:30.856Z",
+  "startDate": "2026-02-14",
+  "endDate": "2026-02-20",
   "data": {
+    "2026-02-20": [
+      {
+        "name": "2026 CO",
+        "neoId": "54597122",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0203776912,
+          "max": 0.0455659027
+        },
+        "closeApproachDate": "2026-Feb-20 15:15",
+        "missDistanceLunarDistances": 4.492638411,
+        "relativeVelocityKmh": 26968.3797081902,
+        "absoluteMagnitude": 25.577
+      },
+      {
+        "name": "2026 AH17",
+        "neoId": "54597138",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0614829896,
+          "max": 0.1374801441
+        },
+        "closeApproachDate": "2026-Feb-20 22:26",
+        "missDistanceLunarDistances": 11.2519628616,
+        "relativeVelocityKmh": 26284.1179400296,
+        "absoluteMagnitude": 23.179
+      },
+      {
+        "name": "2026 BQ8",
+        "neoId": "54597146",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0494942761,
+          "max": 0.1106725658
+        },
+        "closeApproachDate": "2026-Feb-20 11:59",
+        "missDistanceLunarDistances": 12.1880787969,
+        "relativeVelocityKmh": 22498.2800858286,
+        "absoluteMagnitude": 23.65
+      }
+    ],
     "2026-02-19": [],
     "2026-02-17": [
       {
@@ -50,21 +91,6 @@
         "absoluteMagnitude": 21.01
       }
     ],
-    "2026-02-13": [
-      {
-        "name": "2026 CA1",
-        "neoId": "54597142",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0204623249,
-          "max": 0.0457551495
-        },
-        "closeApproachDate": "2026-Feb-13 06:55",
-        "missDistanceLunarDistances": 6.3464320317,
-        "relativeVelocityKmh": 30059.0709527021,
-        "absoluteMagnitude": 25.568
-      }
-    ],
     "2026-02-14": [
       {
         "name": "1999 AO10",
@@ -75,8 +101,8 @@
           "max": 0.0986370281
         },
         "closeApproachDate": "2026-Feb-14 10:08",
-        "missDistanceLunarDistances": 10.420676319,
-        "relativeVelocityKmh": 9689.2912922263,
+        "missDistanceLunarDistances": 10.4206744129,
+        "relativeVelocityKmh": 9689.2906316516,
         "absoluteMagnitude": 23.9
       },
       {
