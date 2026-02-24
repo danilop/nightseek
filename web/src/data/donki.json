@@ -1,25 +1,5 @@
 {
-  "geomagneticStorms": [
-    {
-      "gstID": "2026-02-16T18:00:00-GST-001",
-      "startTime": "2026-02-16T18:00Z",
-      "kpIndexes": [
-        {
-          "observedTime": "2026-02-16T21:00Z",
-          "kpIndex": 6,
-          "source": "NOAA"
-        }
-      ],
-      "maxKp": 6
-    }
-  ],
-  "solarFlares": [
-    {
-      "flrID": "2026-02-16T04:03:00-FLR-001",
-      "classType": "M2.4",
-      "beginTime": "2026-02-16T04:03Z",
-      "peakTime": "2026-02-16T04:35Z"
-    }
-  ],
-  "fetchedAt": "2026-02-21T06:41:46.953Z"
+  "geomagneticStorms": [],
+  "solarFlares": [],
+  "fetchedAt": "2026-02-24T07:00:52.157Z"
 }
