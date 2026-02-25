@@ -1,22 +1,64 @@
 import type { Location } from '@/types';
 
 /**
- * Detect location using IP geolocation
+ * Fetch location from ipapi.co (HTTPS, primary provider).
+ */
+async function fetchIpapiLocation(): Promise<Location | null> {
+  const response = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) });
+  if (!response.ok) return null;
+
+  const data = await response.json();
+  if (data.error) return null;
+
+  const lat = data.latitude ?? data.lat;
+  const lon = data.longitude ?? data.lon;
+  if (lat == null || lon == null) return null;
+
+  return {
+    latitude: Number(lat),
+    longitude: Number(lon),
+    name: `${data.city ?? 'Unknown'}, ${data.country_name ?? data.country ?? 'Unknown'}`,
+    timezone: data.timezone,
+  };
+}
+
+/**
+ * Fetch location from ip-api.com (HTTP fallback).
+ */
+async function fetchIpApiLocation(): Promise<Location | null> {
+  const response = await fetch(
+    'http://ip-api.com/json/?fields=status,lat,lon,city,country,timezone',
+    {
+      signal: AbortSignal.timeout(5000),
+    }
+  );
+  if (!response.ok) return null;
+
+  const data = await response.json();
+  if (data.status !== 'success') return null;
+
+  return {
+    latitude: data.lat,
+    longitude: data.lon,
+    name: `${data.city ?? 'Unknown'}, ${data.country ?? 'Unknown'}`,
+    timezone: data.timezone,
+  };
+}
+
+/**
+ * Detect location using IP geolocation with dual-provider fallback.
+ * Primary: ipapi.co (HTTPS), Fallback: ip-api.com (HTTP).
  */
 export async function detectLocationByIP(): Promise<Location | null> {
   try {
-    // Using ipwho.is which supports HTTPS on free tier
-    const response = await fetch('https://ipwho.is/');
-    const data = await response.json();
+    const result = await fetchIpapiLocation();
+    if (result) return result;
+  } catch {
+    // Primary provider failed
+  }
 
-    if (!data.success) return null;
-
-    return {
-      latitude: data.latitude,
-      longitude: data.longitude,
-      name: `${data.city}, ${data.country}`,
-      timezone: data.timezone?.id,
-    };
+  try {
+    return await fetchIpApiLocation();
   } catch {
     return null;
   }
