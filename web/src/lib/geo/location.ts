@@ -23,31 +23,28 @@ async function fetchIpapiLocation(): Promise<Location | null> {
 }
 
 /**
- * Fetch location from ip-api.com (HTTP fallback).
+ * Fetch location from ipwho.is (HTTPS fallback, no API key required).
  */
-async function fetchIpApiLocation(): Promise<Location | null> {
-  const response = await fetch(
-    'http://ip-api.com/json/?fields=status,lat,lon,city,country,timezone',
-    {
-      signal: AbortSignal.timeout(5000),
-    }
-  );
+async function fetchIpwhoisLocation(): Promise<Location | null> {
+  const response = await fetch('https://ipwho.is/', { signal: AbortSignal.timeout(5000) });
   if (!response.ok) return null;
 
   const data = await response.json();
-  if (data.status !== 'success') return null;
+  if (!data.success) return null;
+
+  if (data.latitude == null || data.longitude == null) return null;
 
   return {
-    latitude: data.lat,
-    longitude: data.lon,
+    latitude: Number(data.latitude),
+    longitude: Number(data.longitude),
     name: `${data.city ?? 'Unknown'}, ${data.country ?? 'Unknown'}`,
-    timezone: data.timezone,
+    timezone: data.timezone?.id,
   };
 }
 
 /**
  * Detect location using IP geolocation with dual-provider fallback.
- * Primary: ipapi.co (HTTPS), Fallback: ip-api.com (HTTP).
+ * Primary: ipapi.co (HTTPS), Fallback: ipwho.is (HTTPS).
  */
 export async function detectLocationByIP(): Promise<Location | null> {
   try {
@@ -58,7 +55,7 @@ export async function detectLocationByIP(): Promise<Location | null> {
   }
 
   try {
-    return await fetchIpApiLocation();
+    return await fetchIpwhoisLocation();
   } catch {
     return null;
   }
