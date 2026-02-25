@@ -1,5 +1,5 @@
 import { Camera, Clock, Compass, Focus, Moon, Mountain, Ruler, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -25,6 +25,8 @@ import { useApp } from '@/stores/AppContext';
 import type { EnhancedGaiaStarField, NightInfo, NightWeather, ScoredObject } from '@/types';
 import EnhancedStarFieldCanvas from './EnhancedStarFieldCanvas';
 
+const AladinSurveyView = lazy(() => import('./AladinSurveyView'));
+
 interface ObjectDetailPanelProps {
   object: ScoredObject;
   nightInfo: NightInfo;
@@ -43,6 +45,8 @@ export default function ObjectDetailPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'starfield' | 'survey'>('starfield');
+  const [surveyMounted, setSurveyMounted] = useState(false);
 
   const focusTrapRef = useFocusTrap<HTMLDivElement>();
   const { state } = useApp();
@@ -219,13 +223,38 @@ export default function ObjectDetailPanel({
           </div>
         </div>
 
-        {/* Star Field Canvas — only for DSOs with angular size */}
+        {/* Star Field / Survey View — only for DSOs with angular size */}
         {showStarField && (
           <div className="rounded-lg bg-night-800 p-3">
             <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <Star className="h-4 w-4" />
-                <span>Star Field Preview</span>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 rounded-full bg-night-900 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('starfield')}
+                    className={`rounded-full px-3 py-1 font-medium text-xs transition-colors ${
+                      viewMode === 'starfield'
+                        ? 'bg-night-700 text-white'
+                        : 'text-gray-500 hover:text-gray-300'
+                    }`}
+                  >
+                    Star Field
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('survey');
+                      if (!surveyMounted) setSurveyMounted(true);
+                    }}
+                    className={`rounded-full px-3 py-1 font-medium text-xs transition-colors ${
+                      viewMode === 'survey'
+                        ? 'bg-night-700 text-white'
+                        : 'text-gray-500 hover:text-gray-300'
+                    }`}
+                  >
+                    Survey
+                  </button>
+                </div>
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <Focus className="h-3 w-3" />
@@ -237,35 +266,65 @@ export default function ObjectDetailPanel({
               </div>
             </div>
 
-            {loading && (
-              <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
-                <div className="text-center">
-                  <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-sky-500 border-b-2" />
-                  <p className="text-gray-500 text-sm">Loading star field...</p>
-                </div>
-              </div>
+            {viewMode === 'starfield' && (
+              <>
+                {loading && (
+                  <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
+                    <div className="text-center">
+                      <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-sky-500 border-b-2" />
+                      <p className="text-gray-500 text-sm">Loading star field...</p>
+                    </div>
+                  </div>
+                )}
+
+                {error && !loading && (
+                  <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
+                    <div className="text-center">
+                      <Star className="mx-auto mb-2 h-8 w-8 text-gray-600" />
+                      <p className="text-gray-400 text-sm">{error}</p>
+                      <p className="mt-1 text-gray-500 text-xs">
+                        Star field preview requires internet connection
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {!loading && !error && starField && (
+                  <EnhancedStarFieldCanvas
+                    starField={starField}
+                    fovWidth={fov.width}
+                    fovHeight={fov.height}
+                    objectSizeArcmin={visibility.angularSizeArcmin}
+                    mosaic={mosaic}
+                  />
+                )}
+              </>
             )}
 
-            {error && !loading && (
-              <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
-                <div className="text-center">
-                  <Star className="mx-auto mb-2 h-8 w-8 text-gray-600" />
-                  <p className="text-gray-400 text-sm">{error}</p>
-                  <p className="mt-1 text-gray-500 text-xs">
-                    Star field preview requires internet connection
-                  </p>
-                </div>
-              </div>
+            {viewMode === 'survey' && surveyMounted && (
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
+                    <div className="text-center">
+                      <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-sky-500 border-b-2" />
+                      <p className="text-gray-500 text-sm">Loading survey viewer...</p>
+                    </div>
+                  </div>
+                }
+              >
+                <AladinSurveyView
+                  ra={visibility.raHours}
+                  dec={visibility.decDegrees}
+                  fovArcmin={Math.max(fov.width, fov.height)}
+                  objectName={object.objectName}
+                />
+              </Suspense>
             )}
 
-            {!loading && !error && starField && (
-              <EnhancedStarFieldCanvas
-                starField={starField}
-                fovWidth={fov.width}
-                fovHeight={fov.height}
-                objectSizeArcmin={visibility.angularSizeArcmin}
-                mosaic={mosaic}
-              />
+            {viewMode === 'survey' && (
+              <p className="mt-2 text-center text-gray-600 text-xs">
+                DSS2 Color · Digitized Sky Survey
+              </p>
             )}
           </div>
         )}

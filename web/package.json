@@ -41,6 +41,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@tailwindcss/postcss": "^4.2.1",
+    "aladin-lite": "3.7.3-beta",
     "astronomy-engine": "^2.1.19",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
