@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 interface AladinSurveyViewProps {
   ra: number; // hours
   dec: number; // degrees
-  fovArcmin: number;
+  fovWidth: number; // arcminutes
+  fovHeight: number; // arcminutes
   objectName: string;
 }
 
@@ -20,7 +21,8 @@ function hasWebGL2(): boolean {
 export default function AladinSurveyView({
   ra,
   dec,
-  fovArcmin,
+  fovWidth,
+  fovHeight,
   objectName,
 }: AladinSurveyViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -30,7 +32,7 @@ export default function AladinSurveyView({
   const initRef = useRef(false);
 
   const raDeg = ra * 15;
-  const fovDeg = fovArcmin / 60;
+  const fovDeg = fovWidth / 60;
 
   useEffect(() => {
     if (!containerRef.current || initRef.current) return;
@@ -134,7 +136,7 @@ export default function AladinSurveyView({
         ref={containerRef}
         role="img"
         className="w-full overflow-hidden rounded-lg"
-        style={{ height: 280 }}
+        style={{ aspectRatio: `${fovWidth} / ${fovHeight}` }}
         aria-label={`Sky survey image of ${objectName}`}
       />
     </div>

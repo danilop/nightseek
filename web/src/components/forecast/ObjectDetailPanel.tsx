@@ -315,7 +315,8 @@ export default function ObjectDetailPanel({
                 <AladinSurveyView
                   ra={visibility.raHours}
                   dec={visibility.decDegrees}
-                  fovArcmin={Math.max(fov.width, fov.height)}
+                  fovWidth={fov.width}
+                  fovHeight={fov.height}
                   objectName={object.objectName}
                 />
               </Suspense>
