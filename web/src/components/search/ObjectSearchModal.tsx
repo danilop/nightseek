@@ -8,6 +8,7 @@
 import {
   AlertCircle,
   Calendar,
+  Camera,
   Clock,
   Eye,
   EyeOff,
@@ -20,8 +21,20 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
+import { formatImagingWindow } from '@/lib/astronomy/imaging-windows';
 import { searchCelestialObjects } from '@/lib/search/object-search';
-import { azimuthToCardinal } from '@/lib/utils/format';
+import {
+  azimuthToCardinal,
+  formatAltitude,
+  formatAngularSize,
+  formatMagnitude,
+  formatMoonSeparation,
+  formatRelativeDate,
+  formatTime,
+  getAltitudeQualityClass,
+} from '@/lib/utils/format';
+import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
+import { getRatingFromScore } from '@/lib/utils/rating';
 import type { Location, ObjectSearchResult, ObjectVisibilityStatus } from '@/types';
 
 interface ObjectSearchModalProps {
@@ -94,38 +107,6 @@ function getObjectTypeDisplay(type: string): string {
 }
 
 /**
- * Format a date for display
- */
-function formatDate(date: Date): string {
-  const now = new Date();
-  const diffDays = Math.round((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return 'Tonight';
-  if (diffDays === 1) return 'Tomorrow';
-  if (diffDays < 7) return `In ${diffDays} days`;
-  if (diffDays < 30) return `In ${Math.round(diffDays / 7)} weeks`;
-  if (diffDays < 365) return `In ${Math.round(diffDays / 30)} months`;
-  return `In ${Math.round(diffDays / 365)} year(s)`;
-}
-
-/**
- * Format time for display
- */
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-/**
- * Format angular size for display
- */
-function formatAngularSize(arcmin: number): string {
-  if (arcmin >= 60) {
-    return `${(arcmin / 60).toFixed(1)}°`;
-  }
-  return `${arcmin.toFixed(1)}'`;
-}
-
-/**
  * Search result card component
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: UI component displays many conditional states
@@ -183,7 +164,7 @@ function SearchResultCard({
               {result.magnitude !== null && (
                 <>
                   <span className="text-gray-600">|</span>
-                  <span>Mag {result.magnitude.toFixed(1)}</span>
+                  <span>Mag {formatMagnitude(result.magnitude)}</span>
                 </>
               )}
               {result.angularSizeArcmin !== null && result.angularSizeArcmin > 0 && (
@@ -201,7 +182,9 @@ function SearchResultCard({
               {statusInfo.icon}
               <span>{statusInfo.label}</span>
               {!result.visibleTonight && result.nextVisibleDate && !result.neverVisible && (
-                <span className="ml-1 text-gray-400">• {formatDate(result.nextVisibleDate)}</span>
+                <span className="ml-1 text-gray-400">
+                  • {formatRelativeDate(result.nextVisibleDate)}
+                </span>
               )}
             </div>
           </div>
@@ -215,10 +198,22 @@ function SearchResultCard({
             {/* Visibility details */}
             {result.visibleTonight && result.visibility && (
               <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-3">
+                {/* Mini star rating */}
+                {(() => {
+                  const rating = getRatingFromScore(result.visibility.maxAltitude, 90);
+                  return (
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className={`text-xs ${rating.color}`}>{rating.starString}</span>
+                      <span className="text-gray-400 text-xs">{rating.label}</span>
+                    </div>
+                  );
+                })()}
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-gray-400">Peak Altitude</span>
-                    <p className="text-white">{result.visibility.maxAltitude.toFixed(0)}°</p>
+                    <p className={getAltitudeQualityClass(result.visibility.maxAltitude)}>
+                      {formatAltitude(result.visibility.maxAltitude)}
+                    </p>
                   </div>
                   {result.visibility.maxAltitudeTime && (
                     <div>
@@ -239,11 +234,9 @@ function SearchResultCard({
                     <div>
                       <span className="text-gray-400">Moon Distance</span>
                       <p
-                        className={
-                          result.visibility.moonSeparation < 30 ? 'text-yellow-400' : 'text-white'
-                        }
+                        className={result.visibility.moonWarning ? 'text-amber-400' : 'text-white'}
                       >
-                        {result.visibility.moonSeparation.toFixed(0)}°
+                        {formatMoonSeparation(result.visibility.moonSeparation)}
                         {result.visibility.moonWarning && ' ⚠️'}
                       </p>
                     </div>
@@ -252,9 +245,21 @@ function SearchResultCard({
                     <div className="col-span-2">
                       <span className="text-gray-400">Good Observing (45°+)</span>
                       <p className="text-white">
-                        {formatTime(result.visibility.above45Start)} -{' '}
+                        {formatTime(result.visibility.above45Start)} –{' '}
                         {formatTime(result.visibility.above45End)}
                       </p>
+                    </div>
+                  )}
+                  {/* Imaging window */}
+                  {result.visibility.imagingWindow && (
+                    <div className="col-span-2 flex items-center gap-2">
+                      <Camera className="h-4 w-4 text-green-400" />
+                      <span className="text-gray-400">Best Window:</span>
+                      <span
+                        className={`font-medium ${getImagingQualityColorClass(result.visibility.imagingWindow.quality)}`}
+                      >
+                        {formatImagingWindow(result.visibility.imagingWindow)}
+                      </span>
                     </div>
                   )}
                   {/* Show optimal viewing note if not optimal tonight */}
@@ -273,7 +278,7 @@ function SearchResultCard({
                     result.nextOptimalDate && (
                       <div className="col-span-2">
                         <span className="text-gray-400">Optimal Viewing (45°+)</span>
-                        <p className="text-sky-400">{formatDate(result.nextOptimalDate)}</p>
+                        <p className="text-sky-400">{formatRelativeDate(result.nextOptimalDate)}</p>
                       </div>
                     )}
                 </div>
@@ -284,10 +289,14 @@ function SearchResultCard({
             {!result.visibleTonight && result.nextVisibleDate && !result.neverVisible && (
               <div className="rounded-lg border border-sky-500/20 bg-sky-500/10 p-3">
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-gray-400">Peak Altitude</span>
-                    <p className="text-white">{result.visibility?.maxAltitude.toFixed(0)}°</p>
-                  </div>
+                  {result.visibility && (
+                    <div>
+                      <span className="text-gray-400">Peak Altitude</span>
+                      <p className={getAltitudeQualityClass(result.visibility.maxAltitude)}>
+                        {formatAltitude(result.visibility.maxAltitude)}
+                      </p>
+                    </div>
+                  )}
                   {result.visibility?.maxAltitudeTime && (
                     <div>
                       <span className="text-gray-400">Peak Time</span>
@@ -315,7 +324,7 @@ function SearchResultCard({
                     result.visibility.maxAltitude < 45 && (
                       <div className="col-span-2">
                         <span className="text-gray-400">Optimal Viewing (45°+)</span>
-                        <p className="text-sky-400">{formatDate(result.nextOptimalDate)}</p>
+                        <p className="text-sky-400">{formatRelativeDate(result.nextOptimalDate)}</p>
                       </div>
                     )}
                 </div>

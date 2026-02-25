@@ -32,13 +32,7 @@ export default function TonightPicksCard({
       </div>
       <div
         className={`grid gap-3 ${
-          picks.length === 1
-            ? 'grid-cols-1'
-            : picks.length === 2
-              ? 'grid-cols-1 sm:grid-cols-2'
-              : picks.length === 3
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+          picks.length === 1 ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'
         }`}
       >
         {picks.map(pick => (

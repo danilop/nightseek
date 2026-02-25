@@ -70,15 +70,42 @@ describe('selectTonightPicks', () => {
     expect(picks[0].object.objectName).toBe('Jupiter');
   });
 
-  it('picks top DSO when score >= 60', () => {
-    const dso = makeScoredObject({
-      objectName: 'M42',
+  it('picks top galaxy when score >= 60', () => {
+    const galaxy = makeScoredObject({
+      objectName: 'M31',
       category: 'dso',
+      subtype: 'galaxy',
       totalScore: 90,
     });
-    const picks = selectTonightPicks([dso]);
+    const picks = selectTonightPicks([galaxy]);
     expect(picks).toHaveLength(1);
-    expect(picks[0].categoryLabel).toBe('Top Deep Sky');
+    expect(picks[0].categoryLabel).toBe('Top Galaxy');
+  });
+
+  it('picks top nebula when score >= 60', () => {
+    const nebula = makeScoredObject({
+      objectName: 'M42',
+      category: 'dso',
+      subtype: 'emission_nebula',
+      totalScore: 90,
+      visibility: { subtype: 'emission_nebula' },
+    });
+    const picks = selectTonightPicks([nebula]);
+    expect(picks).toHaveLength(1);
+    expect(picks[0].categoryLabel).toBe('Top Nebula');
+  });
+
+  it('picks top cluster when score >= 60', () => {
+    const cluster = makeScoredObject({
+      objectName: 'M45',
+      category: 'dso',
+      subtype: 'open_cluster',
+      totalScore: 85,
+      visibility: { subtype: 'open_cluster' },
+    });
+    const picks = selectTonightPicks([cluster]);
+    expect(picks).toHaveLength(1);
+    expect(picks[0].categoryLabel).toBe('Top Cluster');
   });
 
   it('picks top comet only when score >= 80', () => {
@@ -99,88 +126,50 @@ describe('selectTonightPicks', () => {
     expect(picks[0].categoryLabel).toBe('Top Comet');
   });
 
-  it('picks best imaging when qualityScore >= 70 and not already picked', () => {
-    const dso = makeScoredObject({
+  it('deduplicates across categories', () => {
+    const galaxy = makeScoredObject({
       objectName: 'M31',
       category: 'dso',
-      totalScore: 90,
-      visibility: {
-        imagingWindow: {
-          start: new Date(),
-          end: new Date(),
-          quality: 'excellent',
-          qualityScore: 85,
-          factors: { altitude: 80, airmass: 1.1, moonInterference: 2, cloudCover: 5 },
-        },
-      },
+      subtype: 'galaxy',
+      totalScore: 100,
     });
-    const imagingOnly = makeScoredObject({
-      objectName: 'NGC 7000',
-      category: 'dso',
-      totalScore: 50,
-      visibility: {
-        imagingWindow: {
-          start: new Date(),
-          end: new Date(),
-          quality: 'good',
-          qualityScore: 75,
-          factors: { altitude: 60, airmass: 1.3, moonInterference: 5, cloudCover: 10 },
-        },
-      },
-    });
-    const picks = selectTonightPicks([dso, imagingOnly]);
-    expect(picks).toHaveLength(2);
-    expect(picks[0].categoryLabel).toBe('Top Deep Sky');
-    expect(picks[1].categoryLabel).toBe('Best Imaging');
-    expect(picks[1].object.objectName).toBe('NGC 7000');
+    const picks = selectTonightPicks([galaxy]);
+    // Only Top Galaxy — no duplicates
+    expect(picks).toHaveLength(1);
+    expect(picks[0].categoryLabel).toBe('Top Galaxy');
   });
 
-  it('deduplicates: skips best imaging if already top DSO', () => {
-    const dso = makeScoredObject({
+  it('returns per-category picks when all DSO categories qualify', () => {
+    const planet = makeScoredObject({ objectName: 'Saturn', category: 'planet', totalScore: 100 });
+    const galaxy = makeScoredObject({
+      objectName: 'M31',
+      category: 'dso',
+      subtype: 'galaxy',
+      totalScore: 90,
+    });
+    const nebula = makeScoredObject({
       objectName: 'M42',
       category: 'dso',
-      totalScore: 100,
-      visibility: {
-        imagingWindow: {
-          start: new Date(),
-          end: new Date(),
-          quality: 'excellent',
-          qualityScore: 95,
-          factors: { altitude: 80, airmass: 1.1, moonInterference: 2, cloudCover: 5 },
-        },
-      },
+      subtype: 'emission_nebula',
+      totalScore: 85,
+      visibility: { subtype: 'emission_nebula' },
     });
-    const picks = selectTonightPicks([dso]);
-    // Only Top Deep Sky, not Best Imaging (same object)
-    expect(picks).toHaveLength(1);
-    expect(picks[0].categoryLabel).toBe('Top Deep Sky');
-  });
-
-  it('returns up to 4 picks when all categories qualify', () => {
-    const planet = makeScoredObject({ objectName: 'Saturn', category: 'planet', totalScore: 100 });
-    const dso = makeScoredObject({ objectName: 'M31', category: 'dso', totalScore: 90 });
-    const comet = makeScoredObject({ objectName: 'C/2024', category: 'comet', totalScore: 85 });
-    const imaging = makeScoredObject({
-      objectName: 'NGC 1499',
+    const cluster = makeScoredObject({
+      objectName: 'M45',
       category: 'dso',
-      totalScore: 50,
-      visibility: {
-        imagingWindow: {
-          start: new Date(),
-          end: new Date(),
-          quality: 'good',
-          qualityScore: 80,
-          factors: { altitude: 70, airmass: 1.2, moonInterference: 5, cloudCover: 10 },
-        },
-      },
+      subtype: 'open_cluster',
+      totalScore: 80,
+      visibility: { subtype: 'open_cluster' },
     });
-    const picks = selectTonightPicks([planet, dso, comet, imaging]);
-    expect(picks).toHaveLength(4);
+    const comet = makeScoredObject({ objectName: 'C/2024', category: 'comet', totalScore: 85 });
+    const picks = selectTonightPicks([planet, galaxy, nebula, cluster, comet]);
+    expect(picks).toHaveLength(5);
     expect(picks.map(p => p.categoryLabel)).toEqual([
       'Top Planet',
-      'Top Deep Sky',
+      'Top Galaxy',
+      'Top Nebula',
+      'Top Cluster',
       'Top Comet',
-      'Best Imaging',
     ]);
   });
 });
