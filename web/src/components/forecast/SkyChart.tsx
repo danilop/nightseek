@@ -1,4 +1,13 @@
-import { ChevronDown, ChevronRight, Clock, Compass, Crosshair, Map as MapIcon } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Compass,
+  Crosshair,
+  Loader2,
+  Map as MapIcon,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeviceCompass } from '@/hooks/useDeviceCompass';
 import { getNightLabel } from '@/lib/utils/format';
@@ -150,6 +159,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
   const celestialInitialized = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [chartStatus, setChartStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
 
   // Store initial time for first render - don't add currentTime as init dependency
   const initialTimeRef = useRef<Date | null>(null);
@@ -177,9 +187,21 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
     const loadScript = (src: string, integrity?: string): Promise<void> => {
       return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) {
-          resolve();
-          return;
+        // Remove any existing failed script tag so we can retry
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+          // If the global it defines is already available, no need to reload
+          if (src.includes('d3-celestial') && typeof Celestial !== 'undefined') {
+            resolve();
+            return;
+          }
+          // biome-ignore lint/suspicious/noExplicitAny: d3 loaded via global script
+          if (src.includes('d3@') && typeof (window as any).d3 !== 'undefined') {
+            resolve();
+            return;
+          }
+          // Script tag exists but global isn't available — remove and retry
+          existing.remove();
         }
         const script = document.createElement('script');
         script.src = src;
@@ -209,11 +231,17 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
         'sha384-2dC5WLJBbDzernjwxbynShiaH7BONv9FkNAh7pxDsJiBCe10tB419KJXHzsRZEAr'
       );
 
-      await new Promise<void>(resolve => {
+      await new Promise<void>((resolve, reject) => {
+        let elapsed = 0;
         const checkLoaded = setInterval(() => {
           if (typeof Celestial !== 'undefined') {
             clearInterval(checkLoaded);
             resolve();
+          }
+          elapsed += 50;
+          if (elapsed > 15000) {
+            clearInterval(checkLoaded);
+            reject(new Error('Timed out waiting for d3-celestial'));
           }
         }, 50);
       });
@@ -221,9 +249,12 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: d3-celestial config requires many options
     const initCelestial = async () => {
+      setChartStatus('loading');
+
       try {
         await loadCelestialScript();
       } catch {
+        setChartStatus('error');
         return;
       }
 
@@ -244,8 +275,13 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
 
       const dataPath = 'https://unpkg.com/d3-celestial@0.7.35/data/';
 
-      // Check container width for responsive config
-      const containerWidth = containerRef.current?.clientWidth ?? window.innerWidth;
+      // Measure container width explicitly - wait for layout if needed
+      let containerWidth = containerRef.current?.clientWidth ?? 0;
+      if (containerWidth === 0) {
+        // Container not yet laid out, wait a frame
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        containerWidth = containerRef.current?.clientWidth ?? window.innerWidth;
+      }
       const isSmall = containerWidth < SMALL_SCREEN_WIDTH;
       const isLarge = containerWidth >= MEDIUM_SCREEN_WIDTH;
 
@@ -283,7 +319,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
       const config = {
         container: 'celestial-map',
         datapath: dataPath,
-        width: 0, // Auto-size to parent
+        width: containerWidth, // Explicit width (auto-size with 0 can fail)
         projection: 'stereographic', // Good for local sky views
         transform: 'equatorial',
         follow: 'zenith',
@@ -392,8 +428,9 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
         }
 
         celestialInitialized.current = true;
+        setChartStatus('ready');
       } catch {
-        // Celestial initialization failed silently
+        setChartStatus('error');
       }
     };
 
@@ -658,11 +695,52 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           </div>
 
           {/* Sky Chart */}
-          <div
-            ref={containerRef}
-            id="celestial-map"
-            className="min-h-[300px] w-full overflow-hidden rounded-lg bg-night-950 sm:min-h-[400px] lg:min-h-[500px] xl:min-h-[600px]"
-          />
+          <div className="relative">
+            <div
+              ref={containerRef}
+              id="celestial-map"
+              className="min-h-[300px] w-full overflow-hidden rounded-lg bg-night-950 sm:min-h-[400px] lg:min-h-[500px] xl:min-h-[600px]"
+            />
+            {chartStatus === 'loading' && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-night-950">
+                <div className="flex flex-col items-center gap-2 text-gray-400">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <span className="text-xs">Loading sky chart...</span>
+                </div>
+              </div>
+            )}
+            {chartStatus === 'error' && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-night-950">
+                <div className="flex flex-col items-center gap-3 text-gray-400">
+                  <AlertTriangle className="h-6 w-6 text-amber-500" />
+                  <span className="text-xs">Failed to load sky chart</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      // Clear the SW cache for CDN scripts so corrupted entries are refetched
+                      try {
+                        const cache = await caches.open('cdn-scripts');
+                        const keys = await cache.keys();
+                        await Promise.all(
+                          keys.filter(r => r.url.includes('unpkg.com')).map(r => cache.delete(r))
+                        );
+                      } catch {
+                        // Cache API not available — retry will still attempt reload
+                      }
+                      celestialInitialized.current = false;
+                      setChartStatus('idle');
+                      // Clear and re-trigger by collapsing/expanding
+                      setExpanded(false);
+                      requestAnimationFrame(() => setExpanded(true));
+                    }}
+                    className="rounded bg-night-700 px-3 py-1 text-white text-xs hover:bg-night-600"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

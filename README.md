@@ -13,6 +13,52 @@ The web app is a Progressive Web App (PWA) that works on desktop and mobile:
 - **Weather Integration**: Real-time cloud cover and observing conditions
 - **Drag & Drop**: Reorder categories to personalize your view
 
+## iOS / macOS App
+
+A native iOS and macOS app built with [Capacitor](https://capacitorjs.com/) that wraps the web app and adds native features:
+
+- **Local Notifications**: Alerts for clear skies, meteor shower peaks, aurora conditions, and astronomical events — without opening the app
+- **Native Geolocation**: Uses iOS location services with proper permission dialogs
+- **Native Share Sheet**: Share observation plans via the iOS share sheet
+- **Haptic Feedback**: Tactile feedback on interactions
+- **Offline Sky Chart**: d3-celestial star map bundled locally (no CDN dependency)
+- **Mac Catalyst**: Runs natively on macOS from the same codebase
+
+### Architecture
+
+The `mobile/` directory uses an **overlay pattern** — it resolves ~5 override files from `mobile/src/` and everything else from `web/src/` via Vite aliases. The `web/` PWA is never modified.
+
+### Development
+
+```bash
+# Navigate to mobile directory
+cd mobile
+
+# Install dependencies
+npm install
+
+# Sync deps with web/ (after web/ dependencies change)
+npm run sync-deps
+
+# Build and sync to Xcode
+npm run sync
+
+# Open in Xcode
+npm run open
+
+# Development server (browser preview)
+npm run dev
+```
+
+**Requirements**: Xcode 15+, CocoaPods (`brew install cocoapods`), Node.js 18+
+
+### Building for App Store
+
+1. `cd mobile && npm run sync` — builds and syncs to Xcode
+2. `npm run open` — opens the Xcode project
+3. Enable Mac Catalyst in Xcode (Signing & Capabilities → check "Mac")
+4. Archive and submit via Xcode → Product → Archive
+
 ## CLI Tool
 
 For terminal users who prefer command-line tools.
@@ -574,11 +620,18 @@ nightseek/
 │   ├── formatter.py    # Output formatting
 │   ├── pyproject.toml  # Python dependencies (uv)
 │   └── uv.lock         # Locked Python dependencies
-├── web/                # Web application
+├── web/                # Web application (PWA)
 │   ├── src/            # React/TypeScript source
 │   ├── package.json    # Node dependencies (pnpm)
 │   ├── pnpm-lock.yaml  # Locked Node dependencies
 │   └── vite.config.ts  # Vite configuration
+├── mobile/             # Native iOS/macOS app (Capacitor)
+│   ├── src/            # Override files (~5 files)
+│   ├── ios/            # Xcode project (auto-generated)
+│   ├── public/vendor/  # Bundled d3-celestial scripts & data
+│   ├── capacitor.config.ts
+│   ├── vite.config.ts  # Alias overrides (no PWA plugin)
+│   └── scripts/        # sync-deps.sh helper
 └── .github/workflows/  # CI/CD
     └── deploy.yml      # GitHub Pages deployment
 ```

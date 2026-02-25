@@ -234,24 +234,19 @@ def forecast(
             console=console,
             transient=True,
         ) as progress:
-            task = progress.add_task("Fetching weather...", total=3)
+            task = progress.add_task("Fetching weather...", total=1)
 
-            # Step 1: Initialize
-            progress.update(task, description="Connecting to weather API...")
             weather_forecast = WeatherForecast(lat, lon)
+            success = weather_forecast.fetch_forecast(config.forecast_days)
             progress.advance(task)
 
-            # Step 2: Fetch weather data
-            progress.update(task, description="Fetching weather data...")
-            weather_forecast._fetch_weather_api(config.forecast_days)
-            progress.advance(task)
-
-            # Step 3: Fetch air quality data
-            progress.update(task, description="Fetching air quality...")
-            weather_forecast._fetch_air_quality(config.forecast_days)
-            progress.advance(task)
-
-        console.print("[green]✓ Weather data received[/green]")
+        if success:
+            console.print("[green]✓ Weather data received[/green]")
+        else:
+            weather_forecast = None
+            console.print(
+                "[yellow]⚠ Weather data unavailable (network/cache error)[/yellow]"
+            )
 
     # Analyze forecast with progress bar
     start_date = datetime.now()

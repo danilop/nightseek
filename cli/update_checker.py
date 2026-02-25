@@ -5,7 +5,6 @@ Checks for updates once per day and installs them automatically after showing th
 
 import json
 import subprocess
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -33,16 +32,19 @@ def get_local_version() -> Optional[str]:
     """Get the currently installed version.
 
     For development (git repo), returns commit SHA.
-    For installed tool, returns package version from pyproject.toml.
+    For installed tool, returns "installed".
     """
     # Try git first (for development)
     try:
+        repo_root = _find_repo_root()
+        if repo_root is None:
+            return "installed"
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
             capture_output=True,
             text=True,
             timeout=5,
-            cwd=sys.path[0],
+            cwd=repo_root,
         )
         if result.returncode == 0:
             return result.stdout.strip()[:7]
@@ -52,6 +54,15 @@ def get_local_version() -> Optional[str]:
     # For installed tools, use a marker file with install timestamp
     # This ensures we always check for updates on installed versions
     return "installed"
+
+
+def _find_repo_root() -> Optional[Path]:
+    """Find the git repository root from this file's location."""
+    start = Path(__file__).resolve()
+    for candidate in [start.parent, *start.parents]:
+        if (candidate / ".git").exists():
+            return candidate
+    return None
 
 
 def get_remote_version() -> Optional[str]:

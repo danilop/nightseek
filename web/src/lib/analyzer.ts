@@ -3,6 +3,7 @@ import type {
   AstronomicalEvents,
   DSOCatalogEntry,
   Location,
+  NeoCloseApproach,
   NightForecast,
   NightInfo,
   NightWeather,
@@ -386,7 +387,12 @@ export async function generateForecast(
 
   // Fetch comets from MPC
   progress('Loading comet data...', 15);
-  const cometCatalog = await fetchComets(settings.cometMagnitude);
+  let cometCatalog: Awaited<ReturnType<typeof fetchComets>> = [];
+  try {
+    cometCatalog = await fetchComets(settings.cometMagnitude);
+  } catch {
+    // Comet fetch failed - continue without comet data
+  }
 
   // Load minor planets (dwarf planets and asteroids)
   const dwarfPlanets = getDwarfPlanets();
@@ -422,10 +428,20 @@ export async function generateForecast(
   const maxElongations = detectMaxElongations(today, forecastDays);
 
   // Pre-fetch NEO close approaches for the entire forecast window (single batched call)
-  const neoDataByDate = await fetchNeoCloseApproachesRange(today, forecastDays);
+  let neoDataByDate = new Map<string, NeoCloseApproach[]>();
+  try {
+    neoDataByDate = await fetchNeoCloseApproachesRange(today, forecastDays);
+  } catch {
+    // NEO data fetch failed - continue without asteroid close approach data
+  }
 
   // Pre-fetch space weather data (DONKI)
-  const spaceWeather = await fetchSpaceWeather();
+  let spaceWeather: Awaited<ReturnType<typeof fetchSpaceWeather>> = null;
+  try {
+    spaceWeather = await fetchSpaceWeather();
+  } catch {
+    // Space weather fetch failed - continue without aurora data
+  }
 
   // Compute effective FOV for scoring
   const fov = getEffectiveFOV(settings.telescope, settings.customFOV);

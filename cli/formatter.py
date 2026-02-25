@@ -1444,7 +1444,7 @@ class ForecastFormatter:
 
         # Fall back to single point
         if weather.best_time:
-            time_str = self.tz.format_time(weather.best_time.time.replace(tzinfo=None))
+            time_str = self.tz.format_time(weather.best_time.time)
             return time_str, weather.best_time.cloud_cover
 
         return None, None

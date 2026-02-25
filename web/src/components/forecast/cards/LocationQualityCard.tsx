@@ -22,6 +22,7 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
       .then(result => {
         if (!cancelled) setData(result);
       })
+      .catch(() => {})
       .finally(() => {
         if (!cancelled) setLoading(false);
       });

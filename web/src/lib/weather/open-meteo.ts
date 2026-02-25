@@ -76,7 +76,11 @@ export async function fetchWeather(
     throw new Error(`Weather API error: ${response.status}`);
   }
 
-  return response.json();
+  try {
+    return (await response.json()) as WeatherAPIResponse;
+  } catch {
+    throw new Error('Weather API returned invalid data. Try refreshing.');
+  }
 }
 
 export async function fetchAirQuality(
@@ -97,7 +101,11 @@ export async function fetchAirQuality(
     throw new Error(`Air Quality API error: ${response.status}`);
   }
 
-  return response.json();
+  try {
+    return (await response.json()) as AirQualityAPIResponse;
+  } catch {
+    throw new Error('Air Quality API returned invalid data. Try refreshing.');
+  }
 }
 
 /**

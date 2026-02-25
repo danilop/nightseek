@@ -141,9 +141,13 @@ let syncGridPromise: Promise<void> | null = null;
  */
 export function preloadLightPollutionGrid(): void {
   if (syncGridPromise) return;
-  syncGridPromise = loadGrid().then(() => {
-    syncGridLoaded = true;
-  });
+  syncGridPromise = loadGrid()
+    .then(() => {
+      syncGridLoaded = true;
+    })
+    .catch(() => {
+      // Grid load failed - will use latitude-based fallback
+    });
 }
 /* v8 ignore stop */
 

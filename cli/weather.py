@@ -1,9 +1,10 @@
 """Weather forecast integration using Open-Meteo API."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Sequence
 from statistics import mean
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -297,6 +298,7 @@ class WeatherForecast:
         self.longitude = longitude
         self._hourly_data: Dict[datetime, HourlyWeatherData] = {}
         self.timezone_name: Optional[str] = None
+        self._tzinfo: Optional[timezone] = None
 
     def fetch_forecast(self, num_days: int) -> bool:
         """Fetch weather forecast from Open-Meteo with caching.
@@ -405,6 +407,7 @@ class WeatherForecast:
 
     def _parse_weather_response(self, data: dict) -> None:
         """Parse weather API response into hourly data."""
+        self._set_timezone_from_response(data)
         hourly = data.get("hourly", {})
         times = hourly.get("time", [])
 
@@ -436,6 +439,8 @@ class WeatherForecast:
 
     def _parse_air_quality_response(self, data: dict) -> None:
         """Parse air quality API response and merge into hourly data."""
+        if self._tzinfo is None:
+            self._set_timezone_from_response(data)
         hourly = data.get("hourly", {})
         times = hourly.get("time", [])
 
@@ -449,13 +454,36 @@ class WeatherForecast:
                 self._hourly_data[dt].pm10 = self._get_value(hourly, "pm10", i)
                 self._hourly_data[dt].dust = self._get_value(hourly, "dust", i)
 
-    @staticmethod
-    def _parse_datetime(time_str: str) -> datetime:
-        """Parse ISO datetime and convert to naive local time."""
+    def _set_timezone_from_response(self, data: dict) -> None:
+        """Set timezone info from API response."""
+        tz_name = data.get("timezone")
+        offset_seconds = data.get("utc_offset_seconds")
+
+        if tz_name:
+            self.timezone_name = tz_name
+            try:
+                self._tzinfo = ZoneInfo(tz_name)
+            except Exception:
+                self._tzinfo = None
+
+        if self._tzinfo is None and isinstance(offset_seconds, int):
+            self._tzinfo = timezone(timedelta(seconds=offset_seconds))
+
+        if self._tzinfo is None:
+            self._tzinfo = timezone.utc
+            if not self.timezone_name:
+                self.timezone_name = "UTC"
+
+    def _parse_datetime(self, time_str: str) -> datetime:
+        """Parse ISO datetime and convert to UTC-aware time."""
         dt = datetime.fromisoformat(time_str)
-        if dt.tzinfo is not None:
-            dt = dt.astimezone(None).replace(tzinfo=None)
-        return dt
+
+        if dt.tzinfo is None:
+            if self._tzinfo is None:
+                self._tzinfo = timezone.utc
+            dt = dt.replace(tzinfo=self._tzinfo)
+
+        return dt.astimezone(timezone.utc)
 
     @staticmethod
     def _get_value(
@@ -517,25 +545,21 @@ class WeatherForecast:
 
     @staticmethod
     def _normalize_datetime(dt: datetime) -> datetime:
-        """Convert timezone-aware datetime to naive local time."""
-        if dt.tzinfo is not None:
-            dt = dt.astimezone(None).replace(tzinfo=None)
-        return dt
+        """Convert datetime to UTC-aware time."""
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
 
     def _get_night_hours(
         self, night_start: datetime, night_end: datetime
     ) -> List[datetime]:
         """Get list of hours within the night period that have data."""
-        hours = []
-        current = night_start.replace(minute=0, second=0, microsecond=0)
-        end = night_end.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-
-        while current < end:
-            if night_start <= current <= night_end and current in self._hourly_data:
-                hours.append(current)
-            current += timedelta(hours=1)
-
-        return hours
+        hours = [
+            dt
+            for dt in self._hourly_data.keys()
+            if night_start <= dt <= night_end
+        ]
+        return sorted(hours)
 
     def _collect_night_statistics(
         self, night_hours: List[datetime]

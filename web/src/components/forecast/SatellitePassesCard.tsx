@@ -124,7 +124,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
     setIssPositionLoading(false);
   }, []);
 
-  // Set up polling when expanded
+  // Set up polling when expanded, pause when tab is hidden
   useEffect(() => {
     if (expanded && showSatellitePasses) {
       // Fetch immediately
@@ -133,7 +133,22 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
       // Set up 30-second interval
       positionIntervalRef.current = setInterval(fetchPosition, 30000);
 
+      // Pause polling when tab is hidden to avoid stale requests
+      const handleVisibility = () => {
+        if (document.hidden) {
+          if (positionIntervalRef.current) {
+            clearInterval(positionIntervalRef.current);
+            positionIntervalRef.current = null;
+          }
+        } else {
+          fetchPosition();
+          positionIntervalRef.current = setInterval(fetchPosition, 30000);
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+
       return () => {
+        document.removeEventListener('visibilitychange', handleVisibility);
         if (positionIntervalRef.current) {
           clearInterval(positionIntervalRef.current);
           positionIntervalRef.current = null;

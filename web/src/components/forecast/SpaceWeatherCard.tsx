@@ -24,7 +24,9 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
   const [swpcData, setSwpcData] = useState<SWPCData | null>(null);
 
   useEffect(() => {
-    fetchSWPCData().then(setSwpcData);
+    fetchSWPCData()
+      .then(setSwpcData)
+      .catch(() => {});
   }, []);
 
   // Use live Kp from SWPC if available, fall back to DONKI
@@ -108,8 +110,11 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
               Active Regions ({swpcData.sunspotRegions.length})
             </p>
             <div className="space-y-1">
-              {swpcData.sunspotRegions.slice(0, 3).map(region => (
-                <div key={region.region} className="flex items-center justify-between text-sm">
+              {swpcData.sunspotRegions.slice(0, 3).map((region, i) => (
+                <div
+                  key={`${region.region}-${i}`}
+                  className="flex items-center justify-between text-sm"
+                >
                   <span className="text-gray-400">AR {region.region}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-300">

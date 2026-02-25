@@ -82,7 +82,7 @@ export default defineConfig({
           },
           {
             urlPattern: /^https:\/\/unpkg\.com\//,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'cdn-scripts',
               expiration: {

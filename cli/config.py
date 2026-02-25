@@ -1,23 +1,86 @@
 """Configuration management for NightSeek using pydantic-settings."""
 
+import json
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from platformdirs import user_config_dir
+from platformdirs import user_config_dir, user_cache_dir
 
 from logging_config import get_logger
 from models import LocationData
 
 logger = get_logger(__name__)
 
+IP_CACHE_TTL = timedelta(hours=24)
+
 
 def _get_config_file() -> Path:
     """Get the path to the config file."""
     config_dir = Path(user_config_dir("nightseek"))
     return config_dir / "config"
+
+
+def _get_ip_cache_file() -> Path:
+    """Get the path to the IP location cache file."""
+    cache_dir = Path(user_cache_dir("nightseek"))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir / "ip_location.json"
+
+
+def _load_ip_cache() -> Optional[dict]:
+    """Load cached IP geolocation data if available."""
+    cache_file = _get_ip_cache_file()
+    if not cache_file.exists():
+        return None
+    try:
+        with open(cache_file) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.debug("Could not read IP cache: %s", e)
+        return None
+
+
+def _save_ip_cache(data: dict) -> None:
+    """Save IP geolocation data to cache."""
+    cache_file = _get_ip_cache_file()
+    try:
+        with open(cache_file, "w") as f:
+            json.dump(data, f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.debug("Could not save IP cache: %s", e)
+
+
+def _cache_is_fresh(cache: dict) -> bool:
+    """Return True if cached IP data is within TTL."""
+    try:
+        last_check = datetime.fromisoformat(cache["last_check"])
+        return datetime.now() - last_check < IP_CACHE_TTL
+    except (KeyError, ValueError, TypeError) as e:
+        logger.debug("Invalid IP cache timestamp: %s", e)
+        return False
+
+
+def _location_from_cache(cache: dict) -> Optional[LocationData]:
+    """Build a LocationData from cached IP data."""
+    try:
+        lat = cache.get("latitude")
+        lon = cache.get("longitude")
+        if lat is None or lon is None:
+            return None
+        return LocationData(
+            latitude=float(lat),
+            longitude=float(lon),
+            city=cache.get("city", "Unknown"),
+            country=cache.get("country", "Unknown"),
+            timezone=cache.get("timezone", ""),
+        )
+    except (TypeError, ValueError) as e:
+        logger.debug("Invalid IP cache coordinates: %s", e)
+        return None
 
 
 class Config(BaseSettings):
@@ -98,34 +161,114 @@ class Config(BaseSettings):
             return None
 
     @staticmethod
-    def _detect_location_from_ip() -> Optional[LocationData]:
-        """Detect location from IP address using IP-API.com.
+    def _fetch_ipapi_location() -> Optional[dict]:
+        """Fetch location from ipapi.co (HTTPS)."""
+        try:
+            import requests
 
-        Returns:
-            LocationData instance or None if detection fails
-        """
+            url = "https://ipapi.co/json/"
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+
+            data = response.json()
+            if data.get("error"):
+                return None
+
+            lat = data.get("latitude") or data.get("lat")
+            lon = data.get("longitude") or data.get("lon")
+            if lat is None or lon is None:
+                return None
+
+            return {
+                "ip": data.get("ip"),
+                "latitude": float(lat),
+                "longitude": float(lon),
+                "city": data.get("city", "Unknown"),
+                "country": data.get("country_name")
+                or data.get("country")
+                or "Unknown",
+                "timezone": data.get("timezone", ""),
+                "provider": "ipapi.co",
+            }
+        except (requests.RequestException, KeyError, ValueError, TypeError) as e:
+            logger.debug("ipapi.co lookup failed: %s", e)
+            return None
+
+    @staticmethod
+    def _fetch_ip_api_location() -> Optional[dict]:
+        """Fetch location from ip-api.com (HTTP fallback)."""
         try:
             import requests
 
             url = "http://ip-api.com/json/"
-            params = {"fields": "status,lat,lon,city,country,timezone"}
+            params = {"fields": "status,lat,lon,city,country,timezone,query"}
 
             response = requests.get(url, params=params, timeout=5)
             response.raise_for_status()
 
             data = response.json()
-            if data.get("status") == "success":
-                return LocationData(
-                    latitude=data["lat"],
-                    longitude=data["lon"],
-                    city=data.get("city", "Unknown"),
-                    country=data.get("country", "Unknown"),
-                    timezone=data.get("timezone", ""),
-                )
+            if data.get("status") != "success":
+                return None
+
+            return {
+                "ip": data.get("query"),
+                "latitude": data["lat"],
+                "longitude": data["lon"],
+                "city": data.get("city", "Unknown"),
+                "country": data.get("country", "Unknown"),
+                "timezone": data.get("timezone", ""),
+                "provider": "ip-api.com",
+            }
+        except (requests.RequestException, KeyError, ValueError, TypeError) as e:
+            logger.debug("ip-api.com lookup failed: %s", e)
             return None
-        except (requests.RequestException, KeyError, ValueError) as e:
-            logger.debug("IP location detection failed: %s", e)
-            return None
+
+    @staticmethod
+    def _detect_location_from_ip() -> Optional[LocationData]:
+        """Detect location from IP address using IP geolocation providers.
+
+        Returns:
+            LocationData instance or None if detection fails
+        """
+        cache = _load_ip_cache()
+        cached_location = _location_from_cache(cache) if cache else None
+
+        if cache and _cache_is_fresh(cache):
+            return cached_location
+
+        # Primary: HTTPS provider
+        result = Config._fetch_ipapi_location()
+
+        if result is None:
+            # If we have any cache, use it instead of failing
+            if cached_location:
+                return cached_location
+
+            # Fallback: HTTP provider (no SSL)
+            print("Note: Falling back to HTTP IP lookup (no SSL).")
+            result = Config._fetch_ip_api_location()
+
+            if result is None:
+                return None
+
+        now = datetime.now().isoformat()
+
+        if (
+            cached_location
+            and result.get("ip")
+            and cache
+            and cache.get("ip") == result.get("ip")
+        ):
+            # Same IP - keep cached location, refresh timestamp/provider
+            cache["last_check"] = now
+            cache["provider"] = result.get("provider", cache.get("provider", ""))
+            _save_ip_cache(cache)
+            return cached_location
+
+        # New location or no prior cache
+        result["last_check"] = now
+        _save_ip_cache(result)
+        return _location_from_cache(result)
 
     @classmethod
     def _interactive_setup(cls):

@@ -12,7 +12,9 @@ export default function AuroraAlertCard({ forecast }: AuroraAlertCardProps) {
   const [swpcData, setSwpcData] = useState<SWPCData | null>(null);
 
   useEffect(() => {
-    fetchSWPCData().then(setSwpcData);
+    fetchSWPCData()
+      .then(setSwpcData)
+      .catch(() => {});
   }, []);
 
   // Only show when chance >= 'possible'

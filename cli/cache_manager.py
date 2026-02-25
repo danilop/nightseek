@@ -160,6 +160,7 @@ class CacheManager:
             CacheInfo with download status
         """
         path = self.get_path(filename)
+        tmp_path = path.with_name(f"{path.name}.tmp")
 
         try:
             # Create request with headers to get content-length
@@ -179,22 +180,26 @@ class CacheManager:
                         TimeRemainingColumn(),
                     ) as progress:
                         task = progress.add_task(f"📥 {description}", total=total_size)
-                        data = b""
                         chunk_size = 8192
-                        while True:
-                            chunk = response.read(chunk_size)
-                            if not chunk:
-                                break
-                            data += chunk
-                            progress.update(task, advance=len(chunk))
+                        with open(tmp_path, "wb") as f:
+                            while True:
+                                chunk = response.read(chunk_size)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                                progress.update(task, advance=len(chunk))
                 else:
                     # Small file or no size - just download
                     if verbose:
                         print(f"Downloading {description}...")
-                    data = response.read()
+                    with open(tmp_path, "wb") as f:
+                        while True:
+                            chunk = response.read(8192)
+                            if not chunk:
+                                break
+                            f.write(chunk)
 
-                with open(path, "wb") as f:
-                    f.write(data)
+                tmp_path.replace(path)
 
             return CacheInfo(
                 path=path,
@@ -207,6 +212,11 @@ class CacheManager:
         except (URLError, OSError) as e:
             if verbose:
                 print(f"Warning: Could not download {description}: {e}")
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
 
             # Return status of existing cache if any (stale but usable)
             if path.exists():
