@@ -19,9 +19,14 @@ import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
+import { getEffectiveFOV } from '@/lib/telescopes/presets';
 import { getAltitudeAtTime } from '@/lib/utils/altitude-interpolation';
 import { getNightLabel } from '@/lib/utils/format';
+import { applyQuickFilters } from '@/lib/utils/quick-filters';
 import { getRatingFromScore } from '@/lib/utils/rating';
+import { getSecondarySortComparator } from '@/lib/utils/secondary-sort';
+import { selectTonightPicks } from '@/lib/utils/tonight-picks';
+import { useApp } from '@/stores/AppContext';
 import type {
   AstronomicalEvents,
   DSOSubtype,
@@ -31,7 +36,10 @@ import type {
 } from '@/types';
 import CategorySection from '../CategorySection';
 import JupiterMoonsCard from '../JupiterMoonsCard';
+import QuickFilterBar from '../QuickFilterBar';
+import SecondarySortDropdown from '../SecondarySortDropdown';
 import SortModeControl, { type SortMode } from '../SortModeControl';
+import TonightPicksCard from '../TonightPicksCard';
 
 interface TargetsTabProps {
   objects: ScoredObject[];
@@ -268,7 +276,19 @@ export default function TargetsTab({
   latitude = 0,
   onObjectSelect,
 }: TargetsTabProps) {
-  const { categoryOrder, setCategoryOrder } = useUIState();
+  const {
+    categoryOrder,
+    setCategoryOrder,
+    secondarySort,
+    setSecondarySort,
+    activeQuickFilters,
+    toggleQuickFilter,
+    clearQuickFilters,
+    tonightPicksDismissed,
+    setTonightPicksDismissed,
+  } = useUIState();
+  const { state } = useApp();
+  const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('score');
   const [selectedTime, setSelectedTime] = useState<Date>(() => new Date());
@@ -337,7 +357,7 @@ export default function TargetsTab({
   }, [magLimit]);
 
   // Filter objects by magnitude
-  const filteredObjects = useMemo(() => {
+  const magFilteredObjects = useMemo(() => {
     return objects.filter(obj => {
       if (obj.magnitude === null || obj.magnitude === undefined) {
         return effectiveMagLimit >= maxMag;
@@ -345,6 +365,21 @@ export default function TargetsTab({
       return obj.magnitude <= effectiveMagLimit;
     });
   }, [objects, effectiveMagLimit, maxMag]);
+
+  // Tonight picks (computed from mag-filtered, ignoring quick filters)
+  const tonightPicks = useMemo(() => selectTonightPicks(magFilteredObjects), [magFilteredObjects]);
+
+  // Apply quick filters
+  const filteredObjects = useMemo(
+    () => applyQuickFilters(magFilteredObjects, activeQuickFilters),
+    [magFilteredObjects, activeQuickFilters]
+  );
+
+  // Secondary sort comparator
+  const secondarySortComparator = useMemo(
+    () => getSecondarySortComparator(secondarySort, fov),
+    [secondarySort, fov]
+  );
 
   // Group filtered objects by category
   const groupedObjects = useMemo(() => {
@@ -358,11 +393,11 @@ export default function TargetsTab({
           if (altB <= 0 && altA > 0) return -1;
           return altB - altA;
         }
-        return b.totalScore - a.totalScore;
+        return secondarySortComparator(a, b);
       });
     }
     return groups;
-  }, [filteredObjects, sortMode, selectedTime]);
+  }, [filteredObjects, sortMode, selectedTime, secondarySortComparator]);
 
   const totalCount = filteredObjects.length;
   const totalLoaded = objects.length;
@@ -467,14 +502,38 @@ export default function TargetsTab({
         </div>
       )}
 
-      {/* Sort Mode Control (only during dark window) */}
-      {isDarkWindow && (
-        <SortModeControl
-          nightInfo={nightInfo}
-          sortMode={sortMode}
-          onSortModeChange={setSortMode}
-          selectedTime={selectedTime}
-          onSelectedTimeChange={setSelectedTime}
+      {/* Quick Filter Toggles */}
+      <QuickFilterBar
+        activeFilters={activeQuickFilters}
+        onToggle={toggleQuickFilter}
+        onClear={clearQuickFilters}
+        filteredCount={totalCount}
+        totalCount={magFilteredObjects.length}
+      />
+
+      {/* Sort Mode Control + Secondary Sort */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+        {isDarkWindow && (
+          <SortModeControl
+            nightInfo={nightInfo}
+            sortMode={sortMode}
+            onSortModeChange={setSortMode}
+            selectedTime={selectedTime}
+            onSelectedTimeChange={setSelectedTime}
+            className="sm:flex-1"
+          />
+        )}
+        {sortMode === 'score' && (
+          <SecondarySortDropdown value={secondarySort} onChange={setSecondarySort} />
+        )}
+      </div>
+
+      {/* Tonight's Best Picks */}
+      {tonightPicks.length > 0 && !tonightPicksDismissed && (
+        <TonightPicksCard
+          picks={tonightPicks}
+          onObjectSelect={onObjectSelect}
+          onDismiss={() => setTonightPicksDismissed(true)}
         />
       )}
 
@@ -576,18 +635,19 @@ export default function TargetsTab({
       {/* Show message if all filtered out */}
       {totalCount === 0 && totalLoaded > 0 && (
         <div className="rounded-xl border border-night-700 bg-night-900 p-6 text-center">
-          <p className="text-gray-400">
-            No objects with known magnitude ≤ {effectiveMagLimit.toFixed(1)}
-          </p>
+          <p className="text-gray-400">No objects match the current filters</p>
           <p className="mt-1 text-gray-500 text-xs">
-            Objects without catalog magnitude data are shown at maximum slider position
+            Try adjusting the magnitude limit or removing quick filters
           </p>
           <button
             type="button"
-            onClick={() => setMagLimit(maxMag)}
+            onClick={() => {
+              setMagLimit(maxMag);
+              clearQuickFilters();
+            }}
             className="mt-2 text-sky-400 text-sm hover:text-sky-300"
           >
-            Show all objects
+            Clear all filters
           </button>
         </div>
       )}

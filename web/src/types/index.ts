@@ -1,3 +1,20 @@
+// Targets tab sort/filter types
+export type SecondarySortField =
+  | 'score'
+  | 'magnitude'
+  | 'altitude'
+  | 'moonSep'
+  | 'imaging'
+  | 'frameFill';
+export type QuickFilterId = 'hasImaging' | 'moonSafe' | 'above45' | 'highRated';
+
+export interface TonightPick {
+  object: ScoredObject;
+  categoryLabel: string;
+  reason: string;
+  keyStat: string;
+}
+
 // Core astronomy types
 export type ObjectCategory =
   | 'planet'

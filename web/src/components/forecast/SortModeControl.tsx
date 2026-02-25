@@ -10,6 +10,7 @@ interface SortModeControlProps {
   onSortModeChange: (mode: SortMode) => void;
   selectedTime: Date;
   onSelectedTimeChange: (time: Date) => void;
+  className?: string;
 }
 
 function getSliderPosition(time: Date, dusk: Date, dawn: Date): number {
@@ -37,6 +38,7 @@ export default function SortModeControl({
   onSortModeChange,
   selectedTime,
   onSelectedTimeChange,
+  className,
 }: SortModeControlProps) {
   const animationRef = useRef<number | null>(null);
   const sliderPositionRef = useRef(
@@ -110,7 +112,7 @@ export default function SortModeControl({
   );
 
   return (
-    <div className="rounded-lg border border-night-700 bg-night-900 p-3">
+    <div className={`rounded-lg border border-night-700 bg-night-900 p-3 ${className ?? ''}`}>
       {/* Segmented toggle */}
       <div className="flex gap-1 rounded-lg bg-night-800 p-1">
         <button

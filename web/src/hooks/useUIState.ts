@@ -1,8 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { QuickFilterId, SecondarySortField } from '@/types';
 
 const STORAGE_KEY = 'nightseek:uiState';
 
 export type ActiveTab = 'overview' | 'targets' | 'sky' | 'events';
+
+const VALID_SECONDARY_SORTS: readonly SecondarySortField[] = [
+  'score',
+  'magnitude',
+  'altitude',
+  'moonSep',
+  'imaging',
+  'frameFill',
+];
+
+const VALID_QUICK_FILTERS: readonly QuickFilterId[] = [
+  'hasImaging',
+  'moonSafe',
+  'above45',
+  'highRated',
+];
 
 interface UIState {
   // Expanded sections
@@ -15,6 +32,15 @@ interface UIState {
 
   // Active tab in forecast view
   activeTab: ActiveTab;
+
+  // Targets tab: secondary sort within categories
+  secondarySort: SecondarySortField;
+
+  // Targets tab: quick filter toggles
+  activeQuickFilters: QuickFilterId[];
+
+  // Targets tab: tonight picks dismissal
+  tonightPicksDismissed: boolean;
 }
 
 const DEFAULT_CATEGORY_ORDER = [
@@ -45,6 +71,9 @@ const DEFAULT_UI_STATE: UIState = {
   weatherDetailsExpanded: false,
   categoryOrder: DEFAULT_CATEGORY_ORDER,
   activeTab: 'overview',
+  secondarySort: 'score',
+  activeQuickFilters: [],
+  tonightPicksDismissed: false,
 };
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: localStorage validation with type guards
@@ -71,6 +100,21 @@ function loadUIState(): UIState {
           ? parsed.expandedCategories
           : {};
       const categoryOrder = Array.isArray(parsed.categoryOrder) ? parsed.categoryOrder : [];
+      const secondarySort =
+        typeof parsed.secondarySort === 'string' &&
+        VALID_SECONDARY_SORTS.includes(parsed.secondarySort as SecondarySortField)
+          ? (parsed.secondarySort as SecondarySortField)
+          : DEFAULT_UI_STATE.secondarySort;
+      const activeQuickFilters = Array.isArray(parsed.activeQuickFilters)
+        ? (parsed.activeQuickFilters as unknown[]).filter(
+            (id): id is QuickFilterId =>
+              typeof id === 'string' && VALID_QUICK_FILTERS.includes(id as QuickFilterId)
+          )
+        : DEFAULT_UI_STATE.activeQuickFilters;
+      const tonightPicksDismissed =
+        typeof parsed.tonightPicksDismissed === 'boolean'
+          ? parsed.tonightPicksDismissed
+          : DEFAULT_UI_STATE.tonightPicksDismissed;
       return {
         ...DEFAULT_UI_STATE,
         jupiterMoonsExpanded:
@@ -87,6 +131,9 @@ function loadUIState(): UIState {
           ...expandedCategories,
         },
         categoryOrder: mergeOrder(categoryOrder, DEFAULT_CATEGORY_ORDER),
+        secondarySort,
+        activeQuickFilters,
+        tonightPicksDismissed,
       };
     }
   } catch {
@@ -209,6 +256,32 @@ export function useUIState() {
     return globalState.expandedCategories[categoryKey] ?? defaultExpanded;
   }, []);
 
+  const setSecondarySort = useCallback((field: SecondarySortField) => {
+    globalState = { ...globalState, secondarySort: field };
+    saveUIState(globalState);
+    notifyListeners();
+  }, []);
+
+  const toggleQuickFilter = useCallback((id: QuickFilterId) => {
+    const current = globalState.activeQuickFilters;
+    const next = current.includes(id) ? current.filter(f => f !== id) : [...current, id];
+    globalState = { ...globalState, activeQuickFilters: next };
+    saveUIState(globalState);
+    notifyListeners();
+  }, []);
+
+  const clearQuickFilters = useCallback(() => {
+    globalState = { ...globalState, activeQuickFilters: [] };
+    saveUIState(globalState);
+    notifyListeners();
+  }, []);
+
+  const setTonightPicksDismissed = useCallback((dismissed: boolean) => {
+    globalState = { ...globalState, tonightPicksDismissed: dismissed };
+    saveUIState(globalState);
+    notifyListeners();
+  }, []);
+
   return {
     // State
     expandedCategories: globalState.expandedCategories,
@@ -216,6 +289,9 @@ export function useUIState() {
     weatherDetailsExpanded: globalState.weatherDetailsExpanded,
     categoryOrder: globalState.categoryOrder,
     activeTab: globalState.activeTab,
+    secondarySort: globalState.secondarySort,
+    activeQuickFilters: globalState.activeQuickFilters,
+    tonightPicksDismissed: globalState.tonightPicksDismissed,
 
     // Actions
     setCategoryExpanded,
@@ -226,6 +302,10 @@ export function useUIState() {
     setActiveTab,
     setCategoryOrder,
     reorderCategory,
+    setSecondarySort,
+    toggleQuickFilter,
+    clearQuickFilters,
+    setTonightPicksDismissed,
   };
 }
 
