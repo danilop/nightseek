@@ -24,7 +24,7 @@ export function Badge({
   className?: string;
 }) {
   return (
-    <span className={`text-xs px-2 py-0.5 rounded ${variantStyles[variant]} ${className}`}>
+    <span className={`rounded px-2 py-0.5 text-xs ${variantStyles[variant]} ${className}`}>
       {children}
     </span>
   );

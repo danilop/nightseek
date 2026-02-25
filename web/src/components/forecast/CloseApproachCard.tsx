@@ -17,27 +17,27 @@ export default function CloseApproachCard({ approaches, nightDate }: CloseApproa
 
   return (
     <Card>
-      <div className="px-4 py-3 border-b border-night-700">
-        <h3 className="font-semibold text-white flex items-center gap-2">
-          <Orbit className="w-4 h-4 text-amber-400" />
+      <div className="border-night-700 border-b px-4 py-3">
+        <h3 className="flex items-center gap-2 font-semibold text-white">
+          <Orbit className="h-4 w-4 text-amber-400" />
           Asteroid Close Approaches
-          <span className="text-xs text-gray-400 font-normal ml-1">
+          <span className="ml-1 font-normal text-gray-400 text-xs">
             ({approaches.length} {getNightLabel(nightDate)})
           </span>
         </h3>
       </div>
-      <div className="p-4 space-y-3">
+      <div className="space-y-3 p-4">
         {approaches.slice(0, 5).map(neo => (
           <NeoCard key={neo.neoId} neo={neo} />
         ))}
         {approaches.length > 5 && (
-          <p className="text-xs text-gray-500 text-center">
+          <p className="text-center text-gray-500 text-xs">
             +{approaches.length - 5} more close approaches
           </p>
         )}
       </div>
-      <div className="px-4 py-2 border-t border-night-700 bg-night-800/50">
-        <p className="text-xs text-gray-500">1 lunar distance = 384,400 km (distance to Moon)</p>
+      <div className="border-night-700 border-t bg-night-800/50 px-4 py-2">
+        <p className="text-gray-500 text-xs">1 lunar distance = 384,400 km (distance to Moon)</p>
       </div>
     </Card>
   );
@@ -60,19 +60,19 @@ function NeoCard({ neo }: NeoCardProps) {
   const distanceColor = getDistanceColor(neo.missDistanceLunarDistances);
 
   return (
-    <div className={`p-3 rounded-lg border ${distanceColor}`}>
+    <div className={`rounded-lg border p-3 ${distanceColor}`}>
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {neo.isPotentiallyHazardous && (
             <span title="Potentially Hazardous Asteroid">
-              <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+              <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-400" />
             </span>
           )}
-          <span className="text-white font-medium truncate" title={neo.name}>
+          <span className="truncate font-medium text-white" title={neo.name}>
             {neo.name}
           </span>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-shrink-0 items-center gap-2">
           {neo.isPotentiallyHazardous && <Badge variant="danger">PHA</Badge>}
           <SizeBadge category={sizeCategory} />
         </div>
@@ -100,7 +100,7 @@ function NeoCard({ neo }: NeoCardProps) {
       </div>
 
       {neo.missDistanceLunarDistances < 5 && (
-        <p className="text-xs text-gray-400 mt-2">
+        <p className="mt-2 text-gray-400 text-xs">
           {getDistanceDescription(neo.missDistanceLunarDistances)}
         </p>
       )}

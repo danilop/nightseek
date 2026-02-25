@@ -49,30 +49,30 @@ export default function EventsSection({
       {/* Conjunctions */}
       {conjunctions.length > 0 && (
         <Card>
-          <div className="px-4 py-3 border-b border-night-700">
-            <h3 className="font-semibold text-white flex items-center gap-2">
-              <Orbit className="w-4 h-4 text-purple-400" />
+          <div className="border-night-700 border-b px-4 py-3">
+            <h3 className="flex items-center gap-2 font-semibold text-white">
+              <Orbit className="h-4 w-4 text-purple-400" />
               Planetary Events
             </h3>
           </div>
-          <div className="p-4 space-y-3">
+          <div className="space-y-3 p-4">
             {conjunctions.map(conjunction => (
               <div
                 key={`${conjunction.object1Name}-${conjunction.object2Name}-${conjunction.time.getTime()}`}
-                className={`p-3 rounded-lg ${
+                className={`rounded-lg p-3 ${
                   conjunction.isNotable
-                    ? 'bg-purple-500/10 border border-purple-500/30'
+                    ? 'border border-purple-500/30 bg-purple-500/10'
                     : 'bg-night-800'
                 }`}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  {conjunction.isNotable && <Star className="w-4 h-4 text-yellow-400" />}
-                  <span className="text-white font-medium">
+                <div className="mb-1 flex items-center gap-2">
+                  {conjunction.isNotable && <Star className="h-4 w-4 text-yellow-400" />}
+                  <span className="font-medium text-white">
                     {conjunction.object1Name} - {conjunction.object2Name}
                   </span>
                 </div>
-                <p className="text-sm text-gray-400">{conjunction.description}</p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-gray-400 text-sm">{conjunction.description}</p>
+                <p className="mt-1 text-gray-500 text-xs">
                   Separation: {conjunction.separationDegrees.toFixed(1)}°
                 </p>
               </div>

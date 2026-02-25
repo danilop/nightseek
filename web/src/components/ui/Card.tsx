@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
  */
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`bg-night-900 rounded-xl border border-night-700 overflow-hidden ${className}`}>
+    <div className={`overflow-hidden rounded-xl border border-night-700 bg-night-900 ${className}`}>
       {children}
     </div>
   );
@@ -30,6 +30,6 @@ export function ToggleChevron({
  */
 export function CountBadge({ count }: { count: number }) {
   return (
-    <span className="text-sm text-gray-400 bg-night-700 px-2 py-0.5 rounded-full">{count}</span>
+    <span className="rounded-full bg-night-700 px-2 py-0.5 text-gray-400 text-sm">{count}</span>
   );
 }

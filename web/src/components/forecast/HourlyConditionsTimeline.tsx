@@ -95,7 +95,7 @@ export default function HourlyConditionsTimeline({
 
   return (
     <div className="mt-4">
-      <h4 className="text-sm font-medium text-gray-300 mb-3">Hourly Conditions</h4>
+      <h4 className="mb-3 font-medium text-gray-300 text-sm">Hourly Conditions</h4>
 
       {/* Grid: first column for labels, rest for hours */}
       <div
@@ -107,44 +107,44 @@ export default function HourlyConditionsTimeline({
         {/* Header row - hours */}
         <div /> {/* Empty cell for label column */}
         {displayData.map(d => (
-          <div key={`h-${d.hour}`} className="text-center text-gray-500 pb-1">
+          <div key={`h-${d.hour}`} className="pb-1 text-center text-gray-500">
             {d.label}
           </div>
         ))}
         {/* Clouds row */}
-        <div className="flex items-center text-gray-400 pr-2">
-          <Cloud className="w-3 h-3" />
+        <div className="flex items-center pr-2 text-gray-400">
+          <Cloud className="h-3 w-3" />
         </div>
         {displayData.map(d => (
           <div
             key={`c-${d.hour}`}
-            className={`h-5 rounded-sm ${getQualityBgColor(d.clouds.level)} cursor-help flex items-center justify-center`}
+            className={`h-5 rounded-sm ${getQualityBgColor(d.clouds.level)} flex cursor-help items-center justify-center`}
             title={`${formatHour(d.hour)}: ${Math.round(d.clouds.value)}% clouds`}
           >
             {/* Mobile: abbreviated, Desktop: with % */}
-            <span className="text-[9px] font-medium text-white/90 sm:hidden">
+            <span className="font-medium text-[9px] text-white/90 sm:hidden">
               {Math.round(d.clouds.value)}
             </span>
-            <span className="text-[10px] font-medium text-white/90 hidden sm:inline">
+            <span className="hidden font-medium text-[10px] text-white/90 sm:inline">
               {Math.round(d.clouds.value)}%
             </span>
           </div>
         ))}
         {/* Dew row */}
-        <div className="flex items-center text-gray-400 pr-2">
-          <Droplets className="w-3 h-3" />
+        <div className="flex items-center pr-2 text-gray-400">
+          <Droplets className="h-3 w-3" />
         </div>
         {displayData.map(d => (
           <div
             key={`d-${d.hour}`}
-            className={`h-5 rounded-sm ${getQualityBgColor(d.dew.level)} cursor-help flex items-center justify-center`}
+            className={`h-5 rounded-sm ${getQualityBgColor(d.dew.level)} flex cursor-help items-center justify-center`}
             title={`${formatHour(d.hour)}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${d.dew.margin.toFixed(1)}° margin)`}
           >
             {/* Mobile: rounded margin, Desktop: with degree */}
-            <span className="text-[9px] font-medium text-white/90 sm:hidden">
+            <span className="font-medium text-[9px] text-white/90 sm:hidden">
               {Math.round(d.dew.margin)}
             </span>
-            <span className="text-[10px] font-medium text-white/90 hidden sm:inline">
+            <span className="hidden font-medium text-[10px] text-white/90 sm:inline">
               {d.dew.margin.toFixed(1)}°
             </span>
           </div>
@@ -152,32 +152,32 @@ export default function HourlyConditionsTimeline({
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-gray-500 text-xs">
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 bg-green-500 rounded-sm" />
+          <span className="inline-block h-3 w-3 rounded-sm bg-green-500" />
           Excellent
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 bg-yellow-500 rounded-sm" />
+          <span className="inline-block h-3 w-3 rounded-sm bg-yellow-500" />
           Good
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 bg-orange-500 rounded-sm" />
+          <span className="inline-block h-3 w-3 rounded-sm bg-orange-500" />
           Fair
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 bg-red-500 rounded-sm" />
+          <span className="inline-block h-3 w-3 rounded-sm bg-red-500" />
           Poor
         </span>
       </div>
 
       {/* Row labels explanation */}
-      <div className="flex gap-4 mt-1 text-xs text-gray-600">
+      <div className="mt-1 flex gap-4 text-gray-600 text-xs">
         <span className="flex items-center gap-1">
-          <Cloud className="w-3 h-3" /> Clouds
+          <Cloud className="h-3 w-3" /> Clouds
         </span>
         <span className="flex items-center gap-1">
-          <Droplets className="w-3 h-3" /> Dew Risk
+          <Droplets className="h-3 w-3" /> Dew Risk
         </span>
       </div>
     </div>

@@ -46,12 +46,12 @@ export default function AuroraAlertCard({ forecast }: AuroraAlertCardProps) {
         <div className="flex items-center gap-2">
           <Zap className={`h-5 w-5 ${glowClass}`} />
           <h3 className="font-semibold text-white">Aurora Alert</h3>
-          {liveKp !== null && <span className="text-xs text-green-500">Live</span>}
+          {liveKp !== null && <span className="text-green-500 text-xs">Live</span>}
         </div>
         {badge && <Badge variant={badge.variant}>{badge.label}</Badge>}
       </div>
-      <p className="text-sm text-gray-300">{forecast.description}</p>
-      <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
+      <p className="text-gray-300 text-sm">{forecast.description}</p>
+      <div className="mt-2 flex items-center gap-4 text-gray-400 text-xs">
         <span>
           Current Kp: <strong className={glowClass}>{displayKp}</strong>
         </span>

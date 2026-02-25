@@ -94,7 +94,7 @@ export default function JupiterMoonsCard({
       </div>
 
       {expanded && (
-        <div className="p-4 space-y-4">
+        <div className="space-y-4 p-4">
           {/* Visual diagram of moon positions */}
           <MoonPositionDiagram positions={positions} isNorthernHemisphere={latitude >= 0} />
 
@@ -107,8 +107,8 @@ export default function JupiterMoonsCard({
 
           {/* Events timeline */}
           {events.length > 0 && (
-            <div className="pt-3 border-t border-night-700">
-              <h4 className="text-sm font-medium text-white mb-2">
+            <div className="border-night-700 border-t pt-3">
+              <h4 className="mb-2 font-medium text-sm text-white">
                 {getNightLabel(nightDate, true)} Events
               </h4>
               <div className="space-y-2">
@@ -170,7 +170,7 @@ function MoonPositionDiagram({
   };
 
   return (
-    <div className="bg-night-800 rounded-lg p-4">
+    <div className="rounded-lg bg-night-800 p-4">
       <svg
         width="100%"
         height="80"
@@ -235,7 +235,7 @@ function MoonPositionDiagram({
                 x={moonX}
                 y={moonY + 14}
                 textAnchor="middle"
-                className="text-[8px] fill-gray-400"
+                className="fill-gray-400 text-[8px]"
               >
                 {moon.name.charAt(0)}
               </text>
@@ -254,14 +254,14 @@ function MoonPositionDiagram({
         })}
 
         {/* Direction labels */}
-        <text x={20} y={centerY + 4} className="text-[8px] fill-gray-500">
+        <text x={20} y={centerY + 4} className="fill-gray-500 text-[8px]">
           {leftLabel}
         </text>
-        <text x={220} y={centerY + 4} className="text-[8px] fill-gray-500">
+        <text x={220} y={centerY + 4} className="fill-gray-500 text-[8px]">
           {rightLabel}
         </text>
       </svg>
-      <p className="text-xs text-gray-500 text-center mt-2">
+      <p className="mt-2 text-center text-gray-500 text-xs">
         <Tooltip content="How Jupiter appears through a telescope or binoculars. The orientation matches what you see when looking at the sky.">
           <span>Direct view ({viewDirection})</span>
         </Tooltip>
@@ -284,10 +284,10 @@ function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
   const moonColor = statusMoonColors[moon.name];
 
   return (
-    <div className="bg-night-800 rounded-lg p-2">
+    <div className="rounded-lg bg-night-800 p-2">
       <div className="flex items-center gap-2">
         <span
-          className="w-3 h-3 rounded-full inline-block"
+          className="inline-block h-3 w-3 rounded-full"
           style={{
             backgroundColor: moonColor,
             boxShadow: moon.isTransiting ? '0 0 4px #fff' : undefined,
@@ -297,31 +297,31 @@ function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
         />
         <span className="text-sm text-white">{moon.name}</span>
       </div>
-      <p className="text-xs text-gray-400 mt-1">
+      <p className="mt-1 text-gray-400 text-xs">
         {distance}{' '}
         <Tooltip content="Rj = Jupiter Radii. Distance from Jupiter's center measured in units of Jupiter's radius (71,492 km).">
-          <span className="border-b border-dotted border-gray-500">Rj</span>
+          <span className="border-gray-500 border-b border-dotted">Rj</span>
         </Tooltip>{' '}
         {direction}
         {moon.isOccluded && (
           <>
             {' '}
             <Tooltip content="Moon is currently hidden behind Jupiter's disk (occultation).">
-              <span className="border-b border-dotted border-gray-500">(occluded)</span>
+              <span className="border-gray-500 border-b border-dotted">(occluded)</span>
             </Tooltip>
           </>
         )}
       </p>
       {moon.isTransiting && (
         <Tooltip content="The moon is crossing in front of Jupiter's disk as seen from Earth.">
-          <span className="text-xs text-yellow-400 border-b border-dotted border-yellow-400/50">
+          <span className="border-yellow-400/50 border-b border-dotted text-xs text-yellow-400">
             Transit in progress
           </span>
         </Tooltip>
       )}
       {moon.shadowOnJupiter && (
         <Tooltip content="The moon's shadow is visible on Jupiter's cloud tops.">
-          <span className="text-xs text-orange-400 border-b border-dotted border-orange-400/50">
+          <span className="border-orange-400/50 border-b border-dotted text-orange-400 text-xs">
             Shadow visible
           </span>
         </Tooltip>
@@ -339,11 +339,11 @@ function EventItem({ event }: { event: GalileanMoonEvent }) {
   };
 
   return (
-    <div className="flex items-center justify-between bg-night-800 rounded-lg px-3 py-2">
+    <div className="flex items-center justify-between rounded-lg bg-night-800 px-3 py-2">
       <span className={`text-sm ${typeColors[event.type]}`}>
         {describeGalileanMoonEvent(event)}
       </span>
-      <span className="text-xs text-gray-500">{formatTime(event.time)}</span>
+      <span className="text-gray-500 text-xs">{formatTime(event.time)}</span>
     </div>
   );
 }

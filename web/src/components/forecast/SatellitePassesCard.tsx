@@ -184,14 +184,14 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
           <h3 className="font-semibold text-white">{headerLabel}</h3>
           {passes.length > 0 && <CountBadge count={passes.length} />}
           {showAllSatellites && uniqueSatelliteCount > 1 && (
-            <span className="text-xs text-gray-500">{uniqueSatelliteCount} satellites</span>
+            <span className="text-gray-500 text-xs">{uniqueSatelliteCount} satellites</span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {loading && <span className="text-xs text-gray-500">Loading...</span>}
-          {error && <span className="text-xs text-red-400">Unavailable</span>}
+          {loading && <span className="text-gray-500 text-xs">Loading...</span>}
+          {error && <span className="text-red-400 text-xs">Unavailable</span>}
           {!loading && !error && passes.length === 0 && (
-            <span className="text-xs text-gray-500">
+            <span className="text-gray-500 text-xs">
               No visible passes {getNightLabel(nightInfo.date)}
             </span>
           )}
@@ -201,7 +201,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
 
       {/* Content */}
       {expanded && (
-        <div className="border-t border-night-700 p-4">
+        <div className="border-night-700 border-t p-4">
           {/* Toggle between ISS-only and all satellites */}
           <div className="mb-3 flex items-center gap-2">
             <button
@@ -230,14 +230,14 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
 
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-sky-500" />
+              <div className="h-6 w-6 animate-spin rounded-full border-sky-500 border-b-2" />
             </div>
           )}
 
           {error && (
             <div className="py-4 text-center">
-              <p className="text-sm text-gray-400">{error}</p>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="text-gray-400 text-sm">{error}</p>
+              <p className="mt-1 text-gray-500 text-xs">
                 Satellite pass data requires an internet connection
               </p>
             </div>
@@ -246,11 +246,11 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
           {!loading && !error && passes.length === 0 && (
             <div className="py-4 text-center">
               <Rocket className="mx-auto mb-2 h-8 w-8 text-gray-600" />
-              <p className="text-sm text-gray-400">
+              <p className="text-gray-400 text-sm">
                 No {showAllSatellites ? 'satellite' : 'ISS'} passes visible{' '}
                 {getNightLabel(nightInfo.date)} from your location
               </p>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-gray-500 text-xs">
                 Passes require dark skies and the satellite to be sunlit
               </p>
             </div>
@@ -264,7 +264,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
                   pass={pass}
                 />
               ))}
-              <p className="mt-4 text-center text-xs text-gray-500">
+              <p className="mt-4 text-center text-gray-500 text-xs">
                 Times shown are for your local timezone.
                 {showAllSatellites
                   ? ' Satellites appear as bright, fast-moving stars.'
@@ -294,7 +294,7 @@ function PassItem({ pass }: { pass: SatellitePass }) {
           <span className="font-medium text-white">{pass.satelliteName}</span>
         </div>
         {pass.magnitude !== null && (
-          <span className="rounded bg-night-700 px-2 py-0.5 text-xs text-gray-400">
+          <span className="rounded bg-night-700 px-2 py-0.5 text-gray-400 text-xs">
             mag {pass.magnitude.toFixed(1)}
           </span>
         )}
@@ -302,29 +302,29 @@ function PassItem({ pass }: { pass: SatellitePass }) {
 
       <div className="grid grid-cols-3 gap-2 text-sm">
         <div>
-          <div className="mb-1 text-xs text-gray-500">Rise</div>
+          <div className="mb-1 text-gray-500 text-xs">Rise</div>
           <div className="text-gray-300">{formatTime(pass.riseTime)}</div>
-          <div className="text-xs text-gray-500">
+          <div className="text-gray-500 text-xs">
             {azimuthToCompass(pass.riseAzimuth)} ({pass.riseAzimuth.toFixed(0)}&deg;)
           </div>
         </div>
 
         <div className="text-center">
-          <div className="mb-1 text-xs text-gray-500">Max</div>
+          <div className="mb-1 text-gray-500 text-xs">Max</div>
           <div className="font-medium text-sky-400">{pass.maxAltitude.toFixed(0)}&deg;</div>
-          <div className="text-xs text-gray-500">@ {formatTime(pass.maxTime)}</div>
+          <div className="text-gray-500 text-xs">@ {formatTime(pass.maxTime)}</div>
         </div>
 
         <div className="text-right">
-          <div className="mb-1 text-xs text-gray-500">Set</div>
+          <div className="mb-1 text-gray-500 text-xs">Set</div>
           <div className="text-gray-300">{formatTime(pass.setTime)}</div>
-          <div className="text-xs text-gray-500">
+          <div className="text-gray-500 text-xs">
             {azimuthToCompass(pass.setAzimuth)} ({pass.setAzimuth.toFixed(0)}&deg;)
           </div>
         </div>
       </div>
 
-      <div className="mt-2 flex items-center justify-between border-t border-night-700 pt-2 text-xs text-gray-500">
+      <div className="mt-2 flex items-center justify-between border-night-700 border-t pt-2 text-gray-500 text-xs">
         <span>Duration: {formatPassDuration(pass.duration)}</span>
         <span className={getAltitudeTextColor(pass.maxAltitude)}>
           {pass.maxAltitude >= 60
@@ -347,8 +347,8 @@ interface ISSPositionDisplayProps {
 function ISSPositionDisplay({ position, locationName, loading }: ISSPositionDisplayProps) {
   if (loading && !position) {
     return (
-      <div className="mt-4 border-t border-night-700 pt-4">
-        <div className="flex items-center gap-2 text-sm text-gray-400">
+      <div className="mt-4 border-night-700 border-t pt-4">
+        <div className="flex items-center gap-2 text-gray-400 text-sm">
           <Globe className="h-4 w-4 animate-spin" />
           <span>Loading ISS position...</span>
         </div>
@@ -361,18 +361,18 @@ function ISSPositionDisplay({ position, locationName, loading }: ISSPositionDisp
   }
 
   return (
-    <div className="mt-4 border-t border-night-700 pt-4">
+    <div className="mt-4 border-night-700 border-t pt-4">
       <div className="mb-3 flex items-center gap-2">
         <Globe className="h-4 w-4 text-sky-400" />
-        <span className="text-sm font-medium text-white">Current ISS Position</span>
-        {loading && <span className="ml-auto text-xs text-gray-500">Updating...</span>}
+        <span className="font-medium text-sm text-white">Current ISS Position</span>
+        {loading && <span className="ml-auto text-gray-500 text-xs">Updating...</span>}
       </div>
 
       <div className="space-y-2 rounded-lg bg-night-800 p-3">
         {/* Location */}
         <div className="flex items-center gap-2">
           <MapPin className="h-4 w-4 text-green-400" />
-          <span className="text-sm text-gray-300">
+          <span className="text-gray-300 text-sm">
             Currently over: <span className="font-medium text-white">{locationName}</span>
           </span>
         </div>
@@ -406,16 +406,16 @@ function ISSPositionDisplay({ position, locationName, loading }: ISSPositionDisp
         </div>
 
         {/* Visibility Status */}
-        <div className="flex items-center gap-2 border-t border-night-700 pt-2">
+        <div className="flex items-center gap-2 border-night-700 border-t pt-2">
           <div
             className={`h-2 w-2 rounded-full ${
               position.visibility === 'daylight' ? 'bg-yellow-400' : 'bg-gray-500'
             }`}
           />
-          <span className="text-xs text-gray-400">
+          <span className="text-gray-400 text-xs">
             {getVisibilityDescription(position.visibility)}
           </span>
-          <span className="ml-auto text-xs text-gray-500">
+          <span className="ml-auto text-gray-500 text-xs">
             Updated {position.timestamp.toLocaleTimeString()}
           </span>
         </div>

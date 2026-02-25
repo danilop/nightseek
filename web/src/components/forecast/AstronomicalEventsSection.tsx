@@ -56,18 +56,18 @@ export default function AstronomicalEventsSection({
   }
 
   return (
-    <div className="bg-night-900 rounded-xl border border-night-700 overflow-hidden">
-      <div className="px-4 py-3 border-b border-night-700">
-        <h3 className="font-semibold text-white flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-indigo-400" />
+    <div className="overflow-hidden rounded-xl border border-night-700 bg-night-900">
+      <div className="border-night-700 border-b px-4 py-3">
+        <h3 className="flex items-center gap-2 font-semibold text-white">
+          <Calendar className="h-4 w-4 text-indigo-400" />
           Astronomical Events
         </h3>
       </div>
-      <div className="p-4 space-y-3">
+      <div className="space-y-3 p-4">
         {/* Lunar Eclipse */}
         {events.lunarEclipse && (
           <EventCard
-            icon={<Moon className="w-4 h-4 text-orange-400" />}
+            icon={<Moon className="h-4 w-4 text-orange-400" />}
             title="Lunar Eclipse"
             description={describeLunarEclipse(events.lunarEclipse)}
             time={events.lunarEclipse.peakTime}
@@ -83,7 +83,7 @@ export default function AstronomicalEventsSection({
         {/* Solar Eclipse */}
         {events.solarEclipse && (
           <EventCard
-            icon={<Sun className="w-4 h-4 text-yellow-400" />}
+            icon={<Sun className="h-4 w-4 text-yellow-400" />}
             title="Solar Eclipse"
             description={describeSolarEclipse(events.solarEclipse)}
             time={events.solarEclipse.peakTime}
@@ -95,7 +95,7 @@ export default function AstronomicalEventsSection({
         {/* Supermoon */}
         {events.lunarApsis?.isSupermoon && (
           <EventCard
-            icon={<Moon className="w-4 h-4 text-yellow-300" />}
+            icon={<Moon className="h-4 w-4 text-yellow-300" />}
             title="Supermoon"
             description={describeLunarApsis(events.lunarApsis)}
             time={events.lunarApsis.date}
@@ -110,7 +110,7 @@ export default function AstronomicalEventsSection({
           .map(opposition => (
             <EventCard
               key={opposition.planet}
-              icon={<Target className="w-4 h-4 text-red-400" />}
+              icon={<Target className="h-4 w-4 text-red-400" />}
               title={`${opposition.planet} at Opposition`}
               description={
                 opposition.daysUntil === 0
@@ -131,7 +131,7 @@ export default function AstronomicalEventsSection({
           .map(elongation => (
             <EventCard
               key={elongation.planet}
-              icon={<CircleDot className="w-4 h-4 text-purple-400" />}
+              icon={<CircleDot className="h-4 w-4 text-purple-400" />}
               title={`${elongation.planet} Maximum Elongation`}
               description={`${elongation.elongationDeg.toFixed(1)}° ${elongation.isEastern ? 'east' : 'west'} of Sun`}
               time={elongation.date}
@@ -143,7 +143,7 @@ export default function AstronomicalEventsSection({
         {/* Seasonal Marker */}
         {events.seasonalMarker && events.seasonalMarker.daysUntil <= 1 && (
           <EventCard
-            icon={<Sun className="w-4 h-4 text-amber-400" />}
+            icon={<Sun className="h-4 w-4 text-amber-400" />}
             title={getSeasonalMarkerName(events.seasonalMarker.type)}
             description={describeSeasonalMarker(events.seasonalMarker)}
             time={events.seasonalMarker.time}
@@ -168,7 +168,7 @@ export default function AstronomicalEventsSection({
         {/* Eclipse Season */}
         {events.eclipseSeason?.isActive && (
           <EventCard
-            icon={<AlertTriangle className="w-4 h-4 text-orange-400" />}
+            icon={<AlertTriangle className="h-4 w-4 text-orange-400" />}
             title="Eclipse Season Active"
             description={getEclipseSeasonDescription(events.eclipseSeason)}
             time={events.eclipseSeason.nodeCrossingTime}
@@ -180,7 +180,7 @@ export default function AstronomicalEventsSection({
         {/* Venus Peak Brightness */}
         {events.venusPeak?.isNearPeak && (
           <EventCard
-            icon={<Star className="w-4 h-4 text-yellow-200" />}
+            icon={<Star className="h-4 w-4 text-yellow-200" />}
             title="Venus at Peak Brightness"
             description={getVenusPeakDescription(events.venusPeak)}
             time={events.venusPeak.peakDate}
@@ -193,7 +193,7 @@ export default function AstronomicalEventsSection({
         {events.planetPerihelia?.map(apsis => (
           <EventCard
             key={`${apsis.planet}-perihelion`}
-            icon={<Sparkles className="w-4 h-4 text-green-400" />}
+            icon={<Sparkles className="h-4 w-4 text-green-400" />}
             title={`${apsis.planet} Near Perihelion`}
             description={getPlanetApsisDescription(apsis)}
             time={apsis.date}
@@ -209,7 +209,7 @@ export default function AstronomicalEventsSection({
         {/* Planetary Transit (Rare!) */}
         {events.planetaryTransit && events.planetaryTransit.yearsUntil <= 2 && (
           <EventCard
-            icon={<Sun className="w-4 h-4 text-red-400" />}
+            icon={<Sun className="h-4 w-4 text-red-400" />}
             title={`${events.planetaryTransit.planet} Transit Coming!`}
             description={getTransitAlertSummary(events.planetaryTransit)}
             time={events.planetaryTransit.peak}
@@ -258,20 +258,20 @@ function EventCard({
 }: EventCardProps) {
   return (
     <div
-      className={`p-3 rounded-lg ${
-        isHighlight ? 'bg-indigo-500/10 border border-indigo-500/30' : 'bg-night-800'
+      className={`rounded-lg p-3 ${
+        isHighlight ? 'border border-indigo-500/30 bg-indigo-500/10' : 'bg-night-800'
       }`}
     >
-      <div className="flex items-center gap-2 mb-1">
+      <div className="mb-1 flex items-center gap-2">
         {icon}
-        <span className="text-white font-medium">{title}</span>
+        <span className="font-medium text-white">{title}</span>
       </div>
-      <p className="text-sm text-gray-400">{description}</p>
-      <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-gray-500">
+      <p className="text-gray-400 text-sm">{description}</p>
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-gray-500 text-xs">
           {time.toLocaleDateString()} at {formatTime(time)}
         </span>
-        {details && <span className="text-xs text-gray-500">{details}</span>}
+        {details && <span className="text-gray-500 text-xs">{details}</span>}
       </div>
     </div>
   );

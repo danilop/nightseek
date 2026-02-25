@@ -28,7 +28,7 @@ export default function MeteorShowerCard({ showers, nightDate }: MeteorShowerCar
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-night-800 transition-colors"
+        className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-night-800"
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">☄️</span>
@@ -39,20 +39,20 @@ export default function MeteorShowerCard({ showers, nightDate }: MeteorShowerCar
       </button>
 
       {/* Primary shower summary (always visible) */}
-      <div className="px-4 pb-3 border-b border-night-700">
+      <div className="border-night-700 border-b px-4 pb-3">
         <ShowerSummary shower={primaryShower} />
       </div>
 
       {/* Expanded content */}
       {expanded && (
-        <div className="p-4 space-y-3">
+        <div className="space-y-3 p-4">
           {/* Primary shower details */}
           <ShowerDetails shower={primaryShower} nightDate={nightDate} />
 
           {/* Additional showers */}
           {additionalShowers.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-night-700">
-              <h4 className="text-sm font-medium text-gray-400 mb-3">Other Active Showers</h4>
+            <div className="mt-4 border-night-700 border-t pt-4">
+              <h4 className="mb-3 font-medium text-gray-400 text-sm">Other Active Showers</h4>
               <div className="space-y-3">
                 {additionalShowers.map(shower => (
                   <ShowerCompact key={shower.code} shower={shower} />
@@ -76,8 +76,8 @@ function ShowerSummary({ shower }: ShowerSummaryProps) {
   return (
     <div className="flex items-center justify-between">
       <div>
-        <span className="text-white font-medium">{shower.name}</span>
-        <span className="text-gray-500 ml-2">({shower.code})</span>
+        <span className="font-medium text-white">{shower.name}</span>
+        <span className="ml-2 text-gray-500">({shower.code})</span>
       </div>
       <div className="flex items-center gap-3 text-sm">
         <span className="text-gray-400">~{adjustedRate}/hr</span>
@@ -98,12 +98,12 @@ function ShowerDetails({ shower, nightDate }: ShowerDetailsProps) {
   const moonInterference = getMoonInterference(shower.moonIllumination);
 
   return (
-    <div className="bg-night-800 rounded-lg p-4 space-y-3">
+    <div className="space-y-3 rounded-lg bg-night-800 p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h4 className="text-lg font-medium text-white">{shower.name}</h4>
-          <span className="text-sm text-gray-500">({shower.code})</span>
+          <h4 className="font-medium text-lg text-white">{shower.name}</h4>
+          <span className="text-gray-500 text-sm">({shower.code})</span>
         </div>
         <PeakBadge daysFromPeak={shower.daysFromPeak} nightDate={nightDate} />
       </div>
@@ -112,14 +112,14 @@ function ShowerDetails({ shower, nightDate }: ShowerDetailsProps) {
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <span className="text-gray-500">ZHR: </span>
-          <span className="text-white font-medium">~{shower.zhr}/hr</span>
+          <span className="font-medium text-white">~{shower.zhr}/hr</span>
         </div>
         <div>
           <span className="text-gray-500">Velocity: </span>
           <span className="text-gray-300">{shower.velocityKms} km/s</span>
         </div>
         <div className="flex items-center gap-1">
-          <Star className="w-3 h-3 text-gray-500" />
+          <Star className="h-3 w-3 text-gray-500" />
           <span className="text-gray-500">Radiant: </span>
           <span className="text-gray-300">{constellation}</span>
         </div>
@@ -134,32 +134,32 @@ function ShowerDetails({ shower, nightDate }: ShowerDetailsProps) {
       </div>
 
       {/* Moon interference */}
-      <div className="flex items-center gap-2 pt-2 border-t border-night-700">
-        <Moon className="w-4 h-4 text-gray-500" />
-        <span className="text-sm text-gray-400">
+      <div className="flex items-center gap-2 border-night-700 border-t pt-2">
+        <Moon className="h-4 w-4 text-gray-500" />
+        <span className="text-gray-400 text-sm">
           Moon: {shower.moonIllumination?.toFixed(0) ?? 0}%
         </span>
         {shower.moonSeparationDeg !== null && (
-          <span className="text-sm text-gray-500">
+          <span className="text-gray-500 text-sm">
             ({shower.moonSeparationDeg.toFixed(0)}° from radiant)
           </span>
         )}
-        <span className={`text-sm ml-auto ${moonInterference.textColor}`}>
+        <span className={`ml-auto text-sm ${moonInterference.textColor}`}>
           {moonInterference.text}
         </span>
       </div>
 
       {/* Adjusted rate */}
-      <div className="flex items-center justify-between pt-2 border-t border-night-700">
-        <span className="text-sm text-gray-400">Adjusted rate (conditions):</span>
-        <span className="text-lg font-medium text-green-400">~{adjustedRate}/hr</span>
+      <div className="flex items-center justify-between border-night-700 border-t pt-2">
+        <span className="text-gray-400 text-sm">Adjusted rate (conditions):</span>
+        <span className="font-medium text-green-400 text-lg">~{adjustedRate}/hr</span>
       </div>
 
       {/* Peak countdown bar */}
       <PeakProgressBar daysFromPeak={shower.daysFromPeak} />
 
       {/* Parent object */}
-      <div className="text-sm text-gray-500 pt-2">Parent: {shower.parentObject}</div>
+      <div className="pt-2 text-gray-500 text-sm">Parent: {shower.parentObject}</div>
     </div>
   );
 }
@@ -173,16 +173,16 @@ function ShowerCompact({ shower }: ShowerCompactProps) {
   const { constellation } = getIAUMeteorShowerInfo(shower);
 
   return (
-    <div className="bg-night-800 rounded-lg p-3">
-      <div className="flex items-center justify-between mb-2">
+    <div className="rounded-lg bg-night-800 p-3">
+      <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-white font-medium">{shower.name}</span>
+          <span className="font-medium text-white">{shower.name}</span>
           <span className="text-gray-500 text-sm">({shower.code})</span>
         </div>
         <PeakIndicator daysFromPeak={shower.daysFromPeak} />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-xs text-gray-400">
+      <div className="grid grid-cols-3 gap-2 text-gray-400 text-xs">
         <div>ZHR: {shower.zhr}/hr</div>
         <div>~{adjustedRate}/hr adjusted</div>
         <div>{constellation}</div>
@@ -202,15 +202,15 @@ function PeakIndicator({ daysFromPeak }: PeakIndicatorProps) {
 
   if (absDays < 1) {
     return (
-      <span className="text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded">Peak!</span>
+      <span className="rounded bg-green-500/20 px-2 py-0.5 text-green-400 text-xs">Peak!</span>
     );
   }
 
   if (daysFromPeak < 0) {
-    return <span className="text-xs text-amber-400">{absDays.toFixed(0)}d past peak</span>;
+    return <span className="text-amber-400 text-xs">{absDays.toFixed(0)}d past peak</span>;
   }
 
-  return <span className="text-xs text-sky-400">{absDays.toFixed(0)}d to peak</span>;
+  return <span className="text-sky-400 text-xs">{absDays.toFixed(0)}d to peak</span>;
 }
 
 interface PeakBadgeProps {
@@ -225,7 +225,7 @@ function PeakBadge({ daysFromPeak, nightDate }: PeakBadgeProps) {
 
   if (absDays < 1) {
     return (
-      <span className="text-sm bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-medium">
+      <span className="rounded-full bg-green-500/20 px-3 py-1 font-medium text-green-400 text-sm">
         Peak {getNightLabel(nightDate)}!
       </span>
     );
@@ -247,15 +247,15 @@ function PeakProgressBar({ daysFromPeak }: PeakProgressBarProps) {
 
   return (
     <div className="pt-2">
-      <div className="relative h-2 bg-night-700 rounded-full overflow-hidden">
+      <div className="relative h-2 overflow-hidden rounded-full bg-night-700">
         <div
           className={`absolute h-full ${isPastPeak ? 'bg-amber-500' : 'bg-green-500'} transition-all`}
           style={{ width: `${progress}%` }}
         />
         {/* Peak marker */}
-        <div className="absolute right-0 top-0 h-full w-0.5 bg-white" />
+        <div className="absolute top-0 right-0 h-full w-0.5 bg-white" />
       </div>
-      <div className="flex justify-between text-xs text-gray-500 mt-1">
+      <div className="mt-1 flex justify-between text-gray-500 text-xs">
         <span>Start</span>
         <span>Peak</span>
       </div>

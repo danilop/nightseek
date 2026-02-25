@@ -74,8 +74,8 @@ describe('SWPC utilities', () => {
       const data = makeSWPCData();
       const result = getTodayFlareProbability(data);
       expect(result).not.toBeNull();
-      expect(result!.mClassProbability).toBe(20);
-      expect(result!.xClassProbability).toBe(5);
+      expect(result?.mClassProbability).toBe(20);
+      expect(result?.xClassProbability).toBe(5);
     });
 
     it('returns null for empty probabilities', () => {

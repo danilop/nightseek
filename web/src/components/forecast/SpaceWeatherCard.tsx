@@ -46,19 +46,19 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
 
   return (
     <Card>
-      <div className="px-4 py-3 border-b border-night-700">
+      <div className="border-night-700 border-b px-4 py-3">
         <h3 className="flex items-center gap-2 font-semibold text-white">
           <Zap className="h-4 w-4 text-purple-400" />
           Space Weather
-          {swpcData && <span className="ml-auto text-xs font-normal text-green-500">Live</span>}
+          {swpcData && <span className="ml-auto font-normal text-green-500 text-xs">Live</span>}
         </h3>
       </div>
       <div className="space-y-3 p-4">
         {/* Geomagnetic Activity Level */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-400">Geomagnetic Activity</span>
+          <span className="text-gray-400 text-sm">Geomagnetic Activity</span>
           <div className="flex items-center gap-2">
-            <span className={`text-sm font-medium capitalize ${kpColor}`}>{geoLabel}</span>
+            <span className={`font-medium text-sm capitalize ${kpColor}`}>{geoLabel}</span>
             <Badge variant={displayKp >= 5 ? 'danger' : displayKp >= 3 ? 'warning' : 'default'}>
               Kp {displayKp}
             </Badge>
@@ -67,7 +67,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
 
         {/* Live vs Recent Kp (only show when SWPC data present) */}
         {liveKp !== null && recentMaxKp !== null && recentMaxKp > liveKp && (
-          <div className="flex items-center justify-between text-xs text-gray-500">
+          <div className="flex items-center justify-between text-gray-500 text-xs">
             <span>24h max Kp</span>
             <span className={getKpColorClass(recentMaxKp)}>Kp {recentMaxKp}</span>
           </div>
@@ -76,11 +76,11 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
         {/* Solar Activity / F10.7 Flux */}
         {solarFluxValue !== null && (
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-400">Solar Activity</span>
+            <span className="text-gray-400 text-sm">Solar Activity</span>
             <div className="flex items-center gap-2">
               <Activity className="h-3.5 w-3.5 text-orange-400" />
-              <span className="text-sm capitalize text-gray-300">{solarActivityLabel}</span>
-              <span className="text-xs text-gray-500">F10.7: {solarFluxValue.toFixed(0)}</span>
+              <span className="text-gray-300 text-sm capitalize">{solarActivityLabel}</span>
+              <span className="text-gray-500 text-xs">F10.7: {solarFluxValue.toFixed(0)}</span>
             </div>
           </div>
         )}
@@ -89,7 +89,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
         {flareForecast &&
           (flareForecast.mClassProbability > 0 || flareForecast.xClassProbability > 0) && (
             <div>
-              <p className="mb-2 text-xs text-gray-500">Flare Probability (today)</p>
+              <p className="mb-2 text-gray-500 text-xs">Flare Probability (today)</p>
               <div className="flex items-center gap-3 text-sm">
                 {flareForecast.mClassProbability > 0 && (
                   <span className="text-yellow-400">
@@ -106,7 +106,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
         {/* Sunspot Regions */}
         {swpcData && swpcData.sunspotRegions.length > 0 && (
           <div>
-            <p className="mb-2 text-xs text-gray-500">
+            <p className="mb-2 text-gray-500 text-xs">
               Active Regions ({swpcData.sunspotRegions.length})
             </p>
             <div className="space-y-1">
@@ -121,7 +121,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
                       {region.spotCount} {region.spotCount === 1 ? 'spot' : 'spots'}
                     </span>
                     {region.magClass && (
-                      <span className="text-xs text-gray-500">{region.magClass}</span>
+                      <span className="text-gray-500 text-xs">{region.magClass}</span>
                     )}
                   </div>
                 </div>
@@ -133,7 +133,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
         {/* Recent Storms (from DONKI) */}
         {geomagneticStorms.length > 0 && (
           <div>
-            <p className="mb-2 text-xs text-gray-500">Recent Storms</p>
+            <p className="mb-2 text-gray-500 text-xs">Recent Storms</p>
             <div className="space-y-2">
               {geomagneticStorms.slice(0, 3).map(storm => (
                 <div key={storm.gstID} className="flex items-center justify-between text-sm">
@@ -142,7 +142,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
                   </span>
                   <div className="flex items-center gap-2">
                     <span className={getKpColorClass(storm.maxKp)}>Max Kp {storm.maxKp}</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-gray-500 text-xs">
                       {formatTime(new Date(storm.startTime))}
                     </span>
                   </div>
@@ -155,7 +155,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
         {/* Solar Flares (from DONKI) */}
         {solarFlares.length > 0 && (
           <div>
-            <p className="mb-2 text-xs text-gray-500">Significant Solar Flares</p>
+            <p className="mb-2 text-gray-500 text-xs">Significant Solar Flares</p>
             <div className="space-y-2">
               {solarFlares.slice(0, 3).map(flare => (
                 <div key={flare.flrID} className="flex items-center justify-between text-sm">
@@ -163,7 +163,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
                     <Sun className="h-3.5 w-3.5 text-yellow-400" />
                     <span className="text-gray-300">{flare.classType}</span>
                   </div>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-gray-500 text-xs">
                     {new Date(flare.peakTime).toLocaleDateString()}{' '}
                     {formatTime(new Date(flare.peakTime))}
                   </span>
@@ -175,13 +175,13 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
 
         {/* Aurora Potential */}
         {auroraForecast && (
-          <div className="border-t border-night-700 pt-2">
+          <div className="border-night-700 border-t pt-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Aurora Potential</span>
+              <span className="text-gray-400 text-sm">Aurora Potential</span>
               <AuroraChanceBadge chance={auroraForecast.chance} />
             </div>
             {auroraForecast.chance !== 'none' && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-gray-500 text-xs">
                 Need Kp {auroraForecast.requiredKp}+ at your latitude
               </p>
             )}
@@ -190,7 +190,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
 
         {/* Empty state */}
         {geomagneticStorms.length === 0 && solarFlares.length === 0 && !swpcData && (
-          <p className="text-sm text-gray-500">No significant space weather activity detected.</p>
+          <p className="text-gray-500 text-sm">No significant space weather activity detected.</p>
         )}
       </div>
     </Card>

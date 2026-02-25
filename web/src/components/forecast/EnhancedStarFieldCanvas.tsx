@@ -371,7 +371,7 @@ export default function EnhancedStarFieldCanvas({
       </div>
 
       {/* Canvas */}
-      <div ref={containerRef} className="w-full relative">
+      <div ref={containerRef} className="relative w-full">
         <canvas ref={canvasRef} className="w-full rounded-lg" />
 
         {/* Selected Object Info Panel */}
@@ -381,10 +381,10 @@ export default function EnhancedStarFieldCanvas({
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+      <div className="flex flex-wrap gap-4 text-gray-500 text-xs">
         {hasVariables && (
           <div className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded-full border-2 border-amber-400" />
+            <span className="h-3 w-3 rounded-full border-2 border-amber-400" />
             <span>Variable star</span>
           </div>
         )}
@@ -423,14 +423,14 @@ function TogglePill({ label, active, onClick, color }: TogglePillProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+      className={`rounded-full px-3 py-1 font-medium text-xs transition-colors ${
         active
-          ? 'bg-night-700 text-white border border-night-600'
-          : 'bg-night-800 text-gray-500 border border-night-700'
+          ? 'border border-night-600 bg-night-700 text-white'
+          : 'border border-night-700 bg-night-800 text-gray-500'
       }`}
     >
       <span
-        className="inline-block w-2 h-2 rounded-full mr-1.5"
+        className="mr-1.5 inline-block h-2 w-2 rounded-full"
         style={{ backgroundColor: active ? color : '#4b5563' }}
       />
       {label}
@@ -450,7 +450,7 @@ function ObjectInfoPanel({ object, onClose }: ObjectInfoPanelProps) {
 
     return (
       <div
-        className="absolute bg-night-800 border border-night-600 rounded-lg p-3 shadow-lg z-10"
+        className="absolute z-10 rounded-lg border border-night-600 bg-night-800 p-3 shadow-lg"
         style={{ left: object.x + 10, top: object.y - 40 }}
       >
         <button
@@ -460,21 +460,21 @@ function ObjectInfoPanel({ object, onClose }: ObjectInfoPanelProps) {
         >
           ×
         </button>
-        <div className="text-sm font-medium" style={{ color: typeInfo.color }}>
+        <div className="font-medium text-sm" style={{ color: typeInfo.color }}>
           {typeInfo.label}
         </div>
         {varStar.magnitude > 0 && (
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="mt-1 text-gray-400 text-xs">
             Magnitude: {varStar.magnitude.toFixed(1)}
           </div>
         )}
         {varStar.period && (
-          <div className="text-xs text-gray-400">Period: {varStar.period.toFixed(2)} days</div>
+          <div className="text-gray-400 text-xs">Period: {varStar.period.toFixed(2)} days</div>
         )}
         {varStar.amplitude && (
-          <div className="text-xs text-gray-400">Amplitude: {varStar.amplitude.toFixed(2)} mag</div>
+          <div className="text-gray-400 text-xs">Amplitude: {varStar.amplitude.toFixed(2)} mag</div>
         )}
-        <div className="text-xs text-gray-500 mt-1">{typeInfo.description}</div>
+        <div className="mt-1 text-gray-500 text-xs">{typeInfo.description}</div>
       </div>
     );
   }
@@ -484,7 +484,7 @@ function ObjectInfoPanel({ object, onClose }: ObjectInfoPanelProps) {
 
   return (
     <div
-      className="absolute bg-night-800 border border-night-600 rounded-lg p-3 shadow-lg z-10"
+      className="absolute z-10 rounded-lg border border-night-600 bg-night-800 p-3 shadow-lg"
       style={{ left: object.x + 10, top: object.y - 40 }}
     >
       <button
@@ -494,19 +494,19 @@ function ObjectInfoPanel({ object, onClose }: ObjectInfoPanelProps) {
       >
         ×
       </button>
-      <div className="text-sm font-medium" style={{ color: typeInfo.color }}>
+      <div className="font-medium text-sm" style={{ color: typeInfo.color }}>
         {typeInfo.label}
       </div>
       {extObj.magnitude > 0 && (
-        <div className="text-xs text-gray-400 mt-1">Magnitude: {extObj.magnitude.toFixed(1)}</div>
+        <div className="mt-1 text-gray-400 text-xs">Magnitude: {extObj.magnitude.toFixed(1)}</div>
       )}
-      <div className="text-xs text-gray-400">
+      <div className="text-gray-400 text-xs">
         Confidence: {(extObj.probability * 100).toFixed(0)}%
       </div>
       {extObj.redshift && (
-        <div className="text-xs text-gray-400">Redshift: {extObj.redshift.toFixed(3)}</div>
+        <div className="text-gray-400 text-xs">Redshift: {extObj.redshift.toFixed(3)}</div>
       )}
-      <div className="text-xs text-gray-500 mt-1">{typeInfo.description}</div>
+      <div className="mt-1 text-gray-500 text-xs">{typeInfo.description}</div>
     </div>
   );
 }

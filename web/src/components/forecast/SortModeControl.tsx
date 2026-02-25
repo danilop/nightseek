@@ -118,7 +118,7 @@ export default function SortModeControl({
         <button
           type="button"
           onClick={() => handleModeChange('score')}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-xs transition-colors ${
             sortMode === 'score'
               ? 'bg-night-700 text-white shadow-sm'
               : 'text-gray-400 hover:text-gray-300'
@@ -130,7 +130,7 @@ export default function SortModeControl({
         <button
           type="button"
           onClick={() => handleModeChange('altitude')}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-xs transition-colors ${
             sortMode === 'altitude'
               ? 'bg-night-700 text-white shadow-sm'
               : 'text-gray-400 hover:text-gray-300'
@@ -148,7 +148,7 @@ export default function SortModeControl({
             <button
               type="button"
               onClick={handleNowClick}
-              className="flex items-center gap-1 rounded bg-indigo-500/20 px-2 py-1 text-indigo-400 text-xs font-medium transition-colors hover:bg-indigo-500/30"
+              className="flex items-center gap-1 rounded bg-indigo-500/20 px-2 py-1 font-medium text-indigo-400 text-xs transition-colors hover:bg-indigo-500/30"
             >
               <Clock className="h-3 w-3" />
               Now
@@ -162,7 +162,7 @@ export default function SortModeControl({
               onChange={handleSliderChange}
               className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-indigo-500 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:hover:bg-indigo-400"
             />
-            <span className="w-20 text-right font-medium text-sm text-indigo-400">
+            <span className="w-20 text-right font-medium text-indigo-400 text-sm">
               {formatSliderTime(selectedTime)}
             </span>
           </div>

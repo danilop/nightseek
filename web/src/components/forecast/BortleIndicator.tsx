@@ -19,7 +19,7 @@ export default function BortleIndicator({ latitude, longitude }: BortleIndicator
   return (
     <Tooltip content={tooltipContent} maxWidth={300}>
       <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 ${getBortleBgClass(bortle.value)} ${getBortleColorClass(bortle.value)}`}
+        className={`inline-flex flex-shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 font-medium text-xs ${getBortleBgClass(bortle.value)} ${getBortleColorClass(bortle.value)}`}
       >
         <BortleIcon />
         <span>Bortle {bortle.value}</span>
@@ -31,7 +31,7 @@ export default function BortleIndicator({ latitude, longitude }: BortleIndicator
 function BortleIcon() {
   return (
     <svg
-      className="w-3 h-3"
+      className="h-3 w-3"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

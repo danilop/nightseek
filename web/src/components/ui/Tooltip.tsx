@@ -165,7 +165,7 @@ export default function Tooltip({
     <>
       <span className="relative inline-flex" ref={triggerRef}>
         <span
-          className={`cursor-help ${showIndicator ? 'border-b border-dotted border-gray-500' : ''}`}
+          className={`cursor-help ${showIndicator ? 'border-gray-500 border-b border-dotted' : ''}`}
           onMouseEnter={show}
           onMouseLeave={hide}
           onClick={toggle}
@@ -183,7 +183,7 @@ export default function Tooltip({
             ref={tooltipRef}
             id="tooltip"
             role="tooltip"
-            className="fixed z-[9999] pointer-events-none transition-opacity duration-150"
+            className="pointer-events-none fixed z-[9999] transition-opacity duration-150"
             style={{
               top: tooltipPosition?.top ?? 0,
               left: tooltipPosition?.left ?? 0,
@@ -192,15 +192,15 @@ export default function Tooltip({
               visibility: isPositioned ? 'visible' : 'hidden',
             }}
           >
-            <div className="bg-night-700 text-gray-200 text-xs px-3 py-2 rounded-lg shadow-lg border border-night-600 pointer-events-auto">
+            <div className="pointer-events-auto rounded-lg border border-night-600 bg-night-700 px-3 py-2 text-gray-200 text-xs shadow-lg">
               {content}
             </div>
             {isPositioned && tooltipPosition && (
               <span
-                className={`absolute w-0 h-0 border-4 ${
+                className={`absolute h-0 w-0 border-4 ${
                   tooltipPosition.placement === 'top'
-                    ? 'top-full border-t-night-700 border-x-transparent border-b-transparent'
-                    : 'bottom-full border-b-night-700 border-x-transparent border-t-transparent'
+                    ? 'top-full border-x-transparent border-t-night-700 border-b-transparent'
+                    : 'bottom-full border-x-transparent border-t-transparent border-b-night-700'
                 }`}
                 style={{
                   left: getArrowLeft(),

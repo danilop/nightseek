@@ -49,9 +49,9 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
           <h3 className="font-semibold text-white">Location Quality</h3>
         </div>
         <div className="flex items-center gap-2">
-          {loading && <span className="text-xs text-gray-500">Loading...</span>}
+          {loading && <span className="text-gray-500 text-xs">Loading...</span>}
           {data && currentMonthStats && (
-            <span className="text-xs text-gray-400">
+            <span className="text-gray-400 text-xs">
               ~{currentMonthStats.clearNights} clear nights in {currentMonthStats.monthName}
             </span>
           )}
@@ -60,10 +60,10 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
       </button>
 
       {expanded && (
-        <div className="border-t border-night-700 p-4">
+        <div className="border-night-700 border-t p-4">
           {loading && (
             <div className="flex items-center justify-center py-6">
-              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-indigo-500" />
+              <div className="h-5 w-5 animate-spin rounded-full border-indigo-500 border-b-2" />
             </div>
           )}
 
@@ -71,8 +71,8 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
             <div className="space-y-4">
               {/* Annual summary */}
               <div className="rounded-lg bg-night-800 p-3">
-                <p className="mb-1 text-sm font-medium text-white">Annual Summary</p>
-                <p className="text-sm text-gray-300">
+                <p className="mb-1 font-medium text-sm text-white">Annual Summary</p>
+                <p className="text-gray-300 text-sm">
                   This location averages{' '}
                   <span className="font-medium text-indigo-400">
                     {Math.round(data.annualClearNights)} clear nights
@@ -84,14 +84,14 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
               {/* Best months */}
               {data.bestMonths.length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs text-gray-500">Best Months for Observing</p>
+                  <p className="mb-2 text-gray-500 text-xs">Best Months for Observing</p>
                   <div className="space-y-2">
                     {data.bestMonths.map(month => (
                       <div key={month.month} className="flex items-center justify-between text-sm">
                         <span className="text-gray-300">{month.monthName}</span>
                         <div className="flex items-center gap-3">
                           <span className="text-indigo-400">{month.clearNights} clear nights</span>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-gray-500 text-xs">
                             {month.clearNightPercentage.toFixed(0)}%
                           </span>
                         </div>
@@ -103,7 +103,7 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
 
               {/* Monthly breakdown */}
               <div>
-                <p className="mb-2 text-xs text-gray-500">Monthly Breakdown</p>
+                <p className="mb-2 text-gray-500 text-xs">Monthly Breakdown</p>
                 <div className="space-y-1">
                   {data.monthlyStats.map(month => (
                     <MonthRow
@@ -115,7 +115,7 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
                 </div>
               </div>
 
-              <p className="text-center text-xs text-gray-500">
+              <p className="text-center text-gray-500 text-xs">
                 Based on weather data from the past 12 months
               </p>
             </div>

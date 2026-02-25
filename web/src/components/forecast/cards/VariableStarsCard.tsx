@@ -38,11 +38,11 @@ export default function VariableStarsCard({ nightDate }: VariableStarsCardProps)
       </button>
 
       {expanded && (
-        <div className="space-y-2 border-t border-night-700 p-4">
+        <div className="space-y-2 border-night-700 border-t p-4">
           {notablePredictions.map(prediction => (
             <VariableStarItem key={prediction.star.name} prediction={prediction} />
           ))}
-          <p className="mt-3 text-center text-xs text-gray-500">
+          <p className="mt-3 text-center text-gray-500 text-xs">
             Brightness predictions based on known periods and epochs
           </p>
         </div>
@@ -65,20 +65,20 @@ function VariableStarItem({ prediction }: { prediction: VariableStarPrediction }
       <div className="flex items-center justify-between">
         <div>
           <span className="font-medium text-white">{star.name}</span>
-          <span className="ml-2 text-xs text-gray-500">{star.constellation}</span>
+          <span className="ml-2 text-gray-500 text-xs">{star.constellation}</span>
         </div>
         {predictedMagnitude !== null && (
-          <span className="rounded bg-night-700 px-2 py-0.5 text-xs text-gray-400">
+          <span className="rounded bg-night-700 px-2 py-0.5 text-gray-400 text-xs">
             mag ~{predictedMagnitude.toFixed(1)}
           </span>
         )}
       </div>
       <div className="mt-1 flex items-center justify-between">
         <span className={`text-xs ${statusColor}`}>{phaseDescription}</span>
-        <span className="text-xs text-gray-500">{star.variabilityType}</span>
+        <span className="text-gray-500 text-xs">{star.variabilityType}</span>
       </div>
       {prediction.nextNotableEvent && prediction.nextNotableEventTime && (
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-gray-500 text-xs">
           Next: {prediction.nextNotableEvent} —{' '}
           {prediction.nextNotableEventTime.toLocaleDateString()}
         </p>

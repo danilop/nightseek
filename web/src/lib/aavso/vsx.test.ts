@@ -25,16 +25,16 @@ describe('AAVSO Variable Star Predictions', () => {
     const predictions = predictVariableStars(new Date('2026-02-09'));
     const algol = predictions.find(p => p.star.name.includes('Algol'));
     expect(algol).toBeDefined();
-    expect(algol!.star.period).toBeCloseTo(2.8673, 2);
-    expect(algol!.predictedMagnitude).not.toBeNull();
+    expect(algol?.star.period).toBeCloseTo(2.8673, 2);
+    expect(algol?.predictedMagnitude).not.toBeNull();
   });
 
   it('R Coronae Borealis has no period (irregular)', () => {
     const predictions = predictVariableStars(new Date('2026-02-09'));
     const rcrb = predictions.find(p => p.star.name.includes('R Coronae'));
     expect(rcrb).toBeDefined();
-    expect(rcrb!.star.period).toBeNull();
-    expect(rcrb!.isNearMaximum).toBe(true); // irregular stays at max
+    expect(rcrb?.star.period).toBeNull();
+    expect(rcrb?.isNearMaximum).toBe(true); // irregular stays at max
   });
 
   it('predictions change with date', () => {
