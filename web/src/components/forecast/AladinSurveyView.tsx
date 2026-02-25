@@ -8,6 +8,15 @@ interface AladinSurveyViewProps {
   objectName: string;
 }
 
+function hasWebGL2(): boolean {
+  try {
+    const canvas = document.createElement('canvas');
+    return canvas.getContext('webgl2') !== null;
+  } catch {
+    return false;
+  }
+}
+
 export default function AladinSurveyView({
   ra,
   dec,
@@ -26,6 +35,12 @@ export default function AladinSurveyView({
   useEffect(() => {
     if (!containerRef.current || initRef.current) return;
     initRef.current = true;
+
+    if (!hasWebGL2()) {
+      setError('Your browser does not support WebGL2');
+      setLoading(false);
+      return;
+    }
 
     let destroyed = false;
     const container = containerRef.current;
@@ -91,6 +106,19 @@ export default function AladinSurveyView({
     aladinRef.current.setFov(fovDeg);
   }, [raDeg, dec, fovDeg]);
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
+        <div className="text-center">
+          <p className="text-gray-400 text-sm">{error}</p>
+          <p className="mt-1 text-gray-500 text-xs">
+            Survey viewer requires a browser with WebGL2 support
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative">
       {loading && (
@@ -98,15 +126,6 @@ export default function AladinSurveyView({
           <div className="text-center">
             <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-sky-500 border-b-2" />
             <p className="text-gray-500 text-sm">Loading sky survey...</p>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
-          <div className="text-center">
-            <p className="text-gray-400 text-sm">{error}</p>
-            <p className="mt-1 text-gray-500 text-xs">Survey viewer requires WebGL2 support</p>
           </div>
         </div>
       )}
