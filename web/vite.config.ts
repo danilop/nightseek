@@ -47,6 +47,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globIgnores: ['**/aladin-*.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/raw\.githubusercontent\.com\/mattiaverga\/OpenNGC/,
@@ -97,6 +98,17 @@ export default defineConfig({
               cacheName: 'geocoding',
               expiration: {
                 maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+              },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/alasky\.cds\.unistra\.fr/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'aladin-surveys',
+              expiration: {
+                maxEntries: 500,
+                maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
               },
             },
           },
