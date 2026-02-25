@@ -36,9 +36,8 @@ import type {
 } from '@/types';
 import CategorySection from '../CategorySection';
 import JupiterMoonsCard from '../JupiterMoonsCard';
-import QuickFilterBar from '../QuickFilterBar';
-import SecondarySortDropdown from '../SecondarySortDropdown';
-import SortModeControl, { type SortMode } from '../SortModeControl';
+import type { SortMode } from '../SortModeControl';
+import TargetsToolbar from '../TargetsToolbar';
 import TonightPicksCard from '../TonightPicksCard';
 
 interface TargetsTabProps {
@@ -502,33 +501,7 @@ export default function TargetsTab({
         </div>
       )}
 
-      {/* Quick Filter Toggles */}
-      <QuickFilterBar
-        activeFilters={activeQuickFilters}
-        onToggle={toggleQuickFilter}
-        onClear={clearQuickFilters}
-        filteredCount={totalCount}
-        totalCount={magFilteredObjects.length}
-      />
-
-      {/* Sort Mode Control + Secondary Sort */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
-        {isDarkWindow && (
-          <SortModeControl
-            nightInfo={nightInfo}
-            sortMode={sortMode}
-            onSortModeChange={setSortMode}
-            selectedTime={selectedTime}
-            onSelectedTimeChange={setSelectedTime}
-            className="sm:flex-1"
-          />
-        )}
-        {sortMode === 'score' && (
-          <SecondarySortDropdown value={secondarySort} onChange={setSecondarySort} />
-        )}
-      </div>
-
-      {/* Tonight's Best Picks */}
+      {/* Tonight's Best Picks (only affected by magnitude slider) */}
       {tonightPicks.length > 0 && !tonightPicksDismissed && (
         <TonightPicksCard
           picks={tonightPicks}
@@ -536,6 +509,23 @@ export default function TargetsTab({
           onDismiss={() => setTonightPicksDismissed(true)}
         />
       )}
+
+      {/* Unified Filter + Sort Toolbar */}
+      <TargetsToolbar
+        activeFilters={activeQuickFilters}
+        onToggleFilter={toggleQuickFilter}
+        onClearFilters={clearQuickFilters}
+        filteredCount={totalCount}
+        totalCount={magFilteredObjects.length}
+        isDarkWindow={isDarkWindow}
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
+        nightInfo={nightInfo}
+        selectedTime={selectedTime}
+        onSelectedTimeChange={setSelectedTime}
+        secondarySort={secondarySort}
+        onSecondarySortChange={setSecondarySort}
+      />
 
       {/* Summary grid */}
       <div className="rounded-xl border border-night-700 bg-night-900 p-4">
