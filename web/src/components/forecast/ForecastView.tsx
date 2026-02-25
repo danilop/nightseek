@@ -8,7 +8,8 @@ import ObjectDetailPanel from './ObjectDetailPanel';
 import TabBar from './TabBar';
 import OverviewTab from './tabs/OverviewTab';
 
-// Lazy-load heavier tabs to defer loading DnD Kit (TargetsTab) and d3-celestial init (SkyTab)
+// Lazy-load heavier tabs to defer loading DnD Kit (TargetsTab) and d3-celestial init (SkyTab).
+// Chunk-load failures after deploys are handled globally via `vite:preloadError` in main.tsx.
 const TargetsTab = lazy(() => import('./tabs/TargetsTab'));
 const SkyTab = lazy(() => import('./tabs/SkyTab'));
 const EventsTab = lazy(() => import('./tabs/EventsTab'));
