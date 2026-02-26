@@ -6,7 +6,5 @@
     "asteroids.json": "472d75092f66",
     "ephemeris.json": "3ca880bdea28"
   },
-  "errors": [
-    "donki: DONKI API failed: GST 503, FLR 503"
-  ]
+  "errors": ["donki: DONKI API failed: GST 503, FLR 503"]
 }
