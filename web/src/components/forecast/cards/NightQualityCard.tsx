@@ -1,13 +1,43 @@
-import { Info, Moon, Sunset } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { useMemo } from 'react';
 import Tooltip from '@/components/ui/Tooltip';
-import { formatTimeRange, getNightLabel } from '@/lib/utils/format';
+import { formatTime, formatTimeRange, getNightLabel } from '@/lib/utils/format';
 import { calculateNightQuality } from '@/lib/weather/night-quality';
-import type { NightForecast } from '@/types';
+import type { NightForecast, NightInfo } from '@/types';
 
 function formatDarkHours(dusk: Date, dawn: Date): string {
   const hours = (dawn.getTime() - dusk.getTime()) / 3_600_000;
   return `${hours.toFixed(1)}h`;
+}
+
+/** Fraction of the sunset→sunrise span at which a time falls (clamped 0–1). */
+function nightFraction(time: Date, sunset: Date, sunrise: Date): number {
+  const total = sunrise.getTime() - sunset.getTime();
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(1, (time.getTime() - sunset.getTime()) / total));
+}
+
+function NightTimelineBar({ nightInfo }: { nightInfo: NightInfo }) {
+  const duskPct =
+    nightFraction(nightInfo.astronomicalDusk, nightInfo.sunset, nightInfo.sunrise) * 100;
+  const dawnPct =
+    nightFraction(nightInfo.astronomicalDawn, nightInfo.sunset, nightInfo.sunrise) * 100;
+
+  return (
+    <div
+      className="h-5 w-full overflow-hidden rounded-full ring-1 ring-white/10"
+      style={{
+        background: `linear-gradient(to right,
+          #ea580c 0%,
+          #ea580c ${duskPct * 0.6}%,
+          #818cf8 ${duskPct}%,
+          #6366f1 ${(duskPct + dawnPct) / 2}%,
+          #818cf8 ${dawnPct}%,
+          #ea580c ${100 - (100 - dawnPct) * 0.6}%,
+          #ea580c 100%)`,
+      }}
+    />
+  );
 }
 
 interface NightQualityCardProps {
@@ -38,27 +68,38 @@ export default function NightQualityCard({ forecast }: NightQualityCardProps) {
         </div>
         <p className="text-gray-400 text-sm">{nightQuality.summary}</p>
 
-        {/* Sun & astronomical night times */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-          <div className="flex items-center gap-1.5 text-gray-400">
-            <Sunset className="h-3.5 w-3.5 text-orange-400" />
-            <Tooltip content="Sunset to sunrise — the full night period.">
-              <span className="border-gray-600 border-b border-dotted">
-                {formatTimeRange(nightInfo.sunset, nightInfo.sunrise)}
-              </span>
+        {/* Night timeline */}
+        <div className="rounded-lg bg-night-800 p-3">
+          {/* Time labels row */}
+          <div className="mb-2 flex items-baseline justify-between text-xs">
+            <Tooltip content="Sunset — start of the night period.">
+              <span className="text-orange-400">{formatTime(nightInfo.sunset)}</span>
+            </Tooltip>
+            <Tooltip content="Astronomical dusk — sun 18° below horizon, true darkness begins.">
+              <span className="text-indigo-400">{formatTime(nightInfo.astronomicalDusk)}</span>
+            </Tooltip>
+            <span className="font-medium text-indigo-300">
+              {formatDarkHours(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
+            </span>
+            <Tooltip content="Astronomical dawn — sun rises to 18° below horizon, sky begins brightening.">
+              <span className="text-indigo-400">{formatTime(nightInfo.astronomicalDawn)}</span>
+            </Tooltip>
+            <Tooltip content="Sunrise — end of the night period.">
+              <span className="text-orange-400">{formatTime(nightInfo.sunrise)}</span>
             </Tooltip>
           </div>
-          <div className="flex items-center gap-1.5 text-gray-400">
-            <Moon className="h-3.5 w-3.5 text-indigo-400" />
-            <Tooltip content="Astronomical night: sun is 18° or more below the horizon. Darkest period, ideal for deep-sky observation.">
-              <span className="border-gray-600 border-b border-dotted">
-                {formatTimeRange(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
-              </span>
-            </Tooltip>
-          </div>
-          <div className="text-gray-600 text-xs">Sunset – Sunrise</div>
-          <div className="text-gray-600 text-xs">
-            Dark sky · {formatDarkHours(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
+
+          {/* Visual bar */}
+          <NightTimelineBar nightInfo={nightInfo} />
+
+          {/* Legend */}
+          <div className="mt-1.5 flex items-center justify-center gap-4 text-[11px] text-gray-500">
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-full bg-orange-700" /> Twilight
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-full bg-indigo-500" /> Dark sky
+            </span>
           </div>
         </div>
 
