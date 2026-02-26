@@ -1,9 +1,14 @@
-import { Info } from 'lucide-react';
+import { Info, Moon, Sunset } from 'lucide-react';
 import { useMemo } from 'react';
 import Tooltip from '@/components/ui/Tooltip';
 import { formatTimeRange, getNightLabel } from '@/lib/utils/format';
 import { calculateNightQuality } from '@/lib/weather/night-quality';
 import type { NightForecast } from '@/types';
+
+function formatDarkHours(dusk: Date, dawn: Date): string {
+  const hours = (dawn.getTime() - dusk.getTime()) / 3_600_000;
+  return `${hours.toFixed(1)}h`;
+}
 
 interface NightQualityCardProps {
   forecast: NightForecast;
@@ -32,6 +37,31 @@ export default function NightQualityCard({ forecast }: NightQualityCardProps) {
           <span>{nightQuality.rating.label}</span>
         </div>
         <p className="text-gray-400 text-sm">{nightQuality.summary}</p>
+
+        {/* Sun & astronomical night times */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          <div className="flex items-center gap-1.5 text-gray-400">
+            <Sunset className="h-3.5 w-3.5 text-orange-400" />
+            <Tooltip content="Sunset to sunrise — the full night period.">
+              <span className="border-gray-600 border-b border-dotted">
+                {formatTimeRange(nightInfo.sunset, nightInfo.sunrise)}
+              </span>
+            </Tooltip>
+          </div>
+          <div className="flex items-center gap-1.5 text-gray-400">
+            <Moon className="h-3.5 w-3.5 text-indigo-400" />
+            <Tooltip content="Astronomical night: sun is 18° or more below the horizon. Darkest period, ideal for deep-sky observation.">
+              <span className="border-gray-600 border-b border-dotted">
+                {formatTimeRange(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
+              </span>
+            </Tooltip>
+          </div>
+          <div className="text-gray-600 text-xs">Sunset – Sunrise</div>
+          <div className="text-gray-600 text-xs">
+            Dark sky · {formatDarkHours(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
+          </div>
+        </div>
+
         {forecast.forecastConfidence === 'low' && (
           <div className="flex items-start gap-2 text-amber-400 text-sm">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
