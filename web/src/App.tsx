@@ -7,6 +7,7 @@ import ErrorMessage from './components/ui/ErrorMessage';
 import LoadingScreen from './components/ui/LoadingScreen';
 import OfflineBanner from './components/ui/OfflineBanner';
 import { generateForecast } from './lib/analyzer';
+import { CACHE_KEYS, setCache } from './lib/utils/cache';
 import { useApp } from './stores/AppContext';
 
 export default function App() {
@@ -26,6 +27,13 @@ export default function App() {
       const result = await generateForecast(location, settings, (message, percent) => {
         setProgress(message, percent);
       });
+
+      // Backfill location timezone from Open-Meteo response
+      if (result.timezone && location.timezone !== result.timezone) {
+        const updated = { ...location, timezone: result.timezone };
+        dispatch({ type: 'SET_LOCATION', payload: updated });
+        await setCache(CACHE_KEYS.LOCATION, updated);
+      }
 
       // Show 100% complete briefly before hiding loading screen
       setProgress('Complete!', 100);

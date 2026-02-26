@@ -36,10 +36,11 @@ import HourlyConditionsTimeline from '../HourlyConditionsTimeline';
 
 interface WeatherSummaryCardProps {
   forecast: NightForecast;
+  timezone?: string;
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: UI component with multiple conditional weather sections
-export default function WeatherSummaryCard({ forecast }: WeatherSummaryCardProps) {
+export default function WeatherSummaryCard({ forecast, timezone }: WeatherSummaryCardProps) {
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const { nightInfo, weather } = forecast;
   const { state } = useApp();
@@ -110,7 +111,7 @@ export default function WeatherSummaryCard({ forecast }: WeatherSummaryCardProps
                 </div>
                 <div className="text-gray-500 text-xs">
                   {nightInfo.moonPhaseExact?.isTonight
-                    ? `at ${formatTime(nightInfo.moonPhaseExact.time)}`
+                    ? `at ${formatTime(nightInfo.moonPhaseExact.time, timezone)}`
                     : `${Math.round(nightInfo.moonIllumination)}% illuminated`}
                 </div>
               </span>
@@ -154,7 +155,11 @@ export default function WeatherSummaryCard({ forecast }: WeatherSummaryCardProps
         )}
 
         {/* Hourly Conditions Timeline */}
-        <HourlyConditionsTimeline weather={weather} temperatureUnit={units.temperature} />
+        <HourlyConditionsTimeline
+          weather={weather}
+          temperatureUnit={units.temperature}
+          timezone={timezone}
+        />
 
         {/* Expanded Details */}
         {showWeatherDetails && (
@@ -221,7 +226,7 @@ export default function WeatherSummaryCard({ forecast }: WeatherSummaryCardProps
                       key={`${window.start.getTime()}-${window.end.getTime()}`}
                       className="rounded bg-green-500/20 px-2 py-1 text-green-400 text-xs"
                     >
-                      {formatTimeRange(window.start, window.end)}
+                      {formatTimeRange(window.start, window.end, timezone)}
                     </span>
                   ))}
                 </div>

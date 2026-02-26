@@ -114,10 +114,12 @@ function SearchResultCard({
   result,
   isExpanded,
   onToggle,
+  timezone,
 }: {
   result: ObjectSearchResult;
   isExpanded: boolean;
   onToggle: () => void;
+  timezone?: string;
 }) {
   const statusInfo = getStatusInfo(result.visibilityStatus);
 
@@ -218,7 +220,9 @@ function SearchResultCard({
                   {result.visibility.maxAltitudeTime && (
                     <div>
                       <span className="text-gray-400">Peak Time</span>
-                      <p className="text-white">{formatTime(result.visibility.maxAltitudeTime)}</p>
+                      <p className="text-white">
+                        {formatTime(result.visibility.maxAltitudeTime, timezone)}
+                      </p>
                     </div>
                   )}
                   {result.azimuthAtPeak !== null && (
@@ -245,8 +249,8 @@ function SearchResultCard({
                     <div className="col-span-2">
                       <span className="text-gray-400">Good Observing (45°+)</span>
                       <p className="text-white">
-                        {formatTime(result.visibility.above45Start)} –{' '}
-                        {formatTime(result.visibility.above45End)}
+                        {formatTime(result.visibility.above45Start, timezone)} –{' '}
+                        {formatTime(result.visibility.above45End, timezone)}
                       </p>
                     </div>
                   )}
@@ -300,7 +304,9 @@ function SearchResultCard({
                   {result.visibility?.maxAltitudeTime && (
                     <div>
                       <span className="text-gray-400">Peak Time</span>
-                      <p className="text-white">{formatTime(result.visibility.maxAltitudeTime)}</p>
+                      <p className="text-white">
+                        {formatTime(result.visibility.maxAltitudeTime, timezone)}
+                      </p>
                     </div>
                   )}
                   {result.azimuthAtPeak !== null && (
@@ -362,6 +368,7 @@ function SearchResultCard({
  * Main search modal component
  */
 export default function ObjectSearchModal({ location, onClose }: ObjectSearchModalProps) {
+  const timezone = location.timezone;
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ObjectSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -532,6 +539,7 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
                   result={result}
                   isExpanded={expandedIndex === index}
                   onToggle={() => setExpandedIndex(expandedIndex === index ? null : index)}
+                  timezone={timezone}
                 />
               ))}
             </div>

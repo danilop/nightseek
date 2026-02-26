@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeviceCompass } from '@/hooks/useDeviceCompass';
-import { getNightLabel } from '@/lib/utils/format';
+import { formatTime as formatTimeUtil, getNightLabel } from '@/lib/utils/format';
 import type { Location, NightInfo } from '@/types';
 
 /**
@@ -42,6 +42,36 @@ interface SkyChartProps {
 // Responsive config thresholds (Tailwind breakpoints)
 const SMALL_SCREEN_WIDTH = 640; // sm breakpoint
 const MEDIUM_SCREEN_WIDTH = 1024; // lg breakpoint
+
+function isGlobalLoaded(src: string): boolean {
+  if (src.includes('d3-celestial') && typeof Celestial !== 'undefined') return true;
+  // biome-ignore lint/suspicious/noExplicitAny: d3 loaded via global script
+  if (src.includes('d3@') && typeof (window as any).d3 !== 'undefined') return true;
+  return false;
+}
+
+function loadExternalScript(src: string, integrity?: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      if (isGlobalLoaded(src)) {
+        resolve();
+        return;
+      }
+      existing.remove();
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = false;
+    if (integrity) {
+      script.integrity = integrity;
+      script.crossOrigin = 'anonymous';
+    }
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(script);
+  });
+}
 
 /** Reusable toggle button for display options */
 function ToggleButton({
@@ -172,9 +202,10 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     return new Date(startTime + (selectedTime / 100) * timeRange);
   }, [nightInfo.sunset, nightInfo.sunrise, selectedTime]);
 
-  const formatTime = useCallback((date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }, []);
+  const formatTime = useCallback(
+    (date: Date) => formatTimeUtil(date, location.timezone),
+    [location.timezone]
+  );
 
   // Initialize d3-celestial - only runs once when first expanded
   // Display options use defaults here; the update effect syncs actual state after init
@@ -186,34 +217,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
     initialTimeRef.current = currentTime;
 
     const loadScript = (src: string, integrity?: string): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        // Remove any existing failed script tag so we can retry
-        const existing = document.querySelector(`script[src="${src}"]`);
-        if (existing) {
-          // If the global it defines is already available, no need to reload
-          if (src.includes('d3-celestial') && typeof Celestial !== 'undefined') {
-            resolve();
-            return;
-          }
-          // biome-ignore lint/suspicious/noExplicitAny: d3 loaded via global script
-          if (src.includes('d3@') && typeof (window as any).d3 !== 'undefined') {
-            resolve();
-            return;
-          }
-          // Script tag exists but global isn't available — remove and retry
-          existing.remove();
-        }
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = false;
-        if (integrity) {
-          script.integrity = integrity;
-          script.crossOrigin = 'anonymous';
-        }
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Failed to load ${src}`));
-        document.head.appendChild(script);
-      });
+      return loadExternalScript(src, integrity);
     };
 
     const loadCelestialScript = async (): Promise<void> => {

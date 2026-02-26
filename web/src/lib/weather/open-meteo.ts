@@ -1,3 +1,4 @@
+import { fromZonedTime } from 'date-fns-tz';
 import type {
   BestObservingTime,
   ClearWindow,
@@ -9,11 +10,19 @@ import { avg, maxVal, minVal, sum } from '../utils/array-math';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
 import { getOrDefault } from '../utils/map-helpers';
 
+const BROWSER_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/** Parse an Open-Meteo local-time string into a UTC Date using the response timezone. */
+function parseLocalTime(timeString: string, timezone: string): Date {
+  return fromZonedTime(timeString, timezone);
+}
+
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1/forecast';
 const AIR_QUALITY_API_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 const HISTORICAL_API_URL = 'https://archive-api.open-meteo.com/v1/archive';
 
 interface WeatherAPIResponse {
+  timezone?: string;
   hourly: {
     time: string[];
     cloud_cover: number[];
@@ -34,6 +43,7 @@ interface WeatherAPIResponse {
 }
 
 interface AirQualityAPIResponse {
+  timezone?: string;
   hourly: {
     time: string[];
     pm2_5?: number[];
@@ -195,9 +205,10 @@ function collectHourlyData(
 function collectAirQualityData(
   airHourly: AirQualityAPIResponse['hourly'],
   time: number,
-  arrays: NightWeatherArrays
+  arrays: NightWeatherArrays,
+  timezone: string
 ): void {
-  const aqIndex = airHourly.time.findIndex(t => new Date(t).getTime() === time);
+  const aqIndex = airHourly.time.findIndex(t => parseLocalTime(t, timezone).getTime() === time);
   if (aqIndex < 0) return;
 
   if (airHourly.aerosol_optical_depth?.[aqIndex] != null) {
@@ -282,6 +293,8 @@ export function parseNightWeather(
 ): NightWeather | null {
   const { hourly } = weatherData;
   const airHourly = airQualityData?.hourly;
+  const timezone = weatherData.timezone ?? BROWSER_TZ;
+  const airTimezone = airQualityData?.timezone ?? timezone;
 
   const duskTime = nightInfo.astronomicalDusk.getTime();
   const dawnTime = nightInfo.astronomicalDawn.getTime();
@@ -291,11 +304,11 @@ export function parseNightWeather(
 
   // Collect data for night hours
   for (let i = 0; i < hourly.time.length; i++) {
-    const time = new Date(hourly.time[i]).getTime();
+    const time = parseLocalTime(hourly.time[i], timezone).getTime();
 
     if (time >= duskTime && time <= dawnTime) {
       collectHourlyData(hourly, i, arrays);
-      if (airHourly) collectAirQualityData(airHourly, time, arrays);
+      if (airHourly) collectAirQualityData(airHourly, time, arrays, airTimezone);
       hourlyMap.set(time, buildHourlyWeather(hourly, i));
     }
   }
@@ -570,6 +583,68 @@ export async function fetchHistoricalWeather(
   }
 }
 
+interface MonthBucket {
+  clouds: number[];
+  temps: number[];
+  humids: number[];
+  precips: number[];
+  clearNights: number;
+}
+
+function createMonthBucket(): MonthBucket {
+  return { clouds: [], temps: [], humids: [], precips: [], clearNights: 0 };
+}
+
+function collectDayIntoBucket(
+  bucket: MonthBucket,
+  daily: HistoricalAPIResponse['daily'],
+  i: number
+): void {
+  const cloud = daily.cloud_cover_mean?.[i];
+  if (cloud != null) {
+    bucket.clouds.push(cloud);
+    if (cloud < 30) bucket.clearNights++;
+  }
+
+  const temp = daily.temperature_2m_mean?.[i];
+  if (temp != null) bucket.temps.push(temp);
+
+  const humid = daily.relative_humidity_2m_mean?.[i];
+  if (humid != null) bucket.humids.push(humid);
+
+  const precip = daily.precipitation_sum?.[i];
+  if (precip != null) bucket.precips.push(precip);
+}
+
+function bucketToMonthStats(month: number, bucket: MonthBucket | undefined): MonthlyWeatherStats {
+  if (!bucket) {
+    return {
+      month,
+      monthName: MONTH_NAMES[month - 1],
+      avgCloudCover: 50,
+      avgTemperature: null,
+      avgHumidity: null,
+      totalPrecipitationMm: 0,
+      clearNights: 0,
+      totalNights: 0,
+      clearNightPercentage: 0,
+    };
+  }
+
+  const totalNights = bucket.clouds.length;
+  return {
+    month,
+    monthName: MONTH_NAMES[month - 1],
+    avgCloudCover: bucket.clouds.length > 0 ? avg(bucket.clouds) : 50,
+    avgTemperature: bucket.temps.length > 0 ? avg(bucket.temps) : null,
+    avgHumidity: bucket.humids.length > 0 ? avg(bucket.humids) : null,
+    totalPrecipitationMm: bucket.precips.length > 0 ? sum(bucket.precips) : 0,
+    clearNights: bucket.clearNights,
+    totalNights,
+    clearNightPercentage: totalNights > 0 ? (bucket.clearNights / totalNights) * 100 : 0,
+  };
+}
+
 function computeMonthlyStats(
   data: HistoricalAPIResponse,
   latitude: number,
@@ -579,72 +654,24 @@ function computeMonthlyStats(
   const times = daily.time;
 
   // Group by month
-  const monthBuckets: Map<
-    number,
-    { clouds: number[]; temps: number[]; humids: number[]; precips: number[]; clearNights: number }
-  > = new Map();
+  const monthBuckets = new Map<number, MonthBucket>();
 
   for (let i = 0; i < times.length; i++) {
-    const month = new Date(times[i]).getMonth() + 1; // 1-12
+    const month = new Date(times[i]).getUTCMonth() + 1; // 1-12 (date-only strings parse as UTC)
     if (!monthBuckets.has(month)) {
-      monthBuckets.set(month, { clouds: [], temps: [], humids: [], precips: [], clearNights: 0 });
+      monthBuckets.set(month, createMonthBucket());
     }
-    const bucket = monthBuckets.get(month)!;
-
-    const cloud = daily.cloud_cover_mean?.[i];
-    if (cloud != null) {
-      bucket.clouds.push(cloud);
-      // A "clear night" is a day with mean cloud cover < 30%
-      if (cloud < 30) bucket.clearNights++;
-    }
-
-    const temp = daily.temperature_2m_mean?.[i];
-    if (temp != null) bucket.temps.push(temp);
-
-    const humid = daily.relative_humidity_2m_mean?.[i];
-    if (humid != null) bucket.humids.push(humid);
-
-    const precip = daily.precipitation_sum?.[i];
-    if (precip != null) bucket.precips.push(precip);
+    const bucket = monthBuckets.get(month);
+    if (!bucket) continue;
+    collectDayIntoBucket(bucket, daily, i);
   }
 
-  const monthlyStats: MonthlyWeatherStats[] = [];
-  let totalClearNights = 0;
-  let totalNightsAll = 0;
+  const monthlyStats = Array.from({ length: 12 }, (_, i) =>
+    bucketToMonthStats(i + 1, monthBuckets.get(i + 1))
+  );
 
-  for (let m = 1; m <= 12; m++) {
-    const bucket = monthBuckets.get(m);
-    if (!bucket) {
-      monthlyStats.push({
-        month: m,
-        monthName: MONTH_NAMES[m - 1],
-        avgCloudCover: 50,
-        avgTemperature: null,
-        avgHumidity: null,
-        totalPrecipitationMm: 0,
-        clearNights: 0,
-        totalNights: 0,
-        clearNightPercentage: 0,
-      });
-      continue;
-    }
-
-    const totalNights = bucket.clouds.length;
-    totalClearNights += bucket.clearNights;
-    totalNightsAll += totalNights;
-
-    monthlyStats.push({
-      month: m,
-      monthName: MONTH_NAMES[m - 1],
-      avgCloudCover: bucket.clouds.length > 0 ? avg(bucket.clouds) : 50,
-      avgTemperature: bucket.temps.length > 0 ? avg(bucket.temps) : null,
-      avgHumidity: bucket.humids.length > 0 ? avg(bucket.humids) : null,
-      totalPrecipitationMm: bucket.precips.length > 0 ? sum(bucket.precips) : 0,
-      clearNights: bucket.clearNights,
-      totalNights,
-      clearNightPercentage: totalNights > 0 ? (bucket.clearNights / totalNights) * 100 : 0,
-    });
-  }
+  const totalClearNights = monthlyStats.reduce((s, m) => s + m.clearNights, 0);
+  const totalNightsAll = monthlyStats.reduce((s, m) => s + m.totalNights, 0);
 
   // Best months = sorted by clear night percentage descending
   const bestMonths = [...monthlyStats]

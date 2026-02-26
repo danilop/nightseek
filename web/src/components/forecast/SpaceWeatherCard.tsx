@@ -12,6 +12,7 @@ import {
   type SWPCData,
 } from '@/lib/nasa/swpc';
 import { formatTime } from '@/lib/utils/format';
+import { useApp } from '@/stores/AppContext';
 import type { AuroraForecast, SpaceWeather } from '@/types';
 
 interface SpaceWeatherCardProps {
@@ -20,13 +21,17 @@ interface SpaceWeatherCardProps {
 }
 
 export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: SpaceWeatherCardProps) {
+  const { state } = useApp();
+  const timezone = state.location?.timezone;
   const { geomagneticStorms, solarFlares } = spaceWeather;
   const [swpcData, setSwpcData] = useState<SWPCData | null>(null);
 
   useEffect(() => {
     fetchSWPCData()
       .then(setSwpcData)
-      .catch(() => {});
+      .catch(() => {
+        /* SWPC fetch is optional */
+      });
   }, []);
 
   // Use live Kp from SWPC if available, fall back to DONKI
@@ -54,18 +59,8 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
         </h3>
       </div>
       <div className="space-y-3 p-4">
-        {/* Geomagnetic Activity Level */}
-        <div className="flex items-center justify-between">
-          <span className="text-gray-400 text-sm">Geomagnetic Activity</span>
-          <div className="flex items-center gap-2">
-            <span className={`font-medium text-sm capitalize ${kpColor}`}>{geoLabel}</span>
-            <Badge variant={displayKp >= 5 ? 'danger' : displayKp >= 3 ? 'warning' : 'default'}>
-              Kp {displayKp}
-            </Badge>
-          </div>
-        </div>
+        <GeomagneticRow displayKp={displayKp} geoLabel={geoLabel} kpColor={kpColor} />
 
-        {/* Live vs Recent Kp (only show when SWPC data present) */}
         {liveKp !== null && recentMaxKp !== null && recentMaxKp > liveKp && (
           <div className="flex items-center justify-between text-gray-500 text-xs">
             <span>24h max Kp</span>
@@ -73,107 +68,12 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
           </div>
         )}
 
-        {/* Solar Activity / F10.7 Flux */}
-        {solarFluxValue !== null && (
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400 text-sm">Solar Activity</span>
-            <div className="flex items-center gap-2">
-              <Activity className="h-3.5 w-3.5 text-orange-400" />
-              <span className="text-gray-300 text-sm capitalize">{solarActivityLabel}</span>
-              <span className="text-gray-500 text-xs">F10.7: {solarFluxValue.toFixed(0)}</span>
-            </div>
-          </div>
-        )}
+        <SolarActivityRow solarFluxValue={solarFluxValue} solarActivityLabel={solarActivityLabel} />
+        <FlareForecastRow flareForecast={flareForecast} />
+        <SunspotRegionsSection swpcData={swpcData} />
+        <RecentStormsSection storms={geomagneticStorms} timezone={timezone} />
+        <SolarFlaresSection flares={solarFlares} timezone={timezone} />
 
-        {/* Flare Probability Forecast (SWPC) */}
-        {flareForecast &&
-          (flareForecast.mClassProbability > 0 || flareForecast.xClassProbability > 0) && (
-            <div>
-              <p className="mb-2 text-gray-500 text-xs">Flare Probability (today)</p>
-              <div className="flex items-center gap-3 text-sm">
-                {flareForecast.mClassProbability > 0 && (
-                  <span className="text-yellow-400">
-                    M-class: {flareForecast.mClassProbability}%
-                  </span>
-                )}
-                {flareForecast.xClassProbability > 0 && (
-                  <span className="text-red-400">X-class: {flareForecast.xClassProbability}%</span>
-                )}
-              </div>
-            </div>
-          )}
-
-        {/* Sunspot Regions */}
-        {swpcData && swpcData.sunspotRegions.length > 0 && (
-          <div>
-            <p className="mb-2 text-gray-500 text-xs">
-              Active Regions ({swpcData.sunspotRegions.length})
-            </p>
-            <div className="space-y-1">
-              {swpcData.sunspotRegions.slice(0, 3).map((region, i) => (
-                <div
-                  key={`${region.region}-${i}`}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <span className="text-gray-400">AR {region.region}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-300">
-                      {region.spotCount} {region.spotCount === 1 ? 'spot' : 'spots'}
-                    </span>
-                    {region.magClass && (
-                      <span className="text-gray-500 text-xs">{region.magClass}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Recent Storms (from DONKI) */}
-        {geomagneticStorms.length > 0 && (
-          <div>
-            <p className="mb-2 text-gray-500 text-xs">Recent Storms</p>
-            <div className="space-y-2">
-              {geomagneticStorms.slice(0, 3).map(storm => (
-                <div key={storm.gstID} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">
-                    {new Date(storm.startTime).toLocaleDateString()}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className={getKpColorClass(storm.maxKp)}>Max Kp {storm.maxKp}</span>
-                    <span className="text-gray-500 text-xs">
-                      {formatTime(new Date(storm.startTime))}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Solar Flares (from DONKI) */}
-        {solarFlares.length > 0 && (
-          <div>
-            <p className="mb-2 text-gray-500 text-xs">Significant Solar Flares</p>
-            <div className="space-y-2">
-              {solarFlares.slice(0, 3).map(flare => (
-                <div key={flare.flrID} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <Sun className="h-3.5 w-3.5 text-yellow-400" />
-                    <span className="text-gray-300">{flare.classType}</span>
-                  </div>
-                  <span className="text-gray-500 text-xs">
-                    {new Date(flare.peakTime).toLocaleDateString()}{' '}
-                    {formatTime(new Date(flare.peakTime))}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Aurora Potential */}
         {auroraForecast && (
           <div className="border-night-700 border-t pt-2">
             <div className="flex items-center justify-between">
@@ -188,12 +88,156 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
           </div>
         )}
 
-        {/* Empty state */}
         {geomagneticStorms.length === 0 && solarFlares.length === 0 && !swpcData && (
           <p className="text-gray-500 text-sm">No significant space weather activity detected.</p>
         )}
       </div>
     </Card>
+  );
+}
+
+function GeomagneticRow({
+  displayKp,
+  geoLabel,
+  kpColor,
+}: {
+  displayKp: number;
+  geoLabel: string;
+  kpColor: string;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-gray-400 text-sm">Geomagnetic Activity</span>
+      <div className="flex items-center gap-2">
+        <span className={`font-medium text-sm capitalize ${kpColor}`}>{geoLabel}</span>
+        <Badge variant={displayKp >= 5 ? 'danger' : displayKp >= 3 ? 'warning' : 'default'}>
+          Kp {displayKp}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
+function SolarActivityRow({
+  solarFluxValue,
+  solarActivityLabel,
+}: {
+  solarFluxValue: number | null;
+  solarActivityLabel: string;
+}) {
+  if (solarFluxValue === null) return null;
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-gray-400 text-sm">Solar Activity</span>
+      <div className="flex items-center gap-2">
+        <Activity className="h-3.5 w-3.5 text-orange-400" />
+        <span className="text-gray-300 text-sm capitalize">{solarActivityLabel}</span>
+        <span className="text-gray-500 text-xs">F10.7: {solarFluxValue.toFixed(0)}</span>
+      </div>
+    </div>
+  );
+}
+
+function FlareForecastRow({
+  flareForecast,
+}: {
+  flareForecast: ReturnType<typeof getTodayFlareProbability>;
+}) {
+  if (!flareForecast) return null;
+  if (flareForecast.mClassProbability <= 0 && flareForecast.xClassProbability <= 0) return null;
+  return (
+    <div>
+      <p className="mb-2 text-gray-500 text-xs">Flare Probability (today)</p>
+      <div className="flex items-center gap-3 text-sm">
+        {flareForecast.mClassProbability > 0 && (
+          <span className="text-yellow-400">M-class: {flareForecast.mClassProbability}%</span>
+        )}
+        {flareForecast.xClassProbability > 0 && (
+          <span className="text-red-400">X-class: {flareForecast.xClassProbability}%</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SunspotRegionsSection({ swpcData }: { swpcData: SWPCData | null }) {
+  if (!swpcData || swpcData.sunspotRegions.length === 0) return null;
+  return (
+    <div>
+      <p className="mb-2 text-gray-500 text-xs">
+        Active Regions ({swpcData.sunspotRegions.length})
+      </p>
+      <div className="space-y-1">
+        {swpcData.sunspotRegions.slice(0, 3).map((region, i) => (
+          <div key={`${region.region}-${i}`} className="flex items-center justify-between text-sm">
+            <span className="text-gray-400">AR {region.region}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-300">
+                {region.spotCount} {region.spotCount === 1 ? 'spot' : 'spots'}
+              </span>
+              {region.magClass && <span className="text-gray-500 text-xs">{region.magClass}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RecentStormsSection({
+  storms,
+  timezone,
+}: {
+  storms: SpaceWeather['geomagneticStorms'];
+  timezone?: string;
+}) {
+  if (storms.length === 0) return null;
+  return (
+    <div>
+      <p className="mb-2 text-gray-500 text-xs">Recent Storms</p>
+      <div className="space-y-2">
+        {storms.slice(0, 3).map(storm => (
+          <div key={storm.gstID} className="flex items-center justify-between text-sm">
+            <span className="text-gray-400">{new Date(storm.startTime).toLocaleDateString()}</span>
+            <div className="flex items-center gap-2">
+              <span className={getKpColorClass(storm.maxKp)}>Max Kp {storm.maxKp}</span>
+              <span className="text-gray-500 text-xs">
+                {formatTime(new Date(storm.startTime), timezone)}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SolarFlaresSection({
+  flares,
+  timezone,
+}: {
+  flares: SpaceWeather['solarFlares'];
+  timezone?: string;
+}) {
+  if (flares.length === 0) return null;
+  return (
+    <div>
+      <p className="mb-2 text-gray-500 text-xs">Significant Solar Flares</p>
+      <div className="space-y-2">
+        {flares.slice(0, 3).map(flare => (
+          <div key={flare.flrID} className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <Sun className="h-3.5 w-3.5 text-yellow-400" />
+              <span className="text-gray-300">{flare.classType}</span>
+            </div>
+            <span className="text-gray-500 text-xs">
+              {new Date(flare.peakTime).toLocaleDateString()}{' '}
+              {formatTime(new Date(flare.peakTime), timezone)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

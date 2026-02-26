@@ -130,9 +130,11 @@ function sliderToTime(pct: number, sunset: Date, sunrise: Date): Date {
 function NightTimelineScrubber({
   nightInfo,
   isTonight,
+  timezone,
 }: {
   nightInfo: NightInfo;
   isTonight: boolean;
+  timezone?: string;
 }) {
   const now = useCurrentTime();
   const animationRef = useRef<number | null>(null);
@@ -262,7 +264,7 @@ function NightTimelineScrubber({
       <div className="mt-2 flex items-center justify-between text-xs">
         <div className={`flex items-center gap-1.5 ${phase.colorClass}`}>
           <span className="inline-block h-2 w-2 rounded-full bg-current" />
-          <span className="text-gray-300">{formatTime(currentTime)}</span>
+          <span className="text-gray-300">{formatTime(currentTime, timezone)}</span>
           <span className="text-gray-600">·</span>
           <span className="font-medium">{phase.name}</span>
           <span className="hidden text-gray-500 sm:inline">— Sun {phase.sunAltitude}</span>
@@ -323,9 +325,10 @@ function NightTimelineScrubber({
 
 interface NightQualityCardProps {
   forecast: NightForecast;
+  timezone?: string;
 }
 
-export default function NightQualityCard({ forecast }: NightQualityCardProps) {
+export default function NightQualityCard({ forecast, timezone }: NightQualityCardProps) {
   const { nightInfo, weather } = forecast;
 
   const nightQuality = useMemo(
@@ -359,24 +362,28 @@ export default function NightQualityCard({ forecast }: NightQualityCardProps) {
           {/* Time labels row */}
           <div className="mb-2 flex items-baseline justify-between text-xs">
             <Tooltip content="Sunset — start of the night period.">
-              <span className="text-orange-400">{formatTime(nightInfo.sunset)}</span>
+              <span className="text-orange-400">{formatTime(nightInfo.sunset, timezone)}</span>
             </Tooltip>
             <Tooltip content="Astronomical dusk — sun 18° below horizon, true darkness begins.">
-              <span className="text-indigo-400">{formatTime(nightInfo.astronomicalDusk)}</span>
+              <span className="text-indigo-400">
+                {formatTime(nightInfo.astronomicalDusk, timezone)}
+              </span>
             </Tooltip>
             <span className="font-medium text-indigo-300">
               {formatDarkHours(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
             </span>
             <Tooltip content="Astronomical dawn — sun rises to 18° below horizon, sky begins brightening.">
-              <span className="text-indigo-400">{formatTime(nightInfo.astronomicalDawn)}</span>
+              <span className="text-indigo-400">
+                {formatTime(nightInfo.astronomicalDawn, timezone)}
+              </span>
             </Tooltip>
             <Tooltip content="Sunrise — end of the night period.">
-              <span className="text-orange-400">{formatTime(nightInfo.sunrise)}</span>
+              <span className="text-orange-400">{formatTime(nightInfo.sunrise, timezone)}</span>
             </Tooltip>
           </div>
 
           {/* Interactive timeline scrubber */}
-          <NightTimelineScrubber nightInfo={nightInfo} isTonight={isTonight} />
+          <NightTimelineScrubber nightInfo={nightInfo} isTonight={isTonight} timezone={timezone} />
         </div>
 
         {forecast.forecastConfidence === 'low' && (
@@ -396,7 +403,7 @@ export default function NightQualityCard({ forecast }: NightQualityCardProps) {
               <span>
                 Best:{' '}
                 <span className="whitespace-nowrap">
-                  {formatTimeRange(weather.bestTime.start, weather.bestTime.end)}
+                  {formatTimeRange(weather.bestTime.start, weather.bestTime.end, timezone)}
                 </span>
               </span>
             </Tooltip>

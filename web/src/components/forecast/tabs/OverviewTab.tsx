@@ -12,11 +12,11 @@ interface OverviewTabProps {
 export default function OverviewTab({ forecast, location }: OverviewTabProps) {
   return (
     <div className="space-y-4">
-      <NightQualityCard forecast={forecast} />
+      <NightQualityCard forecast={forecast} timezone={location.timezone} />
       {forecast.astronomicalEvents.auroraForecast && (
         <AuroraAlertCard forecast={forecast.astronomicalEvents.auroraForecast} />
       )}
-      <WeatherSummaryCard forecast={forecast} />
+      <WeatherSummaryCard forecast={forecast} timezone={location.timezone} />
       <LocationQualityCard latitude={location.latitude} longitude={location.longitude} />
     </div>
   );

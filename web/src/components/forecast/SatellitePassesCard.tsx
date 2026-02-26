@@ -201,91 +201,125 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
 
       {/* Content */}
       {expanded && (
-        <div className="border-night-700 border-t p-4">
-          {/* Toggle between ISS-only and all satellites */}
-          <div className="mb-3 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowAllSatellites(false)}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                showAllSatellites
-                  ? 'text-gray-400 hover:text-gray-300'
-                  : 'bg-sky-500/20 text-sky-400'
-              }`}
-            >
-              ISS Only
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAllSatellites(true)}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                showAllSatellites
-                  ? 'bg-sky-500/20 text-sky-400'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              All Bright Satellites
-            </button>
-          </div>
-
-          {loading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="h-6 w-6 animate-spin rounded-full border-sky-500 border-b-2" />
-            </div>
-          )}
-
-          {error && (
-            <div className="py-4 text-center">
-              <p className="text-gray-400 text-sm">{error}</p>
-              <p className="mt-1 text-gray-500 text-xs">
-                Satellite pass data requires an internet connection
-              </p>
-            </div>
-          )}
-
-          {!loading && !error && passes.length === 0 && (
-            <div className="py-4 text-center">
-              <Rocket className="mx-auto mb-2 h-8 w-8 text-gray-600" />
-              <p className="text-gray-400 text-sm">
-                No {showAllSatellites ? 'satellite' : 'ISS'} passes visible{' '}
-                {getNightLabel(nightInfo.date)} from your location
-              </p>
-              <p className="mt-1 text-gray-500 text-xs">
-                Passes require dark skies and the satellite to be sunlit
-              </p>
-            </div>
-          )}
-
-          {!loading && !error && passes.length > 0 && (
-            <div className="space-y-3">
-              {passes.map((pass, index) => (
-                <PassItem
-                  key={`${pass.noradId}-${pass.riseTime.toISOString()}-${index}`}
-                  pass={pass}
-                />
-              ))}
-              <p className="mt-4 text-center text-gray-500 text-xs">
-                Times shown are for your local timezone.
-                {showAllSatellites
-                  ? ' Satellites appear as bright, fast-moving stars.'
-                  : ' The ISS appears as a bright, fast-moving star.'}
-              </p>
-            </div>
-          )}
-
-          {/* Real-time ISS Position */}
-          <ISSPositionDisplay
-            position={issPosition}
-            locationName={issLocationName}
-            loading={issPositionLoading}
-          />
-        </div>
+        <SatellitePassesContent
+          showAllSatellites={showAllSatellites}
+          setShowAllSatellites={setShowAllSatellites}
+          loading={loading}
+          error={error}
+          passes={passes}
+          nightInfo={nightInfo}
+          location={location}
+          issPosition={issPosition}
+          issLocationName={issLocationName}
+          issPositionLoading={issPositionLoading}
+        />
       )}
     </Card>
   );
 }
 
-function PassItem({ pass }: { pass: SatellitePass }) {
+function SatellitePassesContent({
+  showAllSatellites,
+  setShowAllSatellites,
+  loading,
+  error,
+  passes,
+  nightInfo,
+  location,
+  issPosition,
+  issLocationName,
+  issPositionLoading,
+}: {
+  showAllSatellites: boolean;
+  setShowAllSatellites: (v: boolean) => void;
+  loading: boolean;
+  error: string | null;
+  passes: SatellitePass[];
+  nightInfo: NightInfo;
+  location: Location;
+  issPosition: ISSPosition | null;
+  issLocationName: string | null;
+  issPositionLoading: boolean;
+}) {
+  return (
+    <div className="border-night-700 border-t p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setShowAllSatellites(false)}
+          className={`rounded-full px-3 py-1 text-xs transition-colors ${
+            showAllSatellites ? 'text-gray-400 hover:text-gray-300' : 'bg-sky-500/20 text-sky-400'
+          }`}
+        >
+          ISS Only
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowAllSatellites(true)}
+          className={`rounded-full px-3 py-1 text-xs transition-colors ${
+            showAllSatellites ? 'bg-sky-500/20 text-sky-400' : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          All Bright Satellites
+        </button>
+      </div>
+
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="h-6 w-6 animate-spin rounded-full border-sky-500 border-b-2" />
+        </div>
+      )}
+
+      {error && (
+        <div className="py-4 text-center">
+          <p className="text-gray-400 text-sm">{error}</p>
+          <p className="mt-1 text-gray-500 text-xs">
+            Satellite pass data requires an internet connection
+          </p>
+        </div>
+      )}
+
+      {!loading && !error && passes.length === 0 && (
+        <div className="py-4 text-center">
+          <Rocket className="mx-auto mb-2 h-8 w-8 text-gray-600" />
+          <p className="text-gray-400 text-sm">
+            No {showAllSatellites ? 'satellite' : 'ISS'} passes visible{' '}
+            {getNightLabel(nightInfo.date)} from your location
+          </p>
+          <p className="mt-1 text-gray-500 text-xs">
+            Passes require dark skies and the satellite to be sunlit
+          </p>
+        </div>
+      )}
+
+      {!loading && !error && passes.length > 0 && (
+        <div className="space-y-3">
+          {passes.map((pass, index) => (
+            <PassItem
+              key={`${pass.noradId}-${pass.riseTime.toISOString()}-${index}`}
+              pass={pass}
+              timezone={location.timezone}
+            />
+          ))}
+          <p className="mt-4 text-center text-gray-500 text-xs">
+            Times shown are for your local timezone.
+            {showAllSatellites
+              ? ' Satellites appear as bright, fast-moving stars.'
+              : ' The ISS appears as a bright, fast-moving star.'}
+          </p>
+        </div>
+      )}
+
+      <ISSPositionDisplay
+        position={issPosition}
+        locationName={issLocationName}
+        loading={issPositionLoading}
+      />
+    </div>
+  );
+}
+
+function PassItem({ pass, timezone }: { pass: SatellitePass; timezone?: string }) {
   return (
     <div className="rounded-lg bg-night-800 p-3">
       <div className="mb-2 flex items-center justify-between">
@@ -303,7 +337,7 @@ function PassItem({ pass }: { pass: SatellitePass }) {
       <div className="grid grid-cols-3 gap-2 text-sm">
         <div>
           <div className="mb-1 text-gray-500 text-xs">Rise</div>
-          <div className="text-gray-300">{formatTime(pass.riseTime)}</div>
+          <div className="text-gray-300">{formatTime(pass.riseTime, timezone)}</div>
           <div className="text-gray-500 text-xs">
             {azimuthToCompass(pass.riseAzimuth)} ({pass.riseAzimuth.toFixed(0)}&deg;)
           </div>
@@ -312,12 +346,12 @@ function PassItem({ pass }: { pass: SatellitePass }) {
         <div className="text-center">
           <div className="mb-1 text-gray-500 text-xs">Max</div>
           <div className="font-medium text-sky-400">{pass.maxAltitude.toFixed(0)}&deg;</div>
-          <div className="text-gray-500 text-xs">@ {formatTime(pass.maxTime)}</div>
+          <div className="text-gray-500 text-xs">@ {formatTime(pass.maxTime, timezone)}</div>
         </div>
 
         <div className="text-right">
           <div className="mb-1 text-gray-500 text-xs">Set</div>
-          <div className="text-gray-300">{formatTime(pass.setTime)}</div>
+          <div className="text-gray-300">{formatTime(pass.setTime, timezone)}</div>
           <div className="text-gray-500 text-xs">
             {azimuthToCompass(pass.setAzimuth)} ({pass.setAzimuth.toFixed(0)}&deg;)
           </div>

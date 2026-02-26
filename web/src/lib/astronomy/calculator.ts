@@ -80,9 +80,8 @@ export class SkyCalculator {
     const astronomicalDusk = duskSearch?.date ?? sunset;
     const astronomicalDawn = dawnSearch?.date ?? sunrise;
 
-    // Moon phase and illumination at midnight
-    const midnight = new Date(sunset);
-    midnight.setHours(midnight.getHours() + 6);
+    // Moon phase and illumination at midnight (UTC midpoint of astronomical night)
+    const midnight = new Date((astronomicalDusk.getTime() + astronomicalDawn.getTime()) / 2);
 
     // MoonPhase returns 0-360 degrees where 0=new, 180=full
     const moonPhaseDegrees = Astronomy.MoonPhase(midnight);

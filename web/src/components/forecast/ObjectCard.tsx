@@ -257,6 +257,7 @@ export default function ObjectCard({
 }: ObjectCardProps) {
   const [expanded, setExpanded] = useState(false);
   const { state } = useApp();
+  const timezone = state.location?.timezone;
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const { visibility, scoreBreakdown, totalScore, category, subtype, magnitude } = object;
   const frameFillPercent = calculateFrameFillPercent(visibility.angularSizeArcmin, category, fov);
@@ -328,7 +329,7 @@ export default function ObjectCard({
                     {azimuthToCardinal(visibility.azimuthAtPeak)}
                   </span>
                   {visibility.maxAltitudeTime && (
-                    <span>@ {formatTime(visibility.maxAltitudeTime)}</span>
+                    <span>@ {formatTime(visibility.maxAltitudeTime, timezone)}</span>
                   )}
                 </>
               )}
@@ -348,7 +349,11 @@ export default function ObjectCard({
                     visibility.imagingWindow.quality.slice(1)}
                 </span>
                 <span className="text-gray-500">
-                  {formatTimeRange(visibility.imagingWindow.start, visibility.imagingWindow.end)}
+                  {formatTimeRange(
+                    visibility.imagingWindow.start,
+                    visibility.imagingWindow.end,
+                    timezone
+                  )}
                 </span>
               </div>
             )}
@@ -434,7 +439,9 @@ export default function ObjectCard({
                 {azimuthToCardinal(visibility.azimuthAtPeak)} peak
               </span>
               {visibility.maxAltitudeTime && (
-                <span className="text-gray-500">@ {formatTime(visibility.maxAltitudeTime)}</span>
+                <span className="text-gray-500">
+                  @ {formatTime(visibility.maxAltitudeTime, timezone)}
+                </span>
               )}
             </>
           )}
@@ -454,9 +461,9 @@ export default function ObjectCard({
             <Clock className="h-4 w-4" />
             <span>
               {visibility.above60Start && visibility.above60End
-                ? `Above 60°: ${formatTimeRange(visibility.above60Start, visibility.above60End)}`
+                ? `Above 60°: ${formatTimeRange(visibility.above60Start, visibility.above60End, timezone)}`
                 : visibility.above45Start && visibility.above45End
-                  ? `Above 45°: ${formatTimeRange(visibility.above45Start, visibility.above45End)}`
+                  ? `Above 45°: ${formatTimeRange(visibility.above45Start, visibility.above45End, timezone)}`
                   : 'Brief visibility window'}
             </span>
           </div>
@@ -482,7 +489,9 @@ export default function ObjectCard({
           <div className="mt-2 flex cursor-help items-center gap-2 text-sm">
             <Compass className="h-4 w-4 text-indigo-400" />
             <span className="border-gray-500 border-b border-dotted text-gray-400">Meridian:</span>
-            <span className="text-gray-300">{formatTime(visibility.meridianTransitTime)}</span>
+            <span className="text-gray-300">
+              {formatTime(visibility.meridianTransitTime, timezone)}
+            </span>
           </div>
         </Tooltip>
       )}
@@ -610,16 +619,26 @@ function ScoreDetails({
 }
 
 function ObjectDetails({ visibility }: { visibility: ScoredObject['visibility'] }) {
+  const { state } = useApp();
+  const timezone = state.location?.timezone;
   return (
     <div className="space-y-1 text-gray-400 text-xs">
       {visibility.above75Start && visibility.above75End && (
-        <p>Excellent (75°+): {formatTimeRange(visibility.above75Start, visibility.above75End)}</p>
+        <p>
+          Excellent (75°+):{' '}
+          {formatTimeRange(visibility.above75Start, visibility.above75End, timezone)}
+        </p>
       )}
       {visibility.above60Start && visibility.above60End && (
-        <p>Very good (60°+): {formatTimeRange(visibility.above60Start, visibility.above60End)}</p>
+        <p>
+          Very good (60°+):{' '}
+          {formatTimeRange(visibility.above60Start, visibility.above60End, timezone)}
+        </p>
       )}
       {visibility.above45Start && visibility.above45End && (
-        <p>Good (45°+): {formatTimeRange(visibility.above45Start, visibility.above45End)}</p>
+        <p>
+          Good (45°+): {formatTimeRange(visibility.above45Start, visibility.above45End, timezone)}
+        </p>
       )}
       <p>Airmass at peak: {visibility.minAirmass.toFixed(2)}</p>
     </div>

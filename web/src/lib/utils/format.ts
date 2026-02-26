@@ -30,7 +30,12 @@ export function formatDate(date: Date, timezone?: string): string {
 /**
  * Format date range
  */
-export function formatDateRange(start: Date, end: Date): string {
+export function formatDateRange(start: Date, end: Date, timezone?: string): string {
+  if (timezone) {
+    const startStr = formatInTimeZone(start, timezone, 'MMM d');
+    const endStr = formatInTimeZone(end, timezone, 'MMM d, yyyy');
+    return `${startStr} - ${endStr}`;
+  }
   const startStr = format(start, 'MMM d');
   const endStr = format(end, 'MMM d, yyyy');
   return `${startStr} - ${endStr}`;
@@ -42,7 +47,7 @@ export function formatDateRange(start: Date, end: Date): string {
  * or "Wednesday (Wed 17)" for other days.
  * Can append "'s" for possessive form (e.g., "Tonight's", "Wednesday's")
  */
-export function getNightLabel(date: Date, possessive = false): string {
+export function getNightLabel(date: Date, possessive = false, timezone?: string): string {
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -52,7 +57,7 @@ export function getNightLabel(date: Date, possessive = false): string {
   const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
   // Always include short date for clarity (e.g., "Mon 15")
-  const shortDate = format(date, 'EEE d');
+  const shortDate = timezone ? formatInTimeZone(date, timezone, 'EEE d') : format(date, 'EEE d');
 
   let label: string;
   if (dateStr === todayStr) {
@@ -61,7 +66,9 @@ export function getNightLabel(date: Date, possessive = false): string {
     label = `Tomorrow (${shortDate})`;
   } else {
     // For other days, show day name with date
-    label = format(date, 'EEEE (EEE d)'); // "Wednesday (Wed 17)"
+    label = timezone
+      ? formatInTimeZone(date, timezone, 'EEEE (EEE d)')
+      : format(date, 'EEEE (EEE d)'); // "Wednesday (Wed 17)"
   }
 
   if (possessive) {

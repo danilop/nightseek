@@ -5,6 +5,7 @@ import Tooltip from '@/components/ui/Tooltip';
 import { useUIState } from '@/hooks/useUIState';
 import { describeGalileanMoonEvent } from '@/lib/astronomy/galilean-moons';
 import { formatTime, getNightLabel } from '@/lib/utils/format';
+import { useApp } from '@/stores/AppContext';
 import type { GalileanMoonEvent, GalileanMoonPosition } from '@/types';
 
 interface JupiterMoonsCardProps {
@@ -17,7 +18,8 @@ interface JupiterMoonsCardProps {
 
 function getCollapsedPreview(
   positions: GalileanMoonPosition[],
-  events: GalileanMoonEvent[]
+  events: GalileanMoonEvent[],
+  timezone?: string
 ): string {
   // If events exist, show the first 1-2 briefly
   if (events.length > 0) {
@@ -32,7 +34,7 @@ function getCollapsedPreview(
               : e.type === 'transit_end'
                 ? 'transit end'
                 : 'shadow end';
-        return `${e.moon} ${shortType} ${formatTime(e.time)}`;
+        return `${e.moon} ${shortType} ${formatTime(e.time, timezone)}`;
       })
       .join(', ');
   }
@@ -49,6 +51,8 @@ export default function JupiterMoonsCard({
   dragHandleProps,
 }: JupiterMoonsCardProps) {
   const { jupiterMoonsExpanded, setJupiterMoonsExpanded } = useUIState();
+  const { state } = useApp();
+  const timezone = state.location?.timezone;
   const expanded = jupiterMoonsExpanded;
   const nightLabel = getNightLabel(nightDate);
 
@@ -85,7 +89,7 @@ export default function JupiterMoonsCard({
           <div className="flex items-center gap-2">
             {!expanded && (
               <span className="hidden text-gray-500 text-sm sm:block">
-                {getCollapsedPreview(positions, events)}
+                {getCollapsedPreview(positions, events, timezone)}
               </span>
             )}
             <ToggleChevron expanded={expanded} className="h-4 w-4 text-gray-400" />
@@ -331,6 +335,8 @@ function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
 }
 
 function EventItem({ event }: { event: GalileanMoonEvent }) {
+  const { state } = useApp();
+  const timezone = state.location?.timezone;
   const typeColors: Record<string, string> = {
     transit_start: 'text-yellow-400',
     transit_end: 'text-yellow-400',
@@ -343,7 +349,7 @@ function EventItem({ event }: { event: GalileanMoonEvent }) {
       <span className={`text-sm ${typeColors[event.type]}`}>
         {describeGalileanMoonEvent(event)}
       </span>
-      <span className="text-gray-500 text-xs">{formatTime(event.time)}</span>
+      <span className="text-gray-500 text-xs">{formatTime(event.time, timezone)}</span>
     </div>
   );
 }

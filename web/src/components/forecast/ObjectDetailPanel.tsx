@@ -50,6 +50,7 @@ export default function ObjectDetailPanel({
 
   const focusTrapRef = useFocusTrap<HTMLDivElement>();
   const { state } = useApp();
+  const timezone = state.location?.timezone;
   const { visibility, magnitude, category, subtype, totalScore } = object;
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const icon = getCategoryIcon(category, subtype);
@@ -352,7 +353,9 @@ export default function ObjectDetailPanel({
           <DetailItem
             icon={<Clock className="h-4 w-4 text-blue-400" />}
             label="Peak Time"
-            value={visibility.maxAltitudeTime ? formatTime(visibility.maxAltitudeTime) : '—'}
+            value={
+              visibility.maxAltitudeTime ? formatTime(visibility.maxAltitudeTime, timezone) : '—'
+            }
           />
           <DetailItem
             icon={<Moon className="h-4 w-4 text-amber-400" />}
@@ -368,7 +371,9 @@ export default function ObjectDetailPanel({
             icon={<Compass className="h-4 w-4 text-indigo-400" />}
             label="Meridian"
             value={
-              visibility.meridianTransitTime ? formatTime(visibility.meridianTransitTime) : '—'
+              visibility.meridianTransitTime
+                ? formatTime(visibility.meridianTransitTime, timezone)
+                : '—'
             }
             tooltip="Meridian transit is when the object crosses the north-south line and reaches its highest point. Best time to observe as it passes through the least atmosphere."
           />
@@ -382,7 +387,11 @@ export default function ObjectDetailPanel({
               <span className="text-gray-400">Best Imaging Window</span>
             </div>
             <div className="text-white">
-              {formatTimeRange(visibility.imagingWindow.start, visibility.imagingWindow.end)}
+              {formatTimeRange(
+                visibility.imagingWindow.start,
+                visibility.imagingWindow.end,
+                timezone
+              )}
             </div>
             <div className="mt-1 text-gray-500 text-xs">
               Quality:{' '}
@@ -408,7 +417,7 @@ export default function ObjectDetailPanel({
               <div className="flex justify-between">
                 <span className="text-gray-400">Excellent (75°+)</span>
                 <span className="text-gray-300">
-                  {formatTimeRange(visibility.above75Start, visibility.above75End)}
+                  {formatTimeRange(visibility.above75Start, visibility.above75End, timezone)}
                 </span>
               </div>
             )}
@@ -416,7 +425,7 @@ export default function ObjectDetailPanel({
               <div className="flex justify-between">
                 <span className="text-gray-400">Very Good (60°+)</span>
                 <span className="text-gray-300">
-                  {formatTimeRange(visibility.above60Start, visibility.above60End)}
+                  {formatTimeRange(visibility.above60Start, visibility.above60End, timezone)}
                 </span>
               </div>
             )}
@@ -424,7 +433,7 @@ export default function ObjectDetailPanel({
               <div className="flex justify-between">
                 <span className="text-gray-400">Good (45°+)</span>
                 <span className="text-gray-300">
-                  {formatTimeRange(visibility.above45Start, visibility.above45End)}
+                  {formatTimeRange(visibility.above45Start, visibility.above45End, timezone)}
                 </span>
               </div>
             )}

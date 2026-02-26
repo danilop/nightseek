@@ -62,6 +62,7 @@ export interface ForecastResult {
   forecasts: NightForecast[];
   scoredObjects: Map<string, ScoredObject[]>; // keyed by date ISO string
   bestNights: string[]; // ISO date strings of best nights
+  timezone: string; // IANA timezone of observation location
 }
 
 interface AllVisibilities {
@@ -415,6 +416,10 @@ export async function generateForecast(
     // Air quality fetch failed - continue without air quality data
   }
 
+  // Extract authoritative timezone from Open-Meteo response
+  const locationTimezone =
+    weatherData?.timezone ?? location.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+
   // Generate forecasts for each night
   const forecasts: NightForecast[] = [];
   const scoredObjects = new Map<string, ScoredObject[]>();
@@ -463,9 +468,10 @@ export async function generateForecast(
     const moonPhaseEvents = getMoonPhaseEvents(nightDate, nightInfo);
     nightInfo.moonPhaseExact = moonPhaseEvents.tonightEvent;
 
-    // Calculate local sidereal time at midnight
-    const midnight = new Date(nightInfo.sunset);
-    midnight.setHours(midnight.getHours() + 6);
+    // Calculate local sidereal time at midnight (UTC midpoint of astronomical night)
+    const midnight = new Date(
+      (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
+    );
     nightInfo.localSiderealTimeAtMidnight = getLocalSiderealTime(
       midnight,
       calculator.getLongitude()
@@ -571,6 +577,7 @@ export async function generateForecast(
     forecasts,
     scoredObjects,
     bestNights,
+    timezone: locationTimezone,
   };
 }
 

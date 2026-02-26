@@ -1,3 +1,4 @@
+import { toZonedTime } from 'date-fns-tz';
 import { Cloud, Droplets } from 'lucide-react';
 import { useMemo } from 'react';
 import { getQualityBgColor, type QualityLevel } from '@/lib/utils/colors';
@@ -7,6 +8,7 @@ import type { HourlyWeather, NightWeather, TemperatureUnit } from '@/types';
 interface HourlyConditionsTimelineProps {
   weather: NightWeather;
   temperatureUnit: TemperatureUnit;
+  timezone?: string;
 }
 
 interface HourlyData {
@@ -40,6 +42,7 @@ function formatHour(hour: number): string {
 export default function HourlyConditionsTimeline({
   weather,
   temperatureUnit,
+  timezone,
 }: HourlyConditionsTimelineProps) {
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Processing hourly data requires multiple conditions
   const hourlyData = useMemo(() => {
@@ -69,7 +72,7 @@ export default function HourlyConditionsTimeline({
       if (!hourData) continue;
 
       const date = new Date(timestamp);
-      const hour = date.getHours();
+      const hour = timezone ? toZonedTime(date, timezone).getHours() : date.getHours();
 
       const cloudCover = hourData.cloudCover ?? 50;
       const temp = hourData.temperature ?? 10;
@@ -85,7 +88,7 @@ export default function HourlyConditionsTimeline({
     }
 
     return data;
-  }, [weather]);
+  }, [weather, timezone]);
 
   if (hourlyData.length === 0) {
     return null;

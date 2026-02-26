@@ -57,7 +57,11 @@ export default function ForecastView({
             <span className="truncate">Sky Observation Forecast</span>
           </h2>
           <p className="mt-0.5 text-gray-400 text-xs sm:text-sm">
-            {formatDateRange(firstNight.nightInfo.date, lastNight.nightInfo.date)}
+            {formatDateRange(
+              firstNight.nightInfo.date,
+              lastNight.nightInfo.date,
+              location.timezone
+            )}
           </p>
         </div>
         <button
