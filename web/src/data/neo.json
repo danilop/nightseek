@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-03-01T06:46:23.376Z",
-  "startDate": "2026-03-01",
-  "endDate": "2026-03-07",
+  "fetchedAt": "2026-03-02T06:58:30.758Z",
+  "startDate": "2026-03-02",
+  "endDate": "2026-03-08",
   "data": {
     "2026-03-07": [
       {
@@ -16,6 +16,47 @@
         "missDistanceLunarDistances": 9.355770536,
         "relativeVelocityKmh": 57608.2256459666,
         "absoluteMagnitude": 25.388
+      }
+    ],
+    "2026-03-08": [
+      {
+        "name": "2026 DY7",
+        "neoId": "54604126",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0155580433,
+          "max": 0.0347888425
+        },
+        "closeApproachDate": "2026-Mar-08 09:43",
+        "missDistanceLunarDistances": 9.0715944438,
+        "relativeVelocityKmh": 27608.5496126027,
+        "absoluteMagnitude": 26.163
+      },
+      {
+        "name": "2012 DF31",
+        "neoId": "3599863",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0322518756,
+          "max": 0.0721173863
+        },
+        "closeApproachDate": "2026-Mar-08 03:27",
+        "missDistanceLunarDistances": 13.3871443781,
+        "relativeVelocityKmh": 57662.3019006043,
+        "absoluteMagnitude": 24.58
+      },
+      {
+        "name": "2026 DM8",
+        "neoId": "54604131",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.025630376,
+          "max": 0.0573112629
+        },
+        "closeApproachDate": "2026-Mar-08 05:10",
+        "missDistanceLunarDistances": 15.6477458353,
+        "relativeVelocityKmh": 56719.2735335617,
+        "absoluteMagnitude": 25.079
       }
     ],
     "2026-03-05": [],
@@ -53,26 +94,26 @@
         "neoId": "54604290",
         "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.0198223425,
-          "max": 0.0443241054
+          "min": 0.0189301902,
+          "max": 0.042329192
         },
-        "closeApproachDate": "2026-Mar-03 06:19",
-        "missDistanceLunarDistances": 3.9369187682,
-        "relativeVelocityKmh": 47278.9947443695,
-        "absoluteMagnitude": 25.637
+        "closeApproachDate": "2026-Mar-03 06:18",
+        "missDistanceLunarDistances": 3.9347378397,
+        "relativeVelocityKmh": 47267.3461716738,
+        "absoluteMagnitude": 25.737
       },
       {
         "name": "2026 CD1",
         "neoId": "54597147",
         "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.0444175885,
-          "max": 0.0993207473
+          "min": 0.0449733229,
+          "max": 0.1005634071
         },
         "closeApproachDate": "2026-Mar-03 15:52",
-        "missDistanceLunarDistances": 6.4133961255,
-        "relativeVelocityKmh": 39070.7231864828,
-        "absoluteMagnitude": 23.885
+        "missDistanceLunarDistances": 6.4140693289,
+        "relativeVelocityKmh": 39074.9763234431,
+        "absoluteMagnitude": 23.858
       },
       {
         "name": "2026 CX4",
@@ -112,6 +153,19 @@
         "missDistanceLunarDistances": 13.8566054104,
         "relativeVelocityKmh": 32190.9915551131,
         "absoluteMagnitude": 25.15
+      },
+      {
+        "name": "2026 DR14",
+        "neoId": "54604520",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0494942761,
+          "max": 0.1106725658
+        },
+        "closeApproachDate": "2026-Mar-03 07:52",
+        "missDistanceLunarDistances": 16.5138858054,
+        "relativeVelocityKmh": 30154.8572913541,
+        "absoluteMagnitude": 23.65
       }
     ],
     "2026-03-04": [
@@ -146,54 +200,26 @@
         "neoId": "54604127",
         "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.029023847,
-          "max": 0.064899295
+          "min": 0.0290907539,
+          "max": 0.0650489033
         },
-        "closeApproachDate": "2026-Mar-04 08:40",
-        "missDistanceLunarDistances": 15.1327277293,
-        "relativeVelocityKmh": 39114.3538078254,
-        "absoluteMagnitude": 24.809
-      }
-    ],
-    "2026-03-01": [
-      {
-        "name": "2026 DR11",
-        "neoId": "54604369",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0063351219,
-          "max": 0.0141657632
-        },
-        "closeApproachDate": "2026-Mar-01 16:14",
-        "missDistanceLunarDistances": 1.357570322,
-        "relativeVelocityKmh": 18986.4714863685,
-        "absoluteMagnitude": 28.114
+        "closeApproachDate": "2026-Mar-04 08:41",
+        "missDistanceLunarDistances": 15.1332895231,
+        "relativeVelocityKmh": 39086.326648607,
+        "absoluteMagnitude": 24.804
       },
       {
-        "name": "2026 DS5",
-        "neoId": "54603882",
+        "name": "2026 DE14",
+        "neoId": "54604378",
         "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.0142545981,
-          "max": 0.0318742503
+          "min": 0.0168560176,
+          "max": 0.0376912012
         },
-        "closeApproachDate": "2026-Mar-01 03:24",
-        "missDistanceLunarDistances": 5.9632935615,
-        "relativeVelocityKmh": 63259.461473378,
-        "absoluteMagnitude": 26.353
-      },
-      {
-        "name": "2026 DM10",
-        "neoId": "54604286",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0172407032,
-          "max": 0.0385513844
-        },
-        "closeApproachDate": "2026-Mar-01 19:08",
-        "missDistanceLunarDistances": 10.7284701183,
-        "relativeVelocityKmh": 63708.7497593263,
-        "absoluteMagnitude": 25.94
+        "closeApproachDate": "2026-Mar-04 23:05",
+        "missDistanceLunarDistances": 18.9417424806,
+        "relativeVelocityKmh": 18720.6098182142,
+        "absoluteMagnitude": 25.989
       }
     ],
     "2026-03-02": [
@@ -202,13 +228,26 @@
         "neoId": "54603967",
         "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.0054670743,
-          "max": 0.0122247498
+          "min": 0.0056073153,
+          "max": 0.0125383382
         },
         "closeApproachDate": "2026-Mar-02 21:55",
-        "missDistanceLunarDistances": 1.9984585584,
-        "relativeVelocityKmh": 24185.7267655983,
-        "absoluteMagnitude": 28.434
+        "missDistanceLunarDistances": 1.99831634,
+        "relativeVelocityKmh": 24187.1120277177,
+        "absoluteMagnitude": 28.379
+      },
+      {
+        "name": "2026 DM14",
+        "neoId": "54604384",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.025278714,
+          "max": 0.0565249229
+        },
+        "closeApproachDate": "2026-Mar-02 17:35",
+        "missDistanceLunarDistances": 10.1075000045,
+        "relativeVelocityKmh": 49536.6003053258,
+        "absoluteMagnitude": 25.109
       },
       {
         "name": "2026 DT8",
