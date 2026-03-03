@@ -26,6 +26,7 @@ import {
   calculateTwilightPenalty,
   calculateVenusPeakBonus,
   calculateWeatherScore,
+  getMosaicFootprint,
   getScoreTier,
 } from './index';
 
@@ -661,6 +662,29 @@ describe('scoring', () => {
 
     it('should return null for zero size', () => {
       expect(calculateMosaicPanels(0, { width: 42, height: 42 })).toBeNull();
+    });
+  });
+
+  describe('getMosaicFootprint', () => {
+    it('should compute footprint for single-panel mosaic', () => {
+      const fp = getMosaicFootprint({ cols: 1, rows: 1 }, { width: 42, height: 42 });
+      expect(fp.width).toBe(42);
+      expect(fp.height).toBe(42);
+    });
+
+    it('should compute footprint with overlap for 2×2 mosaic', () => {
+      // width = 42 + (2-1) × 42 × 0.8 = 42 + 33.6 = 75.6
+      const fp = getMosaicFootprint({ cols: 2, rows: 2 }, { width: 42, height: 42 });
+      expect(fp.width).toBeCloseTo(75.6);
+      expect(fp.height).toBeCloseTo(75.6);
+    });
+
+    it('should compute footprint for fractional mosaic', () => {
+      // width = 128 + (1.5-1) × 128 × 0.8 = 128 + 51.2 = 179.2
+      // height = 72 + (1-1) × 72 × 0.8 = 72
+      const fp = getMosaicFootprint({ cols: 1.5, rows: 1 }, { width: 128, height: 72 });
+      expect(fp.width).toBeCloseTo(179.2);
+      expect(fp.height).toBe(72);
     });
   });
 });

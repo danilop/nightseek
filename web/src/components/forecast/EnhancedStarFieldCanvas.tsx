@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getExtragalacticTypeInfo, getVariableTypeInfo } from '@/lib/gaia/enhanced-queries';
+import { getMosaicFootprint, MOSAIC_OVERLAP } from '@/lib/scoring';
 import type { EnhancedGaiaStarField, GaiaExtragalactic, GaiaVariableStar } from '@/types';
 
 interface EnhancedStarFieldCanvasProps {
@@ -79,8 +80,10 @@ export default function EnhancedStarFieldCanvas({
     // When mosaic is active, zoom out so the full mosaic grid is visible
     const mosaicView = mosaic && overlays.showMosaic;
     const viewPadding = 1.15; // 15% padding around mosaic
-    const viewWidthArcmin = mosaicView ? fovWidth * mosaic.cols * viewPadding : fovWidth;
-    const viewHeightArcmin = mosaicView ? fovHeight * mosaic.rows * viewPadding : fovHeight;
+    const fov = { width: fovWidth, height: fovHeight };
+    const footprint = mosaicView ? getMosaicFootprint(mosaic, fov) : null;
+    const viewWidthArcmin = footprint ? footprint.width * viewPadding : fovWidth;
+    const viewHeightArcmin = footprint ? footprint.height * viewPadding : fovHeight;
 
     const aspectRatio = viewHeightArcmin / viewWidthArcmin;
     const canvasWidth = containerWidth;
@@ -143,9 +146,9 @@ export default function EnhancedStarFieldCanvas({
     const fovPixelH = (fovHeight / viewHeightArcmin) * canvasHeight;
 
     // When mosaic is active, clip stars to the mosaic boundary
-    if (mosaicView) {
-      const mosaicW = mosaic.cols * fovPixelW;
-      const mosaicH = mosaic.rows * fovPixelH;
+    if (mosaicView && footprint) {
+      const mosaicW = (footprint.width / viewWidthArcmin) * canvasWidth;
+      const mosaicH = (footprint.height / viewHeightArcmin) * canvasHeight;
       const mosaicX = (canvasWidth - mosaicW) / 2;
       const mosaicY = (canvasHeight - mosaicH) / 2;
       ctx.save();
@@ -244,11 +247,27 @@ export default function EnhancedStarFieldCanvas({
     }
 
     // Draw mosaic grid (fully visible in zoomed-out view)
-    if (mosaicView) {
-      const mosaicW = mosaic.cols * fovPixelW;
-      const mosaicH = mosaic.rows * fovPixelH;
+    if (mosaicView && footprint) {
+      const mosaicW = (footprint.width / viewWidthArcmin) * canvasWidth;
+      const mosaicH = (footprint.height / viewHeightArcmin) * canvasHeight;
       const mosaicX = (canvasWidth - mosaicW) / 2;
       const mosaicY = (canvasHeight - mosaicH) / 2;
+
+      const stepW = fovPixelW * (1 - MOSAIC_OVERLAP);
+      const stepH = fovPixelH * (1 - MOSAIC_OVERLAP);
+      const overlapW = MOSAIC_OVERLAP * fovPixelW;
+      const overlapH = MOSAIC_OVERLAP * fovPixelH;
+
+      // Draw overlap bands (amber translucent strips at panel boundaries)
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.08)';
+      for (let i = 1; i < mosaic.cols; i++) {
+        const cx = mosaicX + i * stepW;
+        ctx.fillRect(cx - overlapW / 2, mosaicY, overlapW, mosaicH);
+      }
+      for (let j = 1; j < mosaic.rows; j++) {
+        const cy = mosaicY + j * stepH;
+        ctx.fillRect(mosaicX, cy - overlapH / 2, mosaicW, overlapH);
+      }
 
       // Outer boundary
       ctx.strokeStyle = '#f59e0b';
@@ -256,17 +275,17 @@ export default function EnhancedStarFieldCanvas({
       ctx.setLineDash([4, 4]);
       ctx.strokeRect(mosaicX, mosaicY, mosaicW, mosaicH);
 
-      // Internal grid lines
+      // Internal grid lines at step boundaries
       ctx.lineWidth = 0.75;
       for (let i = 1; i < mosaic.cols; i++) {
-        const x = mosaicX + i * fovPixelW;
+        const x = mosaicX + i * stepW;
         ctx.beginPath();
         ctx.moveTo(x, mosaicY);
         ctx.lineTo(x, mosaicY + mosaicH);
         ctx.stroke();
       }
       for (let j = 1; j < mosaic.rows; j++) {
-        const y = mosaicY + j * fovPixelH;
+        const y = mosaicY + j * stepH;
         ctx.beginPath();
         ctx.moveTo(mosaicX, y);
         ctx.lineTo(mosaicX + mosaicW, y);

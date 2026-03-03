@@ -7,7 +7,11 @@ import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { formatDistance } from '@/lib/gaia';
 import { fetchEnhancedGaiaStarField } from '@/lib/gaia/enhanced-queries';
 import { formatAsteroidDiameter, formatRotationPeriod } from '@/lib/jpl/sbdb';
-import { calculateFrameFillPercent, calculateMosaicPanels } from '@/lib/scoring';
+import {
+  calculateFrameFillPercent,
+  calculateMosaicPanels,
+  getMosaicFootprint,
+} from '@/lib/scoring';
 import { formatFOV, getEffectiveFOV } from '@/lib/telescopes';
 import {
   azimuthToCardinal,
@@ -24,6 +28,7 @@ import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
 import { useApp } from '@/stores/AppContext';
 import type { EnhancedGaiaStarField, NightInfo, NightWeather, ScoredObject } from '@/types';
 import EnhancedStarFieldCanvas from './EnhancedStarFieldCanvas';
+import MosaicTipsPanel from './MosaicTipsPanel';
 
 const AladinSurveyView = lazy(() => import('./AladinSurveyView'));
 
@@ -37,8 +42,8 @@ interface ObjectDetailPanelProps {
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Panel with multiple sections for all object types
 export default function ObjectDetailPanel({
   object,
-  nightInfo: _nightInfo,
-  weather: _weather,
+  nightInfo,
+  weather,
   onClose,
 }: ObjectDetailPanelProps) {
   const [starField, setStarField] = useState<EnhancedGaiaStarField | null>(null);
@@ -60,10 +65,11 @@ export default function ObjectDetailPanel({
     fov,
     visibility.minorAxisArcmin
   );
-  // Search radius: half-diagonal of mosaic area (or FOV when no mosaic)
+  // Search radius: half-diagonal of mosaic footprint (or FOV when no mosaic)
   // Uses primitive result for stable useEffect dependency
-  const mosaicW = fov.width * (mosaic ? mosaic.cols : 1);
-  const mosaicH = fov.height * (mosaic ? mosaic.rows : 1);
+  const fp = mosaic ? getMosaicFootprint(mosaic, fov) : null;
+  const mosaicW = fp ? fp.width : fov.width;
+  const mosaicH = fp ? fp.height : fov.height;
   const searchRadiusDeg = (Math.sqrt(mosaicW ** 2 + mosaicH ** 2) / 2 / 60) * 1.1;
   // Only show star field for DSOs (Gaia queries don't work well for planets/solar-system objects)
   const showStarField = category === 'dso' && visibility.angularSizeArcmin > 0;
@@ -329,6 +335,17 @@ export default function ObjectDetailPanel({
               </p>
             )}
           </div>
+        )}
+
+        {/* Mosaic Tips — condition-aware guidance for mosaic imaging */}
+        {mosaic && showStarField && (
+          <MosaicTipsPanel
+            mosaic={mosaic}
+            fov={fov}
+            nightInfo={nightInfo}
+            weather={weather}
+            visibility={visibility}
+          />
         )}
 
         {/* Distance */}

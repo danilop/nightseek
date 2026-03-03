@@ -647,7 +647,15 @@ export function calculateFOVSuitabilityScore(
 }
 
 /**
+ * Standard mosaic overlap fraction (20%).
+ * Stitching software (APP, PixInsight, Sequator) needs ~20% shared sky
+ * between adjacent panels to blend seamlessly.
+ */
+export const MOSAIC_OVERLAP = 0.2;
+
+/**
  * Round to the nearest 0.5 (e.g. 1.38 → 1.5, 0.97 → 1, 2.1 → 2)
+ * Matches how smart telescopes (Dwarf Mini) accept mosaic multipliers.
  */
 function roundToHalf(n: number): number {
   return Math.round(n * 2) / 2;
@@ -657,7 +665,7 @@ function roundToHalf(n: number): number {
  * Calculate mosaic panels needed for an object larger than the FOV.
  * Uses both major and minor axis to find the best orientation.
  * Panel counts are fractional (rounded to nearest 0.5) matching
- * how smart telescopes handle partial-overlap mosaics.
+ * how smart telescopes handle mosaic multipliers.
  * Returns null if the object fits in a single frame.
  */
 export function calculateMosaicPanels(
@@ -685,6 +693,21 @@ export function calculateMosaicPanels(
     return { cols: normalCols, rows: normalRows };
   }
   return { cols: rotatedCols, rows: rotatedRows };
+}
+
+/**
+ * Compute the actual unique sky footprint of a mosaic in arcminutes.
+ * With overlap, footprint = fov + (panels - 1) × fov × step.
+ */
+export function getMosaicFootprint(
+  mosaic: { cols: number; rows: number },
+  fov: { width: number; height: number }
+): { width: number; height: number } {
+  const step = 1 - MOSAIC_OVERLAP;
+  return {
+    width: fov.width + (mosaic.cols - 1) * fov.width * step,
+    height: fov.height + (mosaic.rows - 1) * fov.height * step,
+  };
 }
 
 /**

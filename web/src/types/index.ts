@@ -1,3 +1,28 @@
+// Mosaic Condition Assessment
+export type MosaicTipSeverity = 'info' | 'warning' | 'critical';
+export type MosaicTipCategory = 'moon' | 'weather' | 'technique' | 'gradient';
+
+export interface MosaicTip {
+  id: string;
+  category: MosaicTipCategory;
+  severity: MosaicTipSeverity;
+  title: string;
+  detail: string;
+}
+
+export interface MoonGradientWarning {
+  mosaicAngularExtentDeg: number;
+  moonSeparationDeg: number;
+  gradientDeltaPercent: number;
+  severity: MosaicTipSeverity;
+}
+
+export interface MosaicConditionAssessment {
+  overallSeverity: MosaicTipSeverity;
+  tips: MosaicTip[];
+  moonGradientWarning: MoonGradientWarning | null;
+}
+
 // Targets tab sort/filter types
 export type SecondarySortField =
   | 'score'
