@@ -29,7 +29,13 @@
       "classType": "M1.1",
       "beginTime": "2026-03-13T09:40Z",
       "peakTime": "2026-03-13T09:55Z"
+    },
+    {
+      "flrID": "2026-03-15T09:21:00-FLR-001",
+      "classType": "M1.0",
+      "beginTime": "2026-03-15T09:21Z",
+      "peakTime": "2026-03-15T09:39Z"
     }
   ],
-  "fetchedAt": "2026-03-15T06:57:24.001Z"
+  "fetchedAt": "2026-03-16T07:17:34.323Z"
 }
