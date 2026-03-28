@@ -1,33 +1,6 @@
 {
   "geomagneticStorms": [
     {
-      "gstID": "2026-03-20T18:00:00-GST-001",
-      "startTime": "2026-03-20T18:00Z",
-      "kpIndexes": [
-        {
-          "observedTime": "2026-03-20T21:00Z",
-          "kpIndex": 5.67,
-          "source": "NOAA"
-        },
-        {
-          "observedTime": "2026-03-21T00:00Z",
-          "kpIndex": 6.67,
-          "source": "NOAA"
-        },
-        {
-          "observedTime": "2026-03-21T03:00Z",
-          "kpIndex": 7,
-          "source": "NOAA"
-        },
-        {
-          "observedTime": "2026-03-21T06:00Z",
-          "kpIndex": 6,
-          "source": "NOAA"
-        }
-      ],
-      "maxKp": 7
-    },
-    {
       "gstID": "2026-03-22T09:00:00-GST-001",
       "startTime": "2026-03-22T09:00Z",
       "kpIndexes": [
@@ -68,5 +41,5 @@
       "peakTime": "2026-03-26T06:23Z"
     }
   ],
-  "fetchedAt": "2026-03-27T07:07:59.824Z"
+  "fetchedAt": "2026-03-28T06:59:17.163Z"
 }
