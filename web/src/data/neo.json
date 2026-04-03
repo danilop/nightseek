@@ -1,9 +1,10 @@
 {
-  "fetchedAt": "2026-04-02T07:13:03.753Z",
-  "startDate": "2026-04-02",
-  "endDate": "2026-04-08",
+  "fetchedAt": "2026-04-03T07:09:18.467Z",
+  "startDate": "2026-04-03",
+  "endDate": "2026-04-09",
   "data": {
     "2026-04-08": [],
+    "2026-04-09": [],
     "2026-04-06": [
       {
         "name": "2021 GN6",
@@ -127,60 +128,6 @@
         "missDistanceLunarDistances": 15.3397790477,
         "relativeVelocityKmh": 71346.6481677685,
         "absoluteMagnitude": 25.625
-      }
-    ],
-    "2026-04-02": [
-      {
-        "name": "2026 FD4",
-        "neoId": "54606736",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0074774751,
-          "max": 0.0167201427
-        },
-        "closeApproachDate": "2026-Apr-02 10:33",
-        "missDistanceLunarDistances": 7.9224782131,
-        "relativeVelocityKmh": 21556.1963132447,
-        "absoluteMagnitude": 27.754
-      },
-      {
-        "name": "2026 FQ8",
-        "neoId": "54607105",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0173922182,
-          "max": 0.0388901823
-        },
-        "closeApproachDate": "2026-Apr-02 02:25",
-        "missDistanceLunarDistances": 8.0182758038,
-        "relativeVelocityKmh": 29094.5778400809,
-        "absoluteMagnitude": 25.921
-      },
-      {
-        "name": "2026 FR4",
-        "neoId": "54606832",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0092417662,
-          "max": 0.0206652174
-        },
-        "closeApproachDate": "2026-Apr-02 14:28",
-        "missDistanceLunarDistances": 13.9269114421,
-        "relativeVelocityKmh": 24562.8092014115,
-        "absoluteMagnitude": 27.294
-      },
-      {
-        "name": "2026 FR6",
-        "neoId": "54606985",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0183550248,
-          "max": 0.0410430833
-        },
-        "closeApproachDate": "2026-Apr-02 13:30",
-        "missDistanceLunarDistances": 15.2339032839,
-        "relativeVelocityKmh": 61407.3703166406,
-        "absoluteMagnitude": 25.804
       }
     ],
     "2026-04-03": [
