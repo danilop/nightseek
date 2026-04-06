@@ -1,5 +1,5 @@
 import { Compass, RotateCcw } from 'lucide-react';
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, MutableRefObject } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   getSectorAltitudeLabel,
@@ -75,6 +75,33 @@ function getBlockedHeightPercent(minAltitude: number): number {
   return Math.max(0, Math.min((minAltitude / 90) * 100, 100));
 }
 
+function getInitialActiveIndex(middleLoop: number, sectorCount: number): number {
+  return middleLoop * sectorCount;
+}
+
+function focusButton(
+  buttonRefs: MutableRefObject<Array<HTMLButtonElement | null>>,
+  index: number
+): void {
+  window.requestAnimationFrame(() => {
+    buttonRefs.current[index]?.focus();
+  });
+}
+
+async function requestCompassPermission(
+  orientationEventClass: typeof DeviceOrientationEvent & DeviceOrientationEventWithPermission
+): Promise<'granted' | 'denied'> {
+  if (typeof orientationEventClass.requestPermission !== 'function') {
+    return 'granted';
+  }
+
+  try {
+    return await orientationEventClass.requestPermission(true);
+  } catch {
+    return await orientationEventClass.requestPermission();
+  }
+}
+
 export default function AccessibleSkyControl({
   horizonProfile,
   onCycleSector,
@@ -87,9 +114,10 @@ export default function AccessibleSkyControl({
   const orientationListenerRef = useRef<((event: Event) => void) | null>(null);
   const sectorCount = HORIZON_SECTOR_CONFIGS.length;
   const middleLoop = Math.floor(LOOP_REPETITIONS / 2);
-  const activeIndexRef = useRef(middleLoop * sectorCount);
+  const initialActiveIndex = getInitialActiveIndex(middleLoop, sectorCount);
+  const activeIndexRef = useRef(initialActiveIndex);
   const [sidePadding, setSidePadding] = useState(CARD_WIDTH);
-  const [activeIndex, setActiveIndex] = useState(middleLoop * sectorCount);
+  const [activeIndex, setActiveIndex] = useState(initialActiveIndex);
   const [compassAssistState, setCompassAssistState] = useState<CompassAssistState>('unsupported');
   const [compassAccuracy, setCompassAccuracy] = useState<number | null>(null);
 
@@ -109,9 +137,6 @@ export default function AccessibleSkyControl({
     ).flat();
   }, [horizonProfile]);
 
-  const activeSector = sectors[activeIndex] ?? sectors[middleLoop * sectorCount];
-  const activeSectorLabel = activeSector?.label ?? 'N';
-  const activeMinAltitude = activeSector?.minAltitude ?? 0;
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const scrollToIndex = (
@@ -167,11 +192,18 @@ export default function AccessibleSkyControl({
 
   useEffect(() => {
     if (hasInitializedRef.current) return;
-    if (!scrollRef.current) return;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
 
-    scrollToIndex(middleLoop * sectorCount, 'auto');
+    const nextIndex = getInitialActiveIndex(middleLoop, sectorCount);
+    scroller.scrollTo({
+      left: nextIndex * STEP_SIZE,
+      behavior: 'auto',
+    });
+    setActiveIndex(nextIndex);
+    activeIndexRef.current = nextIndex;
     hasInitializedRef.current = true;
-  }, [middleLoop, sectorCount, sectors.length]);
+  }, [middleLoop, sectorCount]);
 
   const recenterIfNeeded = (index: number) => {
     const loopIndex = Math.floor(index / sectorCount);
@@ -236,38 +268,39 @@ export default function AccessibleSkyControl({
     onCycleSector(label);
   };
 
+  const moveFocusBy = (offset: number) => {
+    if (compassAssistState === 'tracking') {
+      stopCompassAssist();
+    }
+
+    const nextIndex = Math.max(0, Math.min(activeIndex + offset, sectors.length - 1));
+    scrollToIndex(nextIndex);
+    focusButton(buttonRefs, nextIndex);
+  };
+
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const label = event.currentTarget.dataset.sectorLabel as
       | HorizonProfile['sectors'][number]['label']
       | undefined;
 
-    if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      if (compassAssistState === 'tracking') {
-        stopCompassAssist();
-      }
-      scrollToIndex(activeIndex + 1);
-      window.requestAnimationFrame(() => {
-        buttonRefs.current[Math.min(activeIndex + 1, sectors.length - 1)]?.focus();
-      });
-    }
-
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      if (compassAssistState === 'tracking') {
-        stopCompassAssist();
-      }
-      scrollToIndex(activeIndex - 1);
-      window.requestAnimationFrame(() => {
-        buttonRefs.current[Math.max(activeIndex - 1, 0)]?.focus();
-      });
-    }
-
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      if (label) {
-        onCycleSector(label);
-      }
+    switch (event.key) {
+      case 'ArrowRight':
+        event.preventDefault();
+        moveFocusBy(1);
+        return;
+      case 'ArrowLeft':
+        event.preventDefault();
+        moveFocusBy(-1);
+        return;
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+        if (label) {
+          onCycleSector(label);
+        }
+        return;
+      default:
+        return;
     }
   };
 
@@ -288,19 +321,10 @@ export default function AccessibleSkyControl({
       DeviceOrientationEventWithPermission;
 
     try {
-      if (typeof orientationEventClass.requestPermission === 'function') {
-        let permissionState: 'granted' | 'denied';
-
-        try {
-          permissionState = await orientationEventClass.requestPermission(true);
-        } catch {
-          permissionState = await orientationEventClass.requestPermission();
-        }
-
-        if (permissionState !== 'granted') {
-          setCompassAssistState('denied');
-          return;
-        }
+      const permissionState = await requestCompassPermission(orientationEventClass);
+      if (permissionState !== 'granted') {
+        setCompassAssistState('denied');
+        return;
       }
 
       const handleOrientation = (incomingEvent: Event) => {
@@ -338,6 +362,7 @@ export default function AccessibleSkyControl({
             : 'Use your phone heading to align the center marker with the horizon.';
 
   const showCompassButton = compassAssistState !== 'unsupported';
+  const showHeadingMarker = compassAssistState === 'tracking';
 
   return (
     <div className="rounded-lg border border-night-700 bg-night-900 p-4">
@@ -379,21 +404,6 @@ export default function AccessibleSkyControl({
         </div>
       </div>
 
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/8 px-3 py-1.5">
-          <span className="text-[11px] uppercase tracking-[0.16em] text-sky-300/80">Centered</span>
-          <span className="font-semibold text-sky-200 text-sm">{activeSectorLabel}</span>
-          <span
-            className={`rounded-full border px-2 py-0.5 font-medium text-[11px] ${getSectorToneClass(activeMinAltitude)}`}
-          >
-            {getSectorAltitudeLabel(activeMinAltitude)}
-          </span>
-        </div>
-        <p className="text-gray-500 text-xs">
-          The center line shows the current heading reference.
-        </p>
-      </div>
-
       {showCompassButton ? (
         <p
           className={`mb-3 text-xs ${
@@ -409,10 +419,14 @@ export default function AccessibleSkyControl({
       ) : null}
 
       <div className="relative">
-        <div className="pointer-events-none absolute inset-y-3 left-1/2 z-10 w-px -translate-x-1/2 bg-sky-400/35" />
-        <div className="pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-sky-400/20 bg-night-950/90 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-sky-300/80">
-          Heading
-        </div>
+        {showHeadingMarker ? (
+          <>
+            <div className="pointer-events-none absolute inset-y-3 left-1/2 z-10 w-px -translate-x-1/2 bg-sky-400/35" />
+            <div className="pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-sky-400/20 bg-night-950/90 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-sky-300/80">
+              Heading
+            </div>
+          </>
+        ) : null}
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-night-900 to-transparent" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-night-900 to-transparent" />
 
