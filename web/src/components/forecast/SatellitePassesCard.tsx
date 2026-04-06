@@ -294,9 +294,9 @@ function SatellitePassesContent({
 
       {!loading && !error && passes.length > 0 && (
         <div className="space-y-3">
-          {passes.map((pass, index) => (
+          {passes.map(pass => (
             <PassItem
-              key={`${pass.noradId}-${pass.riseTime.toISOString()}-${index}`}
+              key={`${pass.noradId}-${pass.riseTime.toISOString()}-${pass.maxTime.toISOString()}`}
               pass={pass}
               timezone={location.timezone}
             />

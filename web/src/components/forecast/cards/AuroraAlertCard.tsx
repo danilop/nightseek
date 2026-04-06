@@ -14,7 +14,9 @@ export default function AuroraAlertCard({ forecast }: AuroraAlertCardProps) {
   useEffect(() => {
     fetchSWPCData()
       .then(setSwpcData)
-      .catch(() => {});
+      .catch(() => {
+        // Ignore live SWPC fetch failures and fall back to the forecast snapshot.
+      });
   }, []);
 
   // Only show when chance >= 'possible'

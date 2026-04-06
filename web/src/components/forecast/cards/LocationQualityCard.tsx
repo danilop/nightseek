@@ -22,7 +22,9 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
       .then(result => {
         if (!cancelled) setData(result);
       })
-      .catch(() => {})
+      .catch(() => {
+        // Ignore historical lookup failures and keep the card hidden for this location.
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });

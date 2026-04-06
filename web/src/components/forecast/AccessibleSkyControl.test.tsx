@@ -4,9 +4,15 @@ import { createDefaultHorizonProfile } from '@/lib/utils/horizon-profile';
 import AccessibleSkyControl from './AccessibleSkyControl';
 
 class ResizeObserverMock {
-  observe() {}
-  disconnect() {}
-  unobserve() {}
+  observe() {
+    // Test stub.
+  }
+  disconnect() {
+    // Test stub.
+  }
+  unobserve() {
+    // Test stub.
+  }
 }
 
 beforeAll(() => {

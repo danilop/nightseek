@@ -79,6 +79,36 @@ function getInitialActiveIndex(middleLoop: number, sectorCount: number): number 
   return middleLoop * sectorCount;
 }
 
+function getCompassStatusText(
+  compassAssistState: CompassAssistState,
+  compassAccuracy: number | null
+): string {
+  switch (compassAssistState) {
+    case 'tracking':
+      return `Following device heading${compassAccuracy === null ? '' : ` (${Math.round(compassAccuracy)}° accuracy)`}`;
+    case 'requesting':
+      return 'Waiting for browser permission…';
+    case 'denied':
+      return 'Motion/orientation access was denied.';
+    case 'error':
+      return 'Compass heading is unavailable on this device.';
+    default:
+      return 'Use your phone heading to align the center marker with the horizon.';
+  }
+}
+
+function getCompassStatusClass(compassAssistState: CompassAssistState): string {
+  if (compassAssistState === 'tracking') return 'text-sky-300';
+  if (compassAssistState === 'denied' || compassAssistState === 'error') return 'text-amber-300';
+  return 'text-gray-500';
+}
+
+function getCompassButtonLabel(compassAssistState: CompassAssistState): string {
+  if (compassAssistState === 'tracking') return 'Stop compass';
+  if (compassAssistState === 'requesting') return 'Waiting...';
+  return 'Use phone compass';
+}
+
 function focusButton(
   buttonRefs: MutableRefObject<Array<HTMLButtonElement | null>>,
   index: number
@@ -102,69 +132,27 @@ async function requestCompassPermission(
   }
 }
 
-export default function AccessibleSkyControl({
-  horizonProfile,
-  onCycleSector,
-  onReset,
-}: AccessibleSkyControlProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const hasInitializedRef = useRef(false);
-  const clearProgrammaticScrollTimerRef = useRef<number | null>(null);
-  const programmaticScrollRef = useRef(false);
+function removeOrientationListeners(listener: ((event: Event) => void) | null): void {
+  if (typeof window === 'undefined' || listener === null) return;
+
+  window.removeEventListener('deviceorientation', listener);
+  window.removeEventListener('deviceorientationabsolute', listener);
+}
+
+function useCompassAssist({
+  activeIndexRef,
+  middleLoop,
+  scrollToIndex,
+  sectorCount,
+}: {
+  activeIndexRef: MutableRefObject<number>;
+  middleLoop: number;
+  scrollToIndex: (targetIndex: number, behavior?: ScrollBehavior, isProgrammatic?: boolean) => void;
+  sectorCount: number;
+}) {
   const orientationListenerRef = useRef<((event: Event) => void) | null>(null);
-  const sectorCount = HORIZON_SECTOR_CONFIGS.length;
-  const middleLoop = Math.floor(LOOP_REPETITIONS / 2);
-  const initialActiveIndex = getInitialActiveIndex(middleLoop, sectorCount);
-  const activeIndexRef = useRef(initialActiveIndex);
-  const [sidePadding, setSidePadding] = useState(CARD_WIDTH);
-  const [activeIndex, setActiveIndex] = useState(initialActiveIndex);
   const [compassAssistState, setCompassAssistState] = useState<CompassAssistState>('unsupported');
   const [compassAccuracy, setCompassAccuracy] = useState<number | null>(null);
-
-  const sectors = useMemo(() => {
-    const altitudeByLabel = new Map(
-      horizonProfile.sectors.map(sector => [sector.label, sector.minAltitude])
-    );
-
-    return Array.from({ length: LOOP_REPETITIONS }, (_, loopIndex) =>
-      HORIZON_SECTOR_CONFIGS.map((config, sectorIndex) => ({
-        id: `${loopIndex}-${config.label}`,
-        loopIndex,
-        sectorIndex,
-        label: config.label,
-        minAltitude: altitudeByLabel.get(config.label) ?? 0,
-      }))
-    ).flat();
-  }, [horizonProfile]);
-
-  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  const scrollToIndex = (
-    targetIndex: number,
-    behavior: ScrollBehavior = 'smooth',
-    isProgrammatic = false
-  ) => {
-    const scroller = scrollRef.current;
-    if (!scroller) return;
-
-    const boundedIndex = Math.max(0, Math.min(sectors.length - 1, targetIndex));
-    if (isProgrammatic) {
-      programmaticScrollRef.current = true;
-      if (clearProgrammaticScrollTimerRef.current !== null) {
-        window.clearTimeout(clearProgrammaticScrollTimerRef.current);
-      }
-      clearProgrammaticScrollTimerRef.current = window.setTimeout(() => {
-        programmaticScrollRef.current = false;
-        clearProgrammaticScrollTimerRef.current = null;
-      }, 120);
-    }
-    scroller.scrollTo({
-      left: boundedIndex * STEP_SIZE,
-      behavior,
-    });
-    setActiveIndex(boundedIndex);
-    activeIndexRef.current = boundedIndex;
-  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -173,53 +161,8 @@ export default function AccessibleSkyControl({
     );
   }, []);
 
-  useEffect(() => {
-    const scroller = scrollRef.current;
-    if (!scroller || typeof ResizeObserver === 'undefined') return;
-
-    const updatePadding = () => {
-      const nextPadding = Math.max((scroller.clientWidth - CARD_WIDTH) / 2, 0);
-      setSidePadding(nextPadding);
-    };
-
-    updatePadding();
-
-    const observer = new ResizeObserver(updatePadding);
-    observer.observe(scroller);
-
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (hasInitializedRef.current) return;
-    const scroller = scrollRef.current;
-    if (!scroller) return;
-
-    const nextIndex = getInitialActiveIndex(middleLoop, sectorCount);
-    scroller.scrollTo({
-      left: nextIndex * STEP_SIZE,
-      behavior: 'auto',
-    });
-    setActiveIndex(nextIndex);
-    activeIndexRef.current = nextIndex;
-    hasInitializedRef.current = true;
-  }, [middleLoop, sectorCount]);
-
-  const recenterIfNeeded = (index: number) => {
-    const loopIndex = Math.floor(index / sectorCount);
-    if (loopIndex > 1 && loopIndex < LOOP_REPETITIONS - 2) return;
-
-    const centeredIndex = middleLoop * sectorCount + (index % sectorCount);
-    if (centeredIndex === index) return;
-
-    scrollToIndex(centeredIndex, 'auto', true);
-  };
-
   const stopCompassAssist = (nextState: CompassAssistState = 'idle') => {
-    if (typeof window !== 'undefined' && orientationListenerRef.current) {
-      window.removeEventListener('deviceorientation', orientationListenerRef.current);
-      window.removeEventListener('deviceorientationabsolute', orientationListenerRef.current);
-    }
+    removeOrientationListeners(orientationListenerRef.current);
     orientationListenerRef.current = null;
     setCompassAssistState(nextState);
     setCompassAccuracy(null);
@@ -227,82 +170,10 @@ export default function AccessibleSkyControl({
 
   useEffect(
     () => () => {
-      if (typeof window !== 'undefined' && orientationListenerRef.current) {
-        window.removeEventListener('deviceorientation', orientationListenerRef.current);
-        window.removeEventListener('deviceorientationabsolute', orientationListenerRef.current);
-      }
-      if (clearProgrammaticScrollTimerRef.current !== null) {
-        window.clearTimeout(clearProgrammaticScrollTimerRef.current);
-      }
+      removeOrientationListeners(orientationListenerRef.current);
     },
     []
   );
-
-  const handleScroll = () => {
-    const scroller = scrollRef.current;
-    if (!scroller) return;
-
-    const rawIndex = Math.round(scroller.scrollLeft / STEP_SIZE);
-    const nextIndex = Math.max(0, Math.min(sectors.length - 1, rawIndex));
-
-    if (programmaticScrollRef.current) {
-      setActiveIndex(nextIndex);
-      activeIndexRef.current = nextIndex;
-      return;
-    }
-
-    if (compassAssistState === 'tracking') {
-      stopCompassAssist();
-    }
-
-    setActiveIndex(nextIndex);
-    activeIndexRef.current = nextIndex;
-    recenterIfNeeded(nextIndex);
-  };
-
-  const handleSectorPress = (_index: number, label: HorizonProfile['sectors'][number]['label']) => {
-    if (compassAssistState === 'tracking') {
-      stopCompassAssist();
-    }
-
-    onCycleSector(label);
-  };
-
-  const moveFocusBy = (offset: number) => {
-    if (compassAssistState === 'tracking') {
-      stopCompassAssist();
-    }
-
-    const nextIndex = Math.max(0, Math.min(activeIndex + offset, sectors.length - 1));
-    scrollToIndex(nextIndex);
-    focusButton(buttonRefs, nextIndex);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    const label = event.currentTarget.dataset.sectorLabel as
-      | HorizonProfile['sectors'][number]['label']
-      | undefined;
-
-    switch (event.key) {
-      case 'ArrowRight':
-        event.preventDefault();
-        moveFocusBy(1);
-        return;
-      case 'ArrowLeft':
-        event.preventDefault();
-        moveFocusBy(-1);
-        return;
-      case 'Enter':
-      case ' ':
-        event.preventDefault();
-        if (label) {
-          onCycleSector(label);
-        }
-        return;
-      default:
-        return;
-    }
-  };
 
   const handleCompassAssistToggle = async () => {
     if (compassAssistState === 'tracking') {
@@ -350,17 +221,204 @@ export default function AccessibleSkyControl({
     }
   };
 
-  const compassStatusText =
-    compassAssistState === 'tracking'
-      ? `Following device heading${compassAccuracy !== null ? ` (${Math.round(compassAccuracy)}° accuracy)` : ''}`
-      : compassAssistState === 'requesting'
-        ? 'Waiting for browser permission…'
-        : compassAssistState === 'denied'
-          ? 'Motion/orientation access was denied.'
-          : compassAssistState === 'error'
-            ? 'Compass heading is unavailable on this device.'
-            : 'Use your phone heading to align the center marker with the horizon.';
+  return {
+    compassAccuracy,
+    compassAssistState,
+    handleCompassAssistToggle,
+    stopCompassAssist,
+  };
+}
 
+export default function AccessibleSkyControl({
+  horizonProfile,
+  onCycleSector,
+  onReset,
+}: AccessibleSkyControlProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const hasInitializedRef = useRef(false);
+  const clearProgrammaticScrollTimerRef = useRef<number | null>(null);
+  const programmaticScrollRef = useRef(false);
+  const sectorCount = HORIZON_SECTOR_CONFIGS.length;
+  const middleLoop = Math.floor(LOOP_REPETITIONS / 2);
+  const initialActiveIndex = getInitialActiveIndex(middleLoop, sectorCount);
+  const activeIndexRef = useRef(initialActiveIndex);
+  const [sidePadding, setSidePadding] = useState(CARD_WIDTH);
+  const [activeIndex, setActiveIndex] = useState(initialActiveIndex);
+
+  const sectors = useMemo(() => {
+    const altitudeByLabel = new Map(
+      horizonProfile.sectors.map(sector => [sector.label, sector.minAltitude])
+    );
+
+    return Array.from({ length: LOOP_REPETITIONS }, (_, loopIndex) =>
+      HORIZON_SECTOR_CONFIGS.map((config, sectorIndex) => ({
+        id: `${loopIndex}-${config.label}`,
+        loopIndex,
+        sectorIndex,
+        label: config.label,
+        minAltitude: altitudeByLabel.get(config.label) ?? 0,
+      }))
+    ).flat();
+  }, [horizonProfile]);
+
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const scrollToIndex = (
+    targetIndex: number,
+    behavior: ScrollBehavior = 'smooth',
+    isProgrammatic = false
+  ) => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+
+    const boundedIndex = Math.max(0, Math.min(sectors.length - 1, targetIndex));
+    if (isProgrammatic) {
+      programmaticScrollRef.current = true;
+      if (clearProgrammaticScrollTimerRef.current !== null) {
+        window.clearTimeout(clearProgrammaticScrollTimerRef.current);
+      }
+      clearProgrammaticScrollTimerRef.current = window.setTimeout(() => {
+        programmaticScrollRef.current = false;
+        clearProgrammaticScrollTimerRef.current = null;
+      }, 120);
+    }
+    scroller.scrollTo({
+      left: boundedIndex * STEP_SIZE,
+      behavior,
+    });
+    setActiveIndex(boundedIndex);
+    activeIndexRef.current = boundedIndex;
+  };
+
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller || typeof ResizeObserver === 'undefined') return;
+
+    const updatePadding = () => {
+      const nextPadding = Math.max((scroller.clientWidth - CARD_WIDTH) / 2, 0);
+      setSidePadding(nextPadding);
+    };
+
+    updatePadding();
+
+    const observer = new ResizeObserver(updatePadding);
+    observer.observe(scroller);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (hasInitializedRef.current) return;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+
+    const nextIndex = getInitialActiveIndex(middleLoop, sectorCount);
+    scroller.scrollTo({
+      left: nextIndex * STEP_SIZE,
+      behavior: 'auto',
+    });
+    setActiveIndex(nextIndex);
+    activeIndexRef.current = nextIndex;
+    hasInitializedRef.current = true;
+  }, [middleLoop]);
+
+  const { compassAccuracy, compassAssistState, handleCompassAssistToggle, stopCompassAssist } =
+    useCompassAssist({
+      activeIndexRef,
+      middleLoop,
+      scrollToIndex,
+      sectorCount,
+    });
+
+  const recenterIfNeeded = (index: number) => {
+    const loopIndex = Math.floor(index / sectorCount);
+    if (loopIndex > 1 && loopIndex < LOOP_REPETITIONS - 2) return;
+
+    const centeredIndex = middleLoop * sectorCount + (index % sectorCount);
+    if (centeredIndex === index) return;
+
+    scrollToIndex(centeredIndex, 'auto', true);
+  };
+
+  useEffect(
+    () => () => {
+      if (clearProgrammaticScrollTimerRef.current !== null) {
+        window.clearTimeout(clearProgrammaticScrollTimerRef.current);
+      }
+    },
+    []
+  );
+
+  const handleScroll = () => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+
+    const rawIndex = Math.round(scroller.scrollLeft / STEP_SIZE);
+    const nextIndex = Math.max(0, Math.min(sectors.length - 1, rawIndex));
+
+    if (programmaticScrollRef.current) {
+      setActiveIndex(nextIndex);
+      activeIndexRef.current = nextIndex;
+      return;
+    }
+
+    if (compassAssistState === 'tracking') {
+      stopCompassAssist();
+    }
+
+    setActiveIndex(nextIndex);
+    activeIndexRef.current = nextIndex;
+    recenterIfNeeded(nextIndex);
+  };
+
+  const handleSectorPress = (label: HorizonProfile['sectors'][number]['label']) => {
+    if (compassAssistState === 'tracking') {
+      stopCompassAssist();
+    }
+
+    onCycleSector(label);
+  };
+
+  const moveFocusBy = (offset: number) => {
+    if (compassAssistState === 'tracking') {
+      stopCompassAssist();
+    }
+
+    const nextIndex = Math.max(0, Math.min(activeIndex + offset, sectors.length - 1));
+    scrollToIndex(nextIndex);
+    focusButton(buttonRefs, nextIndex);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const label = event.currentTarget.dataset.sectorLabel as
+      | HorizonProfile['sectors'][number]['label']
+      | undefined;
+
+    switch (event.key) {
+      case 'ArrowRight':
+        event.preventDefault();
+        moveFocusBy(1);
+        return;
+      case 'ArrowLeft':
+        event.preventDefault();
+        moveFocusBy(-1);
+        return;
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+        if (label) {
+          if (compassAssistState === 'tracking') {
+            stopCompassAssist();
+          }
+          onCycleSector(label);
+        }
+        return;
+      default:
+        return;
+    }
+  };
+
+  const compassStatusText = getCompassStatusText(compassAssistState, compassAccuracy);
   const showCompassButton = compassAssistState !== 'unsupported';
   const showHeadingMarker = compassAssistState === 'tracking';
 
@@ -386,11 +444,7 @@ export default function AccessibleSkyControl({
               className="inline-flex items-center gap-1 rounded-md border border-sky-500/20 bg-sky-500/10 px-2.5 py-1.5 text-sky-200 text-xs transition-colors hover:bg-sky-500/15 disabled:cursor-wait disabled:opacity-70"
             >
               <Compass className="h-3.5 w-3.5" />
-              {compassAssistState === 'tracking'
-                ? 'Stop compass'
-                : compassAssistState === 'requesting'
-                  ? 'Waiting...'
-                  : 'Use phone compass'}
+              {getCompassButtonLabel(compassAssistState)}
             </button>
           ) : null}
           <button
@@ -405,15 +459,7 @@ export default function AccessibleSkyControl({
       </div>
 
       {showCompassButton ? (
-        <p
-          className={`mb-3 text-xs ${
-            compassAssistState === 'tracking'
-              ? 'text-sky-300'
-              : compassAssistState === 'denied' || compassAssistState === 'error'
-                ? 'text-amber-300'
-                : 'text-gray-500'
-          }`}
-        >
+        <p className={`mb-3 text-xs ${getCompassStatusClass(compassAssistState)}`}>
           {compassStatusText}
         </p>
       ) : null}
@@ -422,7 +468,7 @@ export default function AccessibleSkyControl({
         {showHeadingMarker ? (
           <>
             <div className="pointer-events-none absolute inset-y-3 left-1/2 z-10 w-px -translate-x-1/2 bg-sky-400/35" />
-            <div className="pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-sky-400/20 bg-night-950/90 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-sky-300/80">
+            <div className="pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-sky-400/20 bg-night-950/90 px-2 py-0.5 text-[10px] text-sky-300/80 uppercase tracking-[0.18em]">
               Heading
             </div>
           </>
@@ -454,7 +500,7 @@ export default function AccessibleSkyControl({
                     buttonRefs.current[index] = element;
                   }}
                   type="button"
-                  onClick={() => handleSectorPress(index, sector.label)}
+                  onClick={() => handleSectorPress(sector.label)}
                   onKeyDown={handleKeyDown}
                   data-sector-label={sector.label}
                   className={`relative shrink-0 snap-center overflow-hidden rounded-2xl border px-3 py-3 text-center transition-all duration-200 ${
@@ -475,7 +521,7 @@ export default function AccessibleSkyControl({
                     style={{ height: `${getBlockedHeightPercent(sector.minAltitude)}%` }}
                   />
                   <div
-                    className="pointer-events-none absolute inset-x-1.5 rounded-full border-t border-white/20"
+                    className="pointer-events-none absolute inset-x-1.5 rounded-full border-white/20 border-t"
                     style={{ bottom: `${getBlockedHeightPercent(sector.minAltitude)}%` }}
                   />
                   <div className="relative z-10 font-semibold text-sm tracking-[0.14em]">

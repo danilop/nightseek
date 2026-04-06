@@ -168,8 +168,8 @@ function SunspotRegionsSection({ swpcData }: { swpcData: SWPCData | null }) {
         Active Regions ({swpcData.sunspotRegions.length})
       </p>
       <div className="space-y-1">
-        {swpcData.sunspotRegions.slice(0, 3).map((region, i) => (
-          <div key={`${region.region}-${i}`} className="flex items-center justify-between text-sm">
+        {swpcData.sunspotRegions.slice(0, 3).map(region => (
+          <div key={region.region} className="flex items-center justify-between text-sm">
             <span className="text-gray-400">AR {region.region}</span>
             <div className="flex items-center gap-2">
               <span className="text-gray-300">
