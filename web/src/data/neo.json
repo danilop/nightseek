@@ -1,69 +1,40 @@
 {
-  "fetchedAt": "2026-04-05T07:07:09.040Z",
-  "startDate": "2026-04-05",
-  "endDate": "2026-04-11",
+  "fetchedAt": "2026-04-06T07:43:26.141Z",
+  "startDate": "2026-04-06",
+  "endDate": "2026-04-12",
   "data": {
-    "2026-04-11": [
-      {
-        "name": "2026 FE7",
-        "neoId": "54607053",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0208139725,
-          "max": 0.0465414574
-        },
-        "closeApproachDate": "2026-Apr-11 07:57",
-        "missDistanceLunarDistances": 8.8440835537,
-        "relativeVelocityKmh": 28266.4487922568,
-        "absoluteMagnitude": 25.531
-      }
-    ],
-    "2026-04-10": [
-      {
-        "name": "2022 GE2",
-        "neoId": "54269399",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0109283596,
-          "max": 0.0244365549
-        },
-        "closeApproachDate": "2026-Apr-10 02:12",
-        "missDistanceLunarDistances": 11.994555148,
-        "relativeVelocityKmh": 32979.9814419309,
-        "absoluteMagnitude": 26.93
-      }
-    ],
+    "2026-04-11": [],
+    "2026-04-12": [],
+    "2026-04-10": [],
     "2026-04-08": [],
     "2026-04-09": [],
-    "2026-04-06": [
+    "2026-04-06": [],
+    "2026-04-07": [
       {
-        "name": "2021 GN6",
-        "neoId": "54136202",
+        "name": "2011 FT9",
+        "neoId": "3560131",
         "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.0107784169,
-          "max": 0.0241012728
+          "min": 0.0152951935,
+          "max": 0.0342010925
         },
-        "closeApproachDate": "2026-Apr-06 08:49",
-        "missDistanceLunarDistances": 5.7675629989,
-        "relativeVelocityKmh": 25375.5617084824,
-        "absoluteMagnitude": 26.96
-      }
-    ],
-    "2026-04-07": [],
-    "2026-04-05": [
+        "closeApproachDate": "2026-Apr-07 00:22",
+        "missDistanceLunarDistances": 3.4354555228,
+        "relativeVelocityKmh": 21137.4564423535,
+        "absoluteMagnitude": 26.2
+      },
       {
-        "name": "2026 FW6",
-        "neoId": "54607045",
-        "isPotentiallyHazardous": false,
+        "name": "2002 TB70",
+        "neoId": "3137865",
+        "isPotentiallyHazardous": true,
         "estimatedDiameterKm": {
-          "min": 0.0199321881,
-          "max": 0.0445697275
+          "min": 0.1226182113,
+          "max": 0.2741826558
         },
-        "closeApproachDate": "2026-Apr-05 03:06",
-        "missDistanceLunarDistances": 15.3397790477,
-        "relativeVelocityKmh": 71346.6481677685,
-        "absoluteMagnitude": 25.625
+        "closeApproachDate": "2026-Apr-07 19:11",
+        "missDistanceLunarDistances": 13.388577493,
+        "relativeVelocityKmh": 33270.8119611549,
+        "absoluteMagnitude": 21.68
       }
     ]
   }
