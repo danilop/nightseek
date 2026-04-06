@@ -520,10 +520,6 @@ export default function AccessibleSkyControl({
                     className="pointer-events-none absolute inset-x-1.5 bottom-1.5 rounded-b-xl bg-night-950/55"
                     style={{ height: `${getBlockedHeightPercent(sector.minAltitude)}%` }}
                   />
-                  <div
-                    className="pointer-events-none absolute inset-x-1.5 rounded-full border-white/20 border-t"
-                    style={{ bottom: `${getBlockedHeightPercent(sector.minAltitude)}%` }}
-                  />
                   <div className="relative z-10 font-semibold text-sm tracking-[0.14em]">
                     {sector.label}
                   </div>
