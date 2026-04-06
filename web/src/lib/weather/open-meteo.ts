@@ -439,49 +439,115 @@ function getObservingReason(cloudCover: number): string {
   return 'Best conditions';
 }
 
+const HOUR_MS = 60 * 60 * 1000;
+const MIN_PRACTICAL_WINDOW_HOURS = 2;
+const MAX_BEST_WINDOW_HOURS = 3;
+const MAX_PRACTICAL_WINDOW_CLOUD_COVER = 60;
+const MIN_PRACTICAL_WINDOW_SCORE = 25;
+const LATE_WINDOW_SOFT_THRESHOLD_HOURS = 2.5;
+const LATE_WINDOW_HARD_THRESHOLD_HOURS = 1.5;
+
+interface PracticalWindowCandidate {
+  avgCloudCover: number;
+  end: Date;
+  score: number;
+  start: Date;
+}
+
+function getWindowDurationHours(startTime: number, endTime: number): number {
+  return (endTime - startTime) / HOUR_MS;
+}
+
+function scorePracticalWindowCandidate(
+  hourlyData: Map<number, HourlyWeather>,
+  times: number[],
+  startIndex: number,
+  endIndex: number,
+  dawnTime: number
+): PracticalWindowCandidate | null {
+  const startTime = times[startIndex];
+  const endTime = times[endIndex];
+  const durationHours = getWindowDurationHours(startTime, endTime);
+
+  if (durationHours < MIN_PRACTICAL_WINDOW_HOURS) return null;
+
+  const hoursBeforeDawn = (dawnTime - endTime) / HOUR_MS;
+  if (hoursBeforeDawn < LATE_WINDOW_HARD_THRESHOLD_HOURS) return null;
+
+  const windowHours: number[] = [];
+  const cloudCoverValues: number[] = [];
+
+  for (let index = startIndex; index <= endIndex; index++) {
+    const data = getOrDefault(hourlyData, times[index], { cloudCover: 100 } as HourlyWeather);
+    windowHours.push(scoreObservingHour(data));
+    cloudCoverValues.push(data.cloudCover);
+  }
+
+  const avgCloudCover = avg(cloudCoverValues);
+  if (avgCloudCover > MAX_PRACTICAL_WINDOW_CLOUD_COVER) return null;
+
+  let practicalScore = avg(windowHours);
+
+  if (durationHours >= MAX_BEST_WINDOW_HOURS) {
+    practicalScore += 5;
+  }
+
+  if (hoursBeforeDawn < LATE_WINDOW_SOFT_THRESHOLD_HOURS) {
+    practicalScore -= 8;
+  }
+
+  if (avgCloudCover > 50) {
+    practicalScore -= 12;
+  }
+
+  if (practicalScore < MIN_PRACTICAL_WINDOW_SCORE) return null;
+
+  return {
+    avgCloudCover,
+    end: new Date(endTime),
+    score: practicalScore,
+    start: new Date(startTime),
+  };
+}
+
 function findBestObservingTime(
   hourlyData: Map<number, HourlyWeather>,
   _duskTime: number,
-  _dawnTime: number
+  dawnTime: number
 ): BestObservingTime | null {
-  let bestScore = -1;
-  let bestStart: Date | null = null;
-  let bestEnd: Date | null = null;
-  let bestReason = '';
-
   const times = Array.from(hourlyData.keys()).sort((a, b) => a - b);
+  let bestCandidate: PracticalWindowCandidate | null = null;
 
-  for (let i = 0; i < times.length - 1; i++) {
-    const windowHours: number[] = [];
+  for (let startIndex = 0; startIndex < times.length; startIndex++) {
+    for (
+      let endIndex = startIndex + MIN_PRACTICAL_WINDOW_HOURS;
+      endIndex < Math.min(startIndex + MAX_BEST_WINDOW_HOURS + 1, times.length);
+      endIndex++
+    ) {
+      const candidate = scorePracticalWindowCandidate(
+        hourlyData,
+        times,
+        startIndex,
+        endIndex,
+        dawnTime
+      );
 
-    for (let j = i; j < Math.min(i + 3, times.length); j++) {
-      const data = getOrDefault(hourlyData, times[j], { cloudCover: 100 } as HourlyWeather);
-      windowHours.push(scoreObservingHour(data));
-    }
+      if (!candidate) continue;
 
-    if (windowHours.length > 0) {
-      const avgScore = avg(windowHours);
-      if (avgScore > bestScore) {
-        bestScore = avgScore;
-        bestStart = new Date(times[i]);
-        bestEnd = new Date(times[Math.min(i + 2, times.length - 1)]);
-
-        const data = getOrDefault(hourlyData, times[i], { cloudCover: 100 } as HourlyWeather);
-        bestReason = getObservingReason(data.cloudCover);
+      if (!bestCandidate || candidate.score > bestCandidate.score) {
+        bestCandidate = candidate;
       }
     }
   }
 
-  if (bestStart && bestEnd && bestScore > 20) {
-    return {
-      start: bestStart,
-      end: bestEnd,
-      score: bestScore,
-      reason: bestReason || 'Least cloudy period',
-    };
-  }
+  if (!bestCandidate) return null;
 
-  return null;
+  return {
+    start: bestCandidate.start,
+    end: bestCandidate.end,
+    score: bestCandidate.score,
+    reason: getObservingReason(bestCandidate.avgCloudCover),
+  };
 }
 
 // ─── Historical Weather ──────────────────────────────────────────────────────

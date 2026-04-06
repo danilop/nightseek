@@ -353,21 +353,21 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
     <div className="rounded-xl border border-night-700 bg-night-900 p-4">
       <div className="space-y-2">
         <h3 className="font-semibold text-white">
-          <Tooltip content="Headline rating is based on the best observing window in the night. Whole-night average is shown below it.">
+          <Tooltip content="Headline rating is based on the best practical observing window in the night. If no practical window exists, it falls back to the whole-night average.">
             <span>{getNightLabel(nightInfo.date, true)} Rating</span>
           </Tooltip>
         </h3>
         <div
           className={`flex items-center gap-2 font-bold text-xl ${headlineQuality.rating.color}`}
         >
-          <Tooltip content="5 stars = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor. Headline score uses the best observing window when one exists.">
+          <Tooltip content="5 stars = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor. Headline score uses the best practical observing window when one exists.">
             <span>{headlineQuality.rating.starString}</span>
           </Tooltip>
           <span>{headlineQuality.rating.label}</span>
         </div>
         {weather?.bestTime ? (
           <p className="text-green-400 text-sm">
-            <Tooltip content="The headline rating is scored from this best observing window, not the whole-night average.">
+            <Tooltip content="The headline rating is scored from this best practical observing window, not the whole-night average.">
               <span>
                 Best window:{' '}
                 <span className="whitespace-nowrap">
@@ -376,6 +376,8 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
               </span>
             </Tooltip>
           </p>
+        ) : weather ? (
+          <p className="text-amber-300 text-sm">No practical multi-hour imaging window found.</p>
         ) : null}
         <p className="text-gray-400 text-sm">{headlineQuality.summary}</p>
         {topPenalties.length > 0 && (

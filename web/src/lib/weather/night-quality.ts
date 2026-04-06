@@ -18,7 +18,7 @@ export interface NightQualityFactors {
 }
 
 export interface NightQualityPenalty {
-  key: keyof NightQualityFactors;
+  key: keyof NightQualityFactors | 'practicality';
   detail: string;
   penalty: number;
 }
@@ -32,6 +32,11 @@ export interface NightQualityMetrics {
   dewRiskHours: number | null;
   totalHours: number;
   windSpeedKmh: number | null;
+}
+
+interface PracticalWindowPenalty {
+  detail: string;
+  penalty: number;
 }
 
 export interface NightQuality {
@@ -198,7 +203,8 @@ function buildBestWindowMetrics(
 
 function buildPenaltyBreakdown(
   metrics: NightQualityMetrics,
-  factors: NightQualityFactors
+  factors: NightQualityFactors,
+  practicalWindowPenalty: PracticalWindowPenalty | null = null
 ): NightQualityPenalty[] {
   const penalties: NightQualityPenalty[] = [
     {
@@ -238,6 +244,14 @@ function buildPenaltyBreakdown(
       penalty: 100 - factors.wind,
     },
   ];
+
+  if (practicalWindowPenalty) {
+    penalties.push({
+      key: 'practicality',
+      detail: practicalWindowPenalty.detail,
+      penalty: practicalWindowPenalty.penalty,
+    });
+  }
 
   return penalties.filter(penalty => penalty.penalty > 0).sort((a, b) => b.penalty - a.penalty);
 }
@@ -289,7 +303,80 @@ function generateSummary(factors: NightQualityFactors, metrics: NightQualityMetr
   return descriptions.join(', ') || 'Average conditions';
 }
 
-function calculateFromMetrics(metrics: NightQualityMetrics): NightQuality {
+function buildPracticalWindowPenalty(
+  metrics: NightQualityMetrics,
+  weather: NightWeather | null,
+  nightInfo: NightInfo
+): PracticalWindowPenalty | null {
+  if (metrics.source !== 'best_window' || !weather?.bestTime) return null;
+
+  const durationHours =
+    (weather.bestTime.end.getTime() - weather.bestTime.start.getTime()) / (1000 * 60 * 60);
+  const hoursBeforeDawn =
+    (nightInfo.astronomicalDawn.getTime() - weather.bestTime.end.getTime()) / (1000 * 60 * 60);
+
+  let penalty = 0;
+  const detailParts: string[] = [];
+
+  if (durationHours < 2) {
+    penalty += 20;
+    detailParts.push('short 1h window');
+  } else if (durationHours < 3) {
+    penalty += 6;
+    detailParts.push('short 2h window');
+  }
+
+  if (hoursBeforeDawn < 1.5) {
+    penalty += 18;
+    detailParts.push('near dawn');
+  } else if (hoursBeforeDawn < 2.5) {
+    penalty += 10;
+    detailParts.push('late window');
+  }
+
+  if (metrics.cloudCover !== null) {
+    if (metrics.cloudCover > 60) {
+      penalty += 12;
+    } else if (metrics.cloudCover > 50) {
+      penalty += 6;
+    }
+  }
+
+  if (penalty === 0 || detailParts.length === 0) return null;
+
+  return {
+    detail: detailParts.join(', '),
+    penalty,
+  };
+}
+
+function applyPracticalWindowScoreCaps(
+  score: number,
+  metrics: NightQualityMetrics,
+  practicalWindowPenalty: PracticalWindowPenalty | null
+): number {
+  let cappedScore = score;
+
+  if (metrics.source === 'best_window' && metrics.cloudCover !== null) {
+    if (metrics.cloudCover > 60) {
+      cappedScore = Math.min(cappedScore, 34);
+    } else if (metrics.cloudCover > 50) {
+      cappedScore = Math.min(cappedScore, 49);
+    }
+  }
+
+  if (practicalWindowPenalty?.detail.includes('near dawn')) {
+    cappedScore = Math.min(cappedScore, 49);
+  }
+
+  return cappedScore;
+}
+
+function calculateFromMetrics(
+  metrics: NightQualityMetrics,
+  weather: NightWeather | null = null,
+  nightInfo: NightInfo | null = null
+): NightQuality {
   const factors: NightQualityFactors = {
     clouds: metrics.cloudCover !== null ? calculateCloudScore(metrics.cloudCover) : 50,
     transparency: calculateTransparencyScore(metrics.transparencyScore),
@@ -319,12 +406,21 @@ function calculateFromMetrics(metrics: NightQualityMetrics): NightQuality {
     }
   }
 
+  const practicalWindowPenalty =
+    weather && nightInfo ? buildPracticalWindowPenalty(metrics, weather, nightInfo) : null;
+
+  if (practicalWindowPenalty) {
+    score = Math.max(0, score - practicalWindowPenalty.penalty);
+  }
+
+  score = applyPracticalWindowScoreCaps(score, metrics, practicalWindowPenalty);
+
   return {
     score,
     rating: getRatingFromPercentage(score),
     summary: generateSummary(factors, metrics),
     factors,
-    penalties: buildPenaltyBreakdown(metrics, factors),
+    penalties: buildPenaltyBreakdown(metrics, factors, practicalWindowPenalty),
     metrics,
   };
 }
@@ -336,7 +432,7 @@ export function calculateNightQuality(
   weather: NightWeather | null,
   nightInfo: NightInfo
 ): NightQuality {
-  return calculateFromMetrics(buildWholeNightMetrics(weather, nightInfo));
+  return calculateFromMetrics(buildWholeNightMetrics(weather, nightInfo), weather, nightInfo);
 }
 
 /**
@@ -352,5 +448,5 @@ export function calculateHeadlineNightQuality(
   const bestWindowMetrics = buildBestWindowMetrics(weather, nightInfo);
   if (!bestWindowMetrics) return calculateNightQuality(weather, nightInfo);
 
-  return calculateFromMetrics(bestWindowMetrics);
+  return calculateFromMetrics(bestWindowMetrics, weather, nightInfo);
 }

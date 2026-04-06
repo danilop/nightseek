@@ -376,5 +376,77 @@ describe('night-quality', () => {
       expect(topPenaltyDetails).toContain('75% moon');
       expect(topPenaltyDetails).toContain('fair seeing');
     });
+
+    it('does not keep a near-dawn one-hour slot in Very Good territory', () => {
+      const nightInfo = createMockNightInfo({
+        astronomicalDusk: new Date('2025-01-15T21:00:00Z'),
+        astronomicalDawn: new Date('2025-01-16T03:08:00Z'),
+        moonIllumination: 45,
+      });
+      const weather = createMockNightWeather({
+        avgCloudCover: 84,
+        avgWindSpeedKmh: 15,
+        transparencyScore: 76,
+        avgHumidity: 70,
+        avgTemperatureC: 11,
+        dewRiskHours: 0,
+        bestTime: {
+          start: new Date('2025-01-16T02:00:00Z'),
+          end: new Date('2025-01-16T03:00:00Z'),
+          score: 37.5,
+          reason: 'Best conditions',
+        },
+        hourlyData: new Map([
+          [
+            new Date('2025-01-16T02:00:00Z').getTime(),
+            {
+              cloudCover: 66,
+              visibility: 10000,
+              windSpeed: 14.8,
+              windGust: 29.2,
+              humidity: 78,
+              temperature: 11,
+              dewPoint: 7.3,
+              precipProbability: 0,
+              precipitation: 0,
+              pressure: 1012,
+              cape: 0,
+              aod: null,
+              pm25: null,
+              pm10: null,
+              dust: null,
+            },
+          ],
+          [
+            new Date('2025-01-16T03:00:00Z').getTime(),
+            {
+              cloudCover: 59,
+              visibility: 10000,
+              windSpeed: 14,
+              windGust: 28.1,
+              humidity: 79,
+              temperature: 10.6,
+              dewPoint: 7.1,
+              precipProbability: 0,
+              precipitation: 0,
+              pressure: 1012,
+              cape: 0,
+              aod: null,
+              pm25: null,
+              pm10: null,
+              dust: null,
+            },
+          ],
+        ]),
+      });
+
+      const quality = calculateHeadlineNightQuality(weather, nightInfo);
+
+      expect(quality.score).toBeLessThan(50);
+      expect(quality.rating.tier).not.toBe('very_good');
+      expect(quality.penalties.map(penalty => penalty.detail)).toContain(
+        'short 1h window, near dawn'
+      );
+    });
   });
 });
