@@ -71,6 +71,10 @@ function getHeadingFromOrientationEvent(event: BrowserDeviceOrientationEvent): {
   };
 }
 
+function getBlockedHeightPercent(minAltitude: number): number {
+  return Math.max(0, Math.min((minAltitude / 90) * 100, 100));
+}
+
 export default function AccessibleSkyControl({
   horizonProfile,
   onCycleSector,
@@ -224,20 +228,19 @@ export default function AccessibleSkyControl({
     recenterIfNeeded(nextIndex);
   };
 
-  const handleSectorPress = (index: number, label: HorizonProfile['sectors'][number]['label']) => {
-    if (index === activeIndex) {
-      onCycleSector(label);
-      return;
-    }
-
+  const handleSectorPress = (_index: number, label: HorizonProfile['sectors'][number]['label']) => {
     if (compassAssistState === 'tracking') {
       stopCompassAssist();
     }
 
-    scrollToIndex(index);
+    onCycleSector(label);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const label = event.currentTarget.dataset.sectorLabel as
+      | HorizonProfile['sectors'][number]['label']
+      | undefined;
+
     if (event.key === 'ArrowRight') {
       event.preventDefault();
       if (compassAssistState === 'tracking') {
@@ -262,7 +265,9 @@ export default function AccessibleSkyControl({
 
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      onCycleSector(activeSectorLabel);
+      if (label) {
+        onCycleSector(label);
+      }
     }
   };
 
@@ -330,7 +335,7 @@ export default function AccessibleSkyControl({
           ? 'Motion/orientation access was denied.'
           : compassAssistState === 'error'
             ? 'Compass heading is unavailable on this device.'
-            : 'Use your phone heading to focus the correct horizon sector.';
+            : 'Use your phone heading to align the center marker with the horizon.';
 
   const showCompassButton = compassAssistState !== 'unsupported';
 
@@ -343,7 +348,7 @@ export default function AccessibleSkyControl({
             <h4 className="font-medium text-sm text-white">Accessible sky</h4>
           </div>
           <p className="mt-1 text-gray-400 text-xs">
-            Swipe across the horizon, or use arrow keys on desktop. Tap the focused direction to
+            Swipe across the horizon, or use arrow keys on desktop. Tap any visible direction to
             cycle its minimum visible altitude.
           </p>
         </div>
@@ -376,6 +381,7 @@ export default function AccessibleSkyControl({
 
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/8 px-3 py-1.5">
+          <span className="text-[11px] uppercase tracking-[0.16em] text-sky-300/80">Centered</span>
           <span className="font-semibold text-sky-200 text-sm">{activeSectorLabel}</span>
           <span
             className={`rounded-full border px-2 py-0.5 font-medium text-[11px] ${getSectorToneClass(activeMinAltitude)}`}
@@ -383,7 +389,9 @@ export default function AccessibleSkyControl({
             {getSectorAltitudeLabel(activeMinAltitude)}
           </span>
         </div>
-        <p className="text-gray-500 text-xs">Focused sector controls target visibility below.</p>
+        <p className="text-gray-500 text-xs">
+          The center line shows the current heading reference.
+        </p>
       </div>
 
       {showCompassButton ? (
@@ -403,7 +411,7 @@ export default function AccessibleSkyControl({
       <div className="relative">
         <div className="pointer-events-none absolute inset-y-3 left-1/2 z-10 w-px -translate-x-1/2 bg-sky-400/35" />
         <div className="pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-sky-400/20 bg-night-950/90 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-sky-300/80">
-          Focus
+          Heading
         </div>
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-night-900 to-transparent" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-night-900 to-transparent" />
@@ -434,7 +442,8 @@ export default function AccessibleSkyControl({
                   type="button"
                   onClick={() => handleSectorPress(index, sector.label)}
                   onKeyDown={handleKeyDown}
-                  className={`shrink-0 snap-center rounded-2xl border px-3 py-3 text-center transition-all duration-200 ${
+                  data-sector-label={sector.label}
+                  className={`relative shrink-0 snap-center overflow-hidden rounded-2xl border px-3 py-3 text-center transition-all duration-200 ${
                     isActive
                       ? 'scale-100 shadow-[0_0_0_1px_rgba(56,189,248,0.24)]'
                       : 'scale-[0.96] opacity-75 hover:opacity-100'
@@ -442,11 +451,23 @@ export default function AccessibleSkyControl({
                   style={{ width: `${CARD_WIDTH}px` }}
                   title={`${sector.label}: ${getSectorAltitudeLabel(sector.minAltitude)}`}
                   aria-label={`${sector.label}, ${getSectorAltitudeLabel(sector.minAltitude)}${
-                    isActive ? ', active sector. Press to change blockage.' : ', press to focus.'
+                    isActive
+                      ? ', centered under the heading marker. Press to change blockage.'
+                      : ', press to change blockage.'
                   }`}
                 >
-                  <div className="font-semibold text-sm tracking-[0.14em]">{sector.label}</div>
-                  <div className="mt-1 text-[11px]">
+                  <div
+                    className="pointer-events-none absolute inset-x-1.5 bottom-1.5 rounded-b-xl bg-night-950/55"
+                    style={{ height: `${getBlockedHeightPercent(sector.minAltitude)}%` }}
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-x-1.5 rounded-full border-t border-white/20"
+                    style={{ bottom: `${getBlockedHeightPercent(sector.minAltitude)}%` }}
+                  />
+                  <div className="relative z-10 font-semibold text-sm tracking-[0.14em]">
+                    {sector.label}
+                  </div>
+                  <div className="relative z-10 mt-1 text-[11px]">
                     {getSectorAltitudeLabel(sector.minAltitude)}
                   </div>
                 </button>
@@ -457,8 +478,8 @@ export default function AccessibleSkyControl({
       </div>
 
       <p className="mt-3 text-gray-500 text-xs">
-        Scroll around the compass to review each horizon sector. Tap the centered tile to move from
-        Open to 15°, 30°, 45°, then Blocked.
+        Scroll around the compass to review each horizon sector. Tap any tile to move from Open to
+        15°, 30°, 45°, then Blocked.
       </p>
     </div>
   );

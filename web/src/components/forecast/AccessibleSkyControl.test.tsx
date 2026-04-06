@@ -21,7 +21,7 @@ beforeAll(() => {
 });
 
 describe('AccessibleSkyControl', () => {
-  it('cycles the currently focused sector when the active tile is pressed', () => {
+  it('cycles the centered sector when its tile is pressed', () => {
     const handleCycle = vi.fn();
 
     render(
@@ -32,7 +32,11 @@ describe('AccessibleSkyControl', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /^n, open, active sector/i }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /^n, open, centered under the heading marker\. press to change blockage\./i,
+      })
+    );
 
     expect(handleCycle).toHaveBeenCalledWith('N');
   });
@@ -48,16 +52,20 @@ describe('AccessibleSkyControl', () => {
       />
     );
 
-    const activeNorth = screen.getByRole('button', { name: /^n, open, active sector/i });
+    const activeNorth = screen.getByRole('button', {
+      name: /^n, open, centered under the heading marker\. press to change blockage\./i,
+    });
     fireEvent.keyDown(activeNorth, { key: 'ArrowRight' });
 
-    const activeNorthEast = screen.getByRole('button', { name: /^ne, open, active sector/i });
+    const activeNorthEast = screen.getByRole('button', {
+      name: /^ne, open, centered under the heading marker\. press to change blockage\./i,
+    });
     fireEvent.keyDown(activeNorthEast, { key: 'Enter' });
 
     expect(handleCycle).toHaveBeenCalledWith('NE');
   });
 
-  it('focuses an off-center tile on the first tap and cycles it on the second tap', () => {
+  it('cycles an off-center tile on the first tap', () => {
     const handleCycle = vi.fn();
 
     render(
@@ -68,10 +76,9 @@ describe('AccessibleSkyControl', () => {
       />
     );
 
-    const southTile = screen.getAllByRole('button', { name: /^s, open, press to focus/i })[0];
-
-    fireEvent.click(southTile);
-    expect(handleCycle).not.toHaveBeenCalled();
+    const southTile = screen.getAllByRole('button', {
+      name: /^s, open, press to change blockage\./i,
+    })[0];
 
     fireEvent.click(southTile);
     expect(handleCycle).toHaveBeenCalledWith('S');
@@ -130,7 +137,11 @@ describe('AccessibleSkyControl', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /^s, open, active sector/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /^s, open, centered under the heading marker\. press to change blockage\./i,
+        })
+      ).toBeInTheDocument();
     });
   });
 });
