@@ -92,7 +92,7 @@ describe('rating utilities', () => {
 
     it('should return correct colors for each tier', () => {
       expect(getRatingFromPercentage(80).color).toBe('text-green-400'); // excellent
-      expect(getRatingFromPercentage(60).color).toBe('text-yellow-400'); // very_good
+      expect(getRatingFromPercentage(60).color).toBe('text-lime-400'); // very_good
       expect(getRatingFromPercentage(40).color).toBe('text-orange-400'); // good
       expect(getRatingFromPercentage(25).color).toBe('text-red-400'); // fair
       expect(getRatingFromPercentage(10).color).toBe('text-blue-400'); // poor
@@ -171,7 +171,7 @@ describe('rating utilities', () => {
   describe('getRatingColorClass', () => {
     it('should return correct color class for each tier', () => {
       expect(getRatingColorClass('excellent')).toBe('text-green-400');
-      expect(getRatingColorClass('very_good')).toBe('text-yellow-400');
+      expect(getRatingColorClass('very_good')).toBe('text-lime-400');
       expect(getRatingColorClass('good')).toBe('text-orange-400');
       expect(getRatingColorClass('fair')).toBe('text-red-400');
       expect(getRatingColorClass('poor')).toBe('text-blue-400');
@@ -193,7 +193,7 @@ describe('rating utilities', () => {
         'text-blue-400', // poor (worst)
         'text-red-400', // fair
         'text-orange-400', // good
-        'text-yellow-400', // very_good
+        'text-lime-400', // very_good
         'text-green-400', // excellent (best)
       ]);
     });

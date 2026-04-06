@@ -1,7 +1,7 @@
 import { Star } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { getMoonPhaseEmoji } from '@/lib/utils/format';
-import { calculateNightQuality } from '@/lib/weather/night-quality';
+import { calculateHeadlineNightQuality } from '@/lib/weather/night-quality';
 import type { NightForecast } from '@/types';
 
 interface NightStripProps {
@@ -25,7 +25,7 @@ export default function NightStrip({
 
   // Memoize quality calculations to avoid recomputing on every render
   const nightQualities = useMemo(
-    () => forecasts.map(f => calculateNightQuality(f.weather, f.nightInfo)),
+    () => forecasts.map(f => calculateHeadlineNightQuality(f.weather, f.nightInfo)),
     [forecasts]
   );
 

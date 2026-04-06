@@ -491,7 +491,7 @@ describe('scoring', () => {
     it('should include correct color class for each tier', () => {
       // New color scale: blue (poor) → red (fair) → orange (good) → yellow (very_good) → green (excellent)
       expect(getTierConfig('excellent').color).toBe('text-green-400');
-      expect(getTierConfig('very_good').color).toBe('text-yellow-400');
+      expect(getTierConfig('very_good').color).toBe('text-lime-400');
       expect(getTierConfig('good').color).toBe('text-orange-400');
       expect(getTierConfig('fair').color).toBe('text-red-400');
       expect(getTierConfig('poor').color).toBe('text-blue-400');

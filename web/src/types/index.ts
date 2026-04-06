@@ -103,6 +103,7 @@ export interface ObjectVisibility {
   magnitude: number | null;
   isInterstellar: boolean;
   altitudeSamples: [Date, number][];
+  azimuthSamples: [Date, number][];
   subtype: DSOSubtype | null;
   angularSizeArcmin: number;
   minorAxisArcmin?: number;
@@ -290,6 +291,18 @@ export interface Location {
   longitude: number;
   name?: string;
   timezone?: string;
+}
+
+export type HorizonSectorLabel = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
+
+export interface HorizonSector {
+  label: HorizonSectorLabel;
+  centerAzimuth: number;
+  minAltitude: number;
+}
+
+export interface HorizonProfile {
+  sectors: HorizonSector[];
 }
 
 export type TemperatureUnit = 'celsius' | 'fahrenheit';

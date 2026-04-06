@@ -33,6 +33,7 @@ function makeScoredObject(
       magnitude: 10,
       isInterstellar: false,
       altitudeSamples: [],
+      azimuthSamples: [],
       subtype: 'galaxy',
       angularSizeArcmin: 10,
       surfaceBrightness: null,

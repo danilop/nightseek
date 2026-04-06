@@ -1,0 +1,622 @@
+import { ChevronDown, ChevronRight, Clock, Compass, Crosshair, Map as MapIcon } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeviceCompass } from '@/hooks/useDeviceCompass';
+import { getNightLabel } from '@/lib/utils/format';
+import type { Location, NightInfo } from '@/types';
+
+/**
+ * Calculate the slider position (0-100) for a given time within the night range.
+ * Returns null if the time is outside the sunset-sunrise range.
+ */
+function getSliderPositionForTime(time: Date, sunset: Date, sunrise: Date): number | null {
+  const startTime = sunset.getTime();
+  const endTime = sunrise.getTime();
+  const currentMs = time.getTime();
+
+  if (currentMs < startTime || currentMs > endTime) {
+    return null;
+  }
+
+  const timeRange = endTime - startTime;
+  return ((currentMs - startTime) / timeRange) * 100;
+}
+
+// d3-celestial must be loaded via script tag because it uses old D3 v3 that expects browser globals
+// biome-ignore lint/suspicious/noExplicitAny: d3-celestial loaded via global script
+declare const Celestial: any;
+
+interface SkyChartProps {
+  nightInfo: NightInfo;
+  location: Location;
+}
+
+// Responsive config thresholds (Tailwind breakpoints)
+const SMALL_SCREEN_WIDTH = 640;
+const MEDIUM_SCREEN_WIDTH = 1024;
+
+/** Reusable toggle button for display options */
+function ToggleButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-3 py-1.5 font-medium text-xs transition-colors ${
+        active
+          ? 'border border-white/30 bg-white/10 text-white'
+          : 'border border-night-700 bg-night-800 text-gray-500'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+export default function SkyChart({ nightInfo, location }: SkyChartProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const getInitialSliderPosition = useCallback(() => {
+    const nowPosition = getSliderPositionForTime(new Date(), nightInfo.sunset, nightInfo.sunrise);
+    return nowPosition ?? 50;
+  }, [nightInfo.sunset, nightInfo.sunrise]);
+
+  const [selectedTime, setSelectedTime] = useState<number>(getInitialSliderPosition);
+
+  const animationRef = useRef<number | null>(null);
+
+  const handleNowClick = useCallback(() => {
+    const nowPosition = getSliderPositionForTime(new Date(), nightInfo.sunset, nightInfo.sunrise);
+    if (nowPosition === null) return;
+
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+
+    const startPosition = selectedTime;
+    const distance = nowPosition - startPosition;
+    const duration = 400;
+    const startTime = performance.now();
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - (1 - progress) ** 3;
+      const newPosition = startPosition + distance * eased;
+
+      setSelectedTime(newPosition);
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        animationRef.current = null;
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+  }, [nightInfo.sunset, nightInfo.sunrise, selectedTime]);
+
+  const isNowInNightRange = useMemo(() => {
+    return getSliderPositionForTime(new Date(), nightInfo.sunset, nightInfo.sunrise) !== null;
+  }, [nightInfo.sunset, nightInfo.sunrise]);
+
+  const handleCenterView = useCallback(() => {
+    if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
+
+    try {
+      const zenith = Celestial.zenith();
+      if (zenith) {
+        Celestial.rotate({ center: [zenith[0], zenith[1], 0] });
+        Celestial.redraw();
+      }
+    } catch {
+      // Celestial not ready
+    }
+  }, []);
+
+  const getIsSmallScreen = useCallback(() => {
+    return (typeof window !== 'undefined' ? window.innerWidth : 1024) < SMALL_SCREEN_WIDTH;
+  }, []);
+
+  const [showStars, setShowStars] = useState(true);
+  const [showDSOs, setShowDSOs] = useState(() => !getIsSmallScreen());
+  const [showConstellations, setShowConstellations] = useState(true);
+  const [showLines, setShowLines] = useState(() => !getIsSmallScreen());
+  const [showMilkyWay, setShowMilkyWay] = useState(() => !getIsSmallScreen());
+  const [showPlanets, setShowPlanets] = useState(true);
+  const [showNames, setShowNames] = useState(() => !getIsSmallScreen());
+
+  const { compassAvailable, compassEnabled, compassHeading, toggleCompass } = useDeviceCompass();
+  const lastOrientationRef = useRef<number>(0);
+
+  const celestialInitialized = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const initialTimeRef = useRef<Date | null>(null);
+
+  const currentTime = useMemo(() => {
+    const startTime = nightInfo.sunset.getTime();
+    const endTime = nightInfo.sunrise.getTime();
+    const timeRange = endTime - startTime;
+    return new Date(startTime + (selectedTime / 100) * timeRange);
+  }, [nightInfo.sunset, nightInfo.sunrise, selectedTime]);
+
+  const formatTime = useCallback((date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }, []);
+
+  // Initialize d3-celestial — loads from LOCAL vendor scripts (not CDN)
+  useEffect(() => {
+    if (!expanded) return;
+    if (celestialInitialized.current) return;
+
+    initialTimeRef.current = currentTime;
+
+    const loadScript = (src: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) {
+          resolve();
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = false;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(script);
+      });
+    };
+
+    const loadCelestialScript = async (): Promise<void> => {
+      if (typeof Celestial !== 'undefined') return;
+
+      // NATIVE: Load from bundled vendor files instead of CDN
+      // biome-ignore lint/suspicious/noExplicitAny: d3 loaded via global script
+      if (typeof (window as any).d3 === 'undefined') {
+        await loadScript('/vendor/d3-celestial/d3.min.js');
+      }
+      await loadScript('/vendor/d3-celestial/celestial.min.js');
+
+      await new Promise<void>(resolve => {
+        const checkLoaded = setInterval(() => {
+          if (typeof Celestial !== 'undefined') {
+            clearInterval(checkLoaded);
+            resolve();
+          }
+        }, 50);
+      });
+    };
+
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: d3-celestial config requires many options
+    const initCelestial = async () => {
+      try {
+        await loadCelestialScript();
+      } catch {
+        return;
+      }
+
+      await new Promise<void>(resolve => {
+        const checkReady = () => {
+          const mapDiv = document.getElementById('celestial-map');
+          if (mapDiv) {
+            requestAnimationFrame(() => {
+              mapDiv.innerHTML = '';
+              resolve();
+            });
+          } else {
+            requestAnimationFrame(checkReady);
+          }
+        };
+        checkReady();
+      });
+
+      // NATIVE: Use local data path instead of CDN
+      const dataPath = '/vendor/d3-celestial/data/';
+
+      const containerWidth = containerRef.current?.clientWidth ?? window.innerWidth;
+      const isSmall = containerWidth < SMALL_SCREEN_WIDTH;
+      const isLarge = containerWidth >= MEDIUM_SCREEN_WIDTH;
+
+      const starLimit = isSmall ? 4.5 : isLarge ? 6 : 5.5;
+      const starPropernameLimit = isSmall ? 1.5 : isLarge ? 3 : 2.5;
+      const dsoNameLimit = isSmall ? 4 : isLarge ? 8 : 6;
+      const starSize = isSmall ? 4 : isLarge ? 6 : 5;
+      const starFontSize = isSmall ? '7px' : isLarge ? '11px' : '10px';
+      const dsoFontSize = isSmall ? '7px' : isLarge ? '11px' : '10px';
+      const constellationFonts = isSmall
+        ? [
+            "8px 'Helvetica Neue', Arial, sans-serif",
+            "7px 'Helvetica Neue', Arial, sans-serif",
+            "6px 'Helvetica Neue', Arial, sans-serif",
+          ]
+        : isLarge
+          ? [
+              "14px 'Helvetica Neue', Arial, sans-serif",
+              "13px 'Helvetica Neue', Arial, sans-serif",
+              "12px 'Helvetica Neue', Arial, sans-serif",
+            ]
+          : [
+              "12px 'Helvetica Neue', Arial, sans-serif",
+              "11px 'Helvetica Neue', Arial, sans-serif",
+              "10px 'Helvetica Neue', Arial, sans-serif",
+            ];
+      const planetFontSize = isSmall ? '11px' : isLarge ? '18px' : '17px';
+      const planetNameFontSize = isSmall ? '9px' : isLarge ? '15px' : '14px';
+
+      const config = {
+        container: 'celestial-map',
+        datapath: dataPath,
+        width: 0,
+        projection: 'stereographic',
+        transform: 'equatorial',
+        follow: 'zenith',
+        geopos: [location.latitude, location.longitude],
+        zoomlevel: null,
+        zoomextend: isSmall ? 5 : isLarge ? 12 : 10,
+        interactive: true,
+        disableAnimations: false,
+        form: false,
+        location: true,
+        controls: false,
+        lang: '',
+        background: {
+          fill: '#0f172a',
+          opacity: 1,
+          stroke: '#334155',
+          width: 1.5,
+        },
+        horizon: {
+          show: true,
+          stroke: '#475569',
+          width: isSmall ? 1 : isLarge ? 2 : 1.5,
+          fill: '#0f172a',
+          opacity: 0.8,
+        },
+        stars: {
+          show: true,
+          limit: starLimit,
+          colors: true,
+          style: { fill: '#ffffff', opacity: 0.85 },
+          size: starSize,
+          propername: !isSmall,
+          propernameLimit: starPropernameLimit,
+          propernameStyle: {
+            fill: '#94a3b8',
+            font: `${starFontSize} 'Helvetica Neue', Arial, sans-serif`,
+            align: 'right',
+            baseline: 'bottom',
+          },
+        },
+        dsos: {
+          show: !isSmall,
+          names: !isSmall,
+          nameLimit: dsoNameLimit,
+          colors: true,
+          size: isSmall ? 4 : null,
+          nameStyle: {
+            font: `${dsoFontSize} 'Helvetica Neue', Arial, sans-serif`,
+          },
+        },
+        constellations: {
+          show: true,
+          names: !isSmall,
+          lines: true,
+          namesType: 'iau',
+          nameStyle: {
+            fill: '#818cf8',
+            align: 'center',
+            baseline: 'middle',
+            font: constellationFonts,
+          },
+          lineStyle: { stroke: '#6366f180', width: isSmall ? 0.5 : isLarge ? 1.5 : 1 },
+        },
+        mw: {
+          show: !isSmall,
+          style: { fill: '#64748b', opacity: 0.12 },
+        },
+        lines: {
+          graticule: { show: false },
+          equatorial: { show: false },
+          ecliptic: { show: !isSmall },
+          galactic: { show: false },
+          supergalactic: { show: false },
+        },
+        planets: {
+          show: true,
+          names: !isSmall,
+          symbolStyle: {
+            font: `bold ${planetFontSize} 'Lucida Sans Unicode', sans-serif`,
+          },
+          nameStyle: {
+            font: `${planetNameFontSize} 'Lucida Sans Unicode', sans-serif`,
+          },
+        },
+        daylight: {
+          show: false,
+        },
+      };
+
+      try {
+        Celestial.display(config);
+
+        const initTime = initialTimeRef.current ?? new Date();
+        Celestial.date(initTime);
+        Celestial.location([location.latitude, location.longitude]);
+
+        const zenith = Celestial.zenith();
+        if (zenith) {
+          Celestial.rotate({ center: zenith });
+        }
+
+        celestialInitialized.current = true;
+      } catch {
+        // Celestial initialization failed silently
+      }
+    };
+
+    initCelestial();
+  }, [expanded, location.latitude, location.longitude, currentTime]);
+
+  // Update when time changes
+  useEffect(() => {
+    if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
+
+    try {
+      Celestial.date(currentTime);
+
+      const zenith = Celestial.zenith();
+      if (zenith) {
+        const orientation = compassEnabled ? lastOrientationRef.current : 0;
+        Celestial.rotate({ center: [zenith[0], zenith[1], orientation] });
+      }
+
+      Celestial.redraw();
+    } catch {
+      // Celestial not ready
+    }
+  }, [currentTime, compassEnabled]);
+
+  // Update display options
+  useEffect(() => {
+    if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
+
+    try {
+      Celestial.apply({
+        stars: {
+          show: showStars,
+          propername: showStars && showNames,
+        },
+        dsos: {
+          show: showDSOs,
+          names: showDSOs && showNames,
+        },
+        constellations: {
+          show: showConstellations,
+          names: showConstellations && showNames,
+          lines: showConstellations,
+        },
+        mw: { show: showMilkyWay },
+        lines: {
+          graticule: { show: false },
+          equatorial: { show: false },
+          ecliptic: { show: showLines },
+          galactic: { show: false },
+          supergalactic: { show: false },
+        },
+        planets: {
+          show: showPlanets,
+          names: showPlanets && showNames,
+        },
+      });
+    } catch {
+      // Celestial not ready
+    }
+  }, [showStars, showDSOs, showConstellations, showLines, showMilkyWay, showPlanets, showNames]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+
+      if (celestialInitialized.current && typeof Celestial !== 'undefined') {
+        try {
+          Celestial.clear();
+          const mapDiv = document.getElementById('celestial-map');
+          if (mapDiv) mapDiv.innerHTML = '';
+        } catch {
+          // Ignore cleanup errors
+        }
+        celestialInitialized.current = false;
+      }
+    };
+  }, []);
+
+  // Reset orientation tracking when compass is disabled
+  useEffect(() => {
+    if (!compassEnabled) {
+      lastOrientationRef.current = 0;
+    }
+  }, [compassEnabled]);
+
+  // Update sky chart rotation when compass heading changes
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Compass handling requires checking multiple states
+  useEffect(() => {
+    if (!compassEnabled || compassHeading === null) return;
+    if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
+
+    try {
+      const zenith = Celestial.zenith();
+      if (zenith) {
+        const targetOrientation = -compassHeading;
+        let delta = targetOrientation - lastOrientationRef.current;
+
+        while (delta > 180) delta -= 360;
+        while (delta < -180) delta += 360;
+
+        const newOrientation = lastOrientationRef.current + delta;
+        lastOrientationRef.current = newOrientation;
+
+        Celestial.rotate({ center: [zenith[0], zenith[1], newOrientation] });
+        Celestial.redraw();
+      }
+    } catch {
+      // Celestial not ready
+    }
+  }, [compassEnabled, compassHeading]);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-night-700 bg-night-900">
+      {/* Header */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-night-800"
+      >
+        <div className="flex items-center gap-3">
+          <MapIcon className="h-5 w-5 text-indigo-400" />
+          <h3 className="font-semibold text-white">Sky Chart</h3>
+          <span className="text-gray-500 text-xs">Interactive sky view</span>
+        </div>
+        {expanded ? (
+          <ChevronDown className="h-5 w-5 text-gray-400" />
+        ) : (
+          <ChevronRight className="h-5 w-5 text-gray-400" />
+        )}
+      </button>
+
+      {/* Content */}
+      {expanded && (
+        <div className="border-night-700 border-t p-4">
+          {/* Time Slider */}
+          <div className="mb-4">
+            <div className="mb-2 flex items-center justify-between text-gray-400 text-xs">
+              <span>{formatTime(nightInfo.sunset)}</span>
+              <span className="font-medium text-indigo-400">{formatTime(currentTime)}</span>
+              <span>{formatTime(nightInfo.sunrise)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Now button */}
+              <button
+                type="button"
+                onClick={handleNowClick}
+                disabled={!isNowInNightRange}
+                className={`flex items-center gap-1 rounded px-2 py-1 font-medium text-xs transition-colors ${
+                  isNowInNightRange
+                    ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
+                    : 'cursor-not-allowed bg-night-800 text-gray-600'
+                }`}
+                title={
+                  isNowInNightRange
+                    ? 'Jump to current time'
+                    : `Current time is outside ${getNightLabel(nightInfo.date, true)} range`
+                }
+              >
+                <Clock className="h-3 w-3" />
+                Now
+              </button>
+              {/* Slider */}
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={selectedTime}
+                onChange={e => setSelectedTime(Number(e.target.value))}
+                className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-indigo-500"
+              />
+              {/* Center button */}
+              <button
+                type="button"
+                onClick={handleCenterView}
+                disabled={compassEnabled}
+                className={`rounded p-1.5 font-medium text-xs outline-none transition-colors focus:outline-none active:outline-none ${
+                  compassEnabled
+                    ? 'cursor-not-allowed bg-night-800/50 text-gray-600'
+                    : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white active:bg-night-600'
+                }`}
+                title={
+                  compassEnabled
+                    ? 'Disable compass to center manually'
+                    : 'Center view (zenith, north up)'
+                }
+              >
+                <Crosshair className="h-4 w-4" />
+              </button>
+              {/* Compass button */}
+              {compassAvailable && (
+                <button
+                  type="button"
+                  onClick={toggleCompass}
+                  className={`rounded p-1.5 font-medium text-xs outline-none transition-colors focus:outline-none active:outline-none ${
+                    compassEnabled
+                      ? 'bg-indigo-500 text-white shadow-indigo-500/30 shadow-lg'
+                      : 'border border-night-700 bg-night-800/50 text-gray-500 hover:border-gray-500 active:bg-night-700'
+                  }`}
+                  title={
+                    compassEnabled
+                      ? 'Disable compass mode'
+                      : 'Enable compass mode (rotate device to look around)'
+                  }
+                >
+                  <Compass className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="mt-1 flex justify-between text-gray-500 text-xs">
+              <span>Sunset</span>
+              <span>Sunrise</span>
+            </div>
+          </div>
+
+          {/* Display Options */}
+          <div className="mb-4 flex flex-wrap gap-2">
+            <ToggleButton
+              label="Stars"
+              active={showStars}
+              onClick={() => setShowStars(!showStars)}
+            />
+            <ToggleButton label="DSOs" active={showDSOs} onClick={() => setShowDSOs(!showDSOs)} />
+            <ToggleButton
+              label="Constellations"
+              active={showConstellations}
+              onClick={() => setShowConstellations(!showConstellations)}
+            />
+            <ToggleButton
+              label="Names"
+              active={showNames}
+              onClick={() => setShowNames(!showNames)}
+            />
+            <ToggleButton
+              label="Ecliptic"
+              active={showLines}
+              onClick={() => setShowLines(!showLines)}
+            />
+            <ToggleButton
+              label="Milky Way"
+              active={showMilkyWay}
+              onClick={() => setShowMilkyWay(!showMilkyWay)}
+            />
+            <ToggleButton
+              label="Planets"
+              active={showPlanets}
+              onClick={() => setShowPlanets(!showPlanets)}
+            />
+          </div>
+
+          {/* Sky Chart */}
+          <div
+            ref={containerRef}
+            id="celestial-map"
+            className="min-h-[300px] w-full overflow-hidden rounded-lg bg-night-950 sm:min-h-[400px] lg:min-h-[500px] xl:min-h-[600px]"
+          />
+        </div>
+      )}
+    </div>
+  );
+}

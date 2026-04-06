@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Tooltip from '@/components/ui/Tooltip';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { formatTime, formatTimeRange, getNightLabel } from '@/lib/utils/format';
-import { calculateNightQuality } from '@/lib/weather/night-quality';
+import { calculateHeadlineNightQuality, calculateNightQuality } from '@/lib/weather/night-quality';
 import type { NightForecast, NightInfo } from '@/types';
 
 function formatDarkHours(dusk: Date, dawn: Date): string {
@@ -331,9 +331,17 @@ interface NightQualityCardProps {
 export default function NightQualityCard({ forecast, timezone }: NightQualityCardProps) {
   const { nightInfo, weather } = forecast;
 
-  const nightQuality = useMemo(
+  const headlineQuality = useMemo(
+    () => calculateHeadlineNightQuality(weather, nightInfo),
+    [weather, nightInfo]
+  );
+  const nightlyAverageQuality = useMemo(
     () => calculateNightQuality(weather, nightInfo),
     [weather, nightInfo]
+  );
+  const topPenalties = useMemo(
+    () => headlineQuality.penalties.slice(0, 2).map(penalty => penalty.detail),
+    [headlineQuality.penalties]
   );
 
   const isTonight = useMemo(() => {
@@ -345,17 +353,40 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
     <div className="rounded-xl border border-night-700 bg-night-900 p-4">
       <div className="space-y-2">
         <h3 className="font-semibold text-white">
-          <Tooltip content="Overall rating based on cloud cover, moon phase, transparency, seeing conditions, and dew risk.">
+          <Tooltip content="Headline rating is based on the best observing window in the night. Whole-night average is shown below it.">
             <span>{getNightLabel(nightInfo.date, true)} Rating</span>
           </Tooltip>
         </h3>
-        <div className={`flex items-center gap-2 font-bold text-xl ${nightQuality.rating.color}`}>
-          <Tooltip content="5 stars = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor. Based on weighted scoring of all conditions.">
-            <span>{nightQuality.rating.starString}</span>
+        <div
+          className={`flex items-center gap-2 font-bold text-xl ${headlineQuality.rating.color}`}
+        >
+          <Tooltip content="5 stars = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor. Headline score uses the best observing window when one exists.">
+            <span>{headlineQuality.rating.starString}</span>
           </Tooltip>
-          <span>{nightQuality.rating.label}</span>
+          <span>{headlineQuality.rating.label}</span>
         </div>
-        <p className="text-gray-400 text-sm">{nightQuality.summary}</p>
+        {weather?.bestTime ? (
+          <p className="text-green-400 text-sm">
+            <Tooltip content="The headline rating is scored from this best observing window, not the whole-night average.">
+              <span>
+                Best window:{' '}
+                <span className="whitespace-nowrap">
+                  {formatTimeRange(weather.bestTime.start, weather.bestTime.end, timezone)}
+                </span>
+              </span>
+            </Tooltip>
+          </p>
+        ) : null}
+        <p className="text-gray-400 text-sm">{headlineQuality.summary}</p>
+        {topPenalties.length > 0 && (
+          <p className="text-amber-300 text-sm">Held back by: {topPenalties.join(', ')}</p>
+        )}
+        <p className="text-gray-500 text-xs">
+          Whole night average:{' '}
+          <span className={nightlyAverageQuality.rating.color}>
+            {nightlyAverageQuality.rating.starString} {nightlyAverageQuality.rating.label}
+          </span>
+        </p>
 
         {/* Night timeline */}
         <div className="rounded-lg bg-night-800 p-3">
@@ -397,18 +428,7 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
         {forecast.forecastConfidence === 'medium' && (
           <p className="text-gray-500 text-xs">Air quality data unavailable beyond 5 days</p>
         )}
-        {weather?.bestTime ? (
-          <p className="text-green-400 text-sm">
-            <Tooltip content="Optimal window with lowest cloud cover, best transparency, and minimal dew risk.">
-              <span>
-                Best:{' '}
-                <span className="whitespace-nowrap">
-                  {formatTimeRange(weather.bestTime.start, weather.bestTime.end, timezone)}
-                </span>
-              </span>
-            </Tooltip>
-          </p>
-        ) : (
+        {!weather?.bestTime && (
           <p className="text-gray-500 text-sm">
             <Tooltip content="No window with acceptable conditions (low clouds, good transparency, minimal dew risk) found.">
               <span>No good observation window</span>

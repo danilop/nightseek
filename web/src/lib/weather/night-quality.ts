@@ -4,8 +4,9 @@
  * based on weather conditions, moon phase, and other factors.
  */
 
+import { estimateSeeing } from '@/lib/astronomy/seeing';
 import { getRatingFromPercentage, type RatingDisplay } from '@/lib/utils/rating';
-import type { NightInfo, NightWeather } from '@/types';
+import type { HourlyWeather, NightInfo, NightWeather, SeeingForecast } from '@/types';
 
 export interface NightQualityFactors {
   clouds: number; // 0-100 contribution
@@ -16,11 +17,30 @@ export interface NightQualityFactors {
   wind: number; // 0-100 contribution
 }
 
+export interface NightQualityPenalty {
+  key: keyof NightQualityFactors;
+  detail: string;
+  penalty: number;
+}
+
+export interface NightQualityMetrics {
+  source: 'whole_night' | 'best_window';
+  cloudCover: number | null;
+  transparencyScore: number | null;
+  seeingRating: SeeingForecast['rating'] | null;
+  moonIllumination: number;
+  dewRiskHours: number | null;
+  totalHours: number;
+  windSpeedKmh: number | null;
+}
+
 export interface NightQuality {
   score: number; // 0-100
   rating: RatingDisplay;
   summary: string; // "Clear skies, calm winds"
   factors: NightQualityFactors;
+  penalties: NightQualityPenalty[];
+  metrics: NightQualityMetrics;
 }
 
 /**
@@ -40,7 +60,6 @@ const WEIGHTS = {
  * Lower cloud cover = higher score
  */
 function calculateCloudScore(cloudCover: number): number {
-  // Invert: 0% clouds = 100 score, 100% clouds = 0 score
   return Math.max(0, Math.min(100, 100 - cloudCover));
 }
 
@@ -48,15 +67,15 @@ function calculateCloudScore(cloudCover: number): number {
  * Calculate transparency contribution (0-100)
  */
 function calculateTransparencyScore(transparency: number | null): number {
-  if (transparency === null) return 50; // Default middle value
+  if (transparency === null) return 50;
   return Math.max(0, Math.min(100, transparency));
 }
 
 /**
  * Calculate seeing contribution (0-100)
  */
-function calculateSeeingScore(seeingRating: string | null): number {
-  if (!seeingRating) return 50; // Default middle value
+function calculateSeeingScore(seeingRating: SeeingForecast['rating'] | null): number {
+  if (!seeingRating) return 50;
 
   switch (seeingRating) {
     case 'excellent':
@@ -67,8 +86,6 @@ function calculateSeeingScore(seeingRating: string | null): number {
       return 50;
     case 'poor':
       return 25;
-    default:
-      return 50;
   }
 }
 
@@ -77,7 +94,6 @@ function calculateSeeingScore(seeingRating: string | null): number {
  * Lower illumination = higher score (better for dark sky)
  */
 function calculateMoonScore(illumination: number): number {
-  // Invert: 0% illumination = 100 score, 100% = 0 score
   return Math.max(0, Math.min(100, 100 - illumination));
 }
 
@@ -87,7 +103,6 @@ function calculateMoonScore(illumination: number): number {
  */
 function calculateDewScore(dewRiskHours: number, totalHours: number): number {
   if (totalHours <= 0) return 100;
-  // Calculate percentage of night without dew risk
   const dewRiskPercent = (dewRiskHours / totalHours) * 100;
   return Math.max(0, Math.min(100, 100 - dewRiskPercent));
 }
@@ -97,9 +112,8 @@ function calculateDewScore(dewRiskHours: number, totalHours: number): number {
  * Lower wind = higher score (for stable imaging)
  */
 function calculateWindScore(windSpeed: number | null): number {
-  if (windSpeed === null) return 75; // Default moderately good
+  if (windSpeed === null) return 75;
 
-  // Wind scoring thresholds (km/h)
   if (windSpeed < 10) return 100;
   if (windSpeed < 20) return 80;
   if (windSpeed < 30) return 60;
@@ -108,17 +122,136 @@ function calculateWindScore(windSpeed: number | null): number {
   return 0;
 }
 
+function averageMetric(
+  hourlyData: HourlyWeather[],
+  getValue: (hour: HourlyWeather) => number | null
+): number | null {
+  const values = hourlyData
+    .map(getValue)
+    .filter((value): value is number => value !== null && value !== undefined);
+
+  if (values.length === 0) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function getHourlySlice(weather: NightWeather, start: Date, end: Date): HourlyWeather[] {
+  return Array.from(weather.hourlyData.entries())
+    .filter(([time]) => time >= start.getTime() && time <= end.getTime())
+    .sort((a, b) => a[0] - b[0])
+    .map(([, hour]) => hour);
+}
+
+function buildWholeNightMetrics(
+  weather: NightWeather | null,
+  nightInfo: NightInfo
+): NightQualityMetrics {
+  const totalHours =
+    (nightInfo.astronomicalDawn.getTime() - nightInfo.astronomicalDusk.getTime()) /
+    (1000 * 60 * 60);
+
+  return {
+    source: 'whole_night',
+    cloudCover: weather?.avgCloudCover ?? null,
+    transparencyScore: weather?.transparencyScore ?? null,
+    seeingRating: nightInfo.seeingForecast?.rating ?? null,
+    moonIllumination: nightInfo.moonIllumination,
+    dewRiskHours: weather?.dewRiskHours ?? null,
+    totalHours,
+    windSpeedKmh: weather?.avgWindSpeedKmh ?? null,
+  };
+}
+
+function buildBestWindowMetrics(
+  weather: NightWeather,
+  nightInfo: NightInfo
+): NightQualityMetrics | null {
+  if (!weather.bestTime) return null;
+
+  const hourlySlice = getHourlySlice(weather, weather.bestTime.start, weather.bestTime.end);
+  if (hourlySlice.length === 0) return null;
+
+  const avgCloudCover = averageMetric(hourlySlice, hour => hour.cloudCover);
+  const avgWindSpeedKmh = averageMetric(hourlySlice, hour => hour.windSpeed);
+  const avgHumidity = averageMetric(hourlySlice, hour => hour.humidity);
+  const avgTempC = averageMetric(hourlySlice, hour => hour.temperature);
+  const avgDewPointC = averageMetric(hourlySlice, hour => hour.dewPoint);
+  const dewRiskHours = hourlySlice.filter(hour => {
+    if (hour.temperature === null || hour.dewPoint === null) return false;
+    return hour.temperature - hour.dewPoint < 3;
+  }).length;
+
+  return {
+    source: 'best_window',
+    cloudCover: avgCloudCover,
+    transparencyScore: weather.transparencyScore,
+    seeingRating: estimateSeeing(avgWindSpeedKmh ?? 0, avgHumidity ?? 50, avgTempC, avgDewPointC)
+      .rating,
+    moonIllumination: nightInfo.moonIllumination,
+    dewRiskHours,
+    totalHours: Math.max(
+      (weather.bestTime.end.getTime() - weather.bestTime.start.getTime()) / (1000 * 60 * 60),
+      1
+    ),
+    windSpeedKmh: avgWindSpeedKmh,
+  };
+}
+
+function buildPenaltyBreakdown(
+  metrics: NightQualityMetrics,
+  factors: NightQualityFactors
+): NightQualityPenalty[] {
+  const penalties: NightQualityPenalty[] = [
+    {
+      key: 'clouds',
+      detail: `${Math.round(metrics.cloudCover ?? 50)}% clouds`,
+      penalty: 100 - factors.clouds,
+    },
+    {
+      key: 'transparency',
+      detail: `${Math.round(metrics.transparencyScore ?? 50)}% transparency`,
+      penalty: 100 - factors.transparency,
+    },
+    {
+      key: 'seeing',
+      detail: metrics.seeingRating ? `${metrics.seeingRating} seeing` : 'unknown seeing',
+      penalty: 100 - factors.seeing,
+    },
+    {
+      key: 'moon',
+      detail: `${Math.round(metrics.moonIllumination)}% moon`,
+      penalty: 100 - factors.moon,
+    },
+    {
+      key: 'dewRisk',
+      detail:
+        metrics.dewRiskHours !== null
+          ? `${Math.round(metrics.dewRiskHours)}h dew risk`
+          : 'unknown dew risk',
+      penalty: 100 - factors.dewRisk,
+    },
+    {
+      key: 'wind',
+      detail:
+        metrics.windSpeedKmh !== null
+          ? `${Math.round(metrics.windSpeedKmh)} km/h wind`
+          : 'unknown wind',
+      penalty: 100 - factors.wind,
+    },
+  ];
+
+  return penalties.filter(penalty => penalty.penalty > 0).sort((a, b) => b.penalty - a.penalty);
+}
+
 /**
  * Generate a summary description of the night quality
  */
-function generateSummary(factors: NightQualityFactors, weather: NightWeather | null): string {
-  if (!weather) {
+function generateSummary(factors: NightQualityFactors, metrics: NightQualityMetrics): string {
+  if (metrics.cloudCover === null) {
     return 'No weather data — rating based on moon and astronomical conditions only';
   }
 
   const descriptions: string[] = [];
 
-  // Cloud description
   if (factors.clouds >= 90) {
     descriptions.push('Clear skies');
   } else if (factors.clouds >= 70) {
@@ -131,28 +264,24 @@ function generateSummary(factors: NightQualityFactors, weather: NightWeather | n
     descriptions.push('Overcast');
   }
 
-  // Seeing description
   if (factors.seeing >= 75) {
     descriptions.push('steady conditions');
   } else if (factors.seeing <= 40) {
     descriptions.push('turbulent air');
   }
 
-  // Wind description
   if (factors.wind >= 80) {
     descriptions.push('calm winds');
   } else if (factors.wind <= 40) {
     descriptions.push('windy');
   }
 
-  // Moon description
   if (factors.moon >= 90) {
     descriptions.push('dark skies');
   } else if (factors.moon <= 30) {
     descriptions.push('bright moon');
   }
 
-  // Dew warning
   if (factors.dewRisk <= 50) {
     descriptions.push('dew risk');
   }
@@ -160,29 +289,19 @@ function generateSummary(factors: NightQualityFactors, weather: NightWeather | n
   return descriptions.join(', ') || 'Average conditions';
 }
 
-/**
- * Calculate the overall night quality
- */
-export function calculateNightQuality(
-  weather: NightWeather | null,
-  nightInfo: NightInfo
-): NightQuality {
-  // Calculate observation window duration
-  const duskTime = nightInfo.astronomicalDusk.getTime();
-  const dawnTime = nightInfo.astronomicalDawn.getTime();
-  const totalHours = (dawnTime - duskTime) / (1000 * 60 * 60);
-
-  // Calculate individual factor scores
+function calculateFromMetrics(metrics: NightQualityMetrics): NightQuality {
   const factors: NightQualityFactors = {
-    clouds: weather ? calculateCloudScore(weather.avgCloudCover) : 50,
-    transparency: weather ? calculateTransparencyScore(weather.transparencyScore) : 50,
-    seeing: calculateSeeingScore(nightInfo.seeingForecast?.rating ?? null),
-    moon: calculateMoonScore(nightInfo.moonIllumination),
-    dewRisk: weather ? calculateDewScore(weather.dewRiskHours, totalHours) : 75,
-    wind: weather ? calculateWindScore(weather.avgWindSpeedKmh) : 75,
+    clouds: metrics.cloudCover !== null ? calculateCloudScore(metrics.cloudCover) : 50,
+    transparency: calculateTransparencyScore(metrics.transparencyScore),
+    seeing: calculateSeeingScore(metrics.seeingRating),
+    moon: calculateMoonScore(metrics.moonIllumination),
+    dewRisk:
+      metrics.dewRiskHours !== null
+        ? calculateDewScore(metrics.dewRiskHours, metrics.totalHours)
+        : 75,
+    wind: calculateWindScore(metrics.windSpeedKmh),
   };
 
-  // Calculate weighted total score
   let score = Math.round(
     factors.clouds * WEIGHTS.clouds +
       factors.transparency * WEIGHTS.transparency +
@@ -192,26 +311,46 @@ export function calculateNightQuality(
       factors.wind * WEIGHTS.wind
   );
 
-  // Cloud cover gate: heavy overcast caps the maximum rating regardless
-  // of other factors, since observation is physically impossible through clouds
-  if (weather) {
-    if (weather.avgCloudCover > 80) {
-      score = Math.min(score, 34); // Max "Fair" (2 stars)
-    } else if (weather.avgCloudCover > 70) {
-      score = Math.min(score, 49); // Max "Good" (3 stars)
+  if (metrics.cloudCover !== null) {
+    if (metrics.cloudCover > 80) {
+      score = Math.min(score, 34);
+    } else if (metrics.cloudCover > 70) {
+      score = Math.min(score, 49);
     }
   }
 
-  // Get rating display
-  const rating = getRatingFromPercentage(score);
-
-  // Generate summary
-  const summary = generateSummary(factors, weather);
-
   return {
     score,
-    rating,
-    summary,
+    rating: getRatingFromPercentage(score),
+    summary: generateSummary(factors, metrics),
     factors,
+    penalties: buildPenaltyBreakdown(metrics, factors),
+    metrics,
   };
+}
+
+/**
+ * Calculate the whole-night average quality.
+ */
+export function calculateNightQuality(
+  weather: NightWeather | null,
+  nightInfo: NightInfo
+): NightQuality {
+  return calculateFromMetrics(buildWholeNightMetrics(weather, nightInfo));
+}
+
+/**
+ * Calculate the displayed headline quality from the best observing window,
+ * falling back to whole-night averages when no best window exists.
+ */
+export function calculateHeadlineNightQuality(
+  weather: NightWeather | null,
+  nightInfo: NightInfo
+): NightQuality {
+  if (!weather) return calculateNightQuality(weather, nightInfo);
+
+  const bestWindowMetrics = buildBestWindowMetrics(weather, nightInfo);
+  if (!bestWindowMetrics) return calculateNightQuality(weather, nightInfo);
+
+  return calculateFromMetrics(bestWindowMetrics);
 }

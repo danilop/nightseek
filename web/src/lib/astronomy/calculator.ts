@@ -208,12 +208,14 @@ export class SkyCalculator {
     getAltitudeAt: (time: Date) => { altitude: number; azimuth: number },
     nightInfo: NightInfo
   ): {
-    samples: [Date, number][];
+    altitudeSamples: [Date, number][];
+    azimuthSamples: [Date, number][];
     maxAltitude: number;
     maxAltitudeTime: Date | null;
     azimuthAtPeak: number;
   } {
-    const samples: [Date, number][] = [];
+    const altitudeSamples: [Date, number][] = [];
+    const azimuthSamples: [Date, number][] = [];
     let maxAltitude = -90;
     let maxAltitudeTime: Date | null = null;
     let azimuthAtPeak = 0;
@@ -226,7 +228,8 @@ export class SkyCalculator {
       const time = new Date(t);
       const { altitude, azimuth } = getAltitudeAt(time);
 
-      samples.push([time, altitude]);
+      altitudeSamples.push([time, altitude]);
+      azimuthSamples.push([time, azimuth]);
 
       if (altitude > maxAltitude) {
         maxAltitude = altitude;
@@ -235,7 +238,7 @@ export class SkyCalculator {
       }
     }
 
-    return { samples, maxAltitude, maxAltitudeTime, azimuthAtPeak };
+    return { altitudeSamples, azimuthSamples, maxAltitude, maxAltitudeTime, azimuthAtPeak };
   }
 
   /**
@@ -274,12 +277,10 @@ export class SkyCalculator {
       isMessier?: boolean;
     } = {}
   ): ObjectVisibility {
-    const { samples, maxAltitude, maxAltitudeTime, azimuthAtPeak } = this.sampleAltitudesForNight(
-      time => this.getAltAz(raHours, decDeg, time),
-      nightInfo
-    );
+    const { altitudeSamples, azimuthSamples, maxAltitude, maxAltitudeTime, azimuthAtPeak } =
+      this.sampleAltitudesForNight(time => this.getAltAz(raHours, decDeg, time), nightInfo);
 
-    const windows = this.findAllAltitudeWindows(samples);
+    const windows = this.findAllAltitudeWindows(altitudeSamples);
 
     const moonSeparation = maxAltitudeTime
       ? this.getMoonSeparation(raHours, decDeg, maxAltitudeTime)
@@ -299,7 +300,8 @@ export class SkyCalculator {
       above75End: windows.above75?.[1] ?? null,
       moonSeparation,
       moonWarning: moonSeparation !== null && moonSeparation < 30,
-      altitudeSamples: samples,
+      altitudeSamples,
+      azimuthSamples,
       minAirmass: maxAltitude > 0 ? calculateAirmass(maxAltitude) : Infinity,
       azimuthAtPeak,
       raHours,
@@ -351,13 +353,11 @@ export class SkyCalculator {
     let peakMagnitude: number | null = null;
     let peakDistance: number | null = null;
 
-    const { samples, maxAltitude, maxAltitudeTime, azimuthAtPeak } = this.sampleAltitudesForNight(
-      time => {
+    const { altitudeSamples, azimuthSamples, maxAltitude, maxAltitudeTime, azimuthAtPeak } =
+      this.sampleAltitudesForNight(time => {
         const equator = Astronomy.Equator(body, time, observer, true, true);
         return this.getAltAz(equator.ra, equator.dec, time);
-      },
-      nightInfo
-    );
+      }, nightInfo);
 
     // Get magnitude and distance at peak
     if (maxAltitudeTime) {
@@ -367,7 +367,7 @@ export class SkyCalculator {
       peakDistance = equator.dist * AU_TO_KM;
     }
 
-    const windows = this.findAllAltitudeWindows(samples);
+    const windows = this.findAllAltitudeWindows(altitudeSamples);
 
     const moonSeparation = maxAltitudeTime
       ? (() => {
@@ -397,7 +397,8 @@ export class SkyCalculator {
       above75End: windows.above75?.[1] ?? null,
       moonSeparation,
       moonWarning: moonSeparation !== null && moonSeparation < 30,
-      altitudeSamples: samples,
+      altitudeSamples,
+      azimuthSamples,
       minAirmass: maxAltitude > 0 ? calculateAirmass(maxAltitude) : Infinity,
       azimuthAtPeak,
       raHours: 0,
@@ -439,7 +440,8 @@ export class SkyCalculator {
    * Calculate Moon visibility (for display purposes)
    */
   calculateMoonVisibility(nightInfo: NightInfo): ObjectVisibility {
-    const samples: [Date, number][] = [];
+    const altitudeSamples: [Date, number][] = [];
+    const azimuthSamples: [Date, number][] = [];
     let maxAltitude = -90;
     let maxAltitudeTime: Date | null = null;
     let azimuthAtPeak = 0;
@@ -452,7 +454,8 @@ export class SkyCalculator {
       const time = new Date(t);
       const pos = this.getMoonPosition(time);
 
-      samples.push([time, pos.altitude]);
+      altitudeSamples.push([time, pos.altitude]);
+      azimuthSamples.push([time, pos.azimuth]);
 
       if (pos.altitude > maxAltitude) {
         maxAltitude = pos.altitude;
@@ -475,7 +478,8 @@ export class SkyCalculator {
       above75End: null,
       moonSeparation: null,
       moonWarning: false,
-      altitudeSamples: samples,
+      altitudeSamples,
+      azimuthSamples,
       minAirmass: maxAltitude > 0 ? calculateAirmass(maxAltitude) : Infinity,
       azimuthAtPeak,
       raHours: 0,

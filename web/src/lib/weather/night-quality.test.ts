@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createMockNightInfo, createMockNightWeather } from '@/test/factories';
-import { calculateNightQuality } from './night-quality';
+import { calculateHeadlineNightQuality, calculateNightQuality } from './night-quality';
 
 const createMockWeather = createMockNightWeather;
 
@@ -244,6 +244,137 @@ describe('night-quality', () => {
 
       // With ideal conditions and low clouds, should get 4+ stars
       expect(quality.rating.stars).toBeGreaterThanOrEqual(4);
+    });
+  });
+
+  describe('calculateHeadlineNightQuality', () => {
+    it('uses the best observing window instead of the whole-night average', () => {
+      const nightInfo = createMockNightInfo({
+        moonIllumination: 10,
+        seeingForecast: {
+          rating: 'fair',
+          estimatedArcsec: 2.5,
+          confidence: 0.8,
+          recommendation: 'Average',
+        },
+      });
+      const weather = createMockNightWeather({
+        avgCloudCover: 60,
+        transparencyScore: 90,
+        avgWindSpeedKmh: 15,
+        dewRiskHours: 4,
+        bestTime: {
+          start: new Date('2025-01-15T22:00:00'),
+          end: new Date('2025-01-16T01:00:00'),
+          score: 92,
+          reason: 'Clear skies',
+        },
+        hourlyData: new Map([
+          [
+            new Date('2025-01-15T22:00:00').getTime(),
+            {
+              cloudCover: 5,
+              visibility: 10000,
+              windSpeed: 5,
+              windGust: 8,
+              humidity: 55,
+              temperature: 4,
+              dewPoint: 0,
+              precipProbability: 0,
+              precipitation: 0,
+              pressure: 1015,
+              cape: 0,
+              aod: null,
+              pm25: null,
+              pm10: null,
+              dust: null,
+            },
+          ],
+          [
+            new Date('2025-01-15T23:00:00').getTime(),
+            {
+              cloudCover: 10,
+              visibility: 10000,
+              windSpeed: 4,
+              windGust: 7,
+              humidity: 50,
+              temperature: 3,
+              dewPoint: -1,
+              precipProbability: 0,
+              precipitation: 0,
+              pressure: 1015,
+              cape: 0,
+              aod: null,
+              pm25: null,
+              pm10: null,
+              dust: null,
+            },
+          ],
+          [
+            new Date('2025-01-16T00:00:00').getTime(),
+            {
+              cloudCover: 8,
+              visibility: 10000,
+              windSpeed: 6,
+              windGust: 9,
+              humidity: 58,
+              temperature: 3,
+              dewPoint: -1,
+              precipProbability: 0,
+              precipitation: 0,
+              pressure: 1014,
+              cape: 0,
+              aod: null,
+              pm25: null,
+              pm10: null,
+              dust: null,
+            },
+          ],
+        ]),
+      });
+
+      const wholeNight = calculateNightQuality(weather, nightInfo);
+      const headline = calculateHeadlineNightQuality(weather, nightInfo);
+
+      expect(headline.score).toBeGreaterThan(wholeNight.score);
+      expect(headline.metrics.source).toBe('best_window');
+      expect(headline.metrics.cloudCover).toBeLessThan(wholeNight.metrics.cloudCover ?? 100);
+    });
+
+    it('falls back to the whole-night score when no best window exists', () => {
+      const nightInfo = createMockNightInfo();
+      const weather = createMockNightWeather({ bestTime: null });
+
+      const wholeNight = calculateNightQuality(weather, nightInfo);
+      const headline = calculateHeadlineNightQuality(weather, nightInfo);
+
+      expect(headline.score).toBe(wholeNight.score);
+      expect(headline.rating.tier).toBe(wholeNight.rating.tier);
+      expect(headline.metrics.source).toBe('whole_night');
+    });
+
+    it('surfaces moon and seeing in the penalty breakdown when they are the main limits', () => {
+      const nightInfo = createMockNightInfo({
+        moonIllumination: 75,
+        seeingForecast: {
+          rating: 'fair',
+          estimatedArcsec: 2.7,
+          confidence: 0.8,
+          recommendation: 'Average',
+        },
+      });
+      const weather = createMockNightWeather({
+        avgCloudCover: 5,
+        transparencyScore: 90,
+        avgWindSpeedKmh: 5,
+        dewRiskHours: 0,
+      });
+
+      const quality = calculateHeadlineNightQuality(weather, nightInfo);
+      const topPenaltyDetails = quality.penalties.slice(0, 2).map(penalty => penalty.detail);
+
+      expect(topPenaltyDetails).toContain('75% moon');
+      expect(topPenaltyDetails).toContain('fair seeing');
     });
   });
 });

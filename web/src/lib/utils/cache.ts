@@ -115,6 +115,7 @@ export const CACHE_KEYS = {
   SWPC_COMBINED: 'nightseek:swpc:combined',
   // Extended satellites (CelesTrak)
   TLE_BRIGHT: 'nightseek:tle:bright',
+  HORIZON_PREFIX: 'nightseek:horizon:',
   // Open-Meteo historical weather
   HISTORICAL_WEATHER_PREFIX: 'nightseek:hist-weather:',
 };

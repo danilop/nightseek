@@ -53,7 +53,7 @@ import { computeAuroraForecast, fetchSpaceWeather } from './nasa/donki';
 import { fetchNeoCloseApproachesRange } from './nasa/neows';
 import { calculateTotalScore } from './scoring';
 import { getEffectiveFOV } from './telescopes';
-import { calculateNightQuality } from './weather/night-quality';
+import { calculateHeadlineNightQuality } from './weather/night-quality';
 import { fetchAirQuality, fetchWeather, parseNightWeather } from './weather/open-meteo';
 
 const MIN_SCORE_THRESHOLD = 60;
@@ -598,7 +598,7 @@ function determineBestNights(forecasts: NightForecast[]): string[] {
 
     // Use the same night quality calculation as displayed in the UI
     // This ensures the "best nights" badge aligns with the star rating shown
-    const quality = calculateNightQuality(forecast.weather, forecast.nightInfo);
+    const quality = calculateHeadlineNightQuality(forecast.weather, forecast.nightInfo);
 
     nightScores.push({
       date: forecast.nightInfo.date.toISOString().split('T')[0],

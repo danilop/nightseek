@@ -49,11 +49,12 @@ function pickBest(
   filter: (obj: ScoredObject) => boolean,
   minScore: number,
   categoryLabel: string,
-  pickedNames: Set<string>
+  pickedNames: Set<string>,
+  compareObjects: (a: ScoredObject, b: ScoredObject) => number
 ): TonightPick | null {
   const best = objects
     .filter(obj => filter(obj) && !pickedNames.has(obj.objectName))
-    .sort((a, b) => b.totalScore - a.totalScore)[0];
+    .sort(compareObjects)[0];
 
   if (best && best.totalScore >= minScore) {
     pickedNames.add(best.objectName);
@@ -67,28 +68,32 @@ function pickBest(
   return null;
 }
 
-export function selectTonightPicks(objects: ScoredObject[]): TonightPick[] {
+export function selectTonightPicks(
+  objects: ScoredObject[],
+  compareObjects: (a: ScoredObject, b: ScoredObject) => number = (a, b) =>
+    b.totalScore - a.totalScore
+): TonightPick[] {
   const picks: TonightPick[] = [];
   const pickedNames = new Set<string>();
 
   // Top Planet: highest-scoring planet with score >= 60
-  const planet = pickBest(objects, isPlanet, 60, 'Top Planet', pickedNames);
+  const planet = pickBest(objects, isPlanet, 60, 'Top Planet', pickedNames, compareObjects);
   if (planet) picks.push(planet);
 
   // Top Galaxy: highest-scoring galaxy with score >= 60
-  const galaxy = pickBest(objects, isGalaxy, 60, 'Top Galaxy', pickedNames);
+  const galaxy = pickBest(objects, isGalaxy, 60, 'Top Galaxy', pickedNames, compareObjects);
   if (galaxy) picks.push(galaxy);
 
   // Top Nebula: highest-scoring nebula with score >= 60
-  const nebula = pickBest(objects, isNebula, 60, 'Top Nebula', pickedNames);
+  const nebula = pickBest(objects, isNebula, 60, 'Top Nebula', pickedNames, compareObjects);
   if (nebula) picks.push(nebula);
 
   // Top Cluster: highest-scoring cluster with score >= 60
-  const cluster = pickBest(objects, isCluster, 60, 'Top Cluster', pickedNames);
+  const cluster = pickBest(objects, isCluster, 60, 'Top Cluster', pickedNames, compareObjects);
   if (cluster) picks.push(cluster);
 
   // Top Comet: highest-scoring comet with score >= 80
-  const comet = pickBest(objects, isComet, 80, 'Top Comet', pickedNames);
+  const comet = pickBest(objects, isComet, 80, 'Top Comet', pickedNames, compareObjects);
   if (comet) picks.push(comet);
 
   return picks;

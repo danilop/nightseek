@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import ForecastView from './components/forecast/ForecastView';
 import Header from './components/layout/Header';
 import OnboardingWizard from './components/setup/OnboardingWizard';
@@ -13,9 +13,13 @@ import { useApp } from './stores/AppContext';
 export default function App() {
   const { state, dispatch, setProgress } = useApp();
   const { location, settings, forecasts, isLoading, error, isOffline, isSetupComplete } = state;
+  const isRefreshingRef = useRef(false);
+  const lastForecastLoadedAtRef = useRef<number | null>(null);
 
   const loadForecast = useCallback(async () => {
-    if (!location) return;
+    if (!location || isRefreshingRef.current) return;
+
+    isRefreshingRef.current = true;
 
     dispatch({
       type: 'SET_LOADING',
@@ -47,6 +51,7 @@ export default function App() {
           bestNights: result.bestNights,
         },
       });
+      lastForecastLoadedAtRef.current = Date.now();
     } catch (err) {
       dispatch({
         type: 'SET_ERROR',
@@ -54,6 +59,7 @@ export default function App() {
       });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: { isLoading: false } });
+      isRefreshingRef.current = false;
     }
   }, [location, settings, dispatch, setProgress]);
 
@@ -62,6 +68,28 @@ export default function App() {
     if (location && !forecasts && !isLoading && !error) {
       loadForecast();
     }
+  }, [location, forecasts, isLoading, error, loadForecast]);
+
+  useEffect(() => {
+    const staleForecastMs = 20 * 60 * 1000;
+
+    const maybeRefresh = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (!location || !forecasts || isLoading || error) return;
+
+      const lastLoadedAt = lastForecastLoadedAtRef.current;
+      if (lastLoadedAt !== null && Date.now() - lastLoadedAt < staleForecastMs) return;
+
+      void loadForecast();
+    };
+
+    window.addEventListener('focus', maybeRefresh);
+    document.addEventListener('visibilitychange', maybeRefresh);
+
+    return () => {
+      window.removeEventListener('focus', maybeRefresh);
+      document.removeEventListener('visibilitychange', maybeRefresh);
+    };
   }, [location, forecasts, isLoading, error, loadForecast]);
 
   // Show setup if no location

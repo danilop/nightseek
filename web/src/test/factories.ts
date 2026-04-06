@@ -81,6 +81,7 @@ export function createMockObjectVisibility(
     magnitude: 3.4,
     isInterstellar: false,
     altitudeSamples: [],
+    azimuthSamples: [],
     subtype: 'galaxy',
     angularSizeArcmin: 178,
     surfaceBrightness: 22.4,

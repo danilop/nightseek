@@ -21,7 +21,15 @@ import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
 import { getEffectiveFOV } from '@/lib/telescopes/presets';
 import { getAltitudeAtTime } from '@/lib/utils/altitude-interpolation';
+import { getCached, setCache } from '@/lib/utils/cache';
 import { getNightLabel } from '@/lib/utils/format';
+import {
+  createDefaultHorizonProfile,
+  cycleSectorMinAltitude,
+  evaluateTargetAccessibility,
+  getHorizonProfileCacheKey,
+  type TargetAccessibility,
+} from '@/lib/utils/horizon-profile';
 import { applyQuickFilters } from '@/lib/utils/quick-filters';
 import { getRatingFromScore } from '@/lib/utils/rating';
 import { getSecondarySortComparator } from '@/lib/utils/secondary-sort';
@@ -30,10 +38,12 @@ import { useApp } from '@/stores/AppContext';
 import type {
   AstronomicalEvents,
   DSOSubtype,
+  HorizonProfile,
   NightInfo,
   NightWeather,
   ScoredObject,
 } from '@/types';
+import AccessibleSkyControl from '../AccessibleSkyControl';
 import CategorySection from '../CategorySection';
 import JupiterMoonsCard from '../JupiterMoonsCard';
 import type { SortMode } from '../SortModeControl';
@@ -287,10 +297,13 @@ export default function TargetsTab({
     setTonightPicksDismissed,
   } = useUIState();
   const { state } = useApp();
+  const { location } = state;
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('score');
   const [selectedTime, setSelectedTime] = useState<Date>(() => new Date());
+  const [horizonProfile, setHorizonProfile] = useState<HorizonProfile>(createDefaultHorizonProfile);
+  const [horizonProfileReady, setHorizonProfileReady] = useState(false);
 
   // Check if we're currently in the dark window
   const now = useCurrentTime();
@@ -313,6 +326,40 @@ export default function TargetsTab({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  const horizonProfileCacheKey = useMemo(() => {
+    return location ? getHorizonProfileCacheKey(location) : null;
+  }, [location]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const defaultProfile = createDefaultHorizonProfile();
+
+    setHorizonProfileReady(false);
+    setHorizonProfile(defaultProfile);
+
+    if (!horizonProfileCacheKey) {
+      setHorizonProfileReady(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void getCached<HorizonProfile>(horizonProfileCacheKey, Infinity).then(cached => {
+      if (cancelled) return;
+      setHorizonProfile(cached ?? defaultProfile);
+      setHorizonProfileReady(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [horizonProfileCacheKey]);
+
+  useEffect(() => {
+    if (!horizonProfileReady || !horizonProfileCacheKey) return;
+    void setCache(horizonProfileCacheKey, horizonProfile);
+  }, [horizonProfileReady, horizonProfileCacheKey, horizonProfile]);
 
   // Calculate magnitude range
   const { minMag, maxMag } = useMemo(() => {
@@ -365,13 +412,51 @@ export default function TargetsTab({
     });
   }, [objects, effectiveMagLimit, maxMag]);
 
-  // Tonight picks (computed from mag-filtered, ignoring quick filters)
-  const tonightPicks = useMemo(() => selectTonightPicks(magFilteredObjects), [magFilteredObjects]);
+  const accessibilityByObject = useMemo(() => {
+    const accessMap = new Map<ScoredObject, TargetAccessibility>();
+
+    for (const obj of magFilteredObjects) {
+      accessMap.set(obj, evaluateTargetAccessibility(obj.visibility, horizonProfile, weather));
+    }
+
+    return accessMap;
+  }, [magFilteredObjects, horizonProfile, weather]);
+
+  const accessibleObjects = useMemo(() => {
+    return magFilteredObjects.filter(obj => accessibilityByObject.get(obj)?.isAccessible);
+  }, [magFilteredObjects, accessibilityByObject]);
+
+  const compareByAccessibilityThenScore = useMemo(() => {
+    return (a: ScoredObject, b: ScoredObject) => {
+      const accessA = accessibilityByObject.get(a);
+      const accessB = accessibilityByObject.get(b);
+      const priorityA = accessA?.priorityScore ?? 0;
+      const priorityB = accessB?.priorityScore ?? 0;
+
+      if (priorityA !== priorityB) return priorityB - priorityA;
+
+      const overlapA = accessA?.bestWindowOverlapMinutes ?? 0;
+      const overlapB = accessB?.bestWindowOverlapMinutes ?? 0;
+      if (overlapA !== overlapB) return overlapB - overlapA;
+
+      const minutesA = accessA?.accessibleMinutes ?? 0;
+      const minutesB = accessB?.accessibleMinutes ?? 0;
+      if (minutesA !== minutesB) return minutesB - minutesA;
+
+      return b.totalScore - a.totalScore;
+    };
+  }, [accessibilityByObject]);
+
+  // Tonight picks (computed from accessible objects, ignoring quick filters)
+  const tonightPicks = useMemo(
+    () => selectTonightPicks(accessibleObjects, compareByAccessibilityThenScore),
+    [accessibleObjects, compareByAccessibilityThenScore]
+  );
 
   // Apply quick filters
   const filteredObjects = useMemo(
-    () => applyQuickFilters(magFilteredObjects, activeQuickFilters),
-    [magFilteredObjects, activeQuickFilters]
+    () => applyQuickFilters(accessibleObjects, activeQuickFilters),
+    [accessibleObjects, activeQuickFilters]
   );
 
   // Secondary sort comparator
@@ -392,14 +477,40 @@ export default function TargetsTab({
           if (altB <= 0 && altA > 0) return -1;
           return altB - altA;
         }
+        if (secondarySort === 'score') {
+          return compareByAccessibilityThenScore(a, b);
+        }
         return secondarySortComparator(a, b);
       });
     }
     return groups;
-  }, [filteredObjects, sortMode, selectedTime, secondarySortComparator]);
+  }, [
+    filteredObjects,
+    sortMode,
+    selectedTime,
+    secondarySort,
+    secondarySortComparator,
+    compareByAccessibilityThenScore,
+  ]);
 
   const totalCount = filteredObjects.length;
   const totalLoaded = objects.length;
+
+  const handleCycleHorizonSector = (sectorLabel: HorizonProfile['sectors'][number]['label']) => {
+    setHorizonProfile(current => ({
+      sectors: current.sectors.map(sector =>
+        sector.label === sectorLabel
+          ? { ...sector, minAltitude: cycleSectorMinAltitude(sector.minAltitude) }
+          : sector
+      ),
+    }));
+    setTonightPicksDismissed(false);
+  };
+
+  const handleResetHorizonProfile = () => {
+    setHorizonProfile(createDefaultHorizonProfile());
+    setTonightPicksDismissed(false);
+  };
 
   const orderedConfigs = useMemo(
     () => getOrderedCategories(CATEGORY_CONFIGS, categoryOrder),
@@ -501,6 +612,12 @@ export default function TargetsTab({
         </div>
       )}
 
+      <AccessibleSkyControl
+        horizonProfile={horizonProfile}
+        onCycleSector={handleCycleHorizonSector}
+        onReset={handleResetHorizonProfile}
+      />
+
       {/* Tonight's Best Picks (only affected by magnitude slider) */}
       {tonightPicks.length > 0 && !tonightPicksDismissed && (
         <TonightPicksCard
@@ -516,7 +633,7 @@ export default function TargetsTab({
         onToggleFilter={toggleQuickFilter}
         onClearFilters={clearQuickFilters}
         filteredCount={totalCount}
-        totalCount={magFilteredObjects.length}
+        totalCount={accessibleObjects.length}
         isDarkWindow={isDarkWindow}
         sortMode={sortMode}
         onSortModeChange={setSortMode}
@@ -527,100 +644,128 @@ export default function TargetsTab({
         onSecondarySortChange={setSecondarySort}
       />
 
-      {/* Summary grid */}
-      <div className="rounded-xl border border-night-700 bg-night-900 p-4">
-        <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
-          <SummaryItem emoji="🪐" count={groupedObjects.planets?.length ?? 0} label="Planets" />
-          <SummaryItem
-            emoji="🌌"
-            count={
-              (groupedObjects.galaxies?.length ?? 0) +
-              (groupedObjects.nebulae?.length ?? 0) +
-              (groupedObjects.clusters?.length ?? 0) +
-              (groupedObjects.other?.length ?? 0)
-            }
-            label="Deep Sky"
-          />
-          <SummaryItem
-            emoji="⭐"
-            count={filteredObjects.filter(o => o.totalScore >= 100).length}
-            label="Top Rated"
-          />
-          <MilkyWayItem milkyWay={groupedObjects.milky_way?.[0] ?? null} />
+      {accessibleObjects.length === 0 && (
+        <div className="rounded-xl border border-night-700 bg-night-900 p-6 text-center">
+          <Sparkles className="mx-auto mb-3 h-8 w-8 text-gray-600" />
+          <p className="text-gray-400">
+            No targets clear your accessible-sky profile for this night.
+          </p>
+          <p className="mt-1 text-gray-500 text-sm">
+            Open more directions or lower the obstruction altitude to see targets again.
+          </p>
         </div>
-      </div>
+      )}
+
+      {accessibleObjects.length > 0 && filteredObjects.length === 0 && (
+        <div className="rounded-xl border border-night-700 bg-night-900 p-6 text-center">
+          <p className="text-gray-400">No accessible targets match the active quick filters.</p>
+          <button
+            type="button"
+            onClick={clearQuickFilters}
+            className="mt-3 rounded-md bg-night-800 px-3 py-2 text-sm text-white transition-colors hover:bg-night-700"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
+
+      {/* Summary grid */}
+      {filteredObjects.length > 0 && (
+        <div className="rounded-xl border border-night-700 bg-night-900 p-4">
+          <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
+            <SummaryItem emoji="🪐" count={groupedObjects.planets?.length ?? 0} label="Planets" />
+            <SummaryItem
+              emoji="🌌"
+              count={
+                (groupedObjects.galaxies?.length ?? 0) +
+                (groupedObjects.nebulae?.length ?? 0) +
+                (groupedObjects.clusters?.length ?? 0) +
+                (groupedObjects.other?.length ?? 0)
+              }
+              label="Deep Sky"
+            />
+            <SummaryItem
+              emoji="⭐"
+              count={filteredObjects.filter(o => o.totalScore >= 100).length}
+              label="Top Rated"
+            />
+            <MilkyWayItem milkyWay={groupedObjects.milky_way?.[0] ?? null} />
+          </div>
+        </div>
+      )}
 
       {/* Category Sections with Drag-and-Drop */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={categoriesWithObjects.map(c => c.key)}
-          strategy={verticalListSortingStrategy}
+      {filteredObjects.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
         >
-          <div className="space-y-4">
-            {categoriesWithObjects.map(config => {
-              // Jupiter Moons: render as a sortable wrapper around JupiterMoonsCard
-              if (config.key === 'jupiter_moons' && astronomicalEvents?.jupiterMoons) {
+          <SortableContext
+            items={categoriesWithObjects.map(c => c.key)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-4">
+              {categoriesWithObjects.map(config => {
+                if (config.key === 'jupiter_moons' && astronomicalEvents?.jupiterMoons) {
+                  return (
+                    <SortableJupiterMoons
+                      key={config.key}
+                      id={config.key}
+                      jupiterMoons={astronomicalEvents.jupiterMoons}
+                      latitude={latitude}
+                      nightDate={nightInfo.date}
+                    />
+                  );
+                }
+
                 return (
-                  <SortableJupiterMoons
+                  <SortableCategorySection
                     key={config.key}
-                    id={config.key}
-                    jupiterMoons={astronomicalEvents.jupiterMoons}
+                    config={config}
+                    categoryObjects={groupedObjects[config.key]}
+                    nightInfo={nightInfo}
+                    weather={weather}
+                    sortMode={sortMode}
+                    selectedTime={selectedTime}
+                    onObjectClick={onObjectSelect}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+
+          <DragOverlay>
+            {activeDragConfig ? (
+              <div className="opacity-80">
+                {activeDragConfig.key === 'jupiter_moons' && astronomicalEvents?.jupiterMoons ? (
+                  <JupiterMoonsCard
+                    positions={astronomicalEvents.jupiterMoons.positions}
+                    events={astronomicalEvents.jupiterMoons.events}
                     latitude={latitude}
                     nightDate={nightInfo.date}
                   />
-                );
-              }
-
-              return (
-                <SortableCategorySection
-                  key={config.key}
-                  config={config}
-                  categoryObjects={groupedObjects[config.key]}
-                  nightInfo={nightInfo}
-                  weather={weather}
-                  sortMode={sortMode}
-                  selectedTime={selectedTime}
-                  onObjectClick={onObjectSelect}
-                />
-              );
-            })}
-          </div>
-        </SortableContext>
-
-        <DragOverlay>
-          {activeDragConfig ? (
-            <div className="opacity-80">
-              {activeDragConfig.key === 'jupiter_moons' && astronomicalEvents?.jupiterMoons ? (
-                <JupiterMoonsCard
-                  positions={astronomicalEvents.jupiterMoons.positions}
-                  events={astronomicalEvents.jupiterMoons.events}
-                  latitude={latitude}
-                  nightDate={nightInfo.date}
-                />
-              ) : (
-                <CategorySection
-                  categoryKey={activeDragConfig.key}
-                  title={activeDragConfig.title}
-                  icon={activeDragConfig.icon}
-                  objects={groupedObjects[activeDragConfig.key] ?? []}
-                  nightInfo={nightInfo}
-                  weather={weather}
-                  defaultExpanded={false}
-                  defaultShowCount={activeDragConfig.defaultShowCount}
-                  showSubtypeInPreview={activeDragConfig.showSubtypeInPreview}
-                  sortMode={sortMode}
-                  selectedTime={selectedTime}
-                />
-              )}
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+                ) : (
+                  <CategorySection
+                    categoryKey={activeDragConfig.key}
+                    title={activeDragConfig.title}
+                    icon={activeDragConfig.icon}
+                    objects={groupedObjects[activeDragConfig.key] ?? []}
+                    nightInfo={nightInfo}
+                    weather={weather}
+                    defaultExpanded={false}
+                    defaultShowCount={activeDragConfig.defaultShowCount}
+                    showSubtypeInPreview={activeDragConfig.showSubtypeInPreview}
+                    sortMode={sortMode}
+                    selectedTime={selectedTime}
+                  />
+                )}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
 
       {/* Show message if all filtered out */}
       {totalCount === 0 && totalLoaded > 0 && (
