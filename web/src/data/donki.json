@@ -1,5 +1,18 @@
 {
-  "geomagneticStorms": [],
+  "geomagneticStorms": [
+    {
+      "gstID": "2026-04-18T06:00:00-GST-001",
+      "startTime": "2026-04-18T06:00Z",
+      "kpIndexes": [
+        {
+          "observedTime": "2026-04-18T09:00Z",
+          "kpIndex": 5.67,
+          "source": "NOAA"
+        }
+      ],
+      "maxKp": 5.67
+    }
+  ],
   "solarFlares": [],
-  "fetchedAt": "2026-04-18T07:07:57.706Z"
+  "fetchedAt": "2026-04-19T07:19:45.869Z"
 }
