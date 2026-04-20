@@ -8,11 +8,16 @@
           "observedTime": "2026-04-18T09:00Z",
           "kpIndex": 5.67,
           "source": "NOAA"
+        },
+        {
+          "observedTime": "2026-04-19T09:00Z",
+          "kpIndex": 5.67,
+          "source": "NOAA"
         }
       ],
       "maxKp": 5.67
     }
   ],
   "solarFlares": [],
-  "fetchedAt": "2026-04-19T07:19:45.869Z"
+  "fetchedAt": "2026-04-20T08:07:29.846Z"
 }
