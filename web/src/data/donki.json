@@ -84,7 +84,37 @@
       "classType": "M1.3",
       "beginTime": "2026-04-26T00:08Z",
       "peakTime": "2026-04-26T00:23Z"
+    },
+    {
+      "flrID": "2026-04-26T13:54:00-FLR-001",
+      "classType": "M1.4",
+      "beginTime": "2026-04-26T13:54Z",
+      "peakTime": "2026-04-26T14:03Z"
+    },
+    {
+      "flrID": "2026-04-26T19:18:00-FLR-001",
+      "classType": "M1.7",
+      "beginTime": "2026-04-26T19:18Z",
+      "peakTime": "2026-04-26T19:24Z"
+    },
+    {
+      "flrID": "2026-04-26T19:54:00-FLR-001",
+      "classType": "M2.2",
+      "beginTime": "2026-04-26T19:54Z",
+      "peakTime": "2026-04-26T20:04Z"
+    },
+    {
+      "flrID": "none",
+      "classType": "M6.0",
+      "beginTime": "2026-04-26T22:51Z",
+      "peakTime": "2026-04-26T22:57Z"
+    },
+    {
+      "flrID": "2026-04-26T22:51:00-FLR-001",
+      "classType": "M6.0",
+      "beginTime": "2026-04-26T22:51Z",
+      "peakTime": "2026-04-26T22:57Z"
     }
   ],
-  "fetchedAt": "2026-04-26T07:39:47.525Z"
+  "fetchedAt": "2026-04-27T08:25:20.852Z"
 }
