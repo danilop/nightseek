@@ -104,7 +104,7 @@
       "peakTime": "2026-04-26T20:04Z"
     },
     {
-      "flrID": "none",
+      "flrID": "2026-04-26T22:51:00-FLR-001",
       "classType": "M6.0",
       "beginTime": "2026-04-26T22:51Z",
       "peakTime": "2026-04-26T22:57Z"
@@ -114,7 +114,25 @@
       "classType": "M1.0",
       "beginTime": "2026-04-27T06:39Z",
       "peakTime": "2026-04-27T06:45Z"
+    },
+    {
+      "flrID": "2026-04-28T12:17:00-FLR-001",
+      "classType": "M1.0",
+      "beginTime": "2026-04-28T12:17Z",
+      "peakTime": "2026-04-28T12:23Z"
+    },
+    {
+      "flrID": "2026-04-28T13:49:00-FLR-001",
+      "classType": "M1.5",
+      "beginTime": "2026-04-28T13:49Z",
+      "peakTime": "2026-04-28T13:53Z"
+    },
+    {
+      "flrID": "2026-04-28T14:03:00-FLR-001",
+      "classType": "M1.1",
+      "beginTime": "2026-04-28T14:03Z",
+      "peakTime": "2026-04-28T14:07Z"
     }
   ],
-  "fetchedAt": "2026-04-28T08:25:09.417Z"
+  "fetchedAt": "2026-04-29T08:19:05.941Z"
 }
