@@ -1,5 +1,102 @@
 {
   "geomagneticStorms": [],
-  "solarFlares": [],
-  "fetchedAt": "2026-04-30T08:22:13.754Z"
+  "solarFlares": [
+    {
+      "flrID": "2026-04-24T00:51:00-FLR-001",
+      "classType": "X2.4",
+      "beginTime": "2026-04-24T00:51Z",
+      "peakTime": "2026-04-24T01:07Z"
+    },
+    {
+      "flrID": "2026-04-24T08:01:00-FLR-001",
+      "classType": "X2.5",
+      "beginTime": "2026-04-24T08:01Z",
+      "peakTime": "2026-04-24T08:13Z"
+    },
+    {
+      "flrID": "2026-04-24T08:57:00-FLR-001",
+      "classType": "M1.9",
+      "beginTime": "2026-04-24T08:57Z",
+      "peakTime": "2026-04-24T09:07Z"
+    },
+    {
+      "flrID": "2026-04-24T12:34:00-FLR-001",
+      "classType": "M1.7",
+      "beginTime": "2026-04-24T12:34Z",
+      "peakTime": "2026-04-24T13:01Z"
+    },
+    {
+      "flrID": "2026-04-24T17:54:00-FLR-001",
+      "classType": "M6.4",
+      "beginTime": "2026-04-24T17:54Z",
+      "peakTime": "2026-04-24T18:15Z"
+    },
+    {
+      "flrID": "2026-04-25T07:56:00-FLR-001",
+      "classType": "M1.3",
+      "beginTime": "2026-04-25T07:56Z",
+      "peakTime": "2026-04-25T07:59Z"
+    },
+    {
+      "flrID": "2026-04-25T14:22:00-FLR-001",
+      "classType": "M1.1",
+      "beginTime": "2026-04-25T14:22Z",
+      "peakTime": "2026-04-25T14:30Z"
+    },
+    {
+      "flrID": "2026-04-26T00:08:00-FLR-001",
+      "classType": "M1.3",
+      "beginTime": "2026-04-26T00:08Z",
+      "peakTime": "2026-04-26T00:23Z"
+    },
+    {
+      "flrID": "2026-04-26T13:54:00-FLR-001",
+      "classType": "M1.4",
+      "beginTime": "2026-04-26T13:54Z",
+      "peakTime": "2026-04-26T14:03Z"
+    },
+    {
+      "flrID": "2026-04-26T19:18:00-FLR-001",
+      "classType": "M1.7",
+      "beginTime": "2026-04-26T19:18Z",
+      "peakTime": "2026-04-26T19:24Z"
+    },
+    {
+      "flrID": "2026-04-26T19:54:00-FLR-001",
+      "classType": "M2.2",
+      "beginTime": "2026-04-26T19:54Z",
+      "peakTime": "2026-04-26T20:04Z"
+    },
+    {
+      "flrID": "2026-04-26T22:51:00-FLR-001",
+      "classType": "M6.0",
+      "beginTime": "2026-04-26T22:51Z",
+      "peakTime": "2026-04-26T22:57Z"
+    },
+    {
+      "flrID": "2026-04-27T06:39:00-FLR-001",
+      "classType": "M1.0",
+      "beginTime": "2026-04-27T06:39Z",
+      "peakTime": "2026-04-27T06:45Z"
+    },
+    {
+      "flrID": "2026-04-28T12:17:00-FLR-001",
+      "classType": "M1.0",
+      "beginTime": "2026-04-28T12:17Z",
+      "peakTime": "2026-04-28T12:23Z"
+    },
+    {
+      "flrID": "2026-04-28T13:49:00-FLR-001",
+      "classType": "M1.5",
+      "beginTime": "2026-04-28T13:49Z",
+      "peakTime": "2026-04-28T13:53Z"
+    },
+    {
+      "flrID": "2026-04-28T14:03:00-FLR-001",
+      "classType": "M1.1",
+      "beginTime": "2026-04-28T14:03Z",
+      "peakTime": "2026-04-28T14:07Z"
+    }
+  ],
+  "fetchedAt": "2026-05-01T08:11:30.458Z"
 }
