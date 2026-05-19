@@ -20,11 +20,29 @@
   ],
   "solarFlares": [
     {
-      "flrID": "2026-05-10T13:19:00-FLR-001",
-      "classType": "M5.7",
-      "beginTime": "2026-05-10T13:19Z",
-      "peakTime": "2026-05-10T13:39Z"
+      "flrID": "2026-05-16T15:50:00-FLR-001",
+      "classType": "M1.9",
+      "beginTime": "2026-05-16T15:50Z",
+      "peakTime": "2026-05-16T16:12Z"
+    },
+    {
+      "flrID": "2026-05-16T16:22:00-FLR-001",
+      "classType": "M1.3",
+      "beginTime": "2026-05-16T16:22Z",
+      "peakTime": "2026-05-16T16:29Z"
+    },
+    {
+      "flrID": "2026-05-16T17:39:00-FLR-001",
+      "classType": "M1.9",
+      "beginTime": "2026-05-16T17:39Z",
+      "peakTime": "2026-05-16T17:42Z"
+    },
+    {
+      "flrID": "2026-05-17T03:29:00-FLR-001",
+      "classType": "M1.4",
+      "beginTime": "2026-05-17T03:29Z",
+      "peakTime": "2026-05-17T03:39Z"
     }
   ],
-  "fetchedAt": "2026-05-16T08:04:16.454Z"
+  "fetchedAt": "2026-05-19T09:41:54.852Z"
 }
