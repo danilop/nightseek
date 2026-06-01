@@ -1,12 +1,26 @@
 {
-  "fetchedAt": "2026-05-31T08:44:28.786Z",
-  "startDate": "2026-05-31",
-  "endDate": "2026-06-06",
+  "fetchedAt": "2026-06-01T11:33:10.384Z",
+  "startDate": "2026-06-01",
+  "endDate": "2026-06-07",
   "data": {
     "2026-06-03": [],
     "2026-06-02": [],
     "2026-06-01": [],
-    "2026-05-31": [],
+    "2026-06-07": [
+      {
+        "name": "2018 GE",
+        "neoId": "3802390",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.008405334,
+          "max": 0.0187948982
+        },
+        "closeApproachDate": "2026-Jun-07 14:05",
+        "missDistanceLunarDistances": 16.2974235267,
+        "relativeVelocityKmh": 11140.0153655584,
+        "absoluteMagnitude": 27.5
+      }
+    ],
     "2026-06-06": [],
     "2026-06-05": [],
     "2026-06-04": []
