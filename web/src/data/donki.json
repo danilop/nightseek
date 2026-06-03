@@ -6,7 +6,37 @@
       "classType": "M1.1",
       "beginTime": "2026-05-29T06:40Z",
       "peakTime": "2026-05-29T07:04Z"
+    },
+    {
+      "flrID": "2026-06-02T04:42:00-FLR-001",
+      "classType": "M1.2",
+      "beginTime": "2026-06-02T04:42Z",
+      "peakTime": "2026-06-02T04:45Z"
+    },
+    {
+      "flrID": "2026-06-02T09:51:00-FLR-001",
+      "classType": "M1.2",
+      "beginTime": "2026-06-02T09:51Z",
+      "peakTime": "2026-06-02T10:05Z"
+    },
+    {
+      "flrID": "2026-06-02T16:31:00-FLR-001",
+      "classType": "M3.3",
+      "beginTime": "2026-06-02T16:31Z",
+      "peakTime": "2026-06-02T16:50Z"
+    },
+    {
+      "flrID": "2026-06-03T01:22:00-FLR-001",
+      "classType": "M9.3",
+      "beginTime": "2026-06-03T01:22Z",
+      "peakTime": "2026-06-03T01:36Z"
+    },
+    {
+      "flrID": "2026-06-03T06:59:00-FLR-001",
+      "classType": "M5",
+      "beginTime": "2026-06-03T06:59Z",
+      "peakTime": "2026-06-03T06:59Z"
     }
   ],
-  "fetchedAt": "2026-06-02T10:22:57.940Z"
+  "fetchedAt": "2026-06-03T10:58:39.106Z"
 }
