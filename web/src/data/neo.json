@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-06-09T09:42:29.010Z",
-  "startDate": "2026-06-09",
-  "endDate": "2026-06-15",
+  "fetchedAt": "2026-06-10T09:59:26.612Z",
+  "startDate": "2026-06-10",
+  "endDate": "2026-06-16",
   "data": {
     "2026-06-14": [],
     "2026-06-13": [],
@@ -15,8 +15,8 @@
           "max": 0.2535362011
         },
         "closeApproachDate": "2026-Jun-12 18:59",
-        "missDistanceLunarDistances": 16.0061287734,
-        "relativeVelocityKmh": 52450.3027476367,
+        "missDistanceLunarDistances": 16.0061450336,
+        "relativeVelocityKmh": 52450.3067305903,
         "absoluteMagnitude": 21.85
       },
       {
@@ -35,7 +35,7 @@
     ],
     "2026-06-11": [],
     "2026-06-10": [],
-    "2026-06-09": [],
+    "2026-06-16": [],
     "2026-06-15": []
   }
 }
