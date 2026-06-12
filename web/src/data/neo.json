@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-06-11T10:23:46.859Z",
-  "startDate": "2026-06-11",
-  "endDate": "2026-06-17",
+  "fetchedAt": "2026-06-12T10:12:32.327Z",
+  "startDate": "2026-06-12",
+  "endDate": "2026-06-18",
   "data": {
     "2026-06-14": [],
     "2026-06-13": [],
@@ -33,7 +33,21 @@
         "absoluteMagnitude": 27.4
       }
     ],
-    "2026-06-11": [],
+    "2026-06-18": [
+      {
+        "name": "2003 LN6",
+        "neoId": "3156302",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0303777061,
+          "max": 0.0679266159
+        },
+        "closeApproachDate": "2026-Jun-18 20:54",
+        "missDistanceLunarDistances": 3.6847349307,
+        "relativeVelocityKmh": 14112.2911137638,
+        "absoluteMagnitude": 24.71
+      }
+    ],
     "2026-06-17": [],
     "2026-06-16": [],
     "2026-06-15": []
