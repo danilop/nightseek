@@ -1,38 +1,11 @@
 {
-  "fetchedAt": "2026-06-12T10:12:32.327Z",
-  "startDate": "2026-06-12",
-  "endDate": "2026-06-18",
+  "fetchedAt": "2026-06-13T08:57:29.789Z",
+  "startDate": "2026-06-13",
+  "endDate": "2026-06-19",
   "data": {
     "2026-06-14": [],
     "2026-06-13": [],
-    "2026-06-12": [
-      {
-        "name": "530520 (2011 LT17)",
-        "neoId": "2530520",
-        "isPotentiallyHazardous": true,
-        "estimatedDiameterKm": {
-          "min": 0.1133848361,
-          "max": 0.2535362011
-        },
-        "closeApproachDate": "2026-Jun-12 18:59",
-        "missDistanceLunarDistances": 16.0061503629,
-        "relativeVelocityKmh": 52450.3084968839,
-        "absoluteMagnitude": 21.85
-      },
-      {
-        "name": "2016 VS",
-        "neoId": "3763271",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0088014652,
-          "max": 0.0196806745
-        },
-        "closeApproachDate": "2026-Jun-12 14:20",
-        "missDistanceLunarDistances": 19.8803697221,
-        "relativeVelocityKmh": 39884.970941361,
-        "absoluteMagnitude": 27.4
-      }
-    ],
+    "2026-06-19": [],
     "2026-06-18": [
       {
         "name": "2003 LN6",
