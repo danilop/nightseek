@@ -1,8 +1,23 @@
 {
-  "fetchedAt": "2026-06-15T12:13:13.415Z",
-  "startDate": "2026-06-15",
-  "endDate": "2026-06-21",
+  "fetchedAt": "2026-06-16T11:09:49.141Z",
+  "startDate": "2026-06-16",
+  "endDate": "2026-06-22",
   "data": {
+    "2026-06-22": [
+      {
+        "name": "2015 LM24",
+        "neoId": "3721222",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0530340723,
+          "max": 0.1185877909
+        },
+        "closeApproachDate": "2026-Jun-22 10:41",
+        "missDistanceLunarDistances": 18.0772498866,
+        "relativeVelocityKmh": 49508.6133500813,
+        "absoluteMagnitude": 23.5
+      }
+    ],
     "2026-06-21": [],
     "2026-06-20": [],
     "2026-06-19": [],
@@ -22,7 +37,6 @@
       }
     ],
     "2026-06-17": [],
-    "2026-06-16": [],
-    "2026-06-15": []
+    "2026-06-16": []
   }
 }
