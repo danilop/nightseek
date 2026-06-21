@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-06-20T08:55:32.649Z",
-  "startDate": "2026-06-20",
-  "endDate": "2026-06-26",
+  "fetchedAt": "2026-06-21T09:49:31.230Z",
+  "startDate": "2026-06-21",
+  "endDate": "2026-06-27",
   "data": {
     "2026-06-25": [],
     "2026-06-24": [],
@@ -22,7 +22,21 @@
       }
     ],
     "2026-06-21": [],
-    "2026-06-20": [],
+    "2026-06-27": [
+      {
+        "name": "152637 (1997 NC1)",
+        "neoId": "2152637",
+        "isPotentiallyHazardous": true,
+        "estimatedDiameterKm": {
+          "min": 0.708851033,
+          "max": 1.5850390958
+        },
+        "closeApproachDate": "2026-Jun-27 11:16",
+        "missDistanceLunarDistances": 6.6719654369,
+        "relativeVelocityKmh": 31992.0827211322,
+        "absoluteMagnitude": 17.87
+      }
+    ],
     "2026-06-26": []
   }
 }
