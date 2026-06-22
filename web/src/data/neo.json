@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-06-21T09:49:31.230Z",
-  "startDate": "2026-06-21",
-  "endDate": "2026-06-27",
+  "fetchedAt": "2026-06-22T11:53:20.463Z",
+  "startDate": "2026-06-22",
+  "endDate": "2026-06-28",
   "data": {
     "2026-06-25": [],
     "2026-06-24": [],
@@ -21,7 +21,7 @@
         "absoluteMagnitude": 23.5
       }
     ],
-    "2026-06-21": [],
+    "2026-06-28": [],
     "2026-06-27": [
       {
         "name": "152637 (1997 NC1)",
@@ -32,8 +32,8 @@
           "max": 1.5850390958
         },
         "closeApproachDate": "2026-Jun-27 11:16",
-        "missDistanceLunarDistances": 6.6719654369,
-        "relativeVelocityKmh": 31992.0827211322,
+        "missDistanceLunarDistances": 6.6719676542,
+        "relativeVelocityKmh": 31992.0803630475,
         "absoluteMagnitude": 17.87
       }
     ],
