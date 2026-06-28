@@ -1,28 +1,28 @@
 {
-  "fetchedAt": "2026-06-27T08:35:02.189Z",
-  "startDate": "2026-06-27",
-  "endDate": "2026-07-03",
+  "fetchedAt": "2026-06-28T08:50:41.605Z",
+  "startDate": "2026-06-28",
+  "endDate": "2026-07-04",
   "data": {
     "2026-06-30": [],
     "2026-07-01": [],
     "2026-06-29": [],
     "2026-07-02": [],
     "2026-06-28": [],
-    "2026-06-27": [
+    "2026-07-03": [],
+    "2026-07-04": [
       {
-        "name": "152637 (1997 NC1)",
-        "neoId": "2152637",
+        "name": "523808 (2007 ML24)",
+        "neoId": "2523808",
         "isPotentiallyHazardous": true,
         "estimatedDiameterKm": {
-          "min": 0.708851033,
-          "max": 1.5850390958
+          "min": 0.3585543342,
+          "max": 0.8017518649
         },
-        "closeApproachDate": "2026-Jun-27 11:16",
-        "missDistanceLunarDistances": 6.6719626361,
-        "relativeVelocityKmh": 31992.0790032091,
-        "absoluteMagnitude": 17.87
+        "closeApproachDate": "2026-Jul-04 19:53",
+        "missDistanceLunarDistances": 9.0409832169,
+        "relativeVelocityKmh": 60352.7262900779,
+        "absoluteMagnitude": 19.35
       }
-    ],
-    "2026-07-03": []
+    ]
   }
 }
