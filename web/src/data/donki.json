@@ -1,5 +1,18 @@
 {
   "geomagneticStorms": [],
-  "solarFlares": [],
-  "fetchedAt": "2026-06-29T10:58:48.111Z"
+  "solarFlares": [
+    {
+      "flrID": "2026-06-29T21:13:00-FLR-001",
+      "classType": "M1.4",
+      "beginTime": "2026-06-29T21:13Z",
+      "peakTime": "2026-06-29T21:40Z"
+    },
+    {
+      "flrID": "2026-06-30T00:39:00-FLR-001",
+      "classType": "M1.3",
+      "beginTime": "2026-06-30T00:39Z",
+      "peakTime": "2026-06-30T01:16Z"
+    }
+  ],
+  "fetchedAt": "2026-06-30T09:34:50.127Z"
 }
