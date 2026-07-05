@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-07-04T08:35:49.328Z",
-  "startDate": "2026-07-04",
-  "endDate": "2026-07-10",
+  "fetchedAt": "2026-07-05T08:51:48.801Z",
+  "startDate": "2026-07-05",
+  "endDate": "2026-07-11",
   "data": {
     "2026-07-05": [],
     "2026-07-06": [],
@@ -9,19 +9,19 @@
     "2026-07-08": [],
     "2026-07-09": [],
     "2026-07-10": [],
-    "2026-07-04": [
+    "2026-07-11": [
       {
-        "name": "523808 (2007 ML24)",
-        "neoId": "2523808",
-        "isPotentiallyHazardous": true,
+        "name": "2007 AA2",
+        "neoId": "3365951",
+        "isPotentiallyHazardous": false,
         "estimatedDiameterKm": {
-          "min": 0.3585543342,
-          "max": 0.8017518649
+          "min": 0.0319561887,
+          "max": 0.0714562102
         },
-        "closeApproachDate": "2026-Jul-04 19:53",
-        "missDistanceLunarDistances": 9.0409841116,
-        "relativeVelocityKmh": 60352.758355374,
-        "absoluteMagnitude": 19.35
+        "closeApproachDate": "2026-Jul-11 06:06",
+        "missDistanceLunarDistances": 17.7660102475,
+        "relativeVelocityKmh": 25970.1909672645,
+        "absoluteMagnitude": 24.6
       }
     ]
   }
