@@ -1,5 +1,38 @@
 {
-  "geomagneticStorms": [],
+  "geomagneticStorms": [
+    {
+      "gstID": "2026-07-04T00:00:00-GST-001",
+      "startTime": "2026-07-04T00:00Z",
+      "kpIndexes": [
+        {
+          "observedTime": "2026-07-04T03:00Z",
+          "kpIndex": 6,
+          "source": "NOAA"
+        },
+        {
+          "observedTime": "2026-07-04T06:00Z",
+          "kpIndex": 7.33,
+          "source": "NOAA"
+        },
+        {
+          "observedTime": "2026-07-04T09:00Z",
+          "kpIndex": 5.67,
+          "source": "NOAA"
+        },
+        {
+          "observedTime": "2026-07-04T15:00Z",
+          "kpIndex": 6.67,
+          "source": "NOAA"
+        },
+        {
+          "observedTime": "2026-07-04T18:00Z",
+          "kpIndex": 5.67,
+          "source": "NOAA"
+        }
+      ],
+      "maxKp": 7.33
+    }
+  ],
   "solarFlares": [
     {
       "flrID": "2026-06-29T21:13:00-FLR-001",
@@ -282,7 +315,67 @@
       "classType": "M1.3",
       "beginTime": "2026-07-05T00:24Z",
       "peakTime": "2026-07-05T00:31Z"
+    },
+    {
+      "flrID": "2026-07-05T04:19:00-FLR-001",
+      "classType": "M1.3",
+      "beginTime": "2026-07-05T04:19Z",
+      "peakTime": "2026-07-05T04:32Z"
+    },
+    {
+      "flrID": "2026-07-05T04:41:00-FLR-001",
+      "classType": "M1.0",
+      "beginTime": "2026-07-05T04:41Z",
+      "peakTime": "2026-07-05T04:47Z"
+    },
+    {
+      "flrID": "2026-07-05T05:21:00-FLR-001",
+      "classType": "M2.7",
+      "beginTime": "2026-07-05T05:21Z",
+      "peakTime": "2026-07-05T05:39Z"
+    },
+    {
+      "flrID": "2026-07-05T10:56:00-FLR-001",
+      "classType": "M1.4",
+      "beginTime": "2026-07-05T10:56Z",
+      "peakTime": "2026-07-05T11:00Z"
+    },
+    {
+      "flrID": "2026-07-05T11:12:00-FLR-001",
+      "classType": "M1.6",
+      "beginTime": "2026-07-05T11:12Z",
+      "peakTime": "2026-07-05T11:16Z"
+    },
+    {
+      "flrID": "2026-07-05T16:21:00-FLR-001",
+      "classType": "M1.4",
+      "beginTime": "2026-07-05T16:21Z",
+      "peakTime": "2026-07-05T16:32Z"
+    },
+    {
+      "flrID": "2026-07-05T16:41:00-FLR-001",
+      "classType": "M1.4",
+      "beginTime": "2026-07-05T16:41Z",
+      "peakTime": "2026-07-05T16:45Z"
+    },
+    {
+      "flrID": "2026-07-05T17:51:00-FLR-001",
+      "classType": "M5.3",
+      "beginTime": "2026-07-05T17:51Z",
+      "peakTime": "2026-07-05T17:57Z"
+    },
+    {
+      "flrID": "2026-07-05T18:56:00-FLR-001",
+      "classType": "M1.4",
+      "beginTime": "2026-07-05T18:56Z",
+      "peakTime": "2026-07-05T19:07Z"
+    },
+    {
+      "flrID": "2026-07-05T21:14:00-FLR-001",
+      "classType": "M1.0",
+      "beginTime": "2026-07-05T21:14Z",
+      "peakTime": "2026-07-05T21:22Z"
     }
   ],
-  "fetchedAt": "2026-07-05T08:52:19.299Z"
+  "fetchedAt": "2026-07-06T10:20:22.357Z"
 }
