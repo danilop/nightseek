@@ -21,7 +21,7 @@
         },
         {
           "observedTime": "2026-07-04T15:00Z",
-          "kpIndex": 6.67,
+          "kpIndex": 6.33,
           "source": "NOAA"
         },
         {
@@ -34,24 +34,6 @@
     }
   ],
   "solarFlares": [
-    {
-      "flrID": "2026-07-02T01:37:00-FLR-001",
-      "classType": "M4.2",
-      "beginTime": "2026-07-02T01:37Z",
-      "peakTime": "2026-07-02T01:56Z"
-    },
-    {
-      "flrID": "2026-07-02T10:21:00-FLR-001",
-      "classType": "M2.8",
-      "beginTime": "2026-07-02T10:21Z",
-      "peakTime": "2026-07-02T10:26Z"
-    },
-    {
-      "flrID": "2026-07-02T23:03:00-FLR-001",
-      "classType": "M1.2",
-      "beginTime": "2026-07-02T23:03Z",
-      "peakTime": "2026-07-02T23:12Z"
-    },
     {
       "flrID": "2026-07-03T13:03:00-FLR-001",
       "classType": "M1.4",
@@ -267,7 +249,13 @@
       "classType": "M1.5",
       "beginTime": "2026-07-08T17:49Z",
       "peakTime": "2026-07-08T17:56Z"
+    },
+    {
+      "flrID": "2026-07-09T02:17:00-FLR-001",
+      "classType": "M1.1",
+      "beginTime": "2026-07-09T02:17Z",
+      "peakTime": "2026-07-09T02:27Z"
     }
   ],
-  "fetchedAt": "2026-07-09T09:38:08.220Z"
+  "fetchedAt": "2026-07-10T09:33:39.689Z"
 }
