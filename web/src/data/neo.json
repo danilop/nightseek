@@ -1,25 +1,11 @@
 {
-  "fetchedAt": "2026-07-11T07:54:54.709Z",
-  "startDate": "2026-07-11",
-  "endDate": "2026-07-17",
+  "fetchedAt": "2026-07-12T08:16:17.285Z",
+  "startDate": "2026-07-12",
+  "endDate": "2026-07-18",
   "data": {
     "2026-07-16": [],
     "2026-07-17": [],
-    "2026-07-11": [
-      {
-        "name": "2007 AA2",
-        "neoId": "3365951",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0319561887,
-          "max": 0.0714562102
-        },
-        "closeApproachDate": "2026-Jul-11 06:06",
-        "missDistanceLunarDistances": 17.7660102475,
-        "relativeVelocityKmh": 25970.1909672645,
-        "absoluteMagnitude": 24.6
-      }
-    ],
+    "2026-07-18": [],
     "2026-07-12": [],
     "2026-07-13": [],
     "2026-07-14": [],
