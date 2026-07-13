@@ -1,10 +1,12 @@
 {
-  "fetchedAt": "2026-07-12T08:16:27.336Z",
+  "fetchedAt": "2026-07-13T09:25:48.243Z",
   "hashes": {
-    "neo.json": "7c763b0437d6",
-    "comets.json": "6b4a205e0ce0",
-    "donki.json": "c41a54c16240",
+    "neo.json": "320504e4d736",
+    "donki.json": "7b26c77984a7",
     "asteroids.json": "472d75092f66",
-    "ephemeris.json": "6d11e9fac3a6"
-  }
+    "ephemeris.json": "4c54c23b4c6d"
+  },
+  "errors": [
+    "comets: fetch failed"
+  ]
 }

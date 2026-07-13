@@ -2,72 +2,6 @@
   "geomagneticStorms": [],
   "solarFlares": [
     {
-      "flrID": "2026-07-05T00:24:00-FLR-001",
-      "classType": "M1.3",
-      "beginTime": "2026-07-05T00:24Z",
-      "peakTime": "2026-07-05T00:31Z"
-    },
-    {
-      "flrID": "2026-07-05T04:19:00-FLR-001",
-      "classType": "M1.3",
-      "beginTime": "2026-07-05T04:19Z",
-      "peakTime": "2026-07-05T04:32Z"
-    },
-    {
-      "flrID": "2026-07-05T04:41:00-FLR-001",
-      "classType": "M1.0",
-      "beginTime": "2026-07-05T04:41Z",
-      "peakTime": "2026-07-05T04:47Z"
-    },
-    {
-      "flrID": "2026-07-05T05:21:00-FLR-001",
-      "classType": "M2.7",
-      "beginTime": "2026-07-05T05:21Z",
-      "peakTime": "2026-07-05T05:39Z"
-    },
-    {
-      "flrID": "2026-07-05T10:56:00-FLR-001",
-      "classType": "M1.4",
-      "beginTime": "2026-07-05T10:56Z",
-      "peakTime": "2026-07-05T11:00Z"
-    },
-    {
-      "flrID": "2026-07-05T11:12:00-FLR-001",
-      "classType": "M1.6",
-      "beginTime": "2026-07-05T11:12Z",
-      "peakTime": "2026-07-05T11:16Z"
-    },
-    {
-      "flrID": "2026-07-05T16:21:00-FLR-001",
-      "classType": "M1.4",
-      "beginTime": "2026-07-05T16:21Z",
-      "peakTime": "2026-07-05T16:32Z"
-    },
-    {
-      "flrID": "2026-07-05T16:41:00-FLR-001",
-      "classType": "M1.4",
-      "beginTime": "2026-07-05T16:41Z",
-      "peakTime": "2026-07-05T16:45Z"
-    },
-    {
-      "flrID": "2026-07-05T17:51:00-FLR-001",
-      "classType": "M5.3",
-      "beginTime": "2026-07-05T17:51Z",
-      "peakTime": "2026-07-05T17:57Z"
-    },
-    {
-      "flrID": "2026-07-05T18:56:00-FLR-001",
-      "classType": "M1.4",
-      "beginTime": "2026-07-05T18:56Z",
-      "peakTime": "2026-07-05T19:07Z"
-    },
-    {
-      "flrID": "2026-07-05T21:14:00-FLR-001",
-      "classType": "M1.0",
-      "beginTime": "2026-07-05T21:14Z",
-      "peakTime": "2026-07-05T21:22Z"
-    },
-    {
       "flrID": "2026-07-07T14:09:00-FLR-001",
       "classType": "M4.0",
       "beginTime": "2026-07-07T14:09Z",
@@ -84,7 +18,13 @@
       "classType": "M1.1",
       "beginTime": "2026-07-09T02:17Z",
       "peakTime": "2026-07-09T02:27Z"
+    },
+    {
+      "flrID": "2026-07-12T07:17:00-FLR-001",
+      "classType": "M1.1",
+      "beginTime": "2026-07-12T07:17Z",
+      "peakTime": "2026-07-12T08:11Z"
     }
   ],
-  "fetchedAt": "2026-07-12T08:16:18.504Z"
+  "fetchedAt": "2026-07-13T09:25:39.526Z"
 }
