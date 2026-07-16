@@ -10,6 +10,36 @@ import { calculateAirmass } from './airmass';
 import { AU_TO_KM } from './constants';
 import { calculateApparentDiameter, PLANET_DIAMETER_RANGES } from './planets';
 
+function getAboveAltitudeSegment(
+  startSample: [Date, number],
+  endSample: [Date, number],
+  threshold: number
+): [number, number] | null {
+  const [startTime, startAltitude] = startSample;
+  const [endTime, endAltitude] = endSample;
+  const startMs = startTime.getTime();
+  const endMs = endTime.getTime();
+  if (endMs <= startMs) return null;
+
+  const startsAbove = startAltitude >= threshold;
+  const endsAbove = endAltitude >= threshold;
+  if (!startsAbove && !endsAbove) return null;
+  if (startsAbove && endsAbove) return [startMs, endMs];
+
+  const ratio = (threshold - startAltitude) / (endAltitude - startAltitude);
+  const crossingMs = startMs + (endMs - startMs) * ratio;
+  return startsAbove ? [startMs, crossingMs] : [crossingMs, endMs];
+}
+
+function appendOrMergeWindow(windows: [Date, Date][], segment: [number, number]): void {
+  const previous = windows[windows.length - 1];
+  if (previous && segment[0] <= previous[1].getTime() + 1) {
+    previous[1] = new Date(Math.max(previous[1].getTime(), segment[1]));
+    return;
+  }
+  windows.push([new Date(segment[0]), new Date(segment[1])]);
+}
+
 /**
  * Calculate angular separation between two celestial objects
  * Uses Vincenty formula for accuracy
@@ -188,17 +218,24 @@ export class SkyCalculator {
    * Find window where object is above a given altitude
    */
   private findAltitudeWindow(samples: [Date, number][], threshold: number): [Date, Date] | null {
-    let start: Date | null = null;
-    let end: Date | null = null;
+    const windows: [Date, Date][] = [];
 
-    for (const [time, alt] of samples) {
-      if (alt >= threshold) {
-        if (!start) start = time;
-        end = time;
-      }
+    for (let index = 0; index < samples.length - 1; index++) {
+      const segment = getAboveAltitudeSegment(samples[index], samples[index + 1], threshold);
+      if (segment) appendOrMergeWindow(windows, segment);
     }
 
-    return start && end ? [start, end] : null;
+    let longestWindow: [Date, Date] | null = null;
+    for (const window of windows) {
+      if (
+        longestWindow === null ||
+        window[1].getTime() - window[0].getTime() >
+          longestWindow[1].getTime() - longestWindow[0].getTime()
+      ) {
+        longestWindow = window;
+      }
+    }
+    return longestWindow;
   }
 
   /**
@@ -224,8 +261,8 @@ export class SkyCalculator {
     const endTime = nightInfo.astronomicalDawn.getTime();
     const interval = 10 * 60 * 1000; // 10 minutes
 
-    for (let t = startTime; t <= endTime; t += interval) {
-      const time = new Date(t);
+    const sampleAt = (timeMs: number) => {
+      const time = new Date(timeMs);
       const { altitude, azimuth } = getAltitudeAt(time);
 
       altitudeSamples.push([time, altitude]);
@@ -236,6 +273,13 @@ export class SkyCalculator {
         maxAltitudeTime = time;
         azimuthAtPeak = azimuth;
       }
+    };
+
+    for (let t = startTime; t < endTime; t += interval) {
+      sampleAt(t);
+    }
+    if (endTime >= startTime) {
+      sampleAt(endTime);
     }
 
     return { altitudeSamples, azimuthSamples, maxAltitude, maxAltitudeTime, azimuthAtPeak };
@@ -450,8 +494,8 @@ export class SkyCalculator {
     const endTime = nightInfo.astronomicalDawn.getTime();
     const interval = 10 * 60 * 1000;
 
-    for (let t = startTime; t <= endTime; t += interval) {
-      const time = new Date(t);
+    const sampleMoonAt = (timeMs: number) => {
+      const time = new Date(timeMs);
       const pos = this.getMoonPosition(time);
 
       altitudeSamples.push([time, pos.altitude]);
@@ -462,6 +506,13 @@ export class SkyCalculator {
         maxAltitudeTime = time;
         azimuthAtPeak = pos.azimuth;
       }
+    };
+
+    for (let t = startTime; t < endTime; t += interval) {
+      sampleMoonAt(t);
+    }
+    if (endTime >= startTime) {
+      sampleMoonAt(endTime);
     }
 
     return {

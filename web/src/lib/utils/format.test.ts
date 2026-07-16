@@ -5,6 +5,7 @@ import {
   formatAngularSize,
   formatDate,
   formatDateRange,
+  formatDurationMinutes,
   formatMagnitude,
   formatMoonSeparation,
   formatScore,
@@ -19,6 +20,15 @@ import {
 } from './format';
 
 describe('format utils', () => {
+  describe('formatDurationMinutes', () => {
+    it('formats minutes and hours compactly', () => {
+      expect(formatDurationMinutes(35)).toBe('35m');
+      expect(formatDurationMinutes(120)).toBe('2h');
+      expect(formatDurationMinutes(135)).toBe('2h 15m');
+      expect(formatDurationMinutes(0.4)).toBe('<1m');
+    });
+  });
+
   describe('formatTime', () => {
     it('should format time in 12-hour format', () => {
       const date = new Date('2025-01-15T14:30:00');

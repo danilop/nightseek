@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import { forwardRef, useState } from 'react';
 import { useUIState } from '@/hooks/useUIState';
 import { formatSubtype } from '@/lib/utils/format-subtype';
+import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import type { NightInfo, NightWeather, ScoredObject } from '@/types';
 import ObjectCard from './ObjectCard';
 import type { SortMode } from './SortModeControl';
@@ -20,6 +21,7 @@ interface CategorySectionProps {
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
   sortMode?: SortMode;
   selectedTime?: Date;
+  accessibilityByObject?: ReadonlyMap<ScoredObject, TargetAccessibility>;
   onObjectClick?: (object: ScoredObject) => void;
 }
 
@@ -38,6 +40,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
     dragHandleProps,
     sortMode,
     selectedTime,
+    accessibilityByObject,
     onObjectClick,
   },
   ref
@@ -121,6 +124,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
                   weather={weather}
                   sortMode={sortMode}
                   selectedTime={selectedTime}
+                  targetAccessibility={accessibilityByObject?.get(obj)}
                   onSelect={onObjectClick}
                 />
               ))}
@@ -136,6 +140,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
                   weather={weather}
                   sortMode={sortMode}
                   selectedTime={selectedTime}
+                  targetAccessibility={accessibilityByObject?.get(obj)}
                   compact
                   onSelect={onObjectClick}
                 />

@@ -302,6 +302,7 @@ export interface HorizonSector {
 }
 
 export interface HorizonProfile {
+  minimumAltitude: number;
   sectors: HorizonSector[];
 }
 

@@ -18,6 +18,20 @@ export function formatTimeRange(start: Date, end: Date, timezone?: string): stri
 }
 
 /**
+ * Format a minute duration compactly (for example, "2h 15m" or "35m").
+ */
+export function formatDurationMinutes(durationMinutes: number): string {
+  const roundedMinutes = Math.max(0, Math.round(durationMinutes));
+  if (roundedMinutes < 1 && durationMinutes > 0) return '<1m';
+
+  const hours = Math.floor(roundedMinutes / 60);
+  const minutes = roundedMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
+/**
  * Format date for display
  */
 export function formatDate(date: Date, timezone?: string): string {

@@ -46,10 +46,21 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
+      - name: Package Pages artifact
+        run: |
+          tar \
+            --dereference --hard-dereference \
+            --directory ./web/dist \
+            -cvf "$RUNNER_TEMP/artifact.tar" \
+            .
+
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          path: ./web/dist
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
   deploy:
     environment:

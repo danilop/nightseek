@@ -262,6 +262,7 @@ async function fetchVariableStars(
 /**
  * Fetch extragalactic objects (galaxies and QSOs) in a region
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TAP row parsing is intentionally linear and field-by-field
 async function fetchExtragalacticObjects(
   raDeg: number,
   decDeg: number,

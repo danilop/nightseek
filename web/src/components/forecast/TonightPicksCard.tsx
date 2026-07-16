@@ -1,17 +1,22 @@
 import { Trophy, X } from 'lucide-react';
+import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import { getRatingFromScore } from '@/lib/utils/rating';
+import { useApp } from '@/stores/AppContext';
 import type { ScoredObject, TonightPick } from '@/types';
+import TargetWindowSummary from './TargetWindowSummary';
 
 interface TonightPicksCardProps {
   picks: TonightPick[];
   onObjectSelect: (object: ScoredObject) => void;
   onDismiss: () => void;
+  accessibilityByObject?: ReadonlyMap<ScoredObject, TargetAccessibility>;
 }
 
 export default function TonightPicksCard({
   picks,
   onObjectSelect,
   onDismiss,
+  accessibilityByObject,
 }: TonightPicksCardProps) {
   if (picks.length === 0) return null;
 
@@ -36,7 +41,12 @@ export default function TonightPicksCard({
         }`}
       >
         {picks.map(pick => (
-          <PickItem key={pick.object.objectName} pick={pick} onSelect={onObjectSelect} />
+          <PickItem
+            key={pick.object.objectName}
+            pick={pick}
+            accessibility={accessibilityByObject?.get(pick.object)}
+            onSelect={onObjectSelect}
+          />
         ))}
       </div>
     </div>
@@ -46,10 +56,13 @@ export default function TonightPicksCard({
 function PickItem({
   pick,
   onSelect,
+  accessibility,
 }: {
   pick: TonightPick;
   onSelect: (object: ScoredObject) => void;
+  accessibility?: TargetAccessibility;
 }) {
+  const { state } = useApp();
   const rating = getRatingFromScore(pick.object.totalScore, 200);
   const displayName = pick.object.visibility.commonName || pick.object.objectName;
 
@@ -62,6 +75,11 @@ function PickItem({
       <div className="text-amber-400/80 text-xs">{pick.categoryLabel}</div>
       <div className="truncate font-medium text-white">{displayName}</div>
       <div className="truncate text-gray-400 text-xs">{pick.reason}</div>
+      <TargetWindowSummary
+        accessibility={accessibility}
+        timezone={state.location?.timezone}
+        compact
+      />
       <div className="mt-1 flex items-center justify-between">
         <span className={`text-xs ${rating.color}`}>{rating.starString}</span>
         {pick.keyStat && <span className="text-gray-500 text-xs">{pick.keyStat}</span>}

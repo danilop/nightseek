@@ -25,9 +25,10 @@ import { getCached, setCache } from '@/lib/utils/cache';
 import { getNightLabel } from '@/lib/utils/format';
 import {
   createDefaultHorizonProfile,
-  cycleSectorMinAltitude,
   evaluateTargetAccessibility,
   getHorizonProfileCacheKey,
+  type HorizonAltitudeLevel,
+  normalizeHorizonProfile,
   type TargetAccessibility,
 } from '@/lib/utils/horizon-profile';
 import { applyQuickFilters } from '@/lib/utils/quick-filters';
@@ -204,6 +205,7 @@ function SortableCategorySection({
   sortMode,
   selectedTime,
   onObjectClick,
+  accessibilityByObject,
 }: {
   config: CategoryConfig;
   categoryObjects: ScoredObject[];
@@ -212,6 +214,7 @@ function SortableCategorySection({
   sortMode?: SortMode;
   selectedTime?: Date;
   onObjectClick: (object: ScoredObject) => void;
+  accessibilityByObject: ReadonlyMap<ScoredObject, TargetAccessibility>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: config.key,
@@ -238,6 +241,7 @@ function SortableCategorySection({
         dragHandleProps={{ ...attributes, ...listeners }}
         sortMode={sortMode}
         selectedTime={selectedTime}
+        accessibilityByObject={accessibilityByObject}
         onObjectClick={onObjectClick}
       />
     </div>
@@ -277,6 +281,7 @@ function SortableJupiterMoons({
   );
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: targets tab composes filtering, ranking, grouping, and DnD state in one view model
 export default function TargetsTab({
   objects,
   nightInfo,
@@ -347,7 +352,7 @@ export default function TargetsTab({
 
     void getCached<HorizonProfile>(horizonProfileCacheKey, Infinity).then(cached => {
       if (cancelled) return;
-      setHorizonProfile(cached ?? defaultProfile);
+      setHorizonProfile(normalizeHorizonProfile(cached ?? defaultProfile));
       setHorizonProfileReady(true);
     });
 
@@ -469,6 +474,7 @@ export default function TargetsTab({
   const groupedObjects = useMemo(() => {
     const groups: Record<string, ScoredObject[]> = {};
     for (const config of CATEGORY_CONFIGS) {
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: category sorting branches on interactive sort modes
       groups[config.key] = filteredObjects.filter(config.filter).sort((a, b) => {
         if (sortMode === 'altitude') {
           const altA = getAltitudeAtTime(a.visibility.altitudeSamples, selectedTime);
@@ -496,19 +502,26 @@ export default function TargetsTab({
   const totalCount = filteredObjects.length;
   const totalLoaded = objects.length;
 
-  const handleCycleHorizonSector = (sectorLabel: HorizonProfile['sectors'][number]['label']) => {
+  const handleResetHorizonProfile = () => {
+    setHorizonProfile(createDefaultHorizonProfile());
+    setTonightPicksDismissed(false);
+  };
+
+  const handleSetHorizonSectorAltitude = (
+    sectorLabel: HorizonProfile['sectors'][number]['label'],
+    minAltitude: HorizonAltitudeLevel
+  ) => {
     setHorizonProfile(current => ({
+      ...current,
       sectors: current.sectors.map(sector =>
-        sector.label === sectorLabel
-          ? { ...sector, minAltitude: cycleSectorMinAltitude(sector.minAltitude) }
-          : sector
+        sector.label === sectorLabel ? { ...sector, minAltitude } : sector
       ),
     }));
     setTonightPicksDismissed(false);
   };
 
-  const handleResetHorizonProfile = () => {
-    setHorizonProfile(createDefaultHorizonProfile());
+  const handleSetMinimumAltitude = (minimumAltitude: number) => {
+    setHorizonProfile(current => ({ ...current, minimumAltitude }));
     setTonightPicksDismissed(false);
   };
 
@@ -614,7 +627,8 @@ export default function TargetsTab({
 
       <AccessibleSkyControl
         horizonProfile={horizonProfile}
-        onCycleSector={handleCycleHorizonSector}
+        onSetMinimumAltitude={handleSetMinimumAltitude}
+        onSetSectorAltitude={handleSetHorizonSectorAltitude}
         onReset={handleResetHorizonProfile}
       />
 
@@ -622,6 +636,7 @@ export default function TargetsTab({
       {tonightPicks.length > 0 && !tonightPicksDismissed && (
         <TonightPicksCard
           picks={tonightPicks}
+          accessibilityByObject={accessibilityByObject}
           onObjectSelect={onObjectSelect}
           onDismiss={() => setTonightPicksDismissed(true)}
         />
@@ -729,6 +744,7 @@ export default function TargetsTab({
                     weather={weather}
                     sortMode={sortMode}
                     selectedTime={selectedTime}
+                    accessibilityByObject={accessibilityByObject}
                     onObjectClick={onObjectSelect}
                   />
                 );
@@ -759,6 +775,7 @@ export default function TargetsTab({
                     showSubtypeInPreview={activeDragConfig.showSubtypeInPreview}
                     sortMode={sortMode}
                     selectedTime={selectedTime}
+                    accessibilityByObject={accessibilityByObject}
                   />
                 )}
               </div>

@@ -121,6 +121,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    entries: ['index.html'],
+  },
   build: {
     target: 'esnext',
     minify: 'esbuild',

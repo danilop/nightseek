@@ -261,6 +261,7 @@ function estimateMagnitudeFromPhase(star: VariableStarInfo, phase: number): numb
 /**
  * Get phase description for display.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: variability classes need explicit phase buckets for readable descriptions
 function getPhaseDescription(star: VariableStarInfo, phase: number): string {
   switch (star.variabilityType) {
     case 'EA':

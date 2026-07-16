@@ -1,7 +1,7 @@
 """Weather forecast integration using Open-Meteo API."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Dict, List, Optional, Sequence
 from statistics import mean
 from zoneinfo import ZoneInfo
@@ -298,7 +298,7 @@ class WeatherForecast:
         self.longitude = longitude
         self._hourly_data: Dict[datetime, HourlyWeatherData] = {}
         self.timezone_name: Optional[str] = None
-        self._tzinfo: Optional[timezone] = None
+        self._tzinfo: Optional[tzinfo] = None
 
     def fetch_forecast(self, num_days: int) -> bool:
         """Fetch weather forecast from Open-Meteo with caching.
@@ -555,9 +555,7 @@ class WeatherForecast:
     ) -> List[datetime]:
         """Get list of hours within the night period that have data."""
         hours = [
-            dt
-            for dt in self._hourly_data.keys()
-            if night_start <= dt <= night_end
+            dt for dt in self._hourly_data.keys() if night_start <= dt <= night_end
         ]
         return sorted(hours)
 

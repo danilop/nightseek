@@ -42,8 +42,13 @@ describe('AAVSO Variable Star Predictions', () => {
     const p2 = predictVariableStars(new Date('2026-02-10'));
 
     // Algol has a ~2.87 day period so phases should differ
-    const algol1 = p1.find(p => p.star.name.includes('Algol'))!;
-    const algol2 = p2.find(p => p.star.name.includes('Algol'))!;
+    const algol1 = p1.find(p => p.star.name.includes('Algol'));
+    const algol2 = p2.find(p => p.star.name.includes('Algol'));
+    expect(algol1).toBeDefined();
+    expect(algol2).toBeDefined();
+    if (!algol1 || !algol2) {
+      throw new Error('Algol prediction missing from VSX fixtures');
+    }
     expect(algol1.phase).not.toEqual(algol2.phase);
   });
 

@@ -20,13 +20,21 @@ function wrapper({ children }: { children: ReactNode }) {
   return <AppProvider>{children}</AppProvider>;
 }
 
+async function renderAppHook() {
+  const rendered = renderHook(() => useApp(), { wrapper });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return rendered;
+}
+
 describe('AppContext', () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
-  it('provides initial state', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('provides initial state', async () => {
+    const { result } = await renderAppHook();
     const { state } = result.current;
 
     expect(state.location).toBeNull();
@@ -44,8 +52,8 @@ describe('AppContext', () => {
     }).toThrow('useApp must be used within AppProvider');
   });
 
-  it('SET_LOCATION updates location', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('SET_LOCATION updates location', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.dispatch({
@@ -61,8 +69,8 @@ describe('AppContext', () => {
     });
   });
 
-  it('SET_SETTINGS merges settings', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('SET_SETTINGS merges settings', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.dispatch({
@@ -77,8 +85,8 @@ describe('AppContext', () => {
     expect(result.current.state.settings.telescope).toBe('dwarf_mini');
   });
 
-  it('SET_LOADING updates loading state', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('SET_LOADING updates loading state', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.dispatch({
@@ -92,8 +100,8 @@ describe('AppContext', () => {
     expect(result.current.state.loadingPercent).toBe(50);
   });
 
-  it('SET_LOADING preserves previous message/percent when not provided', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('SET_LOADING preserves previous message/percent when not provided', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.dispatch({
@@ -113,8 +121,8 @@ describe('AppContext', () => {
     expect(result.current.state.loadingPercent).toBe(25);
   });
 
-  it('SET_ERROR clears loading and sets error', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('SET_ERROR clears loading and sets error', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.dispatch({
@@ -134,8 +142,8 @@ describe('AppContext', () => {
     expect(result.current.state.isLoading).toBe(false);
   });
 
-  it('CLEAR_FORECAST resets forecast data', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('CLEAR_FORECAST resets forecast data', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.dispatch({
@@ -160,8 +168,8 @@ describe('AppContext', () => {
     expect(result.current.state.bestNights).toEqual([]);
   });
 
-  it('SET_FORECAST clears error', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('SET_FORECAST clears error', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.dispatch({ type: 'SET_ERROR', payload: 'Some error' });
@@ -182,8 +190,8 @@ describe('AppContext', () => {
     expect(result.current.state.error).toBeNull();
   });
 
-  it('SET_SETUP_COMPLETE updates setup state', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('SET_SETUP_COMPLETE updates setup state', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.dispatch({ type: 'SET_SETUP_COMPLETE', payload: true });
@@ -192,8 +200,8 @@ describe('AppContext', () => {
     expect(result.current.state.isSetupComplete).toBe(true);
   });
 
-  it('SET_OFFLINE updates offline state', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('SET_OFFLINE updates offline state', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.dispatch({ type: 'SET_OFFLINE', payload: true });
@@ -202,8 +210,8 @@ describe('AppContext', () => {
     expect(result.current.state.isOffline).toBe(true);
   });
 
-  it('updateSettings dispatches SET_SETTINGS', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('updateSettings dispatches SET_SETTINGS', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.updateSettings({ forecastDays: 10 });
@@ -212,8 +220,8 @@ describe('AppContext', () => {
     expect(result.current.state.settings.forecastDays).toBe(10);
   });
 
-  it('completeSetup dispatches SET_SETUP_COMPLETE', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('completeSetup dispatches SET_SETUP_COMPLETE', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.completeSetup();
@@ -222,8 +230,8 @@ describe('AppContext', () => {
     expect(result.current.state.isSetupComplete).toBe(true);
   });
 
-  it('setProgress dispatches SET_LOADING with message and percent', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('setProgress dispatches SET_LOADING with message and percent', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.setProgress('Loading DSO catalog...', 75);
@@ -234,8 +242,8 @@ describe('AppContext', () => {
     expect(result.current.state.loadingPercent).toBe(75);
   });
 
-  it('RESET_SETTINGS resets to defaults', () => {
-    const { result } = renderHook(() => useApp(), { wrapper });
+  it('RESET_SETTINGS resets to defaults', async () => {
+    const { result } = await renderAppHook();
 
     act(() => {
       result.current.updateSettings({ forecastDays: 30, maxObjects: 50 });

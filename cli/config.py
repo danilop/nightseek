@@ -184,9 +184,7 @@ class Config(BaseSettings):
                 "latitude": float(lat),
                 "longitude": float(lon),
                 "city": data.get("city", "Unknown"),
-                "country": data.get("country_name")
-                or data.get("country")
-                or "Unknown",
+                "country": data.get("country_name") or data.get("country") or "Unknown",
                 "timezone": data.get("timezone", ""),
                 "provider": "ipapi.co",
             }

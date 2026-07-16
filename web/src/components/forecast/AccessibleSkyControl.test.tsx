@@ -3,94 +3,79 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createDefaultHorizonProfile } from '@/lib/utils/horizon-profile';
 import AccessibleSkyControl from './AccessibleSkyControl';
 
-class ResizeObserverMock {
-  observe() {
-    // Test stub.
-  }
-  disconnect() {
-    // Test stub.
-  }
-  unobserve() {
-    // Test stub.
-  }
-}
-
 beforeAll(() => {
-  vi.stubGlobal('ResizeObserver', ResizeObserverMock);
-
-  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
-    configurable: true,
-    value(options?: ScrollToOptions | number) {
-      this.scrollLeft = typeof options === 'number' ? options : (options?.left ?? 0);
-    },
-  });
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn().mockImplementation(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+  );
 });
 
 describe('AccessibleSkyControl', () => {
-  it('cycles the centered sector when its tile is pressed', () => {
-    const handleCycle = vi.fn();
+  it('shows all directions and applies an explicit obstruction level', () => {
+    const handleSetSectorAltitude = vi.fn();
 
     render(
       <AccessibleSkyControl
         horizonProfile={createDefaultHorizonProfile()}
-        onCycleSector={handleCycle}
+        onSetMinimumAltitude={vi.fn()}
+        onSetSectorAltitude={handleSetSectorAltitude}
         onReset={vi.fn()}
       />
     );
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /^n, open, centered under the heading marker\. press to change blockage\./i,
-      })
-    );
+    expect(screen.getAllByRole('button', { name: /^[nesw]{1,2}, open/i })).toHaveLength(8);
+    fireEvent.click(screen.getByRole('button', { name: /^sw, open/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^30°\+$/i }));
 
-    expect(handleCycle).toHaveBeenCalledWith('N');
+    expect(handleSetSectorAltitude).toHaveBeenCalledWith('SW', 30);
   });
 
-  it('moves focus with the keyboard before cycling the sector', () => {
-    const handleCycle = vi.fn();
+  it('changes the whole-sky minimum altitude independently', () => {
+    const handleSetMinimumAltitude = vi.fn();
 
     render(
       <AccessibleSkyControl
         horizonProfile={createDefaultHorizonProfile()}
-        onCycleSector={handleCycle}
+        onSetMinimumAltitude={handleSetMinimumAltitude}
+        onSetSectorAltitude={vi.fn()}
         onReset={vi.fn()}
       />
     );
 
-    const activeNorth = screen.getByRole('button', {
-      name: /^n, open, centered under the heading marker\. press to change blockage\./i,
+    fireEvent.change(screen.getByRole('slider', { name: /minimum target altitude/i }), {
+      target: { value: '25' },
     });
-    fireEvent.keyDown(activeNorth, { key: 'ArrowRight' });
 
-    const activeNorthEast = screen.getByRole('button', {
-      name: /^ne, open, centered under the heading marker\. press to change blockage\./i,
-    });
-    fireEvent.keyDown(activeNorthEast, { key: 'Enter' });
-
-    expect(handleCycle).toHaveBeenCalledWith('NE');
+    expect(handleSetMinimumAltitude).toHaveBeenCalledWith(25);
   });
 
-  it('cycles an off-center tile on the first tap', () => {
-    const handleCycle = vi.fn();
+  it('moves the selected direction with arrow keys', () => {
+    const handleSetSectorAltitude = vi.fn();
 
     render(
       <AccessibleSkyControl
         horizonProfile={createDefaultHorizonProfile()}
-        onCycleSector={handleCycle}
+        onSetMinimumAltitude={vi.fn()}
+        onSetSectorAltitude={handleSetSectorAltitude}
         onReset={vi.fn()}
       />
     );
 
-    const southTile = screen.getAllByRole('button', {
-      name: /^s, open, press to change blockage\./i,
-    })[0];
+    fireEvent.keyDown(screen.getByRole('button', { name: /^n, open/i }), {
+      key: 'ArrowRight',
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^45°\+$/i }));
 
-    fireEvent.click(southTile);
-    expect(handleCycle).toHaveBeenCalledWith('S');
+    expect(handleSetSectorAltitude).toHaveBeenCalledWith('NE', 45);
   });
 
   it('can follow the device heading when compass assist is enabled', async () => {
+    const handleSetSectorAltitude = vi.fn();
+
     class DeviceOrientationEventMock extends Event {
       static requestPermission = vi.fn().mockResolvedValue('granted');
       absolute: boolean;
@@ -120,17 +105,14 @@ describe('AccessibleSkyControl', () => {
     render(
       <AccessibleSkyControl
         horizonProfile={createDefaultHorizonProfile()}
-        onCycleSector={vi.fn()}
+        onSetMinimumAltitude={vi.fn()}
+        onSetSectorAltitude={handleSetSectorAltitude}
         onReset={vi.fn()}
       />
     );
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /use phone compass/i }));
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /stop compass/i })).toBeInTheDocument();
     });
 
     act(() => {
@@ -144,10 +126,11 @@ describe('AccessibleSkyControl', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', {
-          name: /^s, open, centered under the heading marker\. press to change blockage\./i,
-        })
+        screen.getByRole('button', { name: /^s, open, aligned with phone heading$/i })
       ).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByRole('button', { name: /^45°\+$/i }));
+    expect(handleSetSectorAltitude).toHaveBeenCalledWith('S', 45);
   });
 });

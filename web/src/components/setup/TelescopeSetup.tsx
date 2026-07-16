@@ -20,7 +20,13 @@ interface BrandGroup {
   presets: TelescopePreset[];
 }
 
-const GENERIC_PRESET = TELESCOPE_PRESETS.find(p => p.id === 'generic')!;
+const GENERIC_PRESET = (() => {
+  const preset = TELESCOPE_PRESETS.find(p => p.id === 'generic');
+  if (!preset) {
+    throw new Error('Generic telescope preset is required');
+  }
+  return preset;
+})();
 
 function groupPresetsByBrand(): BrandGroup[] {
   const brandPrefixes: [string, string][] = [

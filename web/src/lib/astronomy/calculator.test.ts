@@ -247,6 +247,7 @@ describe('SkyCalculator', () => {
 
     // Transit altitude is a pure geometric property: alt = 90° - |lat - dec|
     // This catches bugs where RA is wrong (shifts transit time) but dec is correct
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: exhaustive geometry regression over multiple objects and samples
     it('transit altitudes should match theoretical formula for all objects', () => {
       const lat = 51.5074;
       const testCases = [
@@ -648,6 +649,16 @@ describe('SkyCalculator', () => {
 
       expect(Array.isArray(result.altitudeSamples)).toBe(true);
       expect(result.altitudeSamples.length).toBeGreaterThan(0);
+    });
+
+    it('includes the exact astronomical dawn sample', () => {
+      const nightInfo = calculator.getNightInfo(new Date('2025-01-15T12:00:00Z'));
+      const result = calculator.calculateVisibility(12, 45, nightInfo, 'Test Object', 'dso');
+      const lastAltitudeSample = result.altitudeSamples[result.altitudeSamples.length - 1];
+      const lastAzimuthSample = result.azimuthSamples[result.azimuthSamples.length - 1];
+
+      expect(lastAltitudeSample[0]).toEqual(nightInfo.astronomicalDawn);
+      expect(lastAzimuthSample[0]).toEqual(nightInfo.astronomicalDawn);
     });
   });
 

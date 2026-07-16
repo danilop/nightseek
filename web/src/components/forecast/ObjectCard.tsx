@@ -18,10 +18,12 @@ import {
   getCategoryIcon,
 } from '@/lib/utils/format';
 import { formatSubtype } from '@/lib/utils/format-subtype';
+import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
 import { useApp } from '@/stores/AppContext';
 import type { NightInfo, NightWeather, ObjectVisibility, ScoredObject } from '@/types';
 import type { SortMode } from './SortModeControl';
+import TargetWindowSummary from './TargetWindowSummary';
 
 interface ObjectCardProps {
   object: ScoredObject;
@@ -30,6 +32,7 @@ interface ObjectCardProps {
   compact?: boolean;
   sortMode?: SortMode;
   selectedTime?: Date;
+  targetAccessibility?: TargetAccessibility;
   onDSOClick?: (object: ScoredObject) => void;
   onSelect?: (object: ScoredObject) => void;
 }
@@ -252,6 +255,7 @@ export default function ObjectCard({
   compact = false,
   sortMode,
   selectedTime,
+  targetAccessibility,
   onDSOClick,
   onSelect,
 }: ObjectCardProps) {
@@ -357,6 +361,7 @@ export default function ObjectCard({
                 </span>
               </div>
             )}
+            <TargetWindowSummary accessibility={targetAccessibility} timezone={timezone} compact />
           </div>
           {isClickable ? (
             <span className="text-sky-400 text-xs">View</span>
@@ -422,6 +427,7 @@ export default function ObjectCard({
       </div>
 
       <div className="mt-3 space-y-2 text-sm">
+        <TargetWindowSummary accessibility={targetAccessibility} timezone={timezone} />
         <div className="flex items-center gap-2 text-gray-400">
           <Mountain className="h-4 w-4" />
           {isAltitudeMode && currentAltitude !== null ? (
