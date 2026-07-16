@@ -235,7 +235,8 @@ export interface NightForecast {
   comets: ObjectVisibility[];
   dwarfPlanets: ObjectVisibility[];
   asteroids: ObjectVisibility[];
-  milkyWay: ObjectVisibility | null;
+  /** Galactic Center visibility, retained even when it never clears the usable night window. */
+  milkyWay: ObjectVisibility;
   moon: ObjectVisibility | null;
   weather: NightWeather | null;
   forecastConfidence: 'high' | 'medium' | 'low';

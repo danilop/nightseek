@@ -588,7 +588,9 @@ export async function generateForecast(
       comets: vis.comets,
       dwarfPlanets: vis.dwarfPlanets,
       asteroids: vis.asteroids,
-      milkyWay: vis.milkyWay.isVisible ? vis.milkyWay : null,
+      // Keep the core ephemeris even when it is below the usable night window so
+      // the planner can explain why there is no opportunity instead of vanishing.
+      milkyWay: vis.milkyWay,
       moon: vis.moon,
       weather,
       forecastConfidence,
@@ -606,7 +608,7 @@ export async function generateForecast(
       ...vis.comets,
       ...vis.dwarfPlanets,
       ...vis.asteroids,
-      ...(vis.milkyWay.isVisible ? [vis.milkyWay] : []),
+      vis.milkyWay,
       ...(vis.moon.isVisible ? [vis.moon] : []),
     ];
 

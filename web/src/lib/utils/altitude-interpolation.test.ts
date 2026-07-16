@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAltitudeAtTime } from './altitude-interpolation';
+import { getAltitudeAtTime, getAzimuthAtTime } from './altitude-interpolation';
 
 function makeTime(minutesAfterBase: number, base = new Date('2025-01-15T22:00:00')): Date {
   return new Date(base.getTime() + minutesAfterBase * 60_000);
@@ -62,5 +62,21 @@ describe('getAltitudeAtTime', () => {
     const result = getAltitudeAtTime(samples, midTime);
     const expected = (altitudes[29] + altitudes[30]) / 2;
     expect(result).toBeCloseTo(expected, 5);
+  });
+});
+
+describe('getAzimuthAtTime', () => {
+  it('interpolates across north using the short path', () => {
+    const samples: [Date, number][] = [
+      [makeTime(0), 350],
+      [makeTime(10), 10],
+    ];
+
+    expect(getAzimuthAtTime(samples, makeTime(5))).toBeCloseTo(0, 5);
+  });
+
+  it('normalizes negative and wrapped values', () => {
+    expect(getAzimuthAtTime([[makeTime(0), -10]], makeTime(0))).toBe(350);
+    expect(getAzimuthAtTime([[makeTime(0), 370]], makeTime(0))).toBe(10);
   });
 });

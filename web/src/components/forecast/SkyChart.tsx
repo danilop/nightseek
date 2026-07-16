@@ -37,6 +37,7 @@ declare const Celestial: any;
 interface SkyChartProps {
   nightInfo: NightInfo;
   location: Location;
+  focusTime?: Date | null;
 }
 
 // Responsive config thresholds (Tailwind breakpoints)
@@ -98,7 +99,7 @@ function ToggleButton({
   );
 }
 
-export default function SkyChart({ nightInfo, location }: SkyChartProps) {
+export default function SkyChart({ nightInfo, location, focusTime }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
 
   // Calculate initial slider position: "now" if within night, otherwise midpoint
@@ -182,6 +183,14 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   const [showMilkyWay, setShowMilkyWay] = useState(() => !getIsSmallScreen()); // OFF on mobile
   const [showPlanets, setShowPlanets] = useState(true);
   const [showNames, setShowNames] = useState(() => !getIsSmallScreen()); // Names OFF on mobile
+
+  useEffect(() => {
+    if (!focusTime) return;
+    const position = getSliderPositionForTime(focusTime, nightInfo.sunset, nightInfo.sunrise);
+    if (position !== null) setSelectedTime(position);
+    setShowMilkyWay(true);
+    setExpanded(true);
+  }, [focusTime, nightInfo.sunset, nightInfo.sunrise]);
 
   // Compass via custom hook
   const { compassAvailable, compassEnabled, compassHeading, toggleCompass } = useDeviceCompass();

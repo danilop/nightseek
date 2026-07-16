@@ -327,11 +327,11 @@ export function getBestImagingWindow(
 /**
  * Format imaging window for display
  */
-export function formatImagingWindow(window: ImagingWindow): string {
+export function formatImagingWindow(window: ImagingWindow, timezone?: string): string {
   // Capitalize first letter only (e.g., "acceptable" -> "Acceptable")
   const qualityLabel = window.quality.charAt(0).toUpperCase() + window.quality.slice(1);
 
-  return `${formatTimeRange(window.start, window.end)} • ${qualityLabel}`;
+  return `${formatTimeRange(window.start, window.end, timezone)} • ${qualityLabel}`;
 }
 
 /**

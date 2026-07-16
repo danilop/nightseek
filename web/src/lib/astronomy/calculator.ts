@@ -725,11 +725,12 @@ export class SkyCalculator {
 
   /**
    * Calculate Milky Way core visibility
-   * Galactic center: RA 17h 45m 40s, Dec -29.0 degrees
+   * Sagittarius A* ICRS/J2000 position: RA 17h 45m 40.04s, Dec -29° 00′ 28.1″.
+   * The compact radio source is used as a stable marker for the photographic core.
    */
   calculateMilkyWayVisibility(nightInfo: NightInfo): ObjectVisibility {
-    const milkyWayRA = 17.761; // hours
-    const milkyWayDec = -29.0; // degrees
+    const milkyWayRA = 17.761122;
+    const milkyWayDec = -29.007811;
 
     return this.calculateVisibility(
       milkyWayRA,

@@ -32,7 +32,6 @@ import {
   type TargetAccessibility,
 } from '@/lib/utils/horizon-profile';
 import { applyQuickFilters } from '@/lib/utils/quick-filters';
-import { getRatingFromScore } from '@/lib/utils/rating';
 import { getSecondarySortComparator } from '@/lib/utils/secondary-sort';
 import { selectTonightPicks } from '@/lib/utils/tonight-picks';
 import { useApp } from '@/stores/AppContext';
@@ -40,12 +39,15 @@ import type {
   AstronomicalEvents,
   DSOSubtype,
   HorizonProfile,
+  Location,
+  NightForecast,
   NightInfo,
   NightWeather,
   ScoredObject,
 } from '@/types';
 import AccessibleSkyControl from '../AccessibleSkyControl';
 import CategorySection from '../CategorySection';
+import GalacticCorePlannerCard from '../GalacticCorePlannerCard';
 import JupiterMoonsCard from '../JupiterMoonsCard';
 import type { SortMode } from '../SortModeControl';
 import TargetsToolbar from '../TargetsToolbar';
@@ -53,11 +55,15 @@ import TonightPicksCard from '../TonightPicksCard';
 
 interface TargetsTabProps {
   objects: ScoredObject[];
+  forecast: NightForecast;
+  forecastRange: NightForecast[];
   nightInfo: NightInfo;
   weather: NightWeather | null;
   astronomicalEvents?: AstronomicalEvents;
   latitude?: number;
+  location: Location;
   onObjectSelect: (object: ScoredObject, accessibility?: TargetAccessibility) => void;
+  onShowSky: (time: Date) => void;
 }
 
 interface CategoryConfig {
@@ -155,15 +161,6 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
       (obj.subtype === 'open_cluster' || obj.subtype === 'globular_cluster'),
     sortOrder: 6,
     showSubtypeInPreview: true,
-  },
-  {
-    key: 'milky_way',
-    title: 'Milky Way',
-    icon: '🌌',
-    defaultExpanded: true,
-    defaultShowCount: 1,
-    filter: obj => obj.category === 'milky_way',
-    sortOrder: 7,
   },
   {
     key: 'other',
@@ -284,11 +281,15 @@ function SortableJupiterMoons({
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: targets tab composes filtering, ranking, grouping, and DnD state in one view model
 export default function TargetsTab({
   objects,
+  forecast,
+  forecastRange,
   nightInfo,
   weather,
   astronomicalEvents,
   latitude = 0,
+  location: forecastLocation,
   onObjectSelect,
+  onShowSky,
 }: TargetsTabProps) {
   const {
     categoryOrder,
@@ -309,6 +310,14 @@ export default function TargetsTab({
   const [selectedTime, setSelectedTime] = useState<Date>(() => new Date());
   const [horizonProfile, setHorizonProfile] = useState<HorizonProfile>(createDefaultHorizonProfile);
   const [horizonProfileReady, setHorizonProfileReady] = useState(false);
+  const galacticCore = useMemo(
+    () => objects.find(object => object.category === 'milky_way') ?? null,
+    [objects]
+  );
+  const catalogObjects = useMemo(
+    () => objects.filter(object => object.category !== 'milky_way'),
+    [objects]
+  );
 
   // Check if we're currently in the dark window
   const now = useCurrentTime();
@@ -370,7 +379,7 @@ export default function TargetsTab({
   const { minMag, maxMag } = useMemo(() => {
     let min = Infinity;
     let max = -Infinity;
-    for (const obj of objects) {
+    for (const obj of catalogObjects) {
       if (obj.magnitude !== null && obj.magnitude !== undefined) {
         min = Math.min(min, obj.magnitude);
         max = Math.max(max, obj.magnitude);
@@ -380,7 +389,7 @@ export default function TargetsTab({
       minMag: Math.floor(min),
       maxMag: Math.ceil(max),
     };
-  }, [objects]);
+  }, [catalogObjects]);
 
   // Magnitude filter state
   const STORAGE_KEY = 'nightseek:magLimit';
@@ -409,13 +418,13 @@ export default function TargetsTab({
 
   // Filter objects by magnitude
   const magFilteredObjects = useMemo(() => {
-    return objects.filter(obj => {
+    return catalogObjects.filter(obj => {
       if (obj.magnitude === null || obj.magnitude === undefined) {
         return effectiveMagLimit >= maxMag;
       }
       return obj.magnitude <= effectiveMagLimit;
     });
-  }, [objects, effectiveMagLimit, maxMag]);
+  }, [catalogObjects, effectiveMagLimit, maxMag]);
 
   const accessibilityByObject = useMemo(() => {
     const accessMap = new Map<ScoredObject, TargetAccessibility>();
@@ -500,7 +509,7 @@ export default function TargetsTab({
   ]);
 
   const totalCount = filteredObjects.length;
-  const totalLoaded = objects.length;
+  const totalLoaded = catalogObjects.length;
 
   const handleResetHorizonProfile = () => {
     setHorizonProfile(createDefaultHorizonProfile());
@@ -569,7 +578,7 @@ export default function TargetsTab({
     ? categoriesWithObjects.find(c => c.key === activeDragId)
     : null;
 
-  if (objects.length === 0) {
+  if (catalogObjects.length === 0 && !galacticCore) {
     return (
       <div className="rounded-xl border border-night-700 bg-night-900 p-6 text-center">
         <Sparkles className="mx-auto mb-3 h-8 w-8 text-gray-600" />
@@ -632,6 +641,18 @@ export default function TargetsTab({
         onReset={handleResetHorizonProfile}
       />
 
+      {galacticCore && horizonProfileReady ? (
+        <GalacticCorePlannerCard
+          core={galacticCore}
+          forecast={forecast}
+          forecastRange={forecastRange}
+          horizonProfile={horizonProfile}
+          location={forecastLocation}
+          onOpenDetails={onObjectSelect}
+          onShowSky={onShowSky}
+        />
+      ) : null}
+
       {/* Tonight's Best Picks (only affected by magnitude slider) */}
       {tonightPicks.length > 0 && !tonightPicksDismissed && (
         <TonightPicksCard
@@ -688,7 +709,7 @@ export default function TargetsTab({
       {/* Summary grid */}
       {filteredObjects.length > 0 && (
         <div className="rounded-xl border border-night-700 bg-night-900 p-4">
-          <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
+          <div className="grid grid-cols-3 gap-4 text-center">
             <SummaryItem emoji="🪐" count={groupedObjects.planets?.length ?? 0} label="Planets" />
             <SummaryItem
               emoji="🌌"
@@ -705,7 +726,6 @@ export default function TargetsTab({
               count={filteredObjects.filter(o => o.totalScore >= 100).length}
               label="Top Rated"
             />
-            <MilkyWayItem milkyWay={groupedObjects.milky_way?.[0] ?? null} />
           </div>
         </div>
       )}
@@ -814,28 +834,6 @@ function SummaryItem({ emoji, count, label }: { emoji: string; count: number; la
       <div className="mb-1 text-2xl">{emoji}</div>
       <div className="font-bold text-lg text-white">{count}</div>
       <div className="text-gray-500 text-xs">{label}</div>
-    </div>
-  );
-}
-
-function MilkyWayItem({ milkyWay }: { milkyWay: ScoredObject | null }) {
-  const isVisible = milkyWay !== null;
-  const rating = milkyWay ? getRatingFromScore(milkyWay.totalScore, 200) : null;
-
-  return (
-    <div className={isVisible ? '' : 'opacity-50'}>
-      <div className="mb-1 text-2xl">🌌</div>
-      {isVisible && rating ? (
-        <>
-          <div className={`font-bold text-lg ${rating.color}`}>{rating.starString}</div>
-          <div className="text-gray-500 text-xs">Milky Way ({rating.label})</div>
-        </>
-      ) : (
-        <>
-          <div className="font-bold text-gray-500 text-lg">—</div>
-          <div className="text-gray-500 text-xs">Milky Way</div>
-        </>
-      )}
     </div>
   );
 }

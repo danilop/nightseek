@@ -68,14 +68,20 @@ export async function clearAllCache(): Promise<void> {
 export async function cleanupOldCaches(): Promise<void> {
   try {
     const allKeys = await keys();
-    const currentVersionedKeys = new Set([CACHE_KEYS.OPENGC, CACHE_KEYS.COMETS]);
+    const currentVersionedKeys = new Set([
+      CACHE_KEYS.FORECAST,
+      CACHE_KEYS.OPENGC,
+      CACHE_KEYS.COMETS,
+    ]);
 
     for (const key of allKeys) {
       if (typeof key !== 'string') continue;
 
       // Check for old versioned catalog caches (e.g., 'nightseek:opengc' or 'nightseek:opengc:v1')
       if (
-        (key.startsWith('nightseek:opengc') || key.startsWith('nightseek:comets')) &&
+        (key.startsWith('nightseek:forecast') ||
+          key.startsWith('nightseek:opengc') ||
+          key.startsWith('nightseek:comets')) &&
         !currentVersionedKeys.has(key)
       ) {
         await del(key);
@@ -94,7 +100,7 @@ const CACHE_VERSION = 4;
 export const CACHE_KEYS = {
   LOCATION: 'nightseek:location', // User data - no version needed
   SETTINGS: 'nightseek:settings', // User data - no version needed
-  FORECAST: 'nightseek:forecast',
+  FORECAST: 'nightseek:forecast:v2',
   OPENGC: `nightseek:opengc:v${CACHE_VERSION}`, // Versioned - depends on common-names.ts
   COMETS: `nightseek:comets:v${CACHE_VERSION}`, // Versioned - catalog data
   WEATHER_PREFIX: 'nightseek:weather:',

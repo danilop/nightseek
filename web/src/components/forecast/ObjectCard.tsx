@@ -20,6 +20,7 @@ import {
 import { formatSubtype } from '@/lib/utils/format-subtype';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
+import { getBestPhotoReadyWindow } from '@/lib/utils/target-photo-windows';
 import { useApp } from '@/stores/AppContext';
 import type { NightInfo, NightWeather, ObjectVisibility, ScoredObject } from '@/types';
 import type { SortMode } from './SortModeControl';
@@ -260,6 +261,10 @@ export default function ObjectCard({
   const timezone = state.location?.timezone;
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const { visibility, scoreBreakdown, totalScore, category, subtype, magnitude } = object;
+  const accessibleImagingWindow =
+    visibility.imagingWindow && targetAccessibility
+      ? getBestPhotoReadyWindow([visibility.imagingWindow], targetAccessibility)
+      : visibility.imagingWindow;
   const frameFillPercent = calculateFrameFillPercent(visibility.angularSizeArcmin, category, fov);
 
   const isAltitudeMode = sortMode === 'altitude' && selectedTime;
@@ -340,19 +345,19 @@ export default function ObjectCard({
                 <span className="text-sky-400">{frameFillPercent}% fill</span>
               )}
             </div>
-            {visibility.imagingWindow && (
+            {accessibleImagingWindow && (
               <div className="mt-1 flex items-center gap-1.5 text-xs">
                 <Camera className="h-3 w-3 text-green-400" />
                 <span
-                  className={`font-medium ${getImagingQualityColorClass(visibility.imagingWindow.quality)}`}
+                  className={`font-medium ${getImagingQualityColorClass(accessibleImagingWindow.quality)}`}
                 >
-                  {visibility.imagingWindow.quality.charAt(0).toUpperCase() +
-                    visibility.imagingWindow.quality.slice(1)}
+                  {accessibleImagingWindow.quality.charAt(0).toUpperCase() +
+                    accessibleImagingWindow.quality.slice(1)}
                 </span>
                 <span className="text-gray-500">
                   {formatTimeRange(
-                    visibility.imagingWindow.start,
-                    visibility.imagingWindow.end,
+                    accessibleImagingWindow.start,
+                    accessibleImagingWindow.end,
                     timezone
                   )}
                 </span>
@@ -480,14 +485,14 @@ export default function ObjectCard({
       </div>
 
       {/* Imaging Window */}
-      {visibility.imagingWindow && (
+      {accessibleImagingWindow && (
         <div className="mt-3 flex items-center gap-2 text-sm">
           <Camera className="h-4 w-4 text-green-400" />
           <span className="text-gray-400">Best Window:</span>
           <span
-            className={`font-medium ${getImagingQualityColorClass(visibility.imagingWindow.quality)}`}
+            className={`font-medium ${getImagingQualityColorClass(accessibleImagingWindow.quality)}`}
           >
-            {formatImagingWindow(visibility.imagingWindow)}
+            {formatImagingWindow(accessibleImagingWindow, timezone)}
           </span>
         </div>
       )}

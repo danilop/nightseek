@@ -1,5 +1,6 @@
 import * as Astronomy from 'astronomy-engine';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { createMockNightInfo } from '@/test/factories';
 import { angularSeparation, SkyCalculator } from './calculator';
 
 describe('angularSeparation', () => {
@@ -41,6 +42,23 @@ describe('angularSeparation', () => {
     const result = angularSeparation(vega.ra, vega.dec, altair.ra, altair.dec);
     expect(result).toBeGreaterThan(30);
     expect(result).toBeLessThan(40);
+  });
+});
+
+describe('Galactic Center marker', () => {
+  it('uses the Sagittarius A* ICRS/J2000 coordinates', () => {
+    const calculator = new SkyCalculator(40.7128, -74.006);
+    const visibility = calculator.calculateMilkyWayVisibility(
+      createMockNightInfo({
+        observingWindowStart: new Date('2026-07-17T02:00:00Z'),
+        observingWindowEnd: new Date('2026-07-17T08:00:00Z'),
+      })
+    );
+
+    expect(visibility.raHours).toBeCloseTo(17.761122, 6);
+    expect(visibility.decDegrees).toBeCloseTo(-29.007811, 6);
+    expect(visibility.commonName).toBe('Milky Way Core (Sagittarius A*)');
+    expect(visibility.magnitude).toBeNull();
   });
 });
 

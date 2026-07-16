@@ -35,7 +35,8 @@ export default function ForecastView({
     object: ScoredObject;
     accessibility?: TargetAccessibility;
   } | null>(null);
-  const { activeTab } = useUIState();
+  const [skyFocusTime, setSkyFocusTime] = useState<Date | null>(null);
+  const { activeTab, setActiveTab } = useUIState();
 
   if (forecasts.length === 0) {
     return (
@@ -109,17 +110,28 @@ export default function ForecastView({
           {activeTab === 'targets' && (
             <TargetsTab
               objects={selectedObjects}
+              forecast={selectedNight}
+              forecastRange={forecasts}
               nightInfo={selectedNight.nightInfo}
               weather={selectedNight.weather}
               astronomicalEvents={selectedNight.astronomicalEvents}
               latitude={location.latitude}
+              location={location}
               onObjectSelect={(object, accessibility) =>
                 setSelectedTarget({ object, accessibility })
               }
+              onShowSky={time => {
+                setSkyFocusTime(time);
+                setActiveTab('sky');
+              }}
             />
           )}
           {activeTab === 'sky' && (
-            <SkyTab nightInfo={selectedNight.nightInfo} location={location} />
+            <SkyTab
+              nightInfo={selectedNight.nightInfo}
+              location={location}
+              focusTime={skyFocusTime}
+            />
           )}
           {activeTab === 'events' && <EventsTab forecast={selectedNight} location={location} />}
         </Suspense>

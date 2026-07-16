@@ -51,7 +51,6 @@ const DEFAULT_CATEGORY_ORDER = [
   'planets',
   'jupiter_moons',
   'minor_planets',
-  'milky_way',
   'other',
 ];
 

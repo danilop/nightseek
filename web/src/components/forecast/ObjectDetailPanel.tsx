@@ -27,6 +27,7 @@ import {
 import { formatSubtype } from '@/lib/utils/format-subtype';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
+import { getBestPhotoReadyWindow } from '@/lib/utils/target-photo-windows';
 import { useApp } from '@/stores/AppContext';
 import type { EnhancedGaiaStarField, NightInfo, NightWeather, ScoredObject } from '@/types';
 import EnhancedStarFieldCanvas from './EnhancedStarFieldCanvas';
@@ -61,6 +62,10 @@ export default function ObjectDetailPanel({
   const { state } = useApp();
   const timezone = state.location?.timezone;
   const { visibility, magnitude, category, subtype, totalScore } = object;
+  const accessibleImagingWindow =
+    visibility.imagingWindow && accessibility
+      ? getBestPhotoReadyWindow([visibility.imagingWindow], accessibility)
+      : visibility.imagingWindow;
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const icon = getCategoryIcon(category, subtype);
   const frameFillPercent = calculateFrameFillPercent(visibility.angularSizeArcmin, category, fov);
@@ -438,7 +443,7 @@ export default function ObjectDetailPanel({
         ) : null}
 
         {/* Imaging window */}
-        {visibility.imagingWindow && (
+        {accessibleImagingWindow && (
           <div className="rounded-lg bg-night-800 p-3">
             <div className="mb-2 flex items-center gap-2 text-sm">
               <Camera className="h-4 w-4 text-green-400" />
@@ -446,24 +451,24 @@ export default function ObjectDetailPanel({
             </div>
             <div className="text-white">
               {formatTimeRange(
-                visibility.imagingWindow.start,
-                visibility.imagingWindow.end,
+                accessibleImagingWindow.start,
+                accessibleImagingWindow.end,
                 timezone
               )}
             </div>
             <div className="mt-1 text-gray-500 text-xs">
               Quality:{' '}
-              <span className={getImagingQualityColorClass(visibility.imagingWindow.quality)}>
-                {visibility.imagingWindow.quality.charAt(0).toUpperCase() +
-                  visibility.imagingWindow.quality.slice(1)}
+              <span className={getImagingQualityColorClass(accessibleImagingWindow.quality)}>
+                {accessibleImagingWindow.quality.charAt(0).toUpperCase() +
+                  accessibleImagingWindow.quality.slice(1)}
               </span>{' '}
-              (score: {visibility.imagingWindow.qualityScore})
+              (score: {accessibleImagingWindow.qualityScore})
             </div>
             <div className="mt-3 space-y-2">
-              <FactorBar label="Altitude" value={visibility.imagingWindow.factors.altitude} />
-              <FactorBar label="Airmass" value={visibility.imagingWindow.factors.airmass} />
-              <FactorBar label="Moon" value={visibility.imagingWindow.factors.moonInterference} />
-              <FactorBar label="Clouds" value={visibility.imagingWindow.factors.cloudCover} />
+              <FactorBar label="Altitude" value={accessibleImagingWindow.factors.altitude} />
+              <FactorBar label="Airmass" value={accessibleImagingWindow.factors.airmass} />
+              <FactorBar label="Moon" value={accessibleImagingWindow.factors.moonInterference} />
+              <FactorBar label="Clouds" value={accessibleImagingWindow.factors.cloudCover} />
             </div>
           </div>
         )}
