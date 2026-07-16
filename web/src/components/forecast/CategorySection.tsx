@@ -22,7 +22,7 @@ interface CategorySectionProps {
   sortMode?: SortMode;
   selectedTime?: Date;
   accessibilityByObject?: ReadonlyMap<ScoredObject, TargetAccessibility>;
-  onObjectClick?: (object: ScoredObject) => void;
+  onObjectClick?: (object: ScoredObject, accessibility?: TargetAccessibility) => void;
 }
 
 const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(function CategorySection(
@@ -125,7 +125,9 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
                   sortMode={sortMode}
                   selectedTime={selectedTime}
                   targetAccessibility={accessibilityByObject?.get(obj)}
-                  onSelect={onObjectClick}
+                  onSelect={selected =>
+                    onObjectClick?.(selected, accessibilityByObject?.get(selected))
+                  }
                 />
               ))}
             </div>
@@ -142,7 +144,9 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
                   selectedTime={selectedTime}
                   targetAccessibility={accessibilityByObject?.get(obj)}
                   compact
-                  onSelect={onObjectClick}
+                  onSelect={selected =>
+                    onObjectClick?.(selected, accessibilityByObject?.get(selected))
+                  }
                 />
               ))}
             </div>

@@ -1,9 +1,10 @@
 import { Moon, Star } from 'lucide-react';
 import { useState } from 'react';
 import { Card, CountBadge, ToggleChevron } from '@/components/ui/Card';
-import { getAdjustedHourlyRate, getIAUMeteorShowerInfo } from '@/lib/events/meteor-showers';
+import { getGeometricHourlyRateCeiling, getIAUMeteorShowerInfo } from '@/lib/events/meteor-showers';
 import { getAltitudeTextColor, getMoonInterference } from '@/lib/utils/colors';
 import { getNightLabel } from '@/lib/utils/format';
+import { useApp } from '@/stores/AppContext';
 import type { MeteorShower } from '@/types';
 
 interface MeteorShowerCardProps {
@@ -13,6 +14,8 @@ interface MeteorShowerCardProps {
 
 export default function MeteorShowerCard({ showers, nightDate }: MeteorShowerCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const { state } = useApp();
+  const timezone = state.location?.timezone;
 
   if (showers.length === 0) {
     return null;
@@ -47,7 +50,7 @@ export default function MeteorShowerCard({ showers, nightDate }: MeteorShowerCar
       {expanded && (
         <div className="space-y-3 p-4">
           {/* Primary shower details */}
-          <ShowerDetails shower={primaryShower} nightDate={nightDate} />
+          <ShowerDetails shower={primaryShower} nightDate={nightDate} timezone={timezone} />
 
           {/* Additional showers */}
           {additionalShowers.length > 0 && (
@@ -71,7 +74,7 @@ interface ShowerSummaryProps {
 }
 
 function ShowerSummary({ shower }: ShowerSummaryProps) {
-  const adjustedRate = getAdjustedHourlyRate(shower);
+  const geometricCeiling = getGeometricHourlyRateCeiling(shower);
 
   return (
     <div className="flex items-center justify-between">
@@ -80,7 +83,7 @@ function ShowerSummary({ shower }: ShowerSummaryProps) {
         <span className="ml-2 text-gray-500">({shower.code})</span>
       </div>
       <div className="flex items-center gap-3 text-sm">
-        <span className="text-gray-400">~{adjustedRate}/hr</span>
+        <span className="text-gray-400">≤{geometricCeiling}/hr geometry</span>
         <PeakIndicator daysFromPeak={shower.daysFromPeak} />
       </div>
     </div>
@@ -90,10 +93,11 @@ function ShowerSummary({ shower }: ShowerSummaryProps) {
 interface ShowerDetailsProps {
   shower: MeteorShower;
   nightDate: Date;
+  timezone?: string;
 }
 
-function ShowerDetails({ shower, nightDate }: ShowerDetailsProps) {
-  const adjustedRate = getAdjustedHourlyRate(shower);
+function ShowerDetails({ shower, nightDate, timezone }: ShowerDetailsProps) {
+  const geometricCeiling = getGeometricHourlyRateCeiling(shower);
   const { constellation } = getIAUMeteorShowerInfo(shower);
   const moonInterference = getMoonInterference(shower.moonIllumination);
 
@@ -105,13 +109,13 @@ function ShowerDetails({ shower, nightDate }: ShowerDetailsProps) {
           <h4 className="font-medium text-lg text-white">{shower.name}</h4>
           <span className="text-gray-500 text-sm">({shower.code})</span>
         </div>
-        <PeakBadge daysFromPeak={shower.daysFromPeak} nightDate={nightDate} />
+        <PeakBadge daysFromPeak={shower.daysFromPeak} nightDate={nightDate} timezone={timezone} />
       </div>
 
       {/* Key Stats */}
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
-          <span className="text-gray-500">ZHR: </span>
+          <span className="text-gray-500">Published peak ZHR: </span>
           <span className="font-medium text-white">~{shower.zhr}/hr</span>
         </div>
         <div>
@@ -149,11 +153,15 @@ function ShowerDetails({ shower, nightDate }: ShowerDetailsProps) {
         </span>
       </div>
 
-      {/* Adjusted rate */}
+      {/* Geometric ceiling */}
       <div className="flex items-center justify-between border-night-700 border-t pt-2">
-        <span className="text-gray-400 text-sm">Adjusted rate (conditions):</span>
-        <span className="font-medium text-green-400 text-lg">~{adjustedRate}/hr</span>
+        <span className="text-gray-400 text-sm">At-peak geometric ceiling:</span>
+        <span className="font-medium text-green-400 text-lg">≤{geometricCeiling}/hr</span>
       </div>
+      <p className="text-gray-500 text-xs">
+        Not a personal rate forecast; sky darkness, limiting magnitude, and the shower activity
+        profile can reduce the observed count.
+      </p>
 
       {/* Peak countdown bar */}
       <PeakProgressBar daysFromPeak={shower.daysFromPeak} />
@@ -169,7 +177,7 @@ interface ShowerCompactProps {
 }
 
 function ShowerCompact({ shower }: ShowerCompactProps) {
-  const adjustedRate = getAdjustedHourlyRate(shower);
+  const geometricCeiling = getGeometricHourlyRateCeiling(shower);
   const { constellation } = getIAUMeteorShowerInfo(shower);
 
   return (
@@ -183,8 +191,8 @@ function ShowerCompact({ shower }: ShowerCompactProps) {
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-gray-400 text-xs">
-        <div>ZHR: {shower.zhr}/hr</div>
-        <div>~{adjustedRate}/hr adjusted</div>
+        <div>Peak ZHR: {shower.zhr}/hr</div>
+        <div>≤{geometricCeiling}/hr geometry</div>
         <div>{constellation}</div>
       </div>
     </div>
@@ -216,9 +224,10 @@ function PeakIndicator({ daysFromPeak }: PeakIndicatorProps) {
 interface PeakBadgeProps {
   daysFromPeak: number | null;
   nightDate: Date;
+  timezone?: string;
 }
 
-function PeakBadge({ daysFromPeak, nightDate }: PeakBadgeProps) {
+function PeakBadge({ daysFromPeak, nightDate, timezone }: PeakBadgeProps) {
   if (daysFromPeak === null) return null;
 
   const absDays = Math.abs(daysFromPeak);
@@ -226,7 +235,7 @@ function PeakBadge({ daysFromPeak, nightDate }: PeakBadgeProps) {
   if (absDays < 1) {
     return (
       <span className="rounded-full bg-green-500/20 px-3 py-1 font-medium text-green-400 text-sm">
-        Peak {getNightLabel(nightDate)}!
+        Peak {getNightLabel(nightDate, false, timezone)}!
       </span>
     );
   }

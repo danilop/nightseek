@@ -92,16 +92,12 @@ function buildBadgeConfigs(
     });
   }
 
-  if (
-    visibility.isNearPerihelion &&
-    visibility.perihelionBoostPercent !== undefined &&
-    visibility.perihelionBoostPercent > 0
-  ) {
+  if (visibility.isNearPerihelion) {
     badges.push({
       id: 'perihelion',
       bgClass: 'bg-green-500/20',
       textClass: 'text-green-400 font-medium',
-      text: `Near Perihelion (+${visibility.perihelionBoostPercent}% brighter)`,
+      text: 'Near Perihelion',
     });
   }
 
@@ -287,6 +283,7 @@ export default function ObjectCard({
   if (compact) {
     return (
       <div
+        data-testid="object-card"
         role="button"
         tabIndex={0}
         className={`card-hover cursor-pointer rounded-lg bg-night-800 p-3 ${isClickable ? 'ring-1 ring-transparent hover:ring-sky-500/30' : ''}`}
@@ -393,6 +390,7 @@ export default function ObjectCard({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: role and tabIndex are conditionally applied
     <div
+      data-testid="object-card"
       className={`card-hover rounded-lg bg-night-800 p-4 ${isClickable ? 'cursor-pointer ring-1 ring-transparent hover:ring-sky-500/30' : ''}`}
       onClick={isClickable ? handleCardClick : undefined}
       onKeyDown={

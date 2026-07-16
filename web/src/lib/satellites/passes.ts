@@ -1,9 +1,6 @@
 import * as satellite from 'satellite.js';
 import type { Location, NightInfo, SatellitePass, TLEData } from '@/types';
 
-// Default magnitude at zenith when no specific value is known
-const DEFAULT_BASE_MAGNITUDE = -1.0;
-
 // Minimum altitude to consider a pass visible (degrees)
 const MIN_ALTITUDE_DEG = 10;
 
@@ -14,10 +11,10 @@ const TIME_STEP_SECONDS = 30;
  * Approximate base (zenith) magnitudes for well-known satellites.
  * Keyed by NORAD ID.
  */
-const SATELLITE_MAGNITUDES: Record<number, number> = {
-  25544: -3.5, // ISS
-  48274: -2.0, // Tiangong (CSS)
-  20580: 1.5, // Hubble Space Telescope
+const SATELLITE_MAGNITUDES: Record<number, { magnitude: number; referenceRangeKm: number }> = {
+  25544: { magnitude: -3.5, referenceRangeKm: 400 }, // ISS
+  48274: { magnitude: -2.0, referenceRangeKm: 400 }, // Tiangong (CSS)
+  20580: { magnitude: 1.5, referenceRangeKm: 540 }, // Hubble Space Telescope
 };
 
 /**
@@ -47,14 +44,26 @@ export function calculateSatellitePasses(
     height: 0, // meters above sea level (assume sea level)
   };
 
-  const baseMag = SATELLITE_MAGNITUDES[tle.noradId] ?? DEFAULT_BASE_MAGNITUDE;
+  const photometry = SATELLITE_MAGNITUDES[tle.noradId] ?? {
+    magnitude: null,
+    referenceRangeKm: 1000,
+  };
 
   for (const night of nights) {
+    if (night.astronomicalNightMode === 'none') continue;
     // Search from astronomical dusk to dawn
     const startTime = night.astronomicalDusk;
     const endTime = night.astronomicalDawn;
 
-    const nightPasses = findPasses(satrec, observerGd, startTime, endTime, tle, baseMag);
+    const nightPasses = findPasses(
+      satrec,
+      observerGd,
+      startTime,
+      endTime,
+      tle,
+      photometry.magnitude,
+      photometry.referenceRangeKm
+    );
     passes.push(...nightPasses);
   }
 
@@ -96,26 +105,34 @@ function findPasses(
   startTime: Date,
   endTime: Date,
   tle: TLEData,
-  baseMagnitude: number
+  baseMagnitude: number | null,
+  referenceRangeKm: number
 ): SatellitePass[] {
   const passes: SatellitePass[] = [];
   let currentPass: Partial<SatellitePass> | null = null;
   let maxAlt = 0;
+  let rangeAtMax = referenceRangeKm;
 
   const startMs = startTime.getTime();
   const endMs = endTime.getTime();
+  const midpoint = new Date((startMs + endMs) / 2);
+  if (Math.abs(Number(satellite.jday(midpoint)) - satrec.jdsatepoch) > 14) return passes;
+  let previousTime: Date | null = null;
+  let previousVisible = false;
 
   for (let timeMs = startMs; timeMs <= endMs; timeMs += TIME_STEP_SECONDS * 1000) {
     const time = new Date(timeMs);
-    const lookAngles = getLookAngles(satrec, observerGd, time);
+    const observation = getObservation(satrec, observerGd, time);
+    const altitudeDeg = observation
+      ? satellite.radiansToDegrees(observation.lookAngles.elevation)
+      : Number.NEGATIVE_INFINITY;
+    const azimuthDeg = observation ? satellite.radiansToDegrees(observation.lookAngles.azimuth) : 0;
+    const isVisible = Boolean(
+      observation && altitudeDeg >= MIN_ALTITUDE_DEG && observation.isSunlit
+    );
 
-    if (!lookAngles) continue;
-
-    const altitudeDeg = satellite.radiansToDegrees(lookAngles.elevation);
-    const azimuthDeg = satellite.radiansToDegrees(lookAngles.azimuth);
-
-    if (altitudeDeg >= MIN_ALTITUDE_DEG) {
-      // Satellite is above horizon threshold
+    if (isVisible && observation) {
+      // A visible segment requires both sufficient altitude and direct sunlight.
       if (currentPass) {
         // Update max altitude if this is higher
         if (altitudeDeg > maxAlt) {
@@ -123,36 +140,57 @@ function findPasses(
           currentPass.maxAltitude = altitudeDeg;
           currentPass.maxTime = time;
           currentPass.maxAzimuth = normalizeAzimuth(azimuthDeg);
+          rangeAtMax = observation.lookAngles.rangeSat;
         }
       } else {
+        const riseTime =
+          previousTime && !previousVisible
+            ? refineVisibilityTransition(satrec, observerGd, previousTime, time)
+            : time;
+        const riseObservation = getObservation(satrec, observerGd, riseTime) ?? observation;
         // Start of a new pass
         currentPass = {
           satelliteName: tle.name,
           noradId: tle.noradId,
-          riseTime: time,
-          riseAzimuth: normalizeAzimuth(azimuthDeg),
+          riseTime,
+          riseAzimuth: normalizeAzimuth(
+            satellite.radiansToDegrees(riseObservation.lookAngles.azimuth)
+          ),
           maxAltitude: altitudeDeg,
           maxTime: time,
           maxAzimuth: normalizeAzimuth(azimuthDeg),
           isVisible: true,
         };
         maxAlt = altitudeDeg;
+        rangeAtMax = observation.lookAngles.rangeSat;
       }
     } else if (currentPass) {
+      const setTime =
+        previousTime && previousVisible
+          ? refineVisibilityTransition(satrec, observerGd, previousTime, time)
+          : time;
+      const setObservation = getObservation(satrec, observerGd, setTime);
       // End of pass (satellite dropped below threshold)
-      currentPass.setTime = time;
-      currentPass.setAzimuth = normalizeAzimuth(azimuthDeg);
+      currentPass.setTime = setTime;
+      currentPass.setAzimuth = normalizeAzimuth(
+        setObservation ? satellite.radiansToDegrees(setObservation.lookAngles.azimuth) : azimuthDeg
+      );
       currentPass.duration = Math.round(
-        (time.getTime() - (currentPass.riseTime?.getTime() ?? 0)) / 1000
+        (setTime.getTime() - (currentPass.riseTime?.getTime() ?? 0)) / 1000
       );
 
       // Estimate magnitude based on max altitude and satellite's base magnitude
-      currentPass.magnitude = estimateMagnitude(maxAlt, baseMagnitude);
+      currentPass.magnitude =
+        baseMagnitude === null
+          ? null
+          : estimateMagnitude(maxAlt, baseMagnitude, rangeAtMax, referenceRangeKm);
 
       passes.push(currentPass as SatellitePass);
       currentPass = null;
       maxAlt = 0;
     }
+    previousTime = time;
+    previousVisible = isVisible;
   }
 
   // Handle pass that extends beyond search window
@@ -162,21 +200,58 @@ function findPasses(
     currentPass.duration = Math.round(
       (endTime.getTime() - (currentPass.riseTime?.getTime() ?? 0)) / 1000
     );
-    currentPass.magnitude = estimateMagnitude(maxAlt, baseMagnitude);
+    currentPass.magnitude =
+      baseMagnitude === null
+        ? null
+        : estimateMagnitude(maxAlt, baseMagnitude, rangeAtMax, referenceRangeKm);
     passes.push(currentPass as SatellitePass);
   }
 
   return passes;
 }
 
-/**
- * Get look angles (azimuth, elevation, range) for a satellite at a given time
- */
-function getLookAngles(
+function refineVisibilityTransition(
+  satrec: satellite.SatRec,
+  observerGd: satellite.GeodeticLocation,
+  firstTime: Date,
+  secondTime: Date
+): Date {
+  let firstMs = firstTime.getTime();
+  let secondMs = secondTime.getTime();
+  const firstVisible = isVisibleAt(satrec, observerGd, firstTime);
+
+  while (secondMs - firstMs > 1000) {
+    const midpointMs = Math.floor((firstMs + secondMs) / 2);
+    if (isVisibleAt(satrec, observerGd, new Date(midpointMs)) === firstVisible) {
+      firstMs = midpointMs;
+    } else {
+      secondMs = midpointMs;
+    }
+  }
+  return new Date(Math.round((firstMs + secondMs) / 2));
+}
+
+function isVisibleAt(
   satrec: satellite.SatRec,
   observerGd: satellite.GeodeticLocation,
   time: Date
-): satellite.LookAngles | null {
+): boolean {
+  const observation = getObservation(satrec, observerGd, time);
+  return Boolean(
+    observation &&
+      satellite.radiansToDegrees(observation.lookAngles.elevation) >= MIN_ALTITUDE_DEG &&
+      observation.isSunlit
+  );
+}
+
+/**
+ * Get look angles (azimuth, elevation, range) for a satellite at a given time
+ */
+function getObservation(
+  satrec: satellite.SatRec,
+  observerGd: satellite.GeodeticLocation,
+  time: Date
+): { lookAngles: satellite.LookAngles; isSunlit: boolean } | null {
   const positionAndVelocity = satellite.propagate(satrec, time);
 
   if (
@@ -191,7 +266,40 @@ function getLookAngles(
   const positionEcf = satellite.eciToEcf(positionAndVelocity.position, gmst);
   const lookAngles = satellite.ecfToLookAngles(observerGd, positionEcf);
 
-  return lookAngles;
+  return { lookAngles, isSunlit: isSatelliteSunlit(positionAndVelocity.position, time) };
+}
+
+/** Determine whether an Earth satellite is outside the Earth's umbral cone. */
+export function isSatelliteSunlit(
+  positionEciKm: { x: number; y: number; z: number },
+  time: Date
+): boolean {
+  const sun = satellite.sunPos(satellite.jday(time)).rsun;
+  const AU_KM = 149597870.7;
+  const sunVector = { x: sun[0] * AU_KM, y: sun[1] * AU_KM, z: sun[2] * AU_KM };
+  const sunDistance = Math.hypot(sunVector.x, sunVector.y, sunVector.z);
+  const sunUnit = {
+    x: sunVector.x / sunDistance,
+    y: sunVector.y / sunDistance,
+    z: sunVector.z / sunDistance,
+  };
+  const projection =
+    positionEciKm.x * sunUnit.x + positionEciKm.y * sunUnit.y + positionEciKm.z * sunUnit.z;
+
+  if (projection >= 0) return true;
+
+  const perpendicularDistance = Math.hypot(
+    positionEciKm.x - projection * sunUnit.x,
+    positionEciKm.y - projection * sunUnit.y,
+    positionEciKm.z - projection * sunUnit.z
+  );
+  const EARTH_RADIUS_KM = 6378.137;
+  const SUN_RADIUS_KM = 695700;
+  const distanceBehindEarth = -projection;
+  const umbraRadius =
+    EARTH_RADIUS_KM - (distanceBehindEarth * (SUN_RADIUS_KM - EARTH_RADIUS_KM)) / sunDistance;
+
+  return umbraRadius <= 0 || perpendicularDistance > umbraRadius;
 }
 
 /* v8 ignore stop */
@@ -209,11 +317,17 @@ export function normalizeAzimuth(azimuthDeg: number): number {
  * Estimate satellite magnitude based on altitude and base magnitude.
  * Higher altitude = brighter (closer to observer, better illumination angle).
  */
-export function estimateMagnitude(altitudeDeg: number, baseMagnitude: number): number {
-  // At zenith (90deg), magnitude is at base value
-  // At horizon (10deg), dimmer by ~2 magnitudes
-  const factor = (90 - altitudeDeg) / 80;
-  return Math.round((baseMagnitude + factor * 2) * 10) / 10;
+export function estimateMagnitude(
+  altitudeDeg: number,
+  baseMagnitude: number,
+  rangeKm?: number,
+  referenceRangeKm: number = 1000
+): number {
+  const rangeCorrection =
+    rangeKm && rangeKm > 0
+      ? 5 * Math.log10(rangeKm / referenceRangeKm)
+      : ((90 - altitudeDeg) / 80) * 2;
+  return Math.round((baseMagnitude + rangeCorrection) * 10) / 10;
 }
 
 /**

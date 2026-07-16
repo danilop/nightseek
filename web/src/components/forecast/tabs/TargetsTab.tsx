@@ -57,7 +57,7 @@ interface TargetsTabProps {
   weather: NightWeather | null;
   astronomicalEvents?: AstronomicalEvents;
   latitude?: number;
-  onObjectSelect: (object: ScoredObject) => void;
+  onObjectSelect: (object: ScoredObject, accessibility?: TargetAccessibility) => void;
 }
 
 interface CategoryConfig {
@@ -213,7 +213,7 @@ function SortableCategorySection({
   weather: NightWeather | null;
   sortMode?: SortMode;
   selectedTime?: Date;
-  onObjectClick: (object: ScoredObject) => void;
+  onObjectClick: (object: ScoredObject, accessibility?: TargetAccessibility) => void;
   accessibilityByObject: ReadonlyMap<ScoredObject, TargetAccessibility>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -585,7 +585,7 @@ export default function TargetsTab({
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 font-semibold text-white">
           <Sparkles className="h-5 w-5 text-yellow-400" />
-          {getNightLabel(nightInfo.date, true)} Targets
+          {getNightLabel(nightInfo.date, true, location?.timezone)} Targets
         </h3>
         <span className="text-gray-400 text-sm">
           {totalCount === totalLoaded

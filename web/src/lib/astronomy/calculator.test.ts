@@ -110,6 +110,43 @@ describe('SkyCalculator', () => {
       expect(result.moonIllumination).toBeGreaterThanOrEqual(0);
       expect(result.moonIllumination).toBeLessThanOrEqual(100);
     });
+
+    it('uses the physical illuminated fraction reported by the ephemeris', () => {
+      const testDate = new Date('2025-01-15T12:00:00Z');
+      const result = calculator.getNightInfo(testDate);
+      const midpoint = new Date(
+        (result.astronomicalDusk.getTime() + result.astronomicalDawn.getTime()) / 2
+      );
+      const expected = Astronomy.Illumination(Astronomy.Body.Moon, midpoint).phase_fraction * 100;
+
+      expect(result.moonIllumination).toBeCloseTo(expected, 10);
+    });
+
+    it('represents midnight sun as no astronomical night', () => {
+      const tromso = new SkyCalculator(69.6492, 18.9553, 0);
+      const result = tromso.getNightInfo(new Date('2026-06-21T12:00:00Z'));
+
+      expect(result.astronomicalNightMode).toBe('none');
+      expect(result.sunsetOccurs).toBe(false);
+      expect(result.sunriseOccurs).toBe(false);
+      expect(result.astronomicalDusk.getTime()).toBe(result.astronomicalDawn.getTime());
+
+      const visibility = tromso.calculateVisibility(12, 45, result, 'Test', 'dso');
+      expect(visibility.isVisible).toBe(false);
+      expect(visibility.altitudeSamples).toHaveLength(0);
+    });
+
+    it('represents continuous polar darkness as a 24-hour analysis interval', () => {
+      const highArctic = new SkyCalculator(89, 0, 0);
+      const result = highArctic.getNightInfo(new Date('2026-12-21T12:00:00Z'));
+
+      expect(result.astronomicalNightMode).toBe('continuous');
+      expect(result.sunsetOccurs).toBe(false);
+      expect(result.sunriseOccurs).toBe(false);
+      expect(result.astronomicalDawn.getTime() - result.astronomicalDusk.getTime()).toBe(
+        24 * 60 * 60 * 1000
+      );
+    });
   });
 
   describe('getAltAz', () => {
@@ -214,6 +251,15 @@ describe('SkyCalculator', () => {
       // Should be roughly south (azimuth 150-210°)
       expect(result.azimuth).toBeGreaterThan(150);
       expect(result.azimuth).toBeLessThan(210);
+    });
+
+    it('precesses M42 J2000 coordinates before the horizon conversion', () => {
+      const time = new Date('2026-02-06T20:30:00Z');
+      const result = london.getAltAz(objects.m42.ra, objects.m42.dec, time);
+
+      // Independent Skyfield/DE421 reference: alt 33.142156°, az 180.253666°.
+      expect(result.altitude).toBeCloseTo(33.142156, 2);
+      expect(result.azimuth).toBeCloseTo(180.253666, 2);
     });
 
     // The original bug case: NGC 6543 was showing 75° when it should be ~28°
@@ -660,6 +706,25 @@ describe('SkyCalculator', () => {
       expect(lastAltitudeSample[0]).toEqual(nightInfo.astronomicalDawn);
       expect(lastAzimuthSample[0]).toEqual(nightInfo.astronomicalDawn);
     });
+
+    it('keeps a low target physically visible so the user horizon profile can decide', () => {
+      const nightInfo = calculator.getNightInfo(new Date('2025-01-15T12:00:00Z'));
+      const midpoint = new Date(
+        (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
+      );
+      const meridianRa = Astronomy.SiderealTime(midpoint) + calculator.getLongitude() / 15;
+      const result = calculator.calculateVisibility(
+        ((meridianRa % 24) + 24) % 24,
+        -30,
+        nightInfo,
+        'Low southern target',
+        'dso'
+      );
+
+      expect(result.maxAltitude).toBeGreaterThan(0);
+      expect(result.maxAltitude).toBeLessThan(30);
+      expect(result.isVisible).toBe(true);
+    });
   });
 
   describe('calculatePlanetVisibility', () => {
@@ -688,6 +753,31 @@ describe('SkyCalculator', () => {
       if (result.magnitude !== null) {
         expect(result.magnitude).toBeLessThan(0);
       }
+    });
+
+    it('reports the planet J2000 coordinates at its peak instead of placeholder zeros', () => {
+      const nightInfo = calculator.getNightInfo(new Date('2025-01-15T12:00:00Z'));
+      const result = calculator.calculatePlanetVisibility('jupiter', nightInfo);
+      expect(result.maxAltitudeTime).not.toBeNull();
+
+      const expected = calculator.getBodyPositionJ2000(
+        Astronomy.Body.Jupiter,
+        result.maxAltitudeTime as Date
+      );
+      expect(result.raHours).toBeCloseTo(expected.ra, 10);
+      expect(result.decDegrees).toBeCloseTo(expected.dec, 10);
+      expect(Math.abs(result.raHours) + Math.abs(result.decDegrees)).toBeGreaterThan(0);
+    });
+
+    it('refines the displayed peak beyond the ten-minute chart samples', () => {
+      const nightInfo = calculator.getNightInfo(new Date('2025-01-15T12:00:00Z'));
+      const result = calculator.calculatePlanetVisibility('jupiter', nightInfo);
+      const sampledMaximum = Math.max(...result.altitudeSamples.map(([, altitude]) => altitude));
+      const sampleTimes = new Set(result.altitudeSamples.map(([time]) => time.getTime()));
+
+      expect(result.maxAltitudeTime).not.toBeNull();
+      expect(sampleTimes.has((result.maxAltitudeTime as Date).getTime())).toBe(false);
+      expect(result.maxAltitude).toBeGreaterThan(sampledMaximum);
     });
   });
 });

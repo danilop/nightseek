@@ -1,5 +1,5 @@
 import * as Astronomy from 'astronomy-engine';
-import type { LunarLibration } from '@/types';
+import type { LunarLibration, NightInfo } from '@/types';
 
 // Thresholds for notable libration
 const NOTABLE_LIBRATION_DEG = 5;
@@ -63,10 +63,11 @@ function describeLibration(latDeg: number, lonDeg: number): string {
 /**
  * Get libration info for lunar photography optimization
  */
-export function getLibrationForNight(date: Date): LunarLibration {
-  // Calculate at midnight
-  const midnight = new Date(date);
-  midnight.setHours(0, 0, 0, 0);
-
-  return calculateLibration(midnight);
+export function getLibrationForNight(nightInfo: NightInfo): LunarLibration {
+  // Use the physical midpoint of the selected observing night. Mutating
+  // `setHours(0)` would instead use the browser's timezone.
+  const midpoint = new Date(
+    (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
+  );
+  return calculateLibration(midpoint);
 }

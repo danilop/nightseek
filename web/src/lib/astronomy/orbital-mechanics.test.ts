@@ -1,7 +1,9 @@
+import * as Astronomy from 'astronomy-engine';
 import { describe, expect, it } from 'vitest';
 import {
   getEarthPosition,
   heliocentricToEquatorial,
+  lightTimeCorrectedEquatorial,
   meanMotion,
   orbitalToEcliptic,
   solveKepler,
@@ -63,10 +65,16 @@ describe('orbital-mechanics', () => {
       expect(r).toBeCloseTo(1.0, 1); // Within 0.1 AU
     });
 
-    it('should have z approximately 0 (ecliptic plane)', () => {
+    it('matches Astronomy Engine VSOP Earth coordinates', () => {
       const jd = 2451545.0;
       const pos = getEarthPosition(jd);
-      expect(pos.z).toBe(0);
+      const expected = Astronomy.RotateVector(
+        Astronomy.Rotation_EQJ_ECL(),
+        Astronomy.HelioVector(Astronomy.Body.Earth, new Date('2000-01-01T12:00:00Z'))
+      );
+      expect(pos.x).toBeCloseTo(expected.x, 12);
+      expect(pos.y).toBeCloseTo(expected.y, 12);
+      expect(pos.z).toBeCloseTo(expected.z, 12);
     });
 
     it('should return different positions for different dates', () => {
@@ -119,6 +127,26 @@ describe('orbital-mechanics', () => {
       // RA should be in 0-24 hour range
       expect(result.ra).toBeGreaterThanOrEqual(0);
       expect(result.ra).toBeLessThan(24);
+    });
+  });
+
+  describe('lightTimeCorrectedEquatorial', () => {
+    it('iterates a moving object to the light-emission time', () => {
+      const observationJD = 2461200.5;
+      const speedAuPerDay = 0.02;
+      const positionAt = (jd: number) => ({
+        x: 5 + speedAuPerDay * (jd - observationJD),
+        y: 1,
+        z: 0,
+      });
+      const result = lightTimeCorrectedEquatorial(positionAt, observationJD);
+
+      expect(result.emissionJulianDate).toBeLessThan(observationJD);
+      expect(observationJD - result.emissionJulianDate).toBeCloseTo(
+        result.distance / Astronomy.C_AUDAY,
+        9
+      );
+      expect(positionAt(result.emissionJulianDate).x).toBeLessThan(positionAt(observationJD).x);
     });
   });
 

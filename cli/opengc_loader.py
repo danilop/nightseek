@@ -16,7 +16,7 @@ class OpenNGCObject:
     obj_type: str  # Always "dso"
     ra_hours: float  # Right ascension in hours
     dec_degrees: float  # Declination in degrees
-    magnitude: float  # Visual magnitude
+    magnitude: Optional[float]  # Visual magnitude, if catalogued
     dso_subtype: (
         str  # galaxy, nebula, open_cluster, globular_cluster, planetary_nebula, etc.
     )
@@ -346,7 +346,9 @@ class OpenNGCLoader:
                     if obj_type in ("NonEx", "Dup", "", "*", "**", "*Ass"):
                         continue
 
-                    # Parse magnitude - allow objects without magnitude (use default for nebulae)
+                    # Parse catalogued magnitude. An unknown nebula magnitude
+                    # must remain unknown; inventing mag 10 distorts filtering,
+                    # display, and object scores.
                     mag_str = row.get("V-Mag") or row.get("B-Mag", "")
                     magnitude = None
                     if mag_str:
@@ -355,16 +357,18 @@ class OpenNGCLoader:
                         except ValueError:
                             pass
 
-                    # For nebulae without magnitude, assign a default based on type
-                    # Large emission nebulae are often photographically bright
-                    if magnitude is None:
-                        if obj_type in ("Neb", "HII", "EmN", "RN", "Cl+N", "SNR"):
-                            magnitude = 10.0  # Default for nebulae without mag
-                        else:
-                            continue  # Skip other types without magnitude
+                    if magnitude is None and obj_type not in (
+                        "Neb",
+                        "HII",
+                        "EmN",
+                        "RN",
+                        "Cl+N",
+                        "SNR",
+                    ):
+                        continue
 
                     # Filter by magnitude
-                    if magnitude > max_magnitude:
+                    if magnitude is not None and magnitude > max_magnitude:
                         continue
 
                     # Parse coordinates

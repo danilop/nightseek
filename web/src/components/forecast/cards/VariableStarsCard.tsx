@@ -43,7 +43,8 @@ export default function VariableStarsCard({ nightDate }: VariableStarsCardProps)
             <VariableStarItem key={prediction.star.name} prediction={prediction} />
           ))}
           <p className="mt-3 text-center text-gray-500 text-xs">
-            Brightness predictions based on known periods and epochs
+            Cycle estimates use AAVSO VSX periods and epochs; irregular changes require current
+            observations.
           </p>
         </div>
       )}
@@ -79,8 +80,8 @@ function VariableStarItem({ prediction }: { prediction: VariableStarPrediction }
       </div>
       {prediction.nextNotableEvent && prediction.nextNotableEventTime && (
         <p className="mt-1 text-gray-500 text-xs">
-          Next: {prediction.nextNotableEvent} —{' '}
-          {prediction.nextNotableEventTime.toLocaleDateString()}
+          {prediction.predictionQuality === 'approximate' ? 'Estimate' : 'Next'}:{' '}
+          {prediction.nextNotableEvent} — {prediction.nextNotableEventTime.toLocaleDateString()}
         </p>
       )}
     </div>

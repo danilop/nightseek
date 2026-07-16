@@ -54,7 +54,7 @@ export default function JupiterMoonsCard({
   const { state } = useApp();
   const timezone = state.location?.timezone;
   const expanded = jupiterMoonsExpanded;
-  const nightLabel = getNightLabel(nightDate);
+  const nightLabel = getNightLabel(nightDate, false, timezone);
 
   const hasActiveEvents =
     events.length > 0 || positions.some(p => p.isTransiting || p.shadowOnJupiter);
@@ -113,7 +113,7 @@ export default function JupiterMoonsCard({
           {events.length > 0 && (
             <div className="border-night-700 border-t pt-3">
               <h4 className="mb-2 font-medium text-sm text-white">
-                {getNightLabel(nightDate, true)} Events
+                {getNightLabel(nightDate, true, timezone)} Events
               </h4>
               <div className="space-y-2">
                 {events.map(event => (
@@ -246,8 +246,8 @@ function MoonPositionDiagram({
               {/* Shadow indicator */}
               {moon.shadowOnJupiter && (
                 <circle
-                  cx={centerX + moon.x * scale * 0.9 * xMultiplier}
-                  cy={centerY}
+                  cx={centerX + (moon.shadowX ?? 0) * scale * xMultiplier}
+                  cy={centerY - (moon.shadowY ?? 0) * scale}
                   r={2}
                   fill="#000"
                   opacity={0.8}

@@ -4,22 +4,66 @@ import { AU_TO_KM } from './constants';
 
 type MoonName = 'Io' | 'Europa' | 'Ganymede' | 'Callisto';
 
+const MOON_RADIUS_KM: Record<MoonName, number> = {
+  Io: Astronomy.IO_RADIUS_KM,
+  Europa: Astronomy.EUROPA_RADIUS_KM,
+  Ganymede: Astronomy.GANYMEDE_RADIUS_KM,
+  Callisto: Astronomy.CALLISTO_RADIUS_KM,
+};
+
 /**
  * Get the current positions of Jupiter's Galilean moons
  *
  * The JupiterMoons function returns StateVectors for each moon in
  * jovicentric coordinates (AU). We convert to Jupiter radii for display.
  *
- * Note: The z component indicates depth - negative z means the moon is
- * between Jupiter and Earth (potential transit), positive z means behind.
+ * Positions are projected into Jupiter's apparent sky plane. The z component
+ * is depth along the Earth-to-Jupiter line; negative means closer to Earth.
  */
-function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
+export function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
   try {
-    const moonsData = Astronomy.JupiterMoons(date);
     const positions: GalileanMoonPosition[] = [];
 
-    // Jupiter's equatorial radius in AU for conversion
-    const JUPITER_RADIUS = 71492 / AU_TO_KM; // km to AU
+    // Backdate Jupiter and its satellites to when the observed light left the
+    // system. At Jupiter this correction is commonly 30–50 minutes, large
+    // enough to materially shift Io and event times.
+    const jupiterGeo = Astronomy.BackdatePosition(
+      date,
+      Astronomy.Body.Earth,
+      Astronomy.Body.Jupiter,
+      true
+    );
+    const moonsData = Astronomy.JupiterMoons(jupiterGeo.t);
+
+    // Jupiter's equatorial radius in AU for conversion.
+    const JUPITER_RADIUS = Astronomy.JUPITER_EQUATORIAL_RADIUS_KM / AU_TO_KM;
+    const jupiterDistance = jupiterGeo.Length();
+    const lineOfSight = {
+      x: jupiterGeo.x / jupiterDistance,
+      y: jupiterGeo.y / jupiterDistance,
+      z: jupiterGeo.z / jupiterDistance,
+    };
+    const jupiterEquator = Astronomy.EquatorFromVector(jupiterGeo);
+    const ra = (jupiterEquator.ra * 15 * Math.PI) / 180;
+    const dec = (jupiterEquator.dec * Math.PI) / 180;
+    const east = { x: -Math.sin(ra), y: Math.cos(ra), z: 0 };
+    const north = {
+      x: -Math.sin(dec) * Math.cos(ra),
+      y: -Math.sin(dec) * Math.sin(ra),
+      z: Math.cos(dec),
+    };
+    const jupiterHelio = Astronomy.HelioVector(Astronomy.Body.Jupiter, jupiterGeo.t);
+    const jupiterSunDistance = jupiterHelio.Length();
+    const sunlightDirection = {
+      x: jupiterHelio.x / jupiterSunDistance,
+      y: jupiterHelio.y / jupiterSunDistance,
+      z: jupiterHelio.z / jupiterSunDistance,
+    };
+
+    const dot = (
+      vector: { x: number; y: number; z: number },
+      basis: { x: number; y: number; z: number }
+    ) => vector.x * basis.x + vector.y * basis.y + vector.z * basis.z;
 
     // Moon data from the JupiterMoons result
     const moonObjects: Array<{ name: MoonName; data: Astronomy.StateVector }> = [
@@ -30,28 +74,48 @@ function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
     ];
 
     for (const { name, data } of moonObjects) {
-      // Convert from AU to Jupiter radii for easier visualization
-      // The StateVector x, y, z are in AU
-      const x = data.x / JUPITER_RADIUS;
-      const y = data.y / JUPITER_RADIUS;
-      const z = data.z / JUPITER_RADIUS;
+      const moonVector = { x: data.x, y: data.y, z: data.z };
+      // Store +x toward celestial west, matching the direct-view UI.
+      const x = -dot(moonVector, east) / JUPITER_RADIUS;
+      const y = dot(moonVector, north) / JUPITER_RADIUS;
+      const z = dot(moonVector, lineOfSight) / JUPITER_RADIUS;
 
       // Check if moon is transiting (in front of Jupiter and within disk)
       // Transit occurs when z < 0 (moon closer to Earth than Jupiter center)
       // and the projected distance from center is less than Jupiter's radius
       const distFromCenter = Math.sqrt(x * x + y * y);
-      const isTransiting = z < 0 && distFromCenter < 1.0;
+      const moonRadiusRatio = MOON_RADIUS_KM[name] / Astronomy.JUPITER_EQUATORIAL_RADIUS_KM;
+      const isTransiting = z < 0 && distFromCenter < 1 + moonRadiusRatio;
 
-      // Shadow detection is complex - simplified to approximate
-      // Shadow is visible when moon is in front of Jupiter and not in transit itself
-      // A more accurate calculation would involve Sun-Jupiter-Moon geometry
-      const shadowOnJupiter =
-        z < 0 && distFromCenter < 1.5 && distFromCenter > 0.5 && !isTransiting;
+      // Intersect the anti-solar ray from the moon with Jupiter's sphere.
+      const b = 2 * dot(moonVector, sunlightDirection);
+      const c = dot(moonVector, moonVector) - JUPITER_RADIUS ** 2;
+      const discriminant = b * b - 4 * c;
+      let shadowOnJupiter = false;
+      let shadowX: number | null = null;
+      let shadowY: number | null = null;
+      if (discriminant >= 0) {
+        const root = Math.sqrt(discriminant);
+        const intersections = [(-b - root) / 2, (-b + root) / 2].filter(value => value >= 0);
+        if (intersections.length > 0) {
+          const distance = Math.min(...intersections);
+          const surfacePoint = {
+            x: moonVector.x + distance * sunlightDirection.x,
+            y: moonVector.y + distance * sunlightDirection.y,
+            z: moonVector.z + distance * sunlightDirection.z,
+          };
+          shadowOnJupiter = dot(surfacePoint, lineOfSight) < 0;
+          if (shadowOnJupiter) {
+            shadowX = -dot(surfacePoint, east) / JUPITER_RADIUS;
+            shadowY = dot(surfacePoint, north) / JUPITER_RADIUS;
+          }
+        }
+      }
 
       // Check if moon is actually occluded (hidden behind Jupiter's disk)
       // Occultation occurs when z > 0 (moon farther from Earth than Jupiter)
       // AND the projected distance is within Jupiter's disk
-      const isOccluded = z > 0 && distFromCenter < 1.0;
+      const isOccluded = z > 0 && distFromCenter < 1 + moonRadiusRatio;
 
       positions.push({
         name,
@@ -60,6 +124,8 @@ function getGalileanMoonPositions(date: Date): GalileanMoonPosition[] {
         z,
         isTransiting,
         shadowOnJupiter,
+        shadowX,
+        shadowY,
         isOccluded,
       });
     }
@@ -90,6 +156,26 @@ function detectEventTransition(
   return null;
 }
 
+function refineTransitionTime(
+  moon: MoonName,
+  state: 'isTransiting' | 'shadowOnJupiter',
+  previousTime: Date,
+  currentTime: Date,
+  currentState: boolean
+): Date {
+  let low = previousTime.getTime();
+  let high = currentTime.getTime();
+
+  while (high - low > 1000) {
+    const middle = (low + high) / 2;
+    const position = getGalileanMoonPositions(new Date(middle)).find(item => item.name === moon);
+    if (position?.[state] === currentState) high = middle;
+    else low = middle;
+  }
+
+  return new Date((low + high) / 2);
+}
+
 /**
  * Detect transit and shadow events during the night
  * Samples every 5 minutes to find state changes
@@ -116,7 +202,16 @@ function detectGalileanMoonEvents(nightInfo: NightInfo): GalileanMoonEvent[] {
         'transit_start',
         'transit_end'
       );
-      if (transitEvent) events.push(transitEvent);
+      if (transitEvent) {
+        transitEvent.time = refineTransitionTime(
+          pos.name,
+          'isTransiting',
+          new Date(t - interval),
+          time,
+          pos.isTransiting
+        );
+        events.push(transitEvent);
+      }
 
       const shadowEvent = detectEventTransition(
         pos.name,
@@ -126,7 +221,16 @@ function detectGalileanMoonEvents(nightInfo: NightInfo): GalileanMoonEvent[] {
         'shadow_start',
         'shadow_end'
       );
-      if (shadowEvent) events.push(shadowEvent);
+      if (shadowEvent) {
+        shadowEvent.time = refineTransitionTime(
+          pos.name,
+          'shadowOnJupiter',
+          new Date(t - interval),
+          time,
+          pos.shadowOnJupiter
+        );
+        events.push(shadowEvent);
+      }
 
       prevTransiting.set(pos.name, pos.isTransiting);
       prevShadow.set(pos.name, pos.shadowOnJupiter);
@@ -143,7 +247,7 @@ export function getJupiterMoonsData(
   nightInfo: NightInfo,
   jupiterVisible: boolean
 ): { positions: GalileanMoonPosition[]; events: GalileanMoonEvent[] } | null {
-  if (!jupiterVisible) {
+  if (!jupiterVisible || nightInfo.astronomicalNightMode === 'none') {
     return null;
   }
 

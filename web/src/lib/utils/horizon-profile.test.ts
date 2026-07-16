@@ -33,13 +33,16 @@ describe('horizon-profile utilities', () => {
     expect(profile.sectors.every(sector => sector.minAltitude === 0)).toBe(true);
   });
 
-  it('builds a location-scoped cache key from rounded coordinates', () => {
+  it('builds a site-specific cache key at approximately metre precision', () => {
     const location: Location = {
       latitude: 51.5074,
       longitude: -0.1278,
     };
 
-    expect(getHorizonProfileCacheKey(location)).toBe('nightseek:horizon:51.51,-0.13');
+    expect(getHorizonProfileCacheKey(location)).toBe('nightseek:horizon:51.50740,-0.12780');
+    expect(getHorizonProfileCacheKey({ latitude: 51.50749, longitude: -0.1278 })).not.toBe(
+      getHorizonProfileCacheKey(location)
+    );
   });
 
   it('maps azimuth to the correct sector altitude', () => {

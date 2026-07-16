@@ -1,8 +1,10 @@
+import * as satellite from 'satellite.js';
 import { describe, expect, it } from 'vitest';
 import {
   azimuthToCompass,
   estimateMagnitude,
   formatPassDuration,
+  isSatelliteSunlit,
   normalizeAzimuth,
 } from './passes';
 
@@ -96,6 +98,27 @@ describe('Satellite pass utilities', () => {
       const at50 = estimateMagnitude(50, 0);
       expect(at50).toBeGreaterThan(0);
       expect(at50).toBeLessThan(2);
+    });
+
+    it('uses inverse-square range when range is available', () => {
+      expect(estimateMagnitude(45, -3, 800, 400)).toBeCloseTo(-1.5, 1);
+    });
+  });
+
+  describe('Earth shadow', () => {
+    const time = new Date('2026-01-15T00:00:00Z');
+    const sun = satellite.sunPos(satellite.jday(time)).rsun;
+    const length = Math.hypot(...sun);
+    const unit = sun.map(value => value / length);
+
+    it('marks a satellite behind the Earth as eclipsed', () => {
+      const position = { x: -unit[0] * 7000, y: -unit[1] * 7000, z: -unit[2] * 7000 };
+      expect(isSatelliteSunlit(position, time)).toBe(false);
+    });
+
+    it('marks a satellite on the sunward side as illuminated', () => {
+      const position = { x: unit[0] * 7000, y: unit[1] * 7000, z: unit[2] * 7000 };
+      expect(isSatelliteSunlit(position, time)).toBe(true);
     });
   });
 });

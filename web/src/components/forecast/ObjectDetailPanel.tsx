@@ -16,6 +16,7 @@ import { formatFOV, getEffectiveFOV } from '@/lib/telescopes';
 import {
   azimuthToCardinal,
   formatAltitude,
+  formatDurationMinutes,
   formatMagnitude,
   formatMoonSeparation,
   formatTime,
@@ -24,6 +25,7 @@ import {
   getCategoryIcon,
 } from '@/lib/utils/format';
 import { formatSubtype } from '@/lib/utils/format-subtype';
+import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
 import { useApp } from '@/stores/AppContext';
 import type { EnhancedGaiaStarField, NightInfo, NightWeather, ScoredObject } from '@/types';
@@ -34,6 +36,7 @@ const AladinSurveyView = lazy(() => import('./AladinSurveyView'));
 
 interface ObjectDetailPanelProps {
   object: ScoredObject;
+  accessibility?: TargetAccessibility;
   nightInfo: NightInfo;
   weather: NightWeather | null;
   onClose: () => void;
@@ -42,6 +45,7 @@ interface ObjectDetailPanelProps {
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Panel with multiple sections for all object types
 export default function ObjectDetailPanel({
   object,
+  accessibility,
   nightInfo,
   weather,
   onClose,
@@ -67,12 +71,12 @@ export default function ObjectDetailPanel({
   );
   // Search radius: half-diagonal of mosaic footprint (or FOV when no mosaic)
   // Uses primitive result for stable useEffect dependency
-  const fp = mosaic ? getMosaicFootprint(mosaic, fov) : null;
-  const mosaicW = fp ? fp.width : fov.width;
-  const mosaicH = fp ? fp.height : fov.height;
+  const fp = mosaic && fov ? getMosaicFootprint(mosaic, fov) : null;
+  const mosaicW = fp?.width ?? fov?.width ?? 0;
+  const mosaicH = fp?.height ?? fov?.height ?? 0;
   const searchRadiusDeg = (Math.sqrt(mosaicW ** 2 + mosaicH ** 2) / 2 / 60) * 1.1;
   // Only show star field for DSOs (Gaia queries don't work well for planets/solar-system objects)
-  const showStarField = category === 'dso' && visibility.angularSizeArcmin > 0;
+  const showStarField = fov !== null && category === 'dso' && visibility.angularSizeArcmin > 0;
 
   // Animate in
   useEffect(() => {
@@ -231,7 +235,7 @@ export default function ObjectDetailPanel({
         </div>
 
         {/* Star Field / Survey View — only for DSOs with angular size */}
-        {showStarField && (
+        {showStarField && fov && (
           <div className="rounded-lg bg-night-800 p-3">
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -338,7 +342,7 @@ export default function ObjectDetailPanel({
         )}
 
         {/* Mosaic Tips — condition-aware guidance for mosaic imaging */}
-        {mosaic && showStarField && (
+        {mosaic && showStarField && fov && (
           <MosaicTipsPanel
             mosaic={mosaic}
             fov={fov}
@@ -395,6 +399,41 @@ export default function ObjectDetailPanel({
             tooltip="Meridian transit is when the object crosses the north-south line and reaches its highest point. Best time to observe as it passes through the least atmosphere."
           />
         </div>
+
+        {/* Exact intervals allowed by the user's minimum altitude and horizon profile. */}
+        {accessibility?.windows.length ? (
+          <div className="rounded-lg bg-night-800 p-3">
+            <div className="mb-2 flex items-center gap-2 text-sm">
+              <Clock className="h-4 w-4 text-sky-400" />
+              <span className="text-gray-300">Your accessible windows</span>
+              <span className="ml-auto text-gray-500 text-xs">
+                {formatDurationMinutes(accessibility.accessibleMinutes)} total
+              </span>
+            </div>
+            <div className="space-y-2">
+              {accessibility.windows.map((window, index) => (
+                <div
+                  key={`${window.start.toISOString()}-${window.end.toISOString()}`}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <span className="text-gray-500">
+                    {window === accessibility.bestWindow ? 'Best' : `Window ${index + 1}`}
+                  </span>
+                  <span className="text-right text-gray-200">
+                    {formatTimeRange(window.start, window.end, timezone)}
+                    <span className="ml-2 text-gray-500">
+                      {formatDurationMinutes(window.durationMinutes)}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-gray-500 text-xs">
+              Above both your whole-sky minimum and the obstruction height for each true-north
+              direction.
+            </p>
+          </div>
+        ) : null}
 
         {/* Imaging window */}
         {visibility.imagingWindow && (
@@ -577,14 +616,10 @@ function ObjectSpecificBadges({ visibility }: { visibility: ScoredObject['visibi
       colorClass: 'bg-red-500/20 text-red-400',
     });
   }
-  if (
-    visibility.isNearPerihelion &&
-    visibility.perihelionBoostPercent &&
-    visibility.perihelionBoostPercent > 0
-  ) {
+  if (visibility.isNearPerihelion) {
     badges.push({
       key: 'perihelion',
-      text: `Near Perihelion (+${visibility.perihelionBoostPercent}% brighter)`,
+      text: 'Near Perihelion',
       colorClass: 'bg-green-500/20 text-green-400',
     });
   }

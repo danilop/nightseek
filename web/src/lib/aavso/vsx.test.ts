@@ -29,12 +29,14 @@ describe('AAVSO Variable Star Predictions', () => {
     expect(algol?.predictedMagnitude).not.toBeNull();
   });
 
-  it('R Coronae Borealis has no period (irregular)', () => {
+  it('does not fabricate a brightness state for R Coronae Borealis', () => {
     const predictions = predictVariableStars(new Date('2026-02-09'));
     const rcrb = predictions.find(p => p.star.name.includes('R Coronae'));
     expect(rcrb).toBeDefined();
     expect(rcrb?.star.period).toBeNull();
-    expect(rcrb?.isNearMaximum).toBe(true); // irregular stays at max
+    expect(rcrb?.isNearMaximum).toBe(false);
+    expect(rcrb?.predictedMagnitude).toBeNull();
+    expect(rcrb?.predictionQuality).toBe('unpredictable');
   });
 
   it('predictions change with date', () => {
@@ -78,5 +80,21 @@ describe('AAVSO Variable Star Predictions', () => {
         expect(p.predictedMagnitude).toBeLessThanOrEqual(p.star.minMagnitude + 0.5);
       }
     }
+  });
+
+  it('places Algol at primary minimum at its VSX epoch', () => {
+    const epoch = new Date((2457675.72 - 2440587.5) * 86400000);
+    const algol = predictVariableStars(epoch).find(p => p.star.name.includes('Algol'));
+
+    expect(algol?.isNearMinimum).toBe(true);
+    expect(algol?.predictedMagnitude).toBeCloseTo(3.3, 1);
+  });
+
+  it('places Delta Cephei at maximum at its VSX epoch', () => {
+    const epoch = new Date((2436075.415 - 2440587.5) * 86400000);
+    const deltaCephei = predictVariableStars(epoch).find(p => p.star.name === 'Delta Cephei');
+
+    expect(deltaCephei?.isNearMaximum).toBe(true);
+    expect(deltaCephei?.predictedMagnitude).toBeCloseTo(3.49, 1);
   });
 });

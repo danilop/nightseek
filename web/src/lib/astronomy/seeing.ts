@@ -119,7 +119,7 @@ function getSeeingRating(arcsec: number): SeeingForecast['rating'] {
 }
 
 /**
- * Estimate atmospheric seeing conditions
+ * Estimate a weather-based atmospheric-steadiness proxy.
  *
  * This is an empirical estimation based on weather data.
  * Actual seeing depends on many factors including site-specific conditions,
@@ -131,7 +131,9 @@ function getSeeingRating(arcsec: number): SeeingForecast['rating'] {
  * @param humidity - Relative humidity percentage (0-100)
  * @param tempC - Temperature in Celsius (optional)
  * @param dewPointC - Dew point in Celsius (optional)
- * @returns SeeingForecast with rating, estimate, and confidence
+ * The numeric value is an internal proxy scale shaped like arcseconds for
+ * backwards-compatible ranking. It is not a forecast of measured stellar
+ * FWHM because the inputs omit vertical turbulence and jet-stream profiles.
  */
 export function estimateSeeing(
   windSpeedKmh: number = 0,
@@ -215,7 +217,7 @@ export function getSeeingFromWeather(weather: NightWeather | null): SeeingForeca
  */
 export function getSeeingDescription(forecast: SeeingForecast): string {
   const confidenceStr = forecast.confidence >= 0.7 ? '' : ' (low confidence)';
-  return `${forecast.rating.charAt(0).toUpperCase() + forecast.rating.slice(1)} seeing (${forecast.estimatedArcsec}")${confidenceStr}`;
+  return `${forecast.rating.charAt(0).toUpperCase() + forecast.rating.slice(1)} weather-based seeing proxy${confidenceStr}`;
 }
 
 /**

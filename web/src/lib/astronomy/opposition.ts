@@ -12,6 +12,7 @@ const OUTER_PLANETS: Array<{ name: string; body: Astronomy.Body }> = [
 
 // How many days before/after opposition to consider it "active"
 const OPPOSITION_WINDOW_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Search for the next opposition of a planet after a given date
@@ -22,7 +23,10 @@ function searchNextOpposition(body: Astronomy.Body, startDate: Date): Date | nul
   try {
     // SearchRelativeLongitude finds when the planet reaches
     // a specific longitude difference from the Sun
-    const result = Astronomy.SearchRelativeLongitude(body, 180, startDate);
+    // Astronomy Engine defines relative longitude from the planet's
+    // heliocentric viewpoint: 0 degrees is opposition for superior planets,
+    // while 180 degrees is conjunction.
+    const result = Astronomy.SearchRelativeLongitude(body, 0, startDate);
     return result?.date ?? null;
   } catch (_error) {
     return null;
@@ -39,8 +43,7 @@ function isNearOpposition(
 ): { isActive: boolean; daysUntil: number; oppositionDate: Date | null } {
   try {
     // Search backwards to find if we're past a recent opposition
-    const pastSearchDate = new Date(date);
-    pastSearchDate.setDate(pastSearchDate.getDate() - windowDays - 5);
+    const pastSearchDate = new Date(date.getTime() - (windowDays + 5) * DAY_MS);
     const pastOpposition = searchNextOpposition(body, pastSearchDate);
 
     if (pastOpposition) {
@@ -79,8 +82,6 @@ function isNearOpposition(
  */
 export function detectOppositions(date: Date, forecastDays: number = 7): OppositionEvent[] {
   const events: OppositionEvent[] = [];
-  const endDate = new Date(date);
-  endDate.setDate(endDate.getDate() + forecastDays + OPPOSITION_WINDOW_DAYS);
 
   for (const planet of OUTER_PLANETS) {
     const { isActive, daysUntil, oppositionDate } = isNearOpposition(planet.body, date);

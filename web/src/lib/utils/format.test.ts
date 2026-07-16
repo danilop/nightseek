@@ -4,6 +4,7 @@ import {
   formatAltitude,
   formatAngularSize,
   formatDate,
+  formatDateKey,
   formatDateRange,
   formatDurationMinutes,
   formatMagnitude,
@@ -43,6 +44,14 @@ describe('format utils', () => {
       const result = formatDate(date);
       expect(result).toContain('Jan');
       expect(result).toContain('15');
+    });
+  });
+
+  describe('formatDateKey', () => {
+    it('uses the observation location civil date across the date line', () => {
+      const instant = new Date('2026-01-01T11:30:00Z');
+      expect(formatDateKey(instant, 'Pacific/Kiritimati')).toBe('2026-01-02');
+      expect(formatDateKey(instant, 'Pacific/Honolulu')).toBe('2026-01-01');
     });
   });
 

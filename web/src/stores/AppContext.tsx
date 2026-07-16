@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useReducer } from 'react';
+import { createContext, useCallback, useContext, useEffect, useReducer, useState } from 'react';
 import { resetUIState } from '@/hooks/useUIState';
 import { CACHE_KEYS, clearAllCache, getCached, setCache } from '@/lib/utils/cache';
 import { getLocaleUnitDefaults } from '@/lib/utils/units';
@@ -49,7 +49,7 @@ const DEFAULT_SETTINGS: Settings = {
     distance: 'km',
   },
   showSatellitePasses: true,
-  telescope: 'dwarf_mini',
+  telescope: 'generic',
   customFOV: null,
 };
 
@@ -125,6 +125,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [hasHydratedSettings, setHasHydratedSettings] = useState(false);
 
   // Load saved location and settings on mount
   useEffect(() => {
@@ -137,10 +138,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_SETUP_COMPLETE', payload: true });
       }
 
-      // Load settings from localStorage
-      const savedSettings = localStorage.getItem('nightseek:settings');
-      if (savedSettings) {
-        try {
+      try {
+        // Load settings only after the asynchronous location lookup, without letting
+        // the persistence effect overwrite them with defaults in the meantime.
+        const savedSettings = localStorage.getItem('nightseek:settings');
+        if (savedSettings) {
           const parsed = JSON.parse(savedSettings);
           // Validate that parsed is a plain object with expected types
           if (
@@ -162,13 +164,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           } else {
             dispatch({ type: 'RESET_SETTINGS' });
           }
-        } catch {
-          // Ignore parse errors, use locale defaults
+        } else {
+          // First-time user: apply locale-based unit defaults
           dispatch({ type: 'RESET_SETTINGS' });
         }
-      } else {
-        // First-time user: apply locale-based unit defaults
+      } catch {
+        // Ignore parse errors, use locale defaults
         dispatch({ type: 'RESET_SETTINGS' });
+      } finally {
+        setHasHydratedSettings(true);
       }
     }
 
@@ -177,8 +181,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Persist settings to localStorage
   useEffect(() => {
+    if (!hasHydratedSettings) return;
     localStorage.setItem('nightseek:settings', JSON.stringify(state.settings));
-  }, [state.settings]);
+  }, [hasHydratedSettings, state.settings]);
 
   // Track online/offline status
   useEffect(() => {

@@ -8,6 +8,7 @@ import type {
 import { avg } from '../utils/array-math';
 import { formatTimeRange } from '../utils/format';
 import { calculateAirmass } from './airmass';
+import { angularSeparation, type SkyCalculator } from './calculator';
 
 /**
  * Minimum window duration in minutes to be considered useful
@@ -119,33 +120,30 @@ function getHourlyWeatherAt(weather: NightWeather | null, time: Date): HourlyWea
   return null;
 }
 
-/**
- * Calculate moon altitude at a given time
- */
-function estimateMoonAltitude(time: Date, nightInfo: NightInfo): number {
-  // Simple estimation based on moon rise/set
-  const moonRise = nightInfo.moonRise;
-  const moonSet = nightInfo.moonSet;
+function getMoonSeparationAt(
+  object: ObjectVisibility,
+  calculator: SkyCalculator,
+  time: Date
+): number | null {
+  if (object.objectType === 'moon') return null;
 
-  if (!moonRise && !moonSet) return -10; // Moon not up during night
-
-  const t = time.getTime();
-
-  // If both rise and set are defined
-  if (moonRise && moonSet) {
-    const riseTime = moonRise.getTime();
-    const setTime = moonSet.getTime();
-
-    if (t < riseTime || t > setTime) return -10;
-
-    // Estimate altitude as sine wave between rise and set
-    const progress = (t - riseTime) / (setTime - riseTime);
-    return Math.sin(progress * Math.PI) * 45; // Max ~45 degrees
+  const planetBodies: Partial<Record<string, Astronomy.Body>> = {
+    Mercury: Astronomy.Body.Mercury,
+    Venus: Astronomy.Body.Venus,
+    Mars: Astronomy.Body.Mars,
+    Jupiter: Astronomy.Body.Jupiter,
+    Saturn: Astronomy.Body.Saturn,
+    Uranus: Astronomy.Body.Uranus,
+    Neptune: Astronomy.Body.Neptune,
+  };
+  const planet = planetBodies[object.objectName];
+  if (planet) {
+    const body = calculator.getBodyPositionJ2000(planet, time);
+    const moon = calculator.getMoonPosition(time);
+    return angularSeparation(body.ra * 15, body.dec, moon.ra * 15, moon.dec);
   }
 
-  // Moon is either always up or always down during the night
-  // Use illumination as proxy for whether it's high
-  return nightInfo.moonIllumination > 50 ? 30 : -10;
+  return calculator.getMoonSeparation(object.raHours, object.decDegrees, time);
 }
 
 /**
@@ -154,13 +152,15 @@ function estimateMoonAltitude(time: Date, nightInfo: NightInfo): number {
 function calculateQualityAtTime(
   time: Date,
   altitude: number,
-  moonSeparation: number | null,
+  object: ObjectVisibility,
   nightInfo: NightInfo,
-  weather: NightWeather | null
+  weather: NightWeather | null,
+  calculator: SkyCalculator
 ): { score: number; factors: ImagingWindow['factors'] } {
   const altitudeQuality = calculateAltitudeQuality(altitude);
   const airmassQuality = calculateAirmassQuality(altitude);
-  const moonAltitude = estimateMoonAltitude(time, nightInfo);
+  const moonAltitude = calculator.getMoonPosition(time).altitude;
+  const moonSeparation = getMoonSeparationAt(object, calculator, time);
   const moonQuality = calculateMoonInterferenceQuality(
     moonSeparation,
     nightInfo.moonIllumination,
@@ -231,7 +231,8 @@ function finalizeImagingWindow(
 export function calculateImagingWindows(
   object: ObjectVisibility,
   nightInfo: NightInfo,
-  weather: NightWeather | null
+  weather: NightWeather | null,
+  calculator: SkyCalculator
 ): ImagingWindow[] {
   const windows: ImagingWindow[] = [];
 
@@ -248,15 +249,19 @@ export function calculateImagingWindows(
   }> = [];
 
   for (const [time, altitude] of object.altitudeSamples) {
-    if (altitude < 20) continue; // Skip very low altitudes
+    if (altitude < 20) {
+      // Preserve the point as a hard break. Dropping it would make the points
+      // on either side look contiguous and could bridge two separate arcs.
+      qualityPoints.push({
+        time,
+        altitude,
+        score: 0,
+        factors: { altitude: 0, airmass: 0, moonInterference: 0, cloudCover: 0 },
+      });
+      continue;
+    }
 
-    const quality = calculateQualityAtTime(
-      time,
-      altitude,
-      object.moonSeparation,
-      nightInfo,
-      weather
-    );
+    const quality = calculateQualityAtTime(time, altitude, object, nightInfo, weather, calculator);
 
     qualityPoints.push({
       time,
@@ -312,9 +317,10 @@ export function calculateImagingWindows(
 export function getBestImagingWindow(
   object: ObjectVisibility,
   nightInfo: NightInfo,
-  weather: NightWeather | null
+  weather: NightWeather | null,
+  calculator: SkyCalculator
 ): ImagingWindow | null {
-  const windows = calculateImagingWindows(object, nightInfo, weather);
+  const windows = calculateImagingWindows(object, nightInfo, weather, calculator);
   return windows.length > 0 ? windows[0] : null;
 }
 
@@ -334,9 +340,10 @@ export function formatImagingWindow(window: ImagingWindow): string {
 export function getImagingWindowSummary(
   object: ObjectVisibility,
   nightInfo: NightInfo,
-  weather: NightWeather | null
+  weather: NightWeather | null,
+  calculator: SkyCalculator
 ): string | null {
-  const bestWindow = getBestImagingWindow(object, nightInfo, weather);
+  const bestWindow = getBestImagingWindow(object, nightInfo, weather, calculator);
 
   if (!bestWindow) {
     return null;
@@ -344,3 +351,5 @@ export function getImagingWindowSummary(
 
   return `Best Window: ${formatImagingWindow(bestWindow)}`;
 }
+
+import * as Astronomy from 'astronomy-engine';

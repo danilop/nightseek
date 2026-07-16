@@ -4,6 +4,7 @@ import {
   createMockNightWeather,
   createMockObjectVisibility,
 } from '@/test/factories';
+import { SkyCalculator } from './calculator';
 import {
   calculateImagingWindows,
   formatImagingWindow,
@@ -12,6 +13,7 @@ import {
 } from './imaging-windows';
 
 describe('imaging-windows', () => {
+  const calculator = new SkyCalculator(51.5074, -0.1278, 0);
   // Wrap factory with altitude-specific samples
   const createMockVisibility = (maxAlt: number) => {
     const baseTime = new Date('2025-01-15T22:00:00Z');
@@ -82,7 +84,8 @@ describe('imaging-windows', () => {
       const result = calculateImagingWindows(
         visibility,
         createMockNightInfo(),
-        createMockWeather(20)
+        createMockWeather(20),
+        calculator
       );
 
       expect(result).toEqual([]);
@@ -93,7 +96,7 @@ describe('imaging-windows', () => {
       const nightInfo = createMockNightInfo();
       const weather = createMockWeather(10); // Clear skies
 
-      const result = calculateImagingWindows(visibility, nightInfo, weather);
+      const result = calculateImagingWindows(visibility, nightInfo, weather, calculator);
 
       expect(result.length).toBeGreaterThan(0);
     });
@@ -103,7 +106,7 @@ describe('imaging-windows', () => {
       const nightInfo = createMockNightInfo();
       const weather = createMockWeather(10);
 
-      const result = calculateImagingWindows(visibility, nightInfo, weather);
+      const result = calculateImagingWindows(visibility, nightInfo, weather, calculator);
 
       if (result.length > 0) {
         expect(['excellent', 'good', 'acceptable', 'poor']).toContain(result[0].quality);
@@ -115,7 +118,7 @@ describe('imaging-windows', () => {
       const nightInfo = createMockNightInfo();
       const weather = createMockWeather(15);
 
-      const result = calculateImagingWindows(visibility, nightInfo, weather);
+      const result = calculateImagingWindows(visibility, nightInfo, weather, calculator);
 
       if (result.length > 0) {
         expect(result[0].factors).toHaveProperty('altitude');
@@ -130,7 +133,7 @@ describe('imaging-windows', () => {
       const nightInfo = createMockNightInfo();
       const weather = createMockWeather(20);
 
-      const result = calculateImagingWindows(visibility, nightInfo, weather);
+      const result = calculateImagingWindows(visibility, nightInfo, weather, calculator);
 
       for (let i = 1; i < result.length; i++) {
         expect(result[i].qualityScore).toBeLessThanOrEqual(result[i - 1].qualityScore);
@@ -143,13 +146,45 @@ describe('imaging-windows', () => {
       const clearWeather = createMockWeather(10);
       const cloudyWeather = createMockWeather(60);
 
-      const clearResult = calculateImagingWindows(visibility, nightInfo, clearWeather);
-      const cloudyResult = calculateImagingWindows(visibility, nightInfo, cloudyWeather);
+      const clearResult = calculateImagingWindows(visibility, nightInfo, clearWeather, calculator);
+      const cloudyResult = calculateImagingWindows(
+        visibility,
+        nightInfo,
+        cloudyWeather,
+        calculator
+      );
 
       // Clear weather should have better quality windows
       if (clearResult.length > 0 && cloudyResult.length > 0) {
         expect(clearResult[0].qualityScore).toBeGreaterThanOrEqual(cloudyResult[0].qualityScore);
       }
+    });
+
+    it('does not bridge separate imaging arcs across a low-altitude gap', () => {
+      const start = new Date('2025-01-15T22:00:00Z');
+      const altitudes = [60, 60, 60, 60, 10, 10, 60, 60, 60, 60];
+      const visibility = createMockObjectVisibility({
+        objectName: 'Two arcs',
+        isVisible: true,
+        raHours: 12,
+        decDegrees: 45,
+        altitudeSamples: altitudes.map(
+          (altitude, index) =>
+            [new Date(start.getTime() + index * 10 * 60 * 1000), altitude] as [Date, number]
+        ),
+      });
+
+      const result = calculateImagingWindows(
+        visibility,
+        createMockNightInfo(),
+        createMockWeather(0),
+        calculator
+      );
+
+      expect(result).toHaveLength(2);
+      expect(
+        result.every(window => window.end.getTime() - window.start.getTime() === 30 * 60_000)
+      ).toBe(true);
     });
   });
 
@@ -159,7 +194,7 @@ describe('imaging-windows', () => {
       const nightInfo = createMockNightInfo();
       const weather = createMockWeather(90); // Cloudy
 
-      const result = getBestImagingWindow(visibility, nightInfo, weather);
+      const result = getBestImagingWindow(visibility, nightInfo, weather, calculator);
 
       // May be null if no acceptable windows
       expect(result === null || result.quality !== undefined).toBe(true);
@@ -170,8 +205,8 @@ describe('imaging-windows', () => {
       const nightInfo = createMockNightInfo();
       const weather = createMockWeather(10);
 
-      const best = getBestImagingWindow(visibility, nightInfo, weather);
-      const all = calculateImagingWindows(visibility, nightInfo, weather);
+      const best = getBestImagingWindow(visibility, nightInfo, weather, calculator);
+      const all = calculateImagingWindows(visibility, nightInfo, weather, calculator);
 
       if (best && all.length > 0) {
         expect(best.qualityScore).toBe(all[0].qualityScore);
@@ -210,7 +245,7 @@ describe('imaging-windows', () => {
       const nightInfo = createMockNightInfo();
       const weather = createMockWeather(90);
 
-      const result = getImagingWindowSummary(visibility, nightInfo, weather);
+      const result = getImagingWindowSummary(visibility, nightInfo, weather, calculator);
 
       expect(result).toBeNull();
     });
@@ -220,7 +255,7 @@ describe('imaging-windows', () => {
       const nightInfo = createMockNightInfo();
       const weather = createMockWeather(10);
 
-      const result = getImagingWindowSummary(visibility, nightInfo, weather);
+      const result = getImagingWindowSummary(visibility, nightInfo, weather, calculator);
 
       if (result) {
         expect(result).toContain('Best Window');

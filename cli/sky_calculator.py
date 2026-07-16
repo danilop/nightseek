@@ -2,13 +2,15 @@
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from skyfield import almanac
 from skyfield.api import Loader, wgs84
 from skyfield.constants import GM_SUN_Pitjeva_2005_km3_s2 as GM_SUN
 from skyfield.data import mpc
+from timezonefinder import TimezoneFinder
+from zoneinfo import ZoneInfo
 
 
 # Planet apparent diameter ranges (arcseconds)
@@ -94,6 +96,36 @@ def calculate_small_body_apparent_diameter(distance_au: float, body_name: str) -
     return angular_diameter_rad * 206265
 
 
+def calculate_hg_magnitude(
+    absolute_magnitude: float,
+    slope_parameter: float,
+    heliocentric_distance_au: float,
+    observer_distance_au: float,
+    phase_angle_degrees: float,
+) -> float:
+    """Calculate an asteroid's apparent V magnitude with the IAU H-G model.
+
+    The model is intended for inactive minor planets. Distances must be the
+    simultaneous heliocentric and observer-centric distances in AU, and the
+    phase angle is measured at the minor planet.
+    """
+    if heliocentric_distance_au <= 0 or observer_distance_au <= 0:
+        raise ValueError("Minor-planet distances must be positive")
+
+    phase_radians = math.radians(max(0.0, min(180.0, phase_angle_degrees)))
+    tan_half_phase = math.tan(phase_radians / 2.0)
+    phi1 = math.exp(-3.33 * (tan_half_phase**0.63))
+    phi2 = math.exp(-1.87 * (tan_half_phase**1.22))
+    phase_function = (1.0 - slope_parameter) * phi1 + slope_parameter * phi2
+    phase_function = max(phase_function, 1e-12)
+
+    return (
+        absolute_magnitude
+        + 5.0 * math.log10(heliocentric_distance_au * observer_distance_au)
+        - 2.5 * math.log10(phase_function)
+    )
+
+
 def calculate_airmass(altitude_degrees: float) -> float:
     """Calculate airmass using Pickering (2002) formula.
 
@@ -131,6 +163,9 @@ class NightInfo:
     sunrise: datetime
     astronomical_dusk: datetime
     astronomical_dawn: datetime
+    sunset_occurs: bool
+    sunrise_occurs: bool
+    astronomical_night_mode: str  # normal, continuous, or none
     moon_phase: float  # 0-1, where 0=new, 0.5=full
     moon_illumination: float  # 0-100%
     moon_rise: Optional[datetime]
@@ -179,6 +214,20 @@ class ObjectVisibility:
     position_angle: Optional[float] = None  # 0-180° from OpenNGC
 
 
+@dataclass
+class _MPCOrbitalRow:
+    """Typed adapter for Skyfield's attribute-based MPC orbit API."""
+
+    designation: str
+    semimajor_axis_au: float
+    eccentricity: float
+    inclination_degrees: float
+    longitude_of_ascending_node_degrees: float
+    argument_of_perihelion_degrees: float
+    mean_anomaly_degrees: float
+    epoch_packed: str
+
+
 class SkyCalculator:
     """Calculate astronomical events and object positions."""
 
@@ -191,6 +240,8 @@ class SkyCalculator:
         """
         self.latitude = latitude
         self.longitude = longitude
+        timezone_name = TimezoneFinder().timezone_at(lat=latitude, lng=longitude)
+        self.timezone = ZoneInfo(timezone_name or "UTC")
 
         # Set up cache directory for ephemeris data (cross-platform)
         from pathlib import Path
@@ -232,6 +283,66 @@ class SkyCalculator:
         """
         return self.sun + mpc.comet_orbit(comet_row, self.ts, GM_SUN)
 
+    @staticmethod
+    def _pack_mpc_epoch(epoch_jd: float, ts) -> str:
+        """Encode a midnight TT Julian date in MPC's five-character format."""
+        year, month, day, _, _, _ = ts.tt_jd(epoch_jd).tt_calendar()
+
+        def packed_digit(value: int) -> str:
+            return str(value) if value < 10 else chr(value + 55)
+
+        year = int(year)
+        return (
+            f"{packed_digit(year // 100)}{year % 100:02d}"
+            f"{packed_digit(int(month))}{packed_digit(int(day))}"
+        )
+
+    def create_minor_planet(self, minor_planet):
+        """Create a Skyfield vector from an MPC row or embedded elements."""
+        if minor_planet.name == "Pluto":
+            return self.eph["pluto barycenter"]
+        if minor_planet.row is not None:
+            return self.sun + mpc.mpcorb_orbit(minor_planet.row, self.ts, GM_SUN)
+        if minor_planet.semi_major_axis <= 0:
+            raise ValueError(f"No orbital elements for {minor_planet.name}")
+
+        row = _MPCOrbitalRow(
+            designation=minor_planet.designation,
+            semimajor_axis_au=minor_planet.semi_major_axis,
+            eccentricity=minor_planet.eccentricity,
+            inclination_degrees=minor_planet.inclination,
+            longitude_of_ascending_node_degrees=minor_planet.lon_asc_node,
+            argument_of_perihelion_degrees=minor_planet.arg_perihelion,
+            mean_anomaly_degrees=minor_planet.mean_anomaly,
+            epoch_packed=self._pack_mpc_epoch(minor_planet.epoch_jd, self.ts),
+        )
+        return self.sun + mpc.mpcorb_orbit(row, self.ts, GM_SUN)
+
+    def calculate_minor_planet_magnitude(
+        self, minor_planet, minor_planet_object, when: datetime
+    ) -> float:
+        """Calculate apparent H-G magnitude at the observation time."""
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        t = self.ts.from_datetime(when)
+        observer_distance = self.earth.at(t).observe(minor_planet_object).distance().au
+        heliocentric_distance = (
+            self.sun.at(t).observe(minor_planet_object).distance().au
+        )
+        earth_sun_distance = self.sun.at(t).observe(self.earth).distance().au
+        denominator = 2.0 * heliocentric_distance * observer_distance
+        cosine_phase = (
+            heliocentric_distance**2 + observer_distance**2 - earth_sun_distance**2
+        ) / denominator
+        phase_angle = math.degrees(math.acos(max(-1.0, min(1.0, cosine_phase))))
+        return calculate_hg_magnitude(
+            minor_planet.magnitude_h,
+            minor_planet.slope_parameter,
+            heliocentric_distance,
+            observer_distance,
+            phase_angle,
+        )
+
     def get_night_info(self, date: datetime) -> NightInfo:
         """Calculate night information for a given date.
 
@@ -241,9 +352,19 @@ class SkyCalculator:
         Returns:
             NightInfo object with twilight and moon information
         """
-        # Convert to Skyfield time
-        t0 = self.ts.utc(date.year, date.month, date.day, 0, 0, 0)
-        t1 = self.ts.utc(date.year, date.month, date.day, 23, 59, 59)
+        # Search from local noon to local noon so the requested civil night is
+        # selected correctly even when the observer is far from the machine's
+        # timezone or a daylight-saving transition occurs.
+        local_noon = datetime(
+            date.year,
+            date.month,
+            date.day,
+            12,
+            tzinfo=self.timezone,
+        )
+        next_local_noon = local_noon + timedelta(days=1)
+        t0 = self.ts.from_datetime(local_noon.astimezone(timezone.utc))
+        t1 = self.ts.from_datetime(next_local_noon.astimezone(timezone.utc))
 
         # Calculate sunset/sunrise
         f_sunrise_sunset = almanac.sunrise_sunset(self.eph, self.location)
@@ -269,19 +390,8 @@ class SkyCalculator:
             if e == 0:  # Dark (end of astronomical twilight)
                 if astronomical_dusk is None:
                     astronomical_dusk = dt
-            elif e == 4:  # Start of astronomical twilight
+            elif e == 1:  # Start of astronomical twilight (dark -> astronomical)
                 astronomical_dawn = dt
-
-        # If no dusk/dawn found in this day, extend search
-        if astronomical_dusk is None or astronomical_dawn is None:
-            t2 = self.ts.utc(date.year, date.month, date.day + 1, 23, 59, 59)
-            times_tw2, events_tw2 = almanac.find_discrete(t0, t2, f_twilight)
-            for t, e in zip(times_tw2, events_tw2):
-                dt = t.utc_datetime()
-                if e == 0 and astronomical_dusk is None:
-                    astronomical_dusk = dt
-                elif e == 4 and astronomical_dawn is None:
-                    astronomical_dawn = dt
 
         # Calculate moon phase and illumination at midnight local time
         # Use midpoint between astronomical dusk and dawn for accuracy during observation
@@ -290,23 +400,23 @@ class SkyCalculator:
             dusk = astronomical_dusk
             dawn = astronomical_dawn
             if dawn < dusk:
-                from datetime import timedelta
-
                 dawn = dawn + timedelta(days=1)
             midnight = dusk + (dawn - dusk) / 2
             t_mid = self.ts.from_datetime(midnight)
         else:
             # Fallback to local midnight (next day 00:00)
-            t_mid = self.ts.utc(date.year, date.month, date.day + 1, 0, 0, 0)
+            local_midnight = (local_noon + timedelta(days=1)).replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+            t_mid = self.ts.from_datetime(local_midnight.astimezone(timezone.utc))
         phase = almanac.moon_phase(self.eph, t_mid)
         phase_fraction = phase.degrees / 360.0
 
-        # Calculate illumination (0 at new moon, 1 at full moon)
-        # Phase goes 0->180 (waxing) then 180->360 (waning)
-        if phase.degrees <= 180:
-            illumination = phase.degrees / 180.0
-        else:
-            illumination = (360 - phase.degrees) / 180.0
+        # Illuminated fraction follows the cosine phase law.
+        illumination = (1.0 - math.cos(math.radians(phase.degrees))) / 2.0
 
         # Calculate moon rise/set
         f_moon_riseset = almanac.risings_and_settings(
@@ -323,14 +433,27 @@ class SkyCalculator:
             else:  # Set
                 moon_set = dt
 
-        # Type narrowing: ensure required times are not None
-        # (They should always exist except in polar regions)
-        assert (
-            sunset is not None
-            and sunrise is not None
-            and astronomical_dusk is not None
-            and astronomical_dawn is not None
-        ), "Could not calculate twilight times (polar region?)"
+        sunset_occurs = sunset is not None
+        sunrise_occurs = sunrise is not None
+        if astronomical_dusk is not None and astronomical_dawn is not None:
+            astronomical_night_mode = "normal"
+        else:
+            initial_twilight_state = int(f_twilight(t0))
+            astronomical_night_mode = (
+                "continuous" if initial_twilight_state == 0 else "none"
+            )
+            start_boundary = t0.utc_datetime()
+            astronomical_dusk = start_boundary
+            astronomical_dawn = (
+                t1.utc_datetime()
+                if astronomical_night_mode == "continuous"
+                else start_boundary
+            )
+
+        # Preserve chart bounds while occurrence flags prevent fallback values
+        # from being presented as actual rise/set events.
+        sunset = sunset or t0.utc_datetime()
+        sunrise = sunrise or t1.utc_datetime()
 
         return NightInfo(
             date=date,
@@ -338,6 +461,9 @@ class SkyCalculator:
             sunrise=sunrise,
             astronomical_dusk=astronomical_dusk,
             astronomical_dawn=astronomical_dawn,
+            sunset_occurs=sunset_occurs,
+            sunrise_occurs=sunrise_occurs,
+            astronomical_night_mode=astronomical_night_mode,
             moon_phase=phase_fraction,
             moon_illumination=illumination * 100,
             moon_rise=moon_rise,
@@ -364,7 +490,7 @@ class SkyCalculator:
         Returns:
             ObjectVisibility object
         """
-        if not night_info.astronomical_dusk or not night_info.astronomical_dawn:
+        if night_info.astronomical_night_mode == "none":
             return ObjectVisibility(
                 object_name=obj_name,
                 object_type=obj_type,
@@ -392,9 +518,10 @@ class SkyCalculator:
         # Build time array for vectorized calculation
         times = []
         current = start
-        while current <= end:
+        while current < end:
             times.append(current)
             current += timedelta(minutes=sample_interval)
+        times.append(end)
 
         # Vectorized Skyfield time array
         t_array = self.ts.utc(
@@ -403,6 +530,7 @@ class SkyCalculator:
             [t.day for t in times],
             [t.hour for t in times],
             [t.minute for t in times],
+            [t.second + t.microsecond / 1_000_000 for t in times],
         )
 
         # Single vectorized observation call
@@ -413,21 +541,71 @@ class SkyCalculator:
 
         # Find maximum
         max_idx = altitudes.argmax()
-        max_altitude = altitudes[max_idx]
+        max_altitude = float(altitudes[max_idx])
         max_altitude_time = times[max_idx]
-        azimuth_at_peak = azimuths[max_idx]
+        azimuth_at_peak = float(azimuths[max_idx])
+
+        # A three-point parabolic vertex removes most of the 10-minute peak
+        # quantization at the cost of only one extra Skyfield evaluation.
+        if 0 < max_idx < len(times) - 1:
+            left_span = (times[max_idx] - times[max_idx - 1]).total_seconds()
+            right_span = (times[max_idx + 1] - times[max_idx]).total_seconds()
+            if abs(left_span - right_span) < 1e-6:
+                y0, y1, y2 = (
+                    float(altitudes[i]) for i in range(max_idx - 1, max_idx + 2)
+                )
+                curvature = y0 - 2.0 * y1 + y2
+                if curvature < -1e-12:
+                    offset_samples = max(-1.0, min(1.0, 0.5 * (y0 - y2) / curvature))
+                    candidate_time = max_altitude_time + timedelta(
+                        seconds=offset_samples * left_span
+                    )
+                    candidate_t = self.ts.from_datetime(candidate_time)
+                    candidate_alt, candidate_az, _ = (
+                        observer.at(candidate_t).observe(obj).apparent().altaz()
+                    )
+                    if candidate_alt.degrees > max_altitude:
+                        max_altitude = float(candidate_alt.degrees)
+                        max_altitude_time = candidate_time
+                        azimuth_at_peak = float(candidate_az.degrees)
         is_visible = max_altitude > 0
 
         # Calculate minimum airmass (at peak altitude)
         min_airmass = calculate_airmass(max_altitude)
 
-        # Find threshold windows
+        # Find the longest continuous threshold window. Interpolate boundary
+        # crossings instead of reporting the nearest 10/60-minute sample, and
+        # never bridge two separate arcs above a threshold.
         def find_above_threshold(threshold):
-            above_mask = altitudes >= threshold
-            if not above_mask.any():
+            intervals = []
+            interval_start = times[0] if altitudes[0] >= threshold else None
+
+            for i in range(1, len(times)):
+                was_above = altitudes[i - 1] >= threshold
+                is_above = altitudes[i] >= threshold
+                if was_above == is_above:
+                    continue
+
+                altitude_span = float(altitudes[i] - altitudes[i - 1])
+                fraction = (
+                    0.5
+                    if abs(altitude_span) < 1e-12
+                    else (threshold - float(altitudes[i - 1])) / altitude_span
+                )
+                crossing = times[i - 1] + (times[i] - times[i - 1]) * max(
+                    0.0, min(1.0, fraction)
+                )
+                if is_above:
+                    interval_start = crossing
+                elif interval_start is not None:
+                    intervals.append((interval_start, crossing))
+                    interval_start = None
+
+            if interval_start is not None:
+                intervals.append((interval_start, times[-1]))
+            if not intervals:
                 return None, None
-            indices = [i for i, v in enumerate(above_mask) if v]
-            return times[indices[0]], times[indices[-1]]
+            return max(intervals, key=lambda interval: interval[1] - interval[0])
 
         above_45 = find_above_threshold(45)
         above_60 = find_above_threshold(60)

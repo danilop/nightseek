@@ -1,4 +1,3 @@
-import { getNightLabel } from '@/lib/utils/format';
 import type {
   DSOSubtype,
   ImagingWindow,
@@ -430,30 +429,6 @@ function calculateSupermoonBonus(
 }
 
 /**
- * Perihelion bonus for planets (0-10 points)
- * Planets are brighter when closer to the Sun
- */
-export function calculatePerihelionBonus(
-  isNearPerihelion: boolean | undefined,
-  perihelionBoostPercent: number | undefined,
-  objectType: ObjectCategory
-): number {
-  if (objectType !== 'planet') return 0;
-  if (!isNearPerihelion) return 0;
-
-  // Scale bonus based on brightness boost
-  if (perihelionBoostPercent === undefined || perihelionBoostPercent === 0) {
-    return 5; // Default bonus for being near perihelion
-  }
-
-  // Higher boost = higher score (up to 10 points)
-  if (perihelionBoostPercent >= 15) return 10;
-  if (perihelionBoostPercent >= 10) return 8;
-  if (perihelionBoostPercent >= 5) return 6;
-  return 4;
-}
-
-/**
  * Meridian bonus (0-5 points)
  * Objects on or near the meridian have the least atmosphere to pass through
  */
@@ -761,8 +736,6 @@ export function calculateTotalScore(
     // New fields
     hourAngle,
     sunAngle,
-    isNearPerihelion,
-    perihelionBoostPercent,
   } = visibility;
 
   const moonIllumination = nightInfo.moonIllumination;
@@ -803,11 +776,9 @@ export function calculateTotalScore(
   const supermoonBonus = calculateSupermoonBonus(lunarApsis, moonIllumination, objectType);
 
   // New scoring factors
-  const perihelionBonus = calculatePerihelionBonus(
-    isNearPerihelion,
-    perihelionBoostPercent,
-    objectType
-  );
+  // Heliocentric perihelion alone does not imply greater apparent brightness
+  // from Earth; the actual ephemeris magnitude is already scored above.
+  const perihelionBonus = 0;
   const meridianBonus = calculateMeridianBonus(hourAngle);
   const twilightPenalty = calculateTwilightPenalty(sunAngle, objectType);
   const venusPeakBonus = calculateVenusPeakBonus(objectName, venusPeak);
@@ -887,7 +858,7 @@ export function calculateTotalScore(
     subtype,
     totalScore: Math.round(totalScore),
     scoreBreakdown,
-    reason: reasons.join(', ') || `Visible ${getNightLabel(nightInfo.date)}`,
+    reason: reasons.join(', ') || 'Visible during the selected night',
     visibility,
     magnitude,
   };

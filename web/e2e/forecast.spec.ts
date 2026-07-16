@@ -1,27 +1,52 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('Forecast Generation', () => {
-  test.beforeEach(async ({ page }) => {
-    // Set up mock location in localStorage before navigating
-    await page.addInitScript(() => {
-      const mockState = {
-        location: {
-          name: 'Test Location',
-          latitude: 40.7128,
-          longitude: -74.006,
-          timezone: 'America/New_York',
-          elevation: 10,
-        },
-        isSetupComplete: true,
-        settings: {
-          forecastDays: 7,
-          minAltitude: 30,
-          includeComets: true,
-          includeMinorPlanets: true,
-        },
+const MOCK_LOCATION = {
+  name: 'Test Location',
+  latitude: 40.7128,
+  longitude: -74.006,
+  timezone: 'America/New_York',
+};
+
+async function seedLocation(
+  page: import('@playwright/test').Page,
+  location: typeof MOCK_LOCATION = MOCK_LOCATION
+): Promise<void> {
+  await page.goto('/');
+  await page.evaluate(async location => {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('keyval-store', 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains('keyval')) {
+          request.result.createObjectStore('keyval');
+        }
       };
-      localStorage.setItem('nightseek:state', JSON.stringify(mockState));
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const transaction = request.result.transaction('keyval', 'readwrite');
+        transaction.objectStore('keyval').put(
+          {
+            data: location,
+            timestamp: Date.now(),
+          },
+          'nightseek:location'
+        );
+        transaction.oncomplete = () => {
+          request.result.close();
+          resolve();
+        };
+        transaction.onerror = () => reject(transaction.error);
+      };
     });
+    localStorage.setItem('nightseek:onboarded', 'true');
+    localStorage.setItem('nightseek:settings', JSON.stringify({ forecastDays: 2 }));
+  }, location);
+}
+
+test.describe('Forecast Generation', () => {
+  test.describe.configure({ timeout: 90000 });
+
+  test.beforeEach(async ({ page }) => {
+    await seedLocation(page);
   });
 
   test('should show loading screen during forecast generation', async ({ page }) => {
@@ -42,15 +67,7 @@ test.describe('Forecast Generation', () => {
 
   test('should display weather information', async ({ page }) => {
     await page.goto('/');
-
-    // Wait for loading to complete
-    await page
-      .waitForSelector('[data-testid="forecast-view"], .bg-night-900', {
-        timeout: 60000,
-      })
-      .catch(() => {
-        // Fallback: wait for any content
-      });
+    await expect(page.getByTestId('forecast-view')).toBeVisible({ timeout: 60000 });
 
     // Check for weather-related content (moon, clouds, etc.)
     const weatherContent = page.getByText(/moon|cloud|weather|clear|condition/i);
@@ -59,90 +76,76 @@ test.describe('Forecast Generation', () => {
 
   test('should display astronomical objects', async ({ page }) => {
     await page.goto('/');
-
-    // Wait for content to load
-    await page.waitForTimeout(5000);
-
-    // Look for planet names or object categories
-    const objects = page.getByText(/jupiter|saturn|mars|venus|galaxy|nebula|planet/i);
-
-    // At least some objects should be shown
-    const count = await objects.count();
-    expect(count).toBeGreaterThan(0);
+    await expect(page.getByTestId('forecast-view')).toBeVisible({ timeout: 60000 });
+    await page.locator('button[role="tab"]:visible', { hasText: 'Targets' }).click();
+    await expect(page.locator('[data-testid="object-card"]:visible').first()).toBeVisible({
+      timeout: 30000,
+    });
   });
 });
 
 test.describe('Error Handling', () => {
   test('should show error message when forecast fails', async ({ page }) => {
-    // Set up location but mock API to fail
-    await page.addInitScript(() => {
-      const mockState = {
-        location: {
-          name: 'Test Location',
-          latitude: 999, // Invalid coordinates
-          longitude: 999,
-          timezone: 'America/New_York',
-          elevation: 10,
-        },
-        isSetupComplete: true,
-      };
-      localStorage.setItem('nightseek:state', JSON.stringify(mockState));
+    await seedLocation(page, {
+      ...MOCK_LOCATION,
+      latitude: 999,
+      longitude: 999,
     });
 
     await page.goto('/');
 
-    // Wait for potential error or content
-    await page.waitForTimeout(3000);
-
-    // Check if error is shown or app handles gracefully
-    const content = page.locator('body');
-    await expect(content).toBeVisible();
+    await expect(page.getByRole('alert')).toContainText('Something went wrong', { timeout: 30000 });
   });
 
   test('should have retry button on error', async ({ page }) => {
+    await seedLocation(page, {
+      ...MOCK_LOCATION,
+      latitude: 999,
+      longitude: 999,
+    });
     await page.goto('/');
-
-    // If there's an error, there should be a retry button
-    const retryButton = page.getByRole('button', { name: /retry|try again/i });
-
-    if (await retryButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(retryButton).toBeEnabled();
-    }
+    await expect(page.getByRole('button', { name: 'Try Again' })).toBeEnabled({ timeout: 30000 });
   });
 });
 
 test.describe('Night Selection', () => {
   test('should allow selecting different nights', async ({ page }) => {
-    await page.addInitScript(() => {
-      const mockState = {
-        location: {
-          name: 'Test Location',
-          latitude: 40.7128,
-          longitude: -74.006,
-          timezone: 'America/New_York',
-          elevation: 10,
-        },
-        isSetupComplete: true,
-      };
-      localStorage.setItem('nightseek:state', JSON.stringify(mockState));
-    });
+    test.setTimeout(90000);
+    await seedLocation(page);
 
     await page.goto('/');
 
-    // Wait for content to load
-    await page.waitForTimeout(10000);
-
-    // Look for night selection elements (dates, tabs, or table rows)
+    await expect(page.getByTestId('forecast-view')).toBeVisible({ timeout: 60000 });
     const nightSelectors = page
-      .getByRole('row')
-      .or(page.getByRole('tab'))
-      .or(page.locator('[data-night]'));
+      .getByRole('listbox', { name: 'Night selection' })
+      .getByRole('option');
+    await expect(nightSelectors).toHaveCount(2, { timeout: 30000 });
+    await nightSelectors.nth(1).click();
+    await expect(nightSelectors.nth(1)).toHaveAttribute('aria-selected', 'true');
+  });
+});
 
-    const count = await nightSelectors.count();
-    if (count > 1) {
-      // Click the second night option
-      await nightSelectors.nth(1).click();
-      await page.waitForTimeout(500);
-    }
+test.describe('Eclipse presentation', () => {
+  test('shows local solar circumstances visually and safely', async ({ page }) => {
+    test.setTimeout(90000);
+    await page.clock.setFixedTime(new Date('2026-08-12T12:00:00Z'));
+    await seedLocation(page, {
+      name: 'London',
+      latitude: 51.5074,
+      longitude: -0.1278,
+      timezone: 'Europe/London',
+    });
+
+    await page.goto('/');
+    await expect(page.getByTestId('forecast-view')).toBeVisible({ timeout: 60000 });
+    await page.locator('button[role="tab"]:visible', { hasText: 'Events' }).click();
+
+    await expect(page.getByText('Partial Solar Eclipse', { exact: true })).toBeVisible({
+      timeout: 30000,
+    });
+    await expect(page.getByRole('img', { name: /maximum visible solar coverage/i })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Eclipse timeline' })).toBeVisible();
+    await expect(page.getByText(/Sun 10° high at visible maximum/)).toBeVisible();
+    await expect(page.getByText(/ISO 12312-2/)).toBeVisible();
   });
 });

@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, List, Optional, Dict, Any
 
 from opengc_loader import DSO_MOON_SENSITIVITY
@@ -530,10 +530,7 @@ def calculate_seasonal_window_score(
     """
     max_score = weights.seasonal_window_weight
 
-    # Sun's approximate RA for each month (simplified)
-    # Sun is at RA 0h at vernal equinox (March 21)
-    day_of_year = observation_date.timetuple().tm_yday
-    sun_ra = ((day_of_year - 80) / 365.25 * 24) % 24  # Approximate
+    sun_ra = calculate_solar_ra_hours(observation_date)
 
     # Object is best when opposite the sun (12h difference)
     ra_diff = abs(ra_hours - sun_ra)
@@ -544,6 +541,47 @@ def calculate_seasonal_window_score(
     opposition_factor = ra_diff / 12.0  # 0 = same as sun, 1 = opposite
 
     return max_score * opposition_factor
+
+
+def calculate_solar_ra_hours(observation_date: datetime) -> float:
+    """Calculate the Sun's apparent geocentric right ascension.
+
+    This compact Meeus-style solar solution is accurate enough for the
+    seasonal score while avoiding the former month-linear approximation.
+    """
+    if observation_date.tzinfo is None:
+        observation_date = observation_date.replace(tzinfo=timezone.utc)
+    julian_date = observation_date.timestamp() / 86400.0 + 2440587.5
+    centuries = (julian_date - 2451545.0) / 36525.0
+    mean_longitude = (
+        280.46646 + centuries * (36000.76983 + 0.0003032 * centuries)
+    ) % 360
+    mean_anomaly = math.radians(
+        (357.52911 + centuries * (35999.05029 - 0.0001537 * centuries)) % 360
+    )
+    equation_of_center = (
+        (1.914602 - centuries * (0.004817 + 0.000014 * centuries))
+        * math.sin(mean_anomaly)
+        + (0.019993 - 0.000101 * centuries) * math.sin(2 * mean_anomaly)
+        + 0.000289 * math.sin(3 * mean_anomaly)
+    )
+    true_longitude = mean_longitude + equation_of_center
+    omega = math.radians(125.04 - 1934.136 * centuries)
+    apparent_longitude = math.radians(
+        true_longitude - 0.00569 - 0.00478 * math.sin(omega)
+    )
+    mean_obliquity = (
+        23
+        + 26 / 60
+        + (21.448 - centuries * (46.815 + centuries * (0.00059 - 0.001813 * centuries)))
+        / 3600
+    )
+    obliquity = math.radians(mean_obliquity + 0.00256 * math.cos(omega))
+    right_ascension = math.atan2(
+        math.cos(obliquity) * math.sin(apparent_longitude),
+        math.cos(apparent_longitude),
+    )
+    return (math.degrees(right_ascension) / 15.0) % 24
 
 
 def calculate_popularity_score(
@@ -815,14 +853,9 @@ def get_airmass_quality(altitude: float) -> float:
     if altitude <= 0:
         return 0
 
-    # Calculate airmass using Kasten-Young formula
-    # Airmass ≈ 1 / sin(altitude) for simple approximation
-    import math
-
-    alt_rad = math.radians(altitude)
-    if alt_rad <= 0:
-        return 0
-    airmass = 1.0 / math.sin(alt_rad)
+    # Pickering (2002), stable down to the astronomical horizon.
+    denominator = altitude + 244.0 / (165.0 + 47.0 * altitude**1.1)
+    airmass = 1.0 / math.sin(math.radians(denominator))
 
     if airmass <= 1.1:
         return 100  # Near zenith

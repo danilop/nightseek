@@ -1,6 +1,7 @@
+import { formatInTimeZone } from 'date-fns-tz';
 import { Star } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
-import { getMoonPhaseEmoji } from '@/lib/utils/format';
+import { formatDateKey, getMoonPhaseEmoji } from '@/lib/utils/format';
 import { calculateHeadlineNightQuality } from '@/lib/weather/night-quality';
 import type { NightForecast } from '@/types';
 
@@ -9,6 +10,7 @@ interface NightStripProps {
   selectedIndex: number;
   onSelectNight: (index: number) => void;
   bestNights: string[];
+  timezone?: string;
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -18,6 +20,7 @@ export default function NightStrip({
   selectedIndex,
   onSelectNight,
   bestNights,
+  timezone,
 }: NightStripProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chipRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
@@ -63,14 +66,18 @@ export default function NightStrip({
       >
         {forecasts.map((forecast, index) => {
           const { nightInfo, forecastConfidence } = forecast;
-          const dateKey = nightInfo.date.toISOString().split('T')[0];
+          const dateKey = formatDateKey(nightInfo.date, timezone);
           const isBestNight = bestNightSet.has(dateKey);
           const isSelected = index === selectedIndex;
           const nightQuality = nightQualities[index];
           const isLowConfidence = forecastConfidence === 'low';
 
-          const dayName = DAY_NAMES[nightInfo.date.getDay()];
-          const dateNum = nightInfo.date.getDate();
+          const dayName = timezone
+            ? formatInTimeZone(nightInfo.date, timezone, 'EEE')
+            : DAY_NAMES[nightInfo.date.getDay()];
+          const dateNum = timezone
+            ? formatInTimeZone(nightInfo.date, timezone, 'd')
+            : nightInfo.date.getDate();
 
           return (
             <button

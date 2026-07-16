@@ -76,6 +76,9 @@ export interface NightInfo {
   sunrise: Date;
   astronomicalDusk: Date;
   astronomicalDawn: Date;
+  sunsetOccurs: boolean;
+  sunriseOccurs: boolean;
+  astronomicalNightMode: 'normal' | 'continuous' | 'none';
   moonPhase: number; // 0-1 (0=new, 0.5=full)
   moonIllumination: number; // 0-100%
   moonRise: Date | null;
@@ -131,7 +134,7 @@ export interface ObjectVisibility {
   heliocentricDistanceAU?: number; // Distance from Sun
   geocentricDistanceAU?: number; // Distance from Earth
   isNearPerihelion?: boolean; // Planet within 30 days of perihelion
-  perihelionBoostPercent?: number; // Brightness boost from perihelion
+  perihelionSolarFluxBoostPercent?: number;
   imagingWindow?: ImagingWindow; // Best imaging slot
   saturnRings?: SaturnRingInfo; // Saturn ring geometry (Saturn only)
   physicalData?: AsteroidPhysicalData; // JPL SBDB physical data (asteroids)
@@ -356,9 +359,14 @@ export interface PlanetData {
 // Eclipses
 export interface LunarEclipse {
   kind: 'penumbral' | 'partial' | 'total';
+  visibleKind: 'penumbral' | 'partial' | 'total' | null;
   peakTime: Date;
-  magnitude: number;
+  obscuration: number;
   isVisible: boolean;
+  maxAltitude: number;
+  altitudeAtPeak: number;
+  visibleStart?: Date;
+  visibleEnd?: Date;
   penumbralStart?: Date;
   partialStart?: Date;
   totalStart?: Date;
@@ -372,6 +380,14 @@ export interface SolarEclipse {
   peakTime: Date;
   obscuration: number;
   altitude: number;
+  geometricPeakTime: Date;
+  geometricPeakAltitude: number;
+  partialStart: Date;
+  centralStart?: Date;
+  centralEnd?: Date;
+  partialEnd: Date;
+  visibleStart: Date;
+  visibleEnd: Date;
 }
 
 // Jupiter Moons
@@ -382,6 +398,8 @@ export interface GalileanMoonPosition {
   z: number;
   isTransiting: boolean;
   shadowOnJupiter: boolean;
+  shadowX: number | null;
+  shadowY: number | null;
   isOccluded: boolean; // Moon is hidden behind Jupiter's disk
 }
 
@@ -453,7 +471,7 @@ export interface PlanetApsis {
   date: Date;
   distanceAU: number;
   daysUntil: number;
-  brightnessBoostPercent: number;
+  solarFluxBoostPercent: number;
 }
 
 // Eclipse Season (lunar node crossing)
@@ -490,6 +508,7 @@ export interface ImagingWindow {
 // Atmospheric Seeing Forecast
 export interface SeeingForecast {
   rating: 'excellent' | 'good' | 'fair' | 'poor';
+  /** Internal weather-proxy scale; not a predicted or measured optical FWHM. */
   estimatedArcsec: number;
   confidence: number;
   recommendation: string;

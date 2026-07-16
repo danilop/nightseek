@@ -1,16 +1,11 @@
 import * as Astronomy from 'astronomy-engine';
 import type { LunarApsis, NightInfo } from '@/types';
 
-// Average lunar distances (km)
-const MEAN_PERIGEE_KM = 362600;
-const MEAN_APOGEE_KM = 405400;
+const MEAN_LUNAR_DISTANCE_KM = 384400;
 
-// Supermoon threshold: perigee within ~90% of closest approach
-const SUPERMOON_PERIGEE_THRESHOLD_KM = 360000;
-
-// How close to full moon (in phase degrees) for supermoon
-// Full moon is at 180 degrees, we check within +/- this threshold
-const FULL_MOON_PHASE_THRESHOLD = 12; // about 24 hours
+// “Supermoon” has no formal IAU definition. Nightseek uses the explicit,
+// reproducible criterion that exact perigee and exact full moon are <=24h apart.
+const PERIGEE_FULL_MOON_WINDOW_HOURS = 24;
 
 /**
  * Search for the next lunar apsis (perigee or apogee)
@@ -35,20 +30,12 @@ function searchNextLunarApsis(
 /**
  * Check if a full moon coincides with perigee (supermoon condition)
  */
-function isSupermoon(perigeeDate: Date, perigeeDistanceKm: number): boolean {
-  // Check if perigee is close enough
-  if (perigeeDistanceKm > SUPERMOON_PERIGEE_THRESHOLD_KM) {
-    return false;
-  }
-
-  // Check moon phase at perigee time
-  const moonPhase = Astronomy.MoonPhase(perigeeDate);
-
-  // Full moon is at 180 degrees
-  const degreesFromFull = Math.abs(180 - moonPhase);
-  const adjustedDegrees = degreesFromFull > 180 ? 360 - degreesFromFull : degreesFromFull;
-
-  return adjustedDegrees <= FULL_MOON_PHASE_THRESHOLD;
+export function isPerigeeFullMoon(perigeeDate: Date): boolean {
+  const searchStart = new Date(perigeeDate.getTime() - 16 * 86_400_000);
+  const fullMoon = Astronomy.SearchMoonPhase(180, searchStart, 32);
+  if (!fullMoon) return false;
+  const separationHours = Math.abs(fullMoon.date.getTime() - perigeeDate.getTime()) / 3_600_000;
+  return separationHours <= PERIGEE_FULL_MOON_WINDOW_HOURS;
 }
 
 /**
@@ -73,7 +60,7 @@ export function getLunarApsisForNight(
       return null;
     }
 
-    const supermoon = apsis.type === 'perigee' && isSupermoon(apsis.date, apsis.distanceKm);
+    const supermoon = apsis.type === 'perigee' && isPerigeeFullMoon(apsis.date);
 
     return {
       type: apsis.type,
@@ -93,16 +80,14 @@ export function describeLunarApsis(apsis: LunarApsis): string {
   const distanceStr = apsis.distanceKm.toLocaleString();
 
   if (apsis.isSupermoon) {
-    return `Supermoon! Moon at perigee (${distanceStr} km) during full moon`;
+    return `Perigee full moon (${distanceStr} km) - exact full moon occurs within 24 hours (often called a supermoon)`;
   }
 
   if (apsis.type === 'perigee') {
-    const percentCloser = (
-      ((MEAN_APOGEE_KM - apsis.distanceKm) / (MEAN_APOGEE_KM - MEAN_PERIGEE_KM)) *
-      100
-    ).toFixed(0);
-    return `Moon at perigee (${distanceStr} km) - appears ${percentCloser}% larger than average`;
+    const percentLarger = ((MEAN_LUNAR_DISTANCE_KM / apsis.distanceKm - 1) * 100).toFixed(1);
+    return `Moon at perigee (${distanceStr} km) - appears ${percentLarger}% larger than at its mean distance`;
   }
 
-  return `Moon at apogee (${distanceStr} km) - appears smaller than average`;
+  const percentSmaller = ((1 - MEAN_LUNAR_DISTANCE_KM / apsis.distanceKm) * 100).toFixed(1);
+  return `Moon at apogee (${distanceStr} km) - appears ${percentSmaller}% smaller than at its mean distance`;
 }

@@ -39,7 +39,7 @@ const APSIS_WINDOW_DAYS = 30;
  * Brightness varies inversely with the square of distance, so:
  * boost = ((avgDist / currentDist)^2 - 1) * 100
  */
-export function calculateBrightnessBoost(currentDistAU: number, avgDistAU: number): number {
+export function calculateSolarFluxBoost(currentDistAU: number, avgDistAU: number): number {
   if (currentDistAU >= avgDistAU) {
     return 0; // No boost when farther than average
   }
@@ -139,8 +139,8 @@ export function getPlanetApsisInfo(planetName: string, date: Date): PlanetApsis 
     const type: 'perihelion' | 'aphelion' = nearestApsis.kind === 0 ? 'perihelion' : 'aphelion';
 
     // Calculate brightness boost only for perihelion
-    const brightnessBoost =
-      type === 'perihelion' ? calculateBrightnessBoost(currentDistAU, avgDist) : 0;
+    const solarFluxBoost =
+      type === 'perihelion' ? calculateSolarFluxBoost(currentDistAU, avgDist) : 0;
 
     return {
       planet: planetName,
@@ -148,7 +148,7 @@ export function getPlanetApsisInfo(planetName: string, date: Date): PlanetApsis 
       date: nearestApsis.time.date,
       distanceAU: nearestApsis.dist_au,
       daysUntil: Math.abs(daysUntil),
-      brightnessBoostPercent: brightnessBoost,
+      solarFluxBoostPercent: solarFluxBoost,
     };
   } catch (_error) {
     return null;
@@ -164,18 +164,18 @@ export function isNearPerihelion(
 ): {
   isNear: boolean;
   daysUntil: number;
-  brightnessBoostPercent: number;
+  solarFluxBoostPercent: number;
 } {
   const apsisInfo = getPlanetApsisInfo(planetName, date);
 
   if (!apsisInfo || apsisInfo.type !== 'perihelion') {
-    return { isNear: false, daysUntil: Infinity, brightnessBoostPercent: 0 };
+    return { isNear: false, daysUntil: Infinity, solarFluxBoostPercent: 0 };
   }
 
   return {
     isNear: true,
     daysUntil: apsisInfo.daysUntil,
-    brightnessBoostPercent: apsisInfo.brightnessBoostPercent,
+    solarFluxBoostPercent: apsisInfo.solarFluxBoostPercent,
   };
 }
 
@@ -218,8 +218,8 @@ export function getUpcomingApsisEvents(startDate: Date, windowDays: number = 90)
           (apsis.time.date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)
         );
 
-        const brightnessBoost =
-          type === 'perihelion' ? calculateBrightnessBoost(apsis.dist_au, avgDist) : 0;
+        const solarFluxBoost =
+          type === 'perihelion' ? calculateSolarFluxBoost(apsis.dist_au, avgDist) : 0;
 
         results.push({
           planet,
@@ -227,7 +227,7 @@ export function getUpcomingApsisEvents(startDate: Date, windowDays: number = 90)
           date: apsis.time.date,
           distanceAU: apsis.dist_au,
           daysUntil,
-          brightnessBoostPercent: brightnessBoost,
+          solarFluxBoostPercent: solarFluxBoost,
         });
 
         apsis = Astronomy.NextPlanetApsis(body, apsis);
@@ -247,16 +247,16 @@ export function getPlanetApsisDescription(apsis: PlanetApsis): string {
   const eventType = apsis.type === 'perihelion' ? 'Perihelion' : 'Aphelion';
 
   if (apsis.daysUntil === 0) {
-    if (apsis.type === 'perihelion' && apsis.brightnessBoostPercent > 0) {
-      return `${apsis.planet} at ${eventType} today (+${apsis.brightnessBoostPercent}% brighter)`;
+    if (apsis.type === 'perihelion' && apsis.solarFluxBoostPercent > 0) {
+      return `${apsis.planet} at ${eventType} today (${apsis.solarFluxBoostPercent}% more sunlight than at mean distance)`;
     }
     return `${apsis.planet} at ${eventType} today`;
   }
 
   const dayStr = apsis.daysUntil === 1 ? 'day' : 'days';
 
-  if (apsis.type === 'perihelion' && apsis.brightnessBoostPercent > 0) {
-    return `${apsis.planet} near ${eventType} (+${apsis.brightnessBoostPercent}% brighter)`;
+  if (apsis.type === 'perihelion' && apsis.solarFluxBoostPercent > 0) {
+    return `${apsis.planet} near ${eventType} (${apsis.solarFluxBoostPercent}% more sunlight than at mean distance)`;
   }
 
   return `${apsis.planet} ${eventType} in ${apsis.daysUntil} ${dayStr}`;

@@ -1,8 +1,9 @@
 import cometsJson from '@/data/comets.json';
 import type { NightInfo, ObjectVisibility } from '@/types';
 import type { SkyCalculator } from '../astronomy/calculator';
+import { GAUSSIAN_GRAVITATIONAL_CONSTANT } from '../astronomy/constants';
 import {
-  heliocentricToEquatorial,
+  lightTimeCorrectedEquatorial,
   meanMotion,
   orbitalToEcliptic,
   solveKepler,
@@ -28,6 +29,15 @@ export interface ParsedComet {
   slopeParameter: number; // k (default 10)
   isInterstellar: boolean;
   epochJD: number;
+}
+
+/** MPC interstellar designations use a numbered I/ prefix (for example 2I/Borisov). */
+export function isInterstellarDesignation(designation: string): boolean {
+  return /^\d+I(?:\/|$)/i.test(designation.trim());
+}
+
+function normalizeComet(comet: ParsedComet): ParsedComet {
+  return { ...comet, isInterstellar: isInterstellarDesignation(comet.designation) };
 }
 
 /**
@@ -57,24 +67,27 @@ export function calculateCometMagnitude(
  *   "12P/Pons-Brooks" -> code="12P", name="Pons-Brooks"
  */
 function parseCometName(fullDesignation: string): { designation: string; name: string } {
+  // MPC appends a publication reference in a distant fixed-width column.
+  const catalogName = fullDesignation.trim().split(/\s{2,}/, 1)[0];
+
   // Check for name in parentheses
-  if (fullDesignation.includes('(') && fullDesignation.includes(')')) {
-    const parenStart = fullDesignation.indexOf('(');
-    const parenEnd = fullDesignation.lastIndexOf(')');
-    const code = fullDesignation.substring(0, parenStart).trim();
-    const name = fullDesignation.substring(parenStart + 1, parenEnd);
+  if (catalogName.includes('(') && catalogName.includes(')')) {
+    const parenStart = catalogName.indexOf('(');
+    const parenEnd = catalogName.lastIndexOf(')');
+    const code = catalogName.substring(0, parenStart).trim();
+    const name = catalogName.substring(parenStart + 1, parenEnd);
     return { designation: code, name };
   }
 
   // Check for periodic comet format (e.g., "12P/Pons-Brooks")
-  if (fullDesignation.includes('/')) {
-    const slashIndex = fullDesignation.indexOf('/');
-    const code = fullDesignation.substring(0, slashIndex);
-    const name = fullDesignation.substring(slashIndex + 1);
+  if (catalogName.includes('/')) {
+    const slashIndex = catalogName.indexOf('/');
+    const code = catalogName.substring(0, slashIndex);
+    const name = catalogName.substring(slashIndex + 1);
     return { designation: code, name };
   }
 
-  return { designation: fullDesignation, name: fullDesignation };
+  return { designation: catalogName, name: catalogName };
 }
 
 /**
@@ -84,14 +97,15 @@ function parseCometName(fullDesignation: string): { designation: string; name: s
  * Columns 6-7: Perihelion month
  * etc.
  */
-function parseMPCCometLine(line: string): ParsedComet | null {
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixed-width MPC parsing validates each independent field
+export function parseMPCCometLine(line: string): ParsedComet | null {
   try {
     // Skip header lines and empty lines
     if (line.trim().length < 100 || line.startsWith('#') || line.startsWith('Num')) {
       return null;
     }
 
-    // MPC comet format (approximate column positions)
+    // MPC CometEls fixed-width columns (zero-based slice boundaries below).
     // Perihelion date: columns 15-29 (YYYYMMDD.dddd)
     // q (perihelion dist): columns 31-39
     // e (eccentricity): columns 42-51
@@ -119,19 +133,24 @@ function parseMPCCometLine(line: string): ParsedComet | null {
     const inc = parseFloat(incStr);
     const omega = parseFloat(omegaStr);
     const node = parseFloat(nodeStr);
-    const H = parseFloat(hStr) || 10.0;
-    const K = parseFloat(kStr) || 10.0;
+    const parsedH = parseFloat(hStr);
+    const parsedK = parseFloat(kStr);
+    const H = Number.isFinite(parsedH) ? parsedH : 10.0;
+    const K = Number.isFinite(parsedK) ? parsedK : 10.0;
 
     if (Number.isNaN(q) || Number.isNaN(e)) {
       return null;
     }
 
     // Parse perihelion date (YYYYMMDD.dddd format)
-    const year = parseInt(perihelionDateStr.substring(0, 4), 10);
-    const month = parseInt(perihelionDateStr.substring(4, 6), 10);
-    const day = parseFloat(perihelionDateStr.substring(6));
+    const perihelionParts = perihelionDateStr.split(/\s+/);
+    if (perihelionParts.length !== 3) return null;
+    const year = parseInt(perihelionParts[0], 10);
+    const month = parseInt(perihelionParts[1], 10);
+    const day = parseFloat(perihelionParts[2]);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
 
-    // Convert to Julian date (approximate)
+    // Convert the fractional calendar day to Julian date.
     const perihelionJD = dateToJulian(year, month, day);
 
     // Parse epoch
@@ -140,7 +159,7 @@ function parseMPCCometLine(line: string): ParsedComet | null {
       const epochYear = parseInt(epochStr.substring(0, 4), 10);
       const epochMonth = parseInt(epochStr.substring(4, 6), 10);
       const epochDay = parseFloat(epochStr.substring(6));
-      if (!Number.isNaN(epochYear)) {
+      if (Number.isFinite(epochYear) && Number.isFinite(epochMonth) && Number.isFinite(epochDay)) {
         epochJD = dateToJulian(epochYear, epochMonth, epochDay);
       }
     }
@@ -158,7 +177,7 @@ function parseMPCCometLine(line: string): ParsedComet | null {
       perihelionTime: perihelionJD,
       absoluteMagnitude: H,
       slopeParameter: K,
-      isInterstellar: e > 1.0,
+      isInterstellar: isInterstellarDesignation(designation),
       epochJD,
     };
   } catch {
@@ -204,33 +223,36 @@ export function calculateCometPosition(
   // Time since perihelion in days
   const dt = julianDate - T;
 
-  // Semi-major axis (or use q for parabolic)
-  let a: number;
-  if (Math.abs(e - 1) < 0.0001) {
-    a = q; // Parabolic
-  } else if (e < 1) {
-    a = q / (1 - e); // Elliptical
-  } else {
-    a = q / (e - 1); // Hyperbolic
-  }
-
-  // Mean motion and mean anomaly
-  const n = meanMotion(a);
-  const M = n * dt;
-
-  // Solve Kepler's equation (use comets' original tolerance for compatibility)
-  const E = solveKepler(M, e, 50, 1e-10);
-
   // True anomaly and distance
   let nu: number;
   let r: number;
 
-  if (e < 1) {
-    nu = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
-    r = a * (1 - e * Math.cos(E));
+  if (e === 1) {
+    // Barker's equation for the parabolic case.
+    const w = (3 * GAUSSIAN_GRAVITATIONAL_CONSTANT * dt) / Math.sqrt(2 * q ** 3);
+    const d = 2 * Math.sinh(Math.asinh(w / 2) / 3);
+    nu = 2 * Math.atan(d);
+    r = q * (1 + d * d);
+  } else if (e < 1) {
+    const a = q / (1 - e);
+    const eccentricAnomaly = solveKepler(meanMotion(a) * dt, e, 50, 1e-10);
+    nu =
+      2 *
+      Math.atan2(
+        Math.sqrt(1 + e) * Math.sin(eccentricAnomaly / 2),
+        Math.sqrt(1 - e) * Math.cos(eccentricAnomaly / 2)
+      );
+    r = a * (1 - e * Math.cos(eccentricAnomaly));
   } else {
-    nu = 2 * Math.atan2(Math.sqrt(e + 1) * Math.sinh(E / 2), Math.sqrt(e - 1) * Math.cosh(E / 2));
-    r = a * (e * Math.cosh(E) - 1);
+    const a = q / (e - 1);
+    const hyperbolicAnomaly = solveKepler(meanMotion(a) * dt, e, 50, 1e-10);
+    nu =
+      2 *
+      Math.atan2(
+        Math.sqrt(e + 1) * Math.sinh(hyperbolicAnomaly / 2),
+        Math.sqrt(e - 1) * Math.cosh(hyperbolicAnomaly / 2)
+      );
+    r = a * (e * Math.cosh(hyperbolicAnomaly) - 1);
   }
 
   // Position in orbital plane
@@ -246,6 +268,18 @@ export function calculateCometPosition(
 // heliocentricToEquatorial is re-exported from orbital-mechanics for backward compatibility
 export { heliocentricToEquatorial } from '../astronomy/orbital-mechanics';
 
+function getCometEquatorial(
+  comet: ParsedComet,
+  time: Date
+): { raHours: number; decDegrees: number } {
+  const jd = time.getTime() / 86400000 + 2440587.5;
+  const equator = lightTimeCorrectedEquatorial(
+    sampleJD => calculateCometPosition(comet, sampleJD),
+    jd
+  );
+  return { raHours: equator.ra, decDegrees: equator.dec };
+}
+
 /**
  * Get comet data from bundled static JSON, with IndexedDB cache and MPC live fallback.
  */
@@ -253,14 +287,14 @@ export async function fetchComets(maxMagnitude: number = 12.0): Promise<ParsedCo
   // Check cache first
   const cached = await getCached<ParsedComet[]>(CACHE_KEYS.COMETS, CACHE_TTLS.COMETS);
   if (cached) {
-    return cached.filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
+    return cached.map(normalizeComet).filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
   }
 
   // Use bundled static data
   const staticComets = cometsJson as unknown as ParsedComet[];
   if (staticComets && staticComets.length > 0) {
     await setCache(CACHE_KEYS.COMETS, staticComets);
-    return staticComets.filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
+    return staticComets.map(normalizeComet).filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
   }
 
   // Fallback: try fetching directly from MPC
@@ -284,76 +318,10 @@ export async function fetchComets(maxMagnitude: number = 12.0): Promise<ParsedCo
     await setCache(CACHE_KEYS.COMETS, comets);
     return comets.filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
   } catch (_error) {
-    return getFallbackComets();
+    // No data is safer than silently substituting stale historical elements,
+    // which can produce convincing but wrong positions and magnitudes.
+    return [];
   }
-}
-
-/**
- * Fallback bright comets when MPC fetch fails
- * These are approximate orbital elements for notable comets
- */
-function getFallbackComets(): ParsedComet[] {
-  const now = Date.now();
-  const currentJD = now / 86400000 + 2440587.5;
-
-  return [
-    {
-      designation: 'C/2023 A3',
-      name: 'Tsuchinshan-ATLAS',
-      perihelionDistance: 0.391,
-      eccentricity: 1.0001,
-      inclination: 139.1,
-      longitudeOfAscendingNode: 21.6,
-      argumentOfPerihelion: 308.5,
-      perihelionTime: 2460586.5, // Oct 2024
-      absoluteMagnitude: 4.5,
-      slopeParameter: 10,
-      isInterstellar: true,
-      epochJD: currentJD,
-    },
-    {
-      designation: '12P',
-      name: 'Pons-Brooks',
-      perihelionDistance: 0.781,
-      eccentricity: 0.955,
-      inclination: 74.2,
-      longitudeOfAscendingNode: 255.9,
-      argumentOfPerihelion: 199.0,
-      perihelionTime: 2460412.5, // April 2024
-      absoluteMagnitude: 5.0,
-      slopeParameter: 10,
-      isInterstellar: false,
-      epochJD: currentJD,
-    },
-    {
-      designation: '62P',
-      name: 'Tsuchinshan',
-      perihelionDistance: 1.378,
-      eccentricity: 0.604,
-      inclination: 10.3,
-      longitudeOfAscendingNode: 95.8,
-      argumentOfPerihelion: 16.8,
-      perihelionTime: 2460650.5, // Dec 2024
-      absoluteMagnitude: 9.0,
-      slopeParameter: 10,
-      isInterstellar: false,
-      epochJD: currentJD,
-    },
-    {
-      designation: '2P',
-      name: 'Encke',
-      perihelionDistance: 0.336,
-      eccentricity: 0.847,
-      inclination: 11.8,
-      longitudeOfAscendingNode: 334.6,
-      argumentOfPerihelion: 186.5,
-      perihelionTime: 2460224.5, // Oct 2023
-      absoluteMagnitude: 10.0,
-      slopeParameter: 15,
-      isInterstellar: false,
-      epochJD: currentJD,
-    },
-  ];
 }
 
 /**
@@ -372,8 +340,12 @@ export function calculateCometVisibility(
   const jd = midnight.getTime() / 86400000 + 2440587.5;
 
   // Calculate comet position
-  const pos = calculateCometPosition(comet, jd);
-  const { ra, dec, distance: earthDist } = heliocentricToEquatorial(pos.x, pos.y, pos.z, jd);
+  const equator = lightTimeCorrectedEquatorial(
+    sampleJD => calculateCometPosition(comet, sampleJD),
+    jd
+  );
+  const { ra, dec, distance: earthDist } = equator;
+  const emittedPosition = calculateCometPosition(comet, equator.emissionJulianDate);
 
   // Skip if position calculation produced invalid values
   if (
@@ -389,7 +361,7 @@ export function calculateCometVisibility(
   const apparentMag = calculateCometMagnitude(
     comet.absoluteMagnitude,
     earthDist,
-    pos.r,
+    emittedPosition.r,
     comet.slopeParameter
   );
 
@@ -409,6 +381,7 @@ export function calculateCometVisibility(
       magnitude: apparentMag,
       isInterstellar: comet.isInterstellar,
       commonName: `${comet.name} (${comet.designation})`,
+      positionAtTime: time => getCometEquatorial(comet, time),
     }
   );
 

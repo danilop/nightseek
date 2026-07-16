@@ -192,7 +192,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
           {error && <span className="text-red-400 text-xs">Unavailable</span>}
           {!loading && !error && passes.length === 0 && (
             <span className="text-gray-500 text-xs">
-              No visible passes {getNightLabel(nightInfo.date)}
+              No visible passes {getNightLabel(nightInfo.date, false, location.timezone)}
             </span>
           )}
           <ToggleChevron expanded={expanded} />
@@ -284,7 +284,7 @@ function SatellitePassesContent({
           <Rocket className="mx-auto mb-2 h-8 w-8 text-gray-600" />
           <p className="text-gray-400 text-sm">
             No {showAllSatellites ? 'satellite' : 'ISS'} passes visible{' '}
-            {getNightLabel(nightInfo.date)} from your location
+            {getNightLabel(nightInfo.date, false, location.timezone)} from your location
           </p>
           <p className="mt-1 text-gray-500 text-xs">
             Passes require dark skies and the satellite to be sunlit
@@ -329,14 +329,14 @@ function PassItem({ pass, timezone }: { pass: SatellitePass; timezone?: string }
         </div>
         {pass.magnitude !== null && (
           <span className="rounded bg-night-700 px-2 py-0.5 text-gray-400 text-xs">
-            mag {pass.magnitude.toFixed(1)}
+            est. mag {pass.magnitude.toFixed(1)}
           </span>
         )}
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-sm">
         <div>
-          <div className="mb-1 text-gray-500 text-xs">Rise</div>
+          <div className="mb-1 text-gray-500 text-xs">Visible from</div>
           <div className="text-gray-300">{formatTime(pass.riseTime, timezone)}</div>
           <div className="text-gray-500 text-xs">
             {azimuthToCompass(pass.riseAzimuth)} ({pass.riseAzimuth.toFixed(0)}&deg;)
@@ -350,7 +350,7 @@ function PassItem({ pass, timezone }: { pass: SatellitePass; timezone?: string }
         </div>
 
         <div className="text-right">
-          <div className="mb-1 text-gray-500 text-xs">Set</div>
+          <div className="mb-1 text-gray-500 text-xs">Visible until</div>
           <div className="text-gray-300">{formatTime(pass.setTime, timezone)}</div>
           <div className="text-gray-500 text-xs">
             {azimuthToCompass(pass.setAzimuth)} ({pass.setAzimuth.toFixed(0)}&deg;)

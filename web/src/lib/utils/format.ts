@@ -10,6 +10,11 @@ export function formatTime(date: Date, timezone?: string): string {
   return format(date, 'h:mm a');
 }
 
+/** Stable civil-date key in the observation location. */
+export function formatDateKey(date: Date, timezone?: string): string {
+  return timezone ? formatInTimeZone(date, timezone, 'yyyy-MM-dd') : format(date, 'yyyy-MM-dd');
+}
+
 /**
  * Format time range with en-dash separator (e.g., "10:30 PM – 2:45 AM")
  */
@@ -66,9 +71,9 @@ export function getNightLabel(date: Date, possessive = false, timezone?: string)
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const dateStr = date.toISOString().split('T')[0];
-  const todayStr = today.toISOString().split('T')[0];
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const dateStr = formatDateKey(date, timezone);
+  const todayStr = formatDateKey(today, timezone);
+  const tomorrowStr = formatDateKey(tomorrow, timezone);
 
   // Always include short date for clarity (e.g., "Mon 15")
   const shortDate = timezone ? formatInTimeZone(date, timezone, 'EEE d') : format(date, 'EEE d');

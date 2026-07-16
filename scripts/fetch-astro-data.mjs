@@ -154,14 +154,19 @@ function parseMPCCometLine(line) {
     const inc = parseFloat(incStr);
     const omega = parseFloat(omegaStr);
     const node = parseFloat(nodeStr);
-    const H = parseFloat(hStr) || 10.0;
-    const K = parseFloat(kStr) || 10.0;
+    const parsedH = parseFloat(hStr);
+    const parsedK = parseFloat(kStr);
+    const H = Number.isFinite(parsedH) ? parsedH : 10.0;
+    const K = Number.isFinite(parsedK) ? parsedK : 10.0;
 
     if (Number.isNaN(q) || Number.isNaN(e)) return null;
 
-    const year = parseInt(perihelionDateStr.substring(0, 4), 10);
-    const month = parseInt(perihelionDateStr.substring(4, 6), 10);
-    const day = parseFloat(perihelionDateStr.substring(6));
+    const perihelionParts = perihelionDateStr.split(/\s+/);
+    if (perihelionParts.length !== 3) return null;
+    const year = parseInt(perihelionParts[0], 10);
+    const month = parseInt(perihelionParts[1], 10);
+    const day = parseFloat(perihelionParts[2]);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
     const perihelionJD = dateToJulian(year, month, day);
 
     let epochJD = perihelionJD;
@@ -169,23 +174,24 @@ function parseMPCCometLine(line) {
       const epochYear = parseInt(epochStr.substring(0, 4), 10);
       const epochMonth = parseInt(epochStr.substring(4, 6), 10);
       const epochDay = parseFloat(epochStr.substring(6));
-      if (!Number.isNaN(epochYear)) {
+      if (Number.isFinite(epochYear) && Number.isFinite(epochMonth) && Number.isFinite(epochDay)) {
         epochJD = dateToJulian(epochYear, epochMonth, epochDay);
       }
     }
 
     // Parse designation and name
-    let designation = nameStr;
-    let name = nameStr;
-    if (nameStr.includes('(') && nameStr.includes(')')) {
-      const parenStart = nameStr.indexOf('(');
-      const parenEnd = nameStr.lastIndexOf(')');
-      designation = nameStr.substring(0, parenStart).trim();
-      name = nameStr.substring(parenStart + 1, parenEnd);
-    } else if (nameStr.includes('/')) {
-      const slashIndex = nameStr.indexOf('/');
-      designation = nameStr.substring(0, slashIndex);
-      name = nameStr.substring(slashIndex + 1);
+    const catalogName = nameStr.trim().split(/\s{2,}/, 1)[0];
+    let designation = catalogName;
+    let name = catalogName;
+    if (catalogName.includes('(') && catalogName.includes(')')) {
+      const parenStart = catalogName.indexOf('(');
+      const parenEnd = catalogName.lastIndexOf(')');
+      designation = catalogName.substring(0, parenStart).trim();
+      name = catalogName.substring(parenStart + 1, parenEnd);
+    } else if (catalogName.includes('/')) {
+      const slashIndex = catalogName.indexOf('/');
+      designation = catalogName.substring(0, slashIndex);
+      name = catalogName.substring(slashIndex + 1);
     }
 
     return {
@@ -199,7 +205,7 @@ function parseMPCCometLine(line) {
       perihelionTime: perihelionJD,
       absoluteMagnitude: H,
       slopeParameter: K,
-      isInterstellar: e > 1.0,
+      isInterstellar: /^\d+I(?:\/|$)/i.test(designation.trim()),
       epochJD,
     };
   } catch {
@@ -445,6 +451,13 @@ async function fetchHorizonsData() {
 
 async function main() {
   console.log('=== NightSeek Astronomy Data Fetch ===\n');
+
+  if (process.argv.includes('--comets-only')) {
+    const comets = await fetchCometData();
+    safeWrite('comets.json', comets);
+    console.log('\nDone.');
+    return;
+  }
 
   const hashes = {};
   const errors = [];

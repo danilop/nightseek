@@ -44,7 +44,12 @@ function getTelescopePreset(id: TelescopePresetId): TelescopePreset | undefined 
 export function getEffectiveFOV(
   telescopeId: TelescopePresetId,
   customFOV: { width: number; height: number } | null
-): { width: number; height: number } {
+): { width: number; height: number } | null {
+  // “Just exploring” means no optical system has been specified. Returning a
+  // made-up framing rectangle would make fill percentages and mosaic advice
+  // look precise when they are not.
+  if (telescopeId === 'generic') return null;
+
   if (telescopeId === 'custom' && customFOV) {
     return {
       width: Math.max(MIN_CUSTOM_FOV, Math.min(MAX_CUSTOM_FOV, customFOV.width)),

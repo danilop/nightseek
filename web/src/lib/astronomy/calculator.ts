@@ -40,6 +40,33 @@ function appendOrMergeWindow(windows: [Date, Date][], segment: [number, number])
   windows.push([new Date(segment[0]), new Date(segment[1])]);
 }
 
+interface VisibilityOptions {
+  magnitude?: number | null;
+  subtype?: DSOSubtype | null;
+  angularSizeArcmin?: number;
+  minorAxisArcmin?: number;
+  surfaceBrightness?: number | null;
+  commonName?: string;
+  isInterstellar?: boolean;
+  constellation?: string;
+  isMessier?: boolean;
+  positionAtTime?: (time: Date) => { raHours: number; decDegrees: number };
+}
+
+function buildObjectMetadata(objectName: string, options: VisibilityOptions) {
+  return {
+    magnitude: options.magnitude ?? null,
+    isInterstellar: options.isInterstellar ?? false,
+    subtype: options.subtype ?? null,
+    angularSizeArcmin: options.angularSizeArcmin ?? 0,
+    minorAxisArcmin: options.minorAxisArcmin,
+    surfaceBrightness: options.surfaceBrightness ?? null,
+    commonName: options.commonName ?? objectName,
+    constellation: options.constellation,
+    isMessier: options.isMessier,
+  };
+}
+
 /**
  * Calculate angular separation between two celestial objects
  * Uses Vincenty formula for accuracy
@@ -68,6 +95,26 @@ export function angularSeparation(ra1: number, dec1: number, ra2: number, dec2: 
   return Math.atan2(numerator, denominator) / toRad;
 }
 
+/** Convert catalog coordinates from the J2000 mean equator to true equator-of-date. */
+function equatorOfDateFromJ2000(
+  raHours: number,
+  decDegrees: number,
+  time: Date
+): { ra: number; dec: number } {
+  const raRadians = (raHours * 15 * Math.PI) / 180;
+  const decRadians = (decDegrees * Math.PI) / 180;
+  const cosDec = Math.cos(decRadians);
+  const vector = new Astronomy.Vector(
+    cosDec * Math.cos(raRadians),
+    cosDec * Math.sin(raRadians),
+    Math.sin(decRadians),
+    new Astronomy.AstroTime(time)
+  );
+  const ofDateVector = Astronomy.RotateVector(Astronomy.Rotation_EQJ_EQD(time), vector);
+  const equator = Astronomy.EquatorFromVector(ofDateVector);
+  return { ra: equator.ra, dec: equator.dec };
+}
+
 export class SkyCalculator {
   private observer: Astronomy.Observer;
 
@@ -81,13 +128,16 @@ export class SkyCalculator {
   getNightInfo(date: Date): NightInfo {
     // Get sunset for this evening
     const sunsetSearch = Astronomy.SearchRiseSet(Astronomy.Body.Sun, this.observer, -1, date, 1);
-    const sunset = sunsetSearch?.date ?? date;
 
     // Get sunrise for next morning
-    const nextDay = new Date(date);
-    nextDay.setDate(nextDay.getDate() + 1);
-    const sunriseSearch = Astronomy.SearchRiseSet(Astronomy.Body.Sun, this.observer, +1, sunset, 1);
-    const sunrise = sunriseSearch?.date ?? nextDay;
+    const nextDay = new Date(date.getTime() + 86_400_000);
+    const sunriseSearch = Astronomy.SearchRiseSet(
+      Astronomy.Body.Sun,
+      this.observer,
+      +1,
+      sunsetSearch?.date ?? date,
+      1
+    );
 
     // Astronomical twilight: Sun at -18 degrees
     const duskSearch = Astronomy.SearchAltitude(
@@ -102,13 +152,48 @@ export class SkyCalculator {
       Astronomy.Body.Sun,
       this.observer,
       +1,
-      sunset,
+      duskSearch?.date ?? date,
       1,
       -18
     );
 
-    const astronomicalDusk = duskSearch?.date ?? sunset;
-    const astronomicalDawn = dawnSearch?.date ?? sunrise;
+    let astronomicalNightMode: NightInfo['astronomicalNightMode'];
+    let astronomicalDusk: Date;
+    let astronomicalDawn: Date;
+
+    if (duskSearch && dawnSearch) {
+      astronomicalNightMode = 'normal';
+      astronomicalDusk = duskSearch.date;
+      astronomicalDawn = dawnSearch.date;
+    } else {
+      let maximumSunAltitude = -90;
+      for (let time = date.getTime(); time <= nextDay.getTime(); time += 60 * 60 * 1000) {
+        const sampleDate = new Date(time);
+        const equator = Astronomy.Equator(
+          Astronomy.Body.Sun,
+          sampleDate,
+          this.observer,
+          true,
+          true
+        );
+        const altitude = Astronomy.Horizon(
+          sampleDate,
+          this.observer,
+          equator.ra,
+          equator.dec
+        ).altitude;
+        maximumSunAltitude = Math.max(maximumSunAltitude, altitude);
+      }
+
+      astronomicalNightMode = maximumSunAltitude <= -18 ? 'continuous' : 'none';
+      astronomicalDusk = date;
+      astronomicalDawn = astronomicalNightMode === 'continuous' ? nextDay : date;
+    }
+
+    // These serve as chart bounds in polar conditions. The occurrence flags
+    // ensure the UI never presents the fallback bounds as real events.
+    const sunset = sunsetSearch?.date ?? date;
+    const sunrise = sunriseSearch?.date ?? nextDay;
 
     // Moon phase and illumination at midnight (UTC midpoint of astronomical night)
     const midnight = new Date((astronomicalDusk.getTime() + astronomicalDawn.getTime()) / 2);
@@ -118,14 +203,9 @@ export class SkyCalculator {
     // Convert to 0-1 fraction where 0=new, 0.5=full, 1=new again
     const moonPhaseFraction = moonPhaseDegrees / 360;
 
-    // Calculate illumination (0 at new, 100 at full)
-    // Phase 0-180 is waxing (illumination increases), 180-360 is waning (decreases)
-    let moonIlluminationPct: number;
-    if (moonPhaseDegrees <= 180) {
-      moonIlluminationPct = (moonPhaseDegrees / 180) * 100;
-    } else {
-      moonIlluminationPct = ((360 - moonPhaseDegrees) / 180) * 100;
-    }
+    // Use the physical illuminated fraction, not a linear phase-angle approximation.
+    const moonIlluminationPct =
+      Astronomy.Illumination(Astronomy.Body.Moon, midnight).phase_fraction * 100;
 
     // Moon rise/set
     const moonRiseSearch = Astronomy.SearchRiseSet(
@@ -149,6 +229,9 @@ export class SkyCalculator {
       sunrise,
       astronomicalDusk,
       astronomicalDawn,
+      sunsetOccurs: sunsetSearch !== null,
+      sunriseOccurs: sunriseSearch !== null,
+      astronomicalNightMode,
       moonPhase: moonPhaseFraction,
       moonIllumination: moonIlluminationPct,
       moonRise: moonRiseSearch?.date ?? null,
@@ -171,6 +254,16 @@ export class SkyCalculator {
     altitude: number;
     azimuth: number;
   } {
+    const equatorOfDate = equatorOfDateFromJ2000(raHours, decDeg, time);
+    return this.getAltAzOfDate(equatorOfDate.ra, equatorOfDate.dec, time);
+  }
+
+  /** Convert equator-of-date coordinates to local horizontal coordinates. */
+  private getAltAzOfDate(
+    raHours: number,
+    decDeg: number,
+    time: Date
+  ): { altitude: number; azimuth: number } {
     const horizon = Astronomy.Horizon(time, this.observer, raHours, decDeg, 'normal');
 
     return {
@@ -183,8 +276,19 @@ export class SkyCalculator {
    * Get moon position at a given time
    */
   getMoonPosition(time: Date): { ra: number; dec: number; altitude: number; azimuth: number } {
-    const moonEquator = Astronomy.Equator(Astronomy.Body.Moon, time, this.observer, true, true);
-    const { altitude, azimuth } = this.getAltAz(moonEquator.ra, moonEquator.dec, time);
+    const moonEquator = Astronomy.Equator(Astronomy.Body.Moon, time, this.observer, false, true);
+    const moonEquatorOfDate = Astronomy.Equator(
+      Astronomy.Body.Moon,
+      time,
+      this.observer,
+      true,
+      true
+    );
+    const { altitude, azimuth } = this.getAltAzOfDate(
+      moonEquatorOfDate.ra,
+      moonEquatorOfDate.dec,
+      time
+    );
 
     return {
       ra: moonEquator.ra,
@@ -198,18 +302,40 @@ export class SkyCalculator {
    * Get sun position at a given time
    */
   getSunPosition(time: Date): { ra: number; dec: number } {
-    const sunEquator = Astronomy.Equator(Astronomy.Body.Sun, time, this.observer, true, true);
+    const sunEquator = Astronomy.Equator(Astronomy.Body.Sun, time, this.observer, false, true);
     return {
       ra: sunEquator.ra,
       dec: sunEquator.dec,
     };
   }
 
+  /** Get an apparent topocentric body position in the J2000 equatorial frame. */
+  getBodyPositionJ2000(body: Astronomy.Body, time: Date): { ra: number; dec: number } {
+    const equator = Astronomy.Equator(body, time, this.observer, false, true);
+    return { ra: equator.ra, dec: equator.dec };
+  }
+
+  private getBodyPositionJ2000AtOptionalTime(
+    body: Astronomy.Body,
+    time: Date | null
+  ): { ra: number; dec: number } | null {
+    return time === null ? null : this.getBodyPositionJ2000(body, time);
+  }
+
+  private getBodyMoonSeparationAtOptionalTime(
+    body: Astronomy.Body,
+    time: Date | null
+  ): number | null {
+    if (time === null) return null;
+    const equator = this.getBodyPositionJ2000(body, time);
+    return this.getMoonSeparation(equator.ra, equator.dec, time);
+  }
+
   /**
    * Calculate moon separation from a celestial object
    */
   getMoonSeparation(raHours: number, decDeg: number, time: Date): number {
-    const moonEquator = Astronomy.Equator(Astronomy.Body.Moon, time, this.observer, true, true);
+    const moonEquator = Astronomy.Equator(Astronomy.Body.Moon, time, this.observer, false, true);
 
     return angularSeparation(raHours * 15, decDeg, moonEquator.ra * 15, moonEquator.dec);
   }
@@ -257,6 +383,10 @@ export class SkyCalculator {
     let maxAltitudeTime: Date | null = null;
     let azimuthAtPeak = 0;
 
+    if (nightInfo.astronomicalNightMode === 'none') {
+      return { altitudeSamples, azimuthSamples, maxAltitude, maxAltitudeTime, azimuthAtPeak };
+    }
+
     const startTime = nightInfo.astronomicalDusk.getTime();
     const endTime = nightInfo.astronomicalDawn.getTime();
     const interval = 10 * 60 * 1000; // 10 minutes
@@ -280,6 +410,36 @@ export class SkyCalculator {
     }
     if (endTime >= startTime) {
       sampleAt(endTime);
+    }
+
+    // The samples are deliberately coarse for charting and threshold-window
+    // detection, but the displayed culmination time should not be rounded to
+    // that grid. A three-point parabolic interpolation gives a precise peak
+    // estimate with one additional ephemeris evaluation.
+    const peakIndex = maxAltitudeTime
+      ? altitudeSamples.findIndex(([time]) => time.getTime() === maxAltitudeTime?.getTime())
+      : -1;
+    if (peakIndex > 0 && peakIndex < altitudeSamples.length - 1) {
+      const [previousTime, previousAltitude] = altitudeSamples[peakIndex - 1];
+      const [sampledPeakTime, sampledPeakAltitude] = altitudeSamples[peakIndex];
+      const [nextTime, nextAltitude] = altitudeSamples[peakIndex + 1];
+      const previousSpacing = sampledPeakTime.getTime() - previousTime.getTime();
+      const nextSpacing = nextTime.getTime() - sampledPeakTime.getTime();
+      const denominator = previousAltitude - 2 * sampledPeakAltitude + nextAltitude;
+
+      if (previousSpacing === nextSpacing && previousSpacing > 0 && denominator < -Number.EPSILON) {
+        const sampleOffset = Math.max(
+          -1,
+          Math.min(1, 0.5 * ((previousAltitude - nextAltitude) / denominator))
+        );
+        const refinedTime = new Date(sampledPeakTime.getTime() + sampleOffset * previousSpacing);
+        const refinedPosition = getAltitudeAt(refinedTime);
+        if (refinedPosition.altitude >= maxAltitude) {
+          maxAltitude = refinedPosition.altitude;
+          maxAltitudeTime = refinedTime;
+          azimuthAtPeak = refinedPosition.azimuth;
+        }
+      }
     }
 
     return { altitudeSamples, azimuthSamples, maxAltitude, maxAltitudeTime, azimuthAtPeak };
@@ -309,31 +469,31 @@ export class SkyCalculator {
     nightInfo: NightInfo,
     objectName: string,
     objectType: ObjectCategory,
-    options: {
-      magnitude?: number | null;
-      subtype?: DSOSubtype | null;
-      angularSizeArcmin?: number;
-      minorAxisArcmin?: number;
-      surfaceBrightness?: number | null;
-      commonName?: string;
-      isInterstellar?: boolean;
-      constellation?: string;
-      isMessier?: boolean;
-    } = {}
+    options: VisibilityOptions = {}
   ): ObjectVisibility {
+    const positionAtTime = options.positionAtTime ?? (() => ({ raHours, decDegrees: decDeg }));
     const { altitudeSamples, azimuthSamples, maxAltitude, maxAltitudeTime, azimuthAtPeak } =
-      this.sampleAltitudesForNight(time => this.getAltAz(raHours, decDeg, time), nightInfo);
+      this.sampleAltitudesForNight(time => {
+        const position = positionAtTime(time);
+        return this.getAltAz(position.raHours, position.decDegrees, time);
+      }, nightInfo);
 
     const windows = this.findAllAltitudeWindows(altitudeSamples);
 
+    const peakPosition = maxAltitudeTime
+      ? positionAtTime(maxAltitudeTime)
+      : { raHours, decDegrees: decDeg };
     const moonSeparation = maxAltitudeTime
-      ? this.getMoonSeparation(raHours, decDeg, maxAltitudeTime)
+      ? this.getMoonSeparation(peakPosition.raHours, peakPosition.decDegrees, maxAltitudeTime)
       : null;
 
     return {
       objectName,
       objectType,
-      isVisible: maxAltitude >= 30,
+      // Visibility means the target actually rises during astronomical
+      // darkness. Imaging-quality cutoffs belong to the user's sky profile,
+      // not this physical visibility flag.
+      isVisible: maxAltitude >= 0,
       maxAltitude,
       maxAltitudeTime,
       above45Start: windows.above45?.[0] ?? null,
@@ -348,21 +508,13 @@ export class SkyCalculator {
       azimuthSamples,
       minAirmass: maxAltitude > 0 ? calculateAirmass(maxAltitude) : Infinity,
       azimuthAtPeak,
-      raHours,
-      decDegrees: decDeg,
-      magnitude: options.magnitude ?? null,
-      isInterstellar: options.isInterstellar ?? false,
-      subtype: options.subtype ?? null,
-      angularSizeArcmin: options.angularSizeArcmin ?? 0,
-      minorAxisArcmin: options.minorAxisArcmin,
-      surfaceBrightness: options.surfaceBrightness ?? null,
-      commonName: options.commonName ?? objectName,
+      raHours: peakPosition.raHours,
+      decDegrees: peakPosition.decDegrees,
+      ...buildObjectMetadata(objectName, options),
       apparentDiameterArcsec: null,
       apparentDiameterMin: null,
       apparentDiameterMax: null,
       positionAngle: null,
-      constellation: options.constellation,
-      isMessier: options.isMessier,
     };
   }
 
@@ -400,7 +552,7 @@ export class SkyCalculator {
     const { altitudeSamples, azimuthSamples, maxAltitude, maxAltitudeTime, azimuthAtPeak } =
       this.sampleAltitudesForNight(time => {
         const equator = Astronomy.Equator(body, time, observer, true, true);
-        return this.getAltAz(equator.ra, equator.dec, time);
+        return this.getAltAzOfDate(equator.ra, equator.dec, time);
       }, nightInfo);
 
     // Get magnitude and distance at peak
@@ -411,14 +563,11 @@ export class SkyCalculator {
       peakDistance = equator.dist * AU_TO_KM;
     }
 
+    const peakPosition = this.getBodyPositionJ2000AtOptionalTime(body, maxAltitudeTime);
+
     const windows = this.findAllAltitudeWindows(altitudeSamples);
 
-    const moonSeparation = maxAltitudeTime
-      ? (() => {
-          const equator = Astronomy.Equator(body, maxAltitudeTime, observer, true, true);
-          return this.getMoonSeparation(equator.ra, equator.dec, maxAltitudeTime);
-        })()
-      : null;
+    const moonSeparation = this.getBodyMoonSeparationAtOptionalTime(body, maxAltitudeTime);
 
     const ranges = PLANET_DIAMETER_RANGES[planetName.toLowerCase()];
     const apparentDiameter = peakDistance
@@ -430,7 +579,7 @@ export class SkyCalculator {
     return {
       objectName: displayName,
       objectType: 'planet',
-      isVisible: maxAltitude >= 30,
+      isVisible: maxAltitude >= 0,
       maxAltitude,
       maxAltitudeTime,
       above45Start: windows.above45?.[0] ?? null,
@@ -445,8 +594,8 @@ export class SkyCalculator {
       azimuthSamples,
       minAirmass: maxAltitude > 0 ? calculateAirmass(maxAltitude) : Infinity,
       azimuthAtPeak,
-      raHours: 0,
-      decDegrees: 0,
+      raHours: peakPosition?.ra ?? 0,
+      decDegrees: peakPosition?.dec ?? 0,
       magnitude: peakMagnitude,
       isInterstellar: false,
       subtype: null,
@@ -484,36 +633,50 @@ export class SkyCalculator {
    * Calculate Moon visibility (for display purposes)
    */
   calculateMoonVisibility(nightInfo: NightInfo): ObjectVisibility {
-    const altitudeSamples: [Date, number][] = [];
-    const azimuthSamples: [Date, number][] = [];
-    let maxAltitude = -90;
-    let maxAltitudeTime: Date | null = null;
-    let azimuthAtPeak = 0;
-
-    const startTime = nightInfo.astronomicalDusk.getTime();
-    const endTime = nightInfo.astronomicalDawn.getTime();
-    const interval = 10 * 60 * 1000;
-
-    const sampleMoonAt = (timeMs: number) => {
-      const time = new Date(timeMs);
-      const pos = this.getMoonPosition(time);
-
-      altitudeSamples.push([time, pos.altitude]);
-      azimuthSamples.push([time, pos.azimuth]);
-
-      if (pos.altitude > maxAltitude) {
-        maxAltitude = pos.altitude;
-        maxAltitudeTime = time;
-        azimuthAtPeak = pos.azimuth;
-      }
-    };
-
-    for (let t = startTime; t < endTime; t += interval) {
-      sampleMoonAt(t);
+    if (nightInfo.astronomicalNightMode === 'none') {
+      return {
+        objectName: 'Moon',
+        objectType: 'moon',
+        isVisible: false,
+        maxAltitude: -90,
+        maxAltitudeTime: null,
+        above45Start: null,
+        above45End: null,
+        above60Start: null,
+        above60End: null,
+        above75Start: null,
+        above75End: null,
+        moonSeparation: null,
+        moonWarning: false,
+        altitudeSamples: [],
+        azimuthSamples: [],
+        minAirmass: Infinity,
+        azimuthAtPeak: 0,
+        raHours: 0,
+        decDegrees: 0,
+        magnitude: null,
+        isInterstellar: false,
+        subtype: null,
+        angularSizeArcmin: 31,
+        surfaceBrightness: null,
+        commonName: 'Moon',
+        apparentDiameterArcsec: 1860,
+        apparentDiameterMin: 1760,
+        apparentDiameterMax: 2010,
+        positionAngle: null,
+      };
     }
-    if (endTime >= startTime) {
-      sampleMoonAt(endTime);
-    }
+
+    const { altitudeSamples, azimuthSamples, maxAltitude, maxAltitudeTime, azimuthAtPeak } =
+      this.sampleAltitudesForNight(time => {
+        const pos = this.getMoonPosition(time);
+        return { altitude: pos.altitude, azimuth: pos.azimuth };
+      }, nightInfo);
+
+    const peakPosition = this.getBodyPositionJ2000AtOptionalTime(
+      Astronomy.Body.Moon,
+      maxAltitudeTime
+    );
 
     return {
       objectName: 'Moon',
@@ -533,8 +696,8 @@ export class SkyCalculator {
       azimuthSamples,
       minAirmass: maxAltitude > 0 ? calculateAirmass(maxAltitude) : Infinity,
       azimuthAtPeak,
-      raHours: 0,
-      decDegrees: 0,
+      raHours: peakPosition?.ra ?? 0,
+      decDegrees: peakPosition?.dec ?? 0,
       magnitude: null,
       isInterstellar: false,
       subtype: null,
@@ -616,9 +779,10 @@ export class SkyCalculator {
    * Calculate hour angle for a fixed RA position
    * Uses sidereal time calculation
    */
-  getHourAngleForRA(raHours: number, time: Date): number {
+  getHourAngleForRA(raHours: number, time: Date, decDegrees: number = 0): number {
+    const equatorOfDate = equatorOfDateFromJ2000(raHours, decDegrees, time);
     const lst = Astronomy.SiderealTime(time) + this.observer.longitude / 15;
-    let ha = lst - raHours;
+    let ha = lst - equatorOfDate.ra;
 
     // Normalize to 0-24 hours
     while (ha < 0) ha += 24;
@@ -652,12 +816,17 @@ export class SkyCalculator {
    * Estimate meridian transit time for a fixed RA position
    * This is when the object is highest in the sky
    */
-  getMeridianTransitTimeForRA(raHours: number, startTime: Date): Date | null {
+  getMeridianTransitTimeForRA(
+    raHours: number,
+    startTime: Date,
+    decDegrees: number = 0
+  ): Date | null {
+    const equatorOfDate = equatorOfDateFromJ2000(raHours, decDegrees, startTime);
     // Calculate current LST
     const currentLst = Astronomy.SiderealTime(startTime) + this.observer.longitude / 15;
 
     // Time until RA is on meridian (LST = RA)
-    let hoursUntilTransit = raHours - currentLst;
+    let hoursUntilTransit = equatorOfDate.ra - currentLst;
 
     // Adjust for next occurrence
     if (hoursUntilTransit < 0) hoursUntilTransit += 24;

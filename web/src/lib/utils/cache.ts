@@ -88,7 +88,7 @@ export async function cleanupOldCaches(): Promise<void> {
 
 // Cache version - increment when cached data format changes or dictionaries are updated
 // This ensures users get fresh data after updates to common-names, star catalogs, etc.
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 4;
 
 // Cache keys (versioned keys will invalidate old caches automatically)
 export const CACHE_KEYS = {

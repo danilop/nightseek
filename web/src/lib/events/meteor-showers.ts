@@ -1,3 +1,4 @@
+import * as Astronomy from 'astronomy-engine';
 import type { MeteorShower, NightInfo } from '@/types';
 import { angularSeparation, type SkyCalculator } from '../astronomy/calculator';
 import { getRadiantConstellation, IAU_METEOR_SHOWERS } from './iau-meteor-data';
@@ -195,39 +196,51 @@ const METEOR_SHOWERS: Omit<
 /**
  * Check if a shower is active on a given date
  */
-function isShowerActive(
-  shower: (typeof METEOR_SHOWERS)[0],
+function calendarDay(month: number, day: number): number {
+  return (Date.UTC(2001, month - 1, day) - Date.UTC(2001, 0, 1)) / 86_400_000;
+}
+
+function getActivityOffsets(shower: (typeof METEOR_SHOWERS)[0]): {
+  start: number;
+  end: number;
+} {
+  const peak = calendarDay(shower.peakMonth, shower.peakDay);
+  let start = calendarDay(shower.startMonth, shower.startDay);
+  let end = calendarDay(shower.endMonth, shower.endDay);
+  if (start > peak) start -= 365;
+  if (end < peak) end += 365;
+  return { start: start - peak, end: end - peak };
+}
+
+function getShowerTiming(
+  shower: (typeof IAU_METEOR_SHOWERS)[number],
   date: Date
-): { isActive: boolean; daysFromPeak: number } {
-  const currentMonth = date.getMonth() + 1;
-  const currentYear = date.getFullYear();
-
-  // Create date objects for comparison
-  let startDate = new Date(currentYear, shower.startMonth - 1, shower.startDay);
-  let endDate = new Date(currentYear, shower.endMonth - 1, shower.endDay);
-  let peakDate = new Date(currentYear, shower.peakMonth - 1, shower.peakDay);
-
-  // Handle year-crossing showers (like Quadrantids: Dec 28 - Jan 12)
-  if (shower.startMonth > shower.endMonth) {
-    if (currentMonth >= shower.startMonth) {
-      // We're in the end of the year, end date is next year
-      endDate = new Date(currentYear + 1, shower.endMonth - 1, shower.endDay);
-      if (shower.peakMonth < shower.startMonth) {
-        peakDate = new Date(currentYear + 1, shower.peakMonth - 1, shower.peakDay);
-      }
-    } else {
-      // We're in the beginning of the year, start date was last year
-      startDate = new Date(currentYear - 1, shower.startMonth - 1, shower.startDay);
-      if (shower.peakMonth >= shower.startMonth) {
-        peakDate = new Date(currentYear - 1, shower.peakMonth - 1, shower.peakDay);
-      }
-    }
+): { isActive: boolean; daysFromPeak: number; peakTime: Date } {
+  const candidatePeaks: Date[] = [];
+  const year = date.getUTCFullYear();
+  for (let candidateYear = year - 1; candidateYear <= year + 1; candidateYear++) {
+    const peak = Astronomy.SearchSunLongitude(
+      shower.solarLongitudePeak,
+      new Date(Date.UTC(candidateYear, 0, 1)),
+      370
+    );
+    if (peak) candidatePeaks.push(peak.date);
   }
-
-  const isActive = date >= startDate && date <= endDate;
-  const daysFromPeak = (date.getTime() - peakDate.getTime()) / (24 * 60 * 60 * 1000);
-
-  return { isActive, daysFromPeak };
+  const fallbackPeak = new Date(Date.UTC(year, shower.peakMonth - 1, shower.peakDay, 12));
+  const peakTime = candidatePeaks.reduce(
+    (closest, candidate) =>
+      Math.abs(candidate.getTime() - date.getTime()) < Math.abs(closest.getTime() - date.getTime())
+        ? candidate
+        : closest,
+    fallbackPeak
+  );
+  const daysFromPeak = (date.getTime() - peakTime.getTime()) / 86_400_000;
+  const offsets = getActivityOffsets(shower);
+  return {
+    isActive: daysFromPeak >= offsets.start && daysFromPeak <= offsets.end,
+    daysFromPeak,
+    peakTime,
+  };
 }
 
 /**
@@ -239,6 +252,7 @@ export function detectMeteorShowers(
   nightInfo: NightInfo
 ): MeteorShower[] {
   const results: MeteorShower[] = [];
+  if (nightInfo.astronomicalNightMode === 'none') return results;
 
   // Calculate at midnight
   const midnight = new Date(
@@ -247,28 +261,28 @@ export function detectMeteorShowers(
 
   // Use IAU catalog for comprehensive meteor shower data
   for (const shower of IAU_METEOR_SHOWERS) {
-    const { isActive, daysFromPeak } = isShowerActive(shower, nightInfo.date);
+    const { isActive, daysFromPeak } = getShowerTiming(shower, midnight);
 
     if (!isActive) continue;
 
     // Calculate radiant altitude at midnight
-    const { altitude } = calculator.getAltAz(
-      shower.radiantRaDeg / 15, // Convert degrees to hours
-      shower.radiantDecDeg,
-      midnight
-    );
+    const radiantRaDeg = shower.radiantRaDeg + (shower.radiantRaDrift ?? 0) * daysFromPeak;
+    const radiantDecDeg = shower.radiantDecDeg + (shower.radiantDecDrift ?? 0) * daysFromPeak;
+    const { altitude } = calculator.getAltAz(radiantRaDeg / 15, radiantDecDeg, midnight);
 
     // Calculate moon separation from radiant
     const moonPos = calculator.getMoonPosition(midnight);
     const moonSeparation = angularSeparation(
-      shower.radiantRaDeg,
-      shower.radiantDecDeg,
+      radiantRaDeg,
+      radiantDecDeg,
       moonPos.ra * 15,
       moonPos.dec
     );
 
     results.push({
       ...shower,
+      radiantRaDeg,
+      radiantDecDeg,
       isActive: true,
       daysFromPeak,
       radiantAltitude: altitude,
@@ -305,21 +319,17 @@ export function getIAUMeteorShowerInfo(shower: MeteorShower): {
 }
 
 /**
- * Get expected hourly rate adjusted for conditions
+ * Get the at-peak geometric ceiling for this radiant altitude.
+ * This is not a personal meteor-rate forecast: limiting magnitude,
+ * population index, local obstructions, and the shower's activity profile
+ * require data the app does not have.
  */
-export function getAdjustedHourlyRate(shower: MeteorShower): number {
+export function getGeometricHourlyRateCeiling(shower: MeteorShower): number {
   if (!shower.isActive || shower.radiantAltitude === null) return 0;
 
   // ZHR is the rate when radiant is at zenith
   // Actual rate = ZHR * sin(radiant altitude)
   const radiantFactor = Math.max(0, Math.sin((shower.radiantAltitude * Math.PI) / 180));
 
-  // Moon interference reduces visibility
-  const moonIllum = shower.moonIllumination ?? 0;
-  const moonFactor = 1 - (moonIllum / 100) * 0.5;
-
-  // Distance from peak reduces rate
-  const peakFactor = Math.max(0.1, 1 - Math.abs(shower.daysFromPeak ?? 0) / 10);
-
-  return Math.round(shower.zhr * radiantFactor * moonFactor * peakFactor);
+  return Math.round(shower.zhr * radiantFactor);
 }

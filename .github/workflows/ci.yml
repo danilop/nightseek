@@ -45,3 +45,40 @@ jobs:
       - name: Tests with coverage
         working-directory: ./web
         run: pnpm run test:coverage
+
+  validate-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: cli/uv.lock
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Sync locked dependencies
+        working-directory: ./cli
+        run: uv sync --locked --dev
+
+      - name: Lint and formatting
+        working-directory: ./cli
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Type-check
+        working-directory: ./cli
+        run: uv run ty check .
+
+      - name: Dead code detection
+        working-directory: ./cli
+        run: uv run vulture *.py --min-confidence 80 --exclude test_*.py
+
+      - name: Tests
+        working-directory: ./cli
+        run: uv run pytest -q

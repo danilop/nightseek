@@ -1,4 +1,5 @@
 import * as Astronomy from 'astronomy-engine';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 import type {
   AstronomicalEvents,
   DSOCatalogEntry,
@@ -53,10 +54,10 @@ import { computeAuroraForecast, fetchSpaceWeather } from './nasa/donki';
 import { fetchNeoCloseApproachesRange } from './nasa/neows';
 import { calculateTotalScore } from './scoring';
 import { getEffectiveFOV } from './telescopes';
+import { formatDateKey } from './utils/format';
+import { logger } from './utils/logger';
 import { calculateHeadlineNightQuality } from './weather/night-quality';
 import { fetchAirQuality, fetchWeather, parseNightWeather } from './weather/open-meteo';
-
-const MIN_SCORE_THRESHOLD = 60;
 
 export interface ForecastResult {
   forecasts: NightForecast[];
@@ -74,6 +75,10 @@ interface AllVisibilities {
   milkyWay: ObjectVisibility;
   moon: ObjectVisibility;
   jupiterVisible: boolean;
+}
+
+function errorWithCause(message: string, cause: unknown): Error {
+  return Object.assign(new Error(message), { cause });
 }
 
 /**
@@ -135,7 +140,7 @@ async function calculateAllVisibilities(
 
         const perihelionInfo = isNearPerihelion(planet.name, nightDate);
         visibility.isNearPerihelion = perihelionInfo.isNear;
-        visibility.perihelionBoostPercent = perihelionInfo.brightnessBoostPercent;
+        visibility.perihelionSolarFluxBoostPercent = perihelionInfo.solarFluxBoostPercent;
 
         if (planet.name.toLowerCase() === 'saturn') {
           visibility.saturnRings = calculator.getSaturnRingInfo(nightDate);
@@ -168,73 +173,99 @@ async function calculateAllVisibilities(
       ? getConstellationFullName(dso.constellation)
       : getConstellation(dso.raHours, dso.decDegrees);
 
-    const visibility = calculator.calculateVisibility(
-      dso.raHours,
-      dso.decDegrees,
-      nightInfo,
-      dso.name,
-      'dso',
-      {
-        magnitude: dso.magnitude,
-        subtype: dso.type,
-        angularSizeArcmin: dso.majorAxisArcmin ?? 0,
-        minorAxisArcmin: dso.minorAxisArcmin ?? undefined,
-        surfaceBrightness: dso.surfaceBrightness,
-        commonName: formattedCommonName,
-        isMessier: dso.messierNumber !== null,
-        constellation,
-      }
-    );
-
-    if (visibility.isVisible) {
-      if (visibility.maxAltitudeTime) {
-        visibility.hourAngle = calculator.getHourAngleForRA(
-          dso.raHours,
-          visibility.maxAltitudeTime
-        );
-        visibility.meridianTransitTime =
-          calculator.getMeridianTransitTimeForRA(dso.raHours, nightInfo.astronomicalDusk) ??
-          undefined;
-      }
-      visibility.sunAngle = calculator.getSunAngleForPosition(
+    let visibility: ObjectVisibility;
+    try {
+      visibility = calculator.calculateVisibility(
         dso.raHours,
         dso.decDegrees,
-        nightInfo.astronomicalDusk
+        nightInfo,
+        dso.name,
+        'dso',
+        {
+          magnitude: dso.magnitude,
+          subtype: dso.type,
+          angularSizeArcmin: dso.majorAxisArcmin ?? 0,
+          minorAxisArcmin: dso.minorAxisArcmin ?? undefined,
+          surfaceBrightness: dso.surfaceBrightness,
+          commonName: formattedCommonName,
+          isMessier: dso.messierNumber !== null,
+          constellation,
+        }
       );
+    } catch (error) {
+      throw errorWithCause(`Invalid deep-sky catalog entry: ${dso.name}`, error);
+    }
+
+    if (visibility.isVisible) {
+      try {
+        if (visibility.maxAltitudeTime) {
+          visibility.hourAngle = calculator.getHourAngleForRA(
+            dso.raHours,
+            visibility.maxAltitudeTime,
+            dso.decDegrees
+          );
+          visibility.meridianTransitTime =
+            calculator.getMeridianTransitTimeForRA(
+              dso.raHours,
+              nightInfo.astronomicalDusk,
+              dso.decDegrees
+            ) ?? undefined;
+        }
+        visibility.sunAngle = calculator.getSunAngleForPosition(
+          dso.raHours,
+          dso.decDegrees,
+          nightInfo.astronomicalDusk
+        );
+      } catch (error) {
+        throw errorWithCause(`Deep-sky metadata calculation failed: ${dso.name}`, error);
+      }
       dsos.push(visibility);
     }
   }
 
   const comets: ObjectVisibility[] = [];
   for (const comet of cometCatalog) {
-    const visibility = calculateCometVisibility(
-      comet,
-      calculator,
-      nightInfo,
-      settings.cometMagnitude
-    );
+    let visibility: ObjectVisibility | null;
+    try {
+      visibility = calculateCometVisibility(comet, calculator, nightInfo, settings.cometMagnitude);
+    } catch (error) {
+      // One malformed upstream orbit must not discard the user's entire
+      // forecast. Keep the remaining independently valid comet solutions.
+      logger.warn(`Skipping invalid comet orbit: ${comet.designation}`, error);
+      continue;
+    }
     if (visibility) comets.push(visibility);
   }
 
   const dwarfPlanetVis: ObjectVisibility[] = [];
   for (const dp of dwarfPlanetList) {
-    const visibility = calculateMinorPlanetVisibility(
-      dp,
-      calculator,
-      nightInfo,
-      settings.cometMagnitude
-    );
+    let visibility: ObjectVisibility | null;
+    try {
+      visibility = calculateMinorPlanetVisibility(
+        dp,
+        calculator,
+        nightInfo,
+        settings.cometMagnitude
+      );
+    } catch (error) {
+      throw errorWithCause(`Invalid dwarf-planet orbit: ${dp.name}`, error);
+    }
     if (visibility) dwarfPlanetVis.push(visibility);
   }
 
   const asteroidVis: ObjectVisibility[] = [];
   for (const asteroid of asteroidList) {
-    const visibility = calculateMinorPlanetVisibility(
-      asteroid,
-      calculator,
-      nightInfo,
-      settings.cometMagnitude
-    );
+    let visibility: ObjectVisibility | null;
+    try {
+      visibility = calculateMinorPlanetVisibility(
+        asteroid,
+        calculator,
+        nightInfo,
+        settings.cometMagnitude
+      );
+    } catch (error) {
+      throw errorWithCause(`Invalid asteroid orbit: ${asteroid.name}`, error);
+    }
     if (visibility) {
       const physicalData = await fetchAsteroidPhysicalData(asteroid.name);
       if (physicalData) visibility.physicalData = physicalData;
@@ -242,11 +273,21 @@ async function calculateAllVisibilities(
     }
   }
 
-  const milkyWay = calculator.calculateMilkyWayVisibility(nightInfo);
-  milkyWay.constellation = 'Sagittarius';
+  let milkyWay: ObjectVisibility;
+  let moon: ObjectVisibility;
+  try {
+    milkyWay = calculator.calculateMilkyWayVisibility(nightInfo);
+    milkyWay.constellation = 'Sagittarius';
+  } catch (error) {
+    throw errorWithCause('Milky Way visibility calculation failed', error);
+  }
 
-  const moon = calculator.calculateMoonVisibility(nightInfo);
-  moon.libration = getLibrationForNight(nightDate);
+  try {
+    moon = calculator.calculateMoonVisibility(nightInfo);
+    moon.libration = getLibrationForNight(nightInfo);
+  } catch (error) {
+    throw errorWithCause('Moon visibility calculation failed', error);
+  }
 
   return {
     planets,
@@ -277,7 +318,8 @@ function buildNightAstronomicalEvents(
   >,
   spaceWeather: Awaited<ReturnType<typeof fetchSpaceWeather>>,
   latitude: number,
-  jupiterVisible: boolean
+  jupiterVisible: boolean,
+  timezone: string
 ): AstronomicalEvents {
   const lunarApsis = getLunarApsisForNight(nightInfo);
   const eclipses = detectEclipses(nightDate, observer, 1);
@@ -285,7 +327,7 @@ function buildNightAstronomicalEvents(
   const jupiterMoons = jupiterVisible ? getJupiterMoonsData(nightInfo, true) : null;
   const eclipseSeason = getEclipseSeasonInfo(nightDate);
   const planetaryTransit = getTransitForDisplay(nightDate);
-  const nightDateStr = nightDate.toISOString().split('T')[0];
+  const nightDateStr = formatDateKey(nightDate, timezone);
   const neoCloseApproaches = neoDataByDate.get(nightDateStr) ?? [];
   const moonPhaseEvents = getMoonPhaseEvents(nightDate, nightInfo);
   const planetsNearPerihelion = getPlanetsNearPerihelion(nightDate);
@@ -333,7 +375,7 @@ function scoreNightObjects(
 
   // Calculate imaging windows
   for (const obj of allObjects) {
-    const imagingWindow = getBestImagingWindow(obj, nightInfo, weather);
+    const imagingWindow = getBestImagingWindow(obj, nightInfo, weather, calculator);
     if (imagingWindow) obj.imagingWindow = imagingWindow;
   }
 
@@ -350,7 +392,6 @@ function scoreNightObjects(
         fov
       )
     )
-    .filter(s => s.totalScore >= MIN_SCORE_THRESHOLD)
     .sort((a, b) => b.totalScore - a.totalScore);
 }
 
@@ -380,7 +421,9 @@ export async function generateForecast(
     dsoCatalog = await loadOpenNGCCatalog({
       maxMagnitude: dsoMagnitude,
       observerLatitude: latitude,
-      minAltitude: 30,
+      // Keep every object that can physically rise. The user's global and
+      // directional horizon profile applies the desired imaging cutoff later.
+      minAltitude: 0,
     });
   } catch {
     // DSO catalog loading failed - continue without DSO data
@@ -424,8 +467,10 @@ export async function generateForecast(
   const forecasts: NightForecast[] = [];
   const scoredObjects = new Map<string, ScoredObject[]>();
 
-  const today = new Date();
-  today.setHours(12, 0, 0, 0); // Start at noon
+  // Anchor "tonight" to noon in the selected location, not the device timezone.
+  const localNow = toZonedTime(new Date(), locationTimezone);
+  localNow.setHours(12, 0, 0, 0);
+  const today = fromZonedTime(localNow, locationTimezone);
 
   // Pre-calculate planetary events for the forecast window (cache these)
   progress('Calculating planetary events...', 25);
@@ -435,7 +480,7 @@ export async function generateForecast(
   // Pre-fetch NEO close approaches for the entire forecast window (single batched call)
   let neoDataByDate = new Map<string, NeoCloseApproach[]>();
   try {
-    neoDataByDate = await fetchNeoCloseApproachesRange(today, forecastDays);
+    neoDataByDate = await fetchNeoCloseApproachesRange(today, forecastDays, locationTimezone);
   } catch {
     // NEO data fetch failed - continue without asteroid close approach data
   }
@@ -452,8 +497,10 @@ export async function generateForecast(
   const fov = getEffectiveFOV(settings.telescope, settings.customFOV);
 
   for (let i = 0; i < forecastDays; i++) {
-    const nightDate = new Date(today);
-    nightDate.setDate(nightDate.getDate() + i);
+    // Advance absolute days from the selected location's noon anchor. Using
+    // setDate() here would apply the device's DST rules, which may be unrelated
+    // to the observing location.
+    const nightDate = new Date(today.getTime() + i * 86_400_000);
 
     const progressPercent = 30 + Math.floor((i / forecastDays) * 60);
     progress(`Analyzing night ${i + 1} of ${forecastDays}...`, progressPercent);
@@ -478,17 +525,22 @@ export async function generateForecast(
     );
 
     // Calculate all object visibilities
-    const vis = await calculateAllVisibilities(
-      calculator,
-      observer,
-      nightInfo,
-      nightDate,
-      dsoCatalog,
-      cometCatalog,
-      dwarfPlanets,
-      asteroids,
-      settings
-    );
+    let vis: Awaited<ReturnType<typeof calculateAllVisibilities>>;
+    try {
+      vis = await calculateAllVisibilities(
+        calculator,
+        observer,
+        nightInfo,
+        nightDate,
+        dsoCatalog,
+        cometCatalog,
+        dwarfPlanets,
+        asteroids,
+        settings
+      );
+    } catch (error) {
+      throw errorWithCause(`Visibility calculation failed for ${nightDate.toISOString()}`, error);
+    }
 
     // Parse weather for this night
     let weather: NightWeather | null = null;
@@ -521,7 +573,8 @@ export async function generateForecast(
       neoDataByDate,
       spaceWeather,
       latitude,
-      vis.jupiterVisible
+      vis.jupiterVisible,
+      locationTimezone
     );
 
     // Create forecast
@@ -564,12 +617,12 @@ export async function generateForecast(
       fov
     );
 
-    scoredObjects.set(nightDate.toISOString().split('T')[0], scored);
+    scoredObjects.set(formatDateKey(nightDate, locationTimezone), scored);
   }
 
   // Determine best nights
   progress('Determining best observation nights...', 95);
-  const bestNights = determineBestNights(forecasts);
+  const bestNights = determineBestNights(forecasts, locationTimezone);
 
   progress('Complete!', 100);
 
@@ -586,7 +639,7 @@ export async function generateForecast(
  * Uses the same scoring system as the displayed night rating for consistency.
  * Only considers nights that have a valid observation window (bestTime).
  */
-function determineBestNights(forecasts: NightForecast[]): string[] {
+function determineBestNights(forecasts: NightForecast[], timezone?: string): string[] {
   const nightScores: Array<{ date: string; score: number }> = [];
 
   for (const forecast of forecasts) {
@@ -601,7 +654,7 @@ function determineBestNights(forecasts: NightForecast[]): string[] {
     const quality = calculateHeadlineNightQuality(forecast.weather, forecast.nightInfo);
 
     nightScores.push({
-      date: forecast.nightInfo.date.toISOString().split('T')[0],
+      date: formatDateKey(forecast.nightInfo.date, timezone),
       score: quality.score,
     });
   }

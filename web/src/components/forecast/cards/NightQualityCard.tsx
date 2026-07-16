@@ -328,6 +328,19 @@ interface NightQualityCardProps {
   timezone?: string;
 }
 
+function formatSunEvent(
+  occurs: boolean,
+  time: Date,
+  missingLabel: string,
+  timezone?: string
+): string {
+  return occurs ? formatTime(time, timezone) : missingLabel;
+}
+
+function formatAstronomicalBoundary(nightInfo: NightInfo, time: Date, timezone?: string): string {
+  return nightInfo.astronomicalNightMode === 'continuous' ? '24h dark' : formatTime(time, timezone);
+}
+
 export default function NightQualityCard({ forecast, timezone }: NightQualityCardProps) {
   const { nightInfo, weather } = forecast;
 
@@ -354,7 +367,7 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
       <div className="space-y-2">
         <h3 className="font-semibold text-white">
           <Tooltip content="Headline rating is based on the best practical observing window in the night. If no practical window exists, it falls back to the whole-night average.">
-            <span>{getNightLabel(nightInfo.date, true)} Rating</span>
+            <span>{getNightLabel(nightInfo.date, true, timezone)} Rating</span>
           </Tooltip>
         </h3>
         <div
@@ -391,33 +404,52 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
         </p>
 
         {/* Night timeline */}
-        <div className="rounded-lg bg-night-800 p-3">
-          {/* Time labels row */}
-          <div className="mb-2 flex items-baseline justify-between text-xs">
-            <Tooltip content="Sunset — start of the night period.">
-              <span className="text-orange-400">{formatTime(nightInfo.sunset, timezone)}</span>
-            </Tooltip>
-            <Tooltip content="Astronomical dusk — sun 18° below horizon, true darkness begins.">
-              <span className="text-indigo-400">
-                {formatTime(nightInfo.astronomicalDusk, timezone)}
-              </span>
-            </Tooltip>
-            <span className="font-medium text-indigo-300">
-              {formatDarkHours(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
-            </span>
-            <Tooltip content="Astronomical dawn — sun rises to 18° below horizon, sky begins brightening.">
-              <span className="text-indigo-400">
-                {formatTime(nightInfo.astronomicalDawn, timezone)}
-              </span>
-            </Tooltip>
-            <Tooltip content="Sunrise — end of the night period.">
-              <span className="text-orange-400">{formatTime(nightInfo.sunrise, timezone)}</span>
-            </Tooltip>
+        {nightInfo.astronomicalNightMode === 'none' ? (
+          <div className="rounded-lg bg-night-800 p-3 text-center text-amber-300 text-sm">
+            The Sun does not reach 18° below the horizon, so there is no astronomical darkness.
           </div>
+        ) : (
+          <div className="rounded-lg bg-night-800 p-3">
+            {/* Time labels row */}
+            <div className="mb-2 flex items-baseline justify-between text-xs">
+              <Tooltip content="Sunset — start of the night period.">
+                <span className="text-orange-400">
+                  {formatSunEvent(nightInfo.sunsetOccurs, nightInfo.sunset, 'No sunset', timezone)}
+                </span>
+              </Tooltip>
+              <Tooltip content="Astronomical dusk — sun 18° below horizon, true darkness begins.">
+                <span className="text-indigo-400">
+                  {formatAstronomicalBoundary(nightInfo, nightInfo.astronomicalDusk, timezone)}
+                </span>
+              </Tooltip>
+              <span className="font-medium text-indigo-300">
+                {formatDarkHours(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
+              </span>
+              <Tooltip content="Astronomical dawn — sun rises to 18° below horizon, sky begins brightening.">
+                <span className="text-indigo-400">
+                  {formatAstronomicalBoundary(nightInfo, nightInfo.astronomicalDawn, timezone)}
+                </span>
+              </Tooltip>
+              <Tooltip content="Sunrise — end of the night period.">
+                <span className="text-orange-400">
+                  {formatSunEvent(
+                    nightInfo.sunriseOccurs,
+                    nightInfo.sunrise,
+                    'No sunrise',
+                    timezone
+                  )}
+                </span>
+              </Tooltip>
+            </div>
 
-          {/* Interactive timeline scrubber */}
-          <NightTimelineScrubber nightInfo={nightInfo} isTonight={isTonight} timezone={timezone} />
-        </div>
+            {/* Interactive timeline scrubber */}
+            <NightTimelineScrubber
+              nightInfo={nightInfo}
+              isTonight={isTonight}
+              timezone={timezone}
+            />
+          </div>
+        )}
 
         {forecast.forecastConfidence === 'low' && (
           <div className="flex items-start gap-2 text-amber-400 text-sm">

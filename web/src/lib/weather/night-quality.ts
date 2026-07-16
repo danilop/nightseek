@@ -415,12 +415,28 @@ function calculateFromMetrics(
 
   score = applyPracticalWindowScoreCaps(score, metrics, practicalWindowPenalty);
 
+  const hasAstronomicalDarkness = nightInfo?.astronomicalNightMode !== 'none';
+  if (!hasAstronomicalDarkness) {
+    score = 0;
+  }
+
+  const penalties = buildPenaltyBreakdown(metrics, factors, practicalWindowPenalty);
+  if (!hasAstronomicalDarkness) {
+    penalties.unshift({
+      key: 'practicality',
+      detail: 'no astronomical darkness',
+      penalty: 100,
+    });
+  }
+
   return {
     score,
     rating: getRatingFromPercentage(score),
-    summary: generateSummary(factors, metrics),
+    summary: hasAstronomicalDarkness
+      ? generateSummary(factors, metrics)
+      : 'Twilight only — no astronomical darkness for deep-sky observing',
     factors,
-    penalties: buildPenaltyBreakdown(metrics, factors, practicalWindowPenalty),
+    penalties,
     metrics,
   };
 }

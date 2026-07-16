@@ -77,7 +77,9 @@ export default function TelescopeSettings({
         {TELESCOPE_PRESETS.map(preset => (
           <option key={preset.id} value={preset.id}>
             {preset.name}
-            {preset.id !== 'custom' && ` (${formatFOV(preset.fovWidth, preset.fovHeight)})`}
+            {preset.id !== 'custom' &&
+              preset.id !== 'generic' &&
+              ` (${formatFOV(preset.fovWidth, preset.fovHeight)})`}
           </option>
         ))}
       </select>
@@ -141,7 +143,7 @@ export default function TelescopeSettings({
       <div className="mt-3 flex items-center justify-between text-xs">
         <span className="text-gray-500">Current FOV:</span>
         <span className="font-medium text-sky-400">
-          {formatFOV(effectiveFOV.width, effectiveFOV.height)}
+          {effectiveFOV ? formatFOV(effectiveFOV.width, effectiveFOV.height) : 'Not configured'}
         </span>
       </div>
 

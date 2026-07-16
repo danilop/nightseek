@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getCached } from '@/lib/utils/cache';
 import { AppProvider, useApp } from './AppContext';
 
 // Mock IDB cache module
@@ -31,6 +32,8 @@ async function renderAppHook() {
 describe('AppContext', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.mocked(localStorage.getItem).mockReset();
+    vi.mocked(localStorage.setItem).mockClear();
   });
 
   it('provides initial state', async () => {
@@ -44,6 +47,33 @@ describe('AppContext', () => {
     expect(state.isSetupComplete).toBe(false);
     expect(state.settings.forecastDays).toBe(7);
     expect(state.settings.maxObjects).toBe(8);
+  });
+
+  it('does not overwrite saved settings while asynchronous startup data is loading', async () => {
+    let resolveLocation: ((value: null) => void) | undefined;
+    vi.mocked(getCached).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          resolveLocation = resolve;
+        })
+    );
+    vi.mocked(localStorage.getItem).mockReturnValue(JSON.stringify({ forecastDays: 2 }));
+    vi.mocked(localStorage.setItem).mockClear();
+
+    const rendered = renderHook(() => useApp(), { wrapper });
+
+    expect(localStorage.setItem).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveLocation?.(null);
+      await Promise.resolve();
+    });
+
+    expect(rendered.result.current.state.settings.forecastDays).toBe(2);
+    expect(localStorage.setItem).toHaveBeenLastCalledWith(
+      'nightseek:settings',
+      expect.stringContaining('"forecastDays":2')
+    );
   });
 
   it('throws when used outside AppProvider', () => {
@@ -82,7 +112,7 @@ describe('AppContext', () => {
     expect(result.current.state.settings.forecastDays).toBe(14);
     expect(result.current.state.settings.maxObjects).toBe(20);
     // Other settings remain unchanged
-    expect(result.current.state.settings.telescope).toBe('dwarf_mini');
+    expect(result.current.state.settings.telescope).toBe('generic');
   });
 
   it('SET_LOADING updates loading state', async () => {

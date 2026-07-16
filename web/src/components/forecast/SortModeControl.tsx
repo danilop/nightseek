@@ -92,6 +92,10 @@ export function TimeSlider({ nightInfo, selectedTime, onSelectedTimeChange }: Ti
     nightInfo.astronomicalDawn
   );
 
+  if (nightInfo.astronomicalNightMode === 'none') {
+    return <p className="text-amber-300 text-sm">No astronomical darkness at this location.</p>;
+  }
+
   return (
     <div>
       <div className="flex items-center gap-2">

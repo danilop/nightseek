@@ -1,3 +1,4 @@
+import * as Astronomy from 'astronomy-engine';
 import { GAUSSIAN_GRAVITATIONAL_CONSTANT } from './constants';
 
 /**
@@ -16,7 +17,9 @@ export function solveKepler(
 
   if (e >= 1) {
     // Hyperbolic orbit: M = e*sinh(H) - H
-    let H = M;
+    // This is close to the large-|M| solution and avoids overflowing
+    // sinh/cosh for fast interstellar trajectories.
+    let H = Math.asinh(M / e);
     for (let i = 0; i < maxIterations; i++) {
       const dH = (e * Math.sinh(H) - H - M) / (e * Math.cosh(H) - 1);
       H -= dH;
@@ -35,39 +38,61 @@ export function solveKepler(
   return E;
 }
 
-/**
- * Get Earth's heliocentric ecliptic position at a given Julian date.
- * Uses simplified mean orbital elements with time-varying eccentricity.
- */
+/** Get Earth's VSOP heliocentric position in the J2000 ecliptic frame. */
 export function getEarthPosition(julianDate: number): { x: number; y: number; z: number } {
-  const T = (julianDate - 2451545.0) / 36525; // Julian centuries from J2000
+  const date = new Date((julianDate - 2440587.5) * 86400000);
+  const earthEqj = Astronomy.HelioVector(Astronomy.Body.Earth, date);
+  const earthEcliptic = Astronomy.RotateVector(Astronomy.Rotation_EQJ_ECL(), earthEqj);
+  return { x: earthEcliptic.x, y: earthEcliptic.y, z: earthEcliptic.z };
+}
 
-  // Mean longitude of Earth
-  const L = ((100.46646 + 36000.76983 * T) * Math.PI) / 180;
+export interface LightTimeCorrectedPosition {
+  ra: number;
+  dec: number;
+  distance: number;
+  emissionJulianDate: number;
+}
 
-  // Earth's orbital elements (with time-varying eccentricity)
-  const a = 1.00000261; // Semi-major axis in AU
-  const e = 0.01671123 - 0.00004392 * T; // Eccentricity
+/**
+ * Convert a moving heliocentric ecliptic orbit to an astrometric geocentric
+ * position, iterating the object's emission time for light travel.
+ */
+export function lightTimeCorrectedEquatorial(
+  positionAtJulianDate: (julianDate: number) => { x: number; y: number; z: number },
+  observationJulianDate: number
+): LightTimeCorrectedPosition {
+  const observationDate = new Date((observationJulianDate - 2440587.5) * 86400000);
+  const observationTime = new Astronomy.AstroTime(observationDate);
+  const earthEqj = Astronomy.HelioVector(Astronomy.Body.Earth, observationTime);
+  let emissionJulianDate = observationJulianDate;
+  let geo = new Astronomy.Vector(0, 0, 0, observationTime);
 
-  // Mean anomaly
-  const M = ((357.52911 + 35999.05029 * T) * Math.PI) / 180;
+  for (let iteration = 0; iteration < 8; iteration++) {
+    const objectEcliptic = positionAtJulianDate(emissionJulianDate);
+    const objectEqj = Astronomy.RotateVector(
+      Astronomy.Rotation_ECL_EQJ(),
+      new Astronomy.Vector(objectEcliptic.x, objectEcliptic.y, objectEcliptic.z, observationTime)
+    );
+    geo = new Astronomy.Vector(
+      objectEqj.x - earthEqj.x,
+      objectEqj.y - earthEqj.y,
+      objectEqj.z - earthEqj.z,
+      observationTime
+    );
+    const nextEmissionJulianDate = observationJulianDate - geo.Length() / Astronomy.C_AUDAY;
+    if (Math.abs(nextEmissionJulianDate - emissionJulianDate) < 1e-10) {
+      emissionJulianDate = nextEmissionJulianDate;
+      break;
+    }
+    emissionJulianDate = nextEmissionJulianDate;
+  }
 
-  // Equation of center (approximate)
-  const C = (1.9146 - 0.004817 * T) * Math.sin(M) + 0.019993 * Math.sin(2 * M);
-
-  // True anomaly
-  const nu = M + (C * Math.PI) / 180;
-
-  // Distance
-  const r = (a * (1 - e * e)) / (1 + e * Math.cos(nu));
-
-  // Heliocentric ecliptic longitude
-  const lon = L + (C * Math.PI) / 180;
-
+  const equator = Astronomy.EquatorFromVector(geo);
   return {
-    x: r * Math.cos(lon),
-    y: r * Math.sin(lon),
-    z: 0, // Earth is in the ecliptic plane (approximately)
+    ra: equator.ra,
+    dec: equator.dec,
+    distance: geo.Length(),
+    emissionJulianDate,
   };
 }
 
@@ -109,29 +134,25 @@ export function heliocentricToEquatorial(
   helioZ: number,
   julianDate: number
 ): { ra: number; dec: number; distance: number } {
-  const earth = getEarthPosition(julianDate);
+  const date = new Date((julianDate - 2440587.5) * 86400000);
+  const time = new Astronomy.AstroTime(date);
+  const eclipticVector = new Astronomy.Vector(helioX, helioY, helioZ, time);
+  const objectEqj = Astronomy.RotateVector(Astronomy.Rotation_ECL_EQJ(), eclipticVector);
+  const earthEqj = Astronomy.HelioVector(Astronomy.Body.Earth, time);
 
-  // Geocentric position (relative to Earth)
-  const geoX = helioX - earth.x;
-  const geoY = helioY - earth.y;
-  const geoZ = helioZ - earth.z;
+  // Geocentric J2000 position using Astronomy Engine's VSOP Earth ephemeris.
+  const geoX = objectEqj.x - earthEqj.x;
+  const geoY = objectEqj.y - earthEqj.y;
+  const geoZ = objectEqj.z - earthEqj.z;
 
   // Distance from Earth
   const distance = Math.sqrt(geoX * geoX + geoY * geoY + geoZ * geoZ);
 
-  // Obliquity of the ecliptic
-  const eps = (23.4393 * Math.PI) / 180;
-
-  // Convert ecliptic to equatorial
-  const eqX = geoX;
-  const eqY = geoY * Math.cos(eps) - geoZ * Math.sin(eps);
-  const eqZ = geoY * Math.sin(eps) + geoZ * Math.cos(eps);
-
   // RA and Dec
-  let ra = (Math.atan2(eqY, eqX) * 180) / Math.PI;
+  let ra = (Math.atan2(geoY, geoX) * 180) / Math.PI;
   if (ra < 0) ra += 360;
   // Clamp to [-1, 1] to handle floating point precision issues
-  const sinDec = Math.max(-1, Math.min(1, eqZ / distance));
+  const sinDec = Math.max(-1, Math.min(1, geoZ / distance));
   const dec = (Math.asin(sinDec) * 180) / Math.PI;
 
   return { ra: ra / 15, dec, distance }; // ra in hours

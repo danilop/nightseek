@@ -285,17 +285,15 @@ function SeeingForecastCard({
     <div className="mt-4 rounded-lg bg-night-800 p-3">
       <div className="mb-2 flex items-center gap-2">
         <Telescope className="h-4 w-4 text-cyan-400" />
-        <Tooltip content="Seeing measures atmospheric steadiness. Good seeing = sharp stars, poor seeing = blurry, twinkling stars. Critical for planetary and high-magnification work.">
+        <Tooltip content="A weather-only steadiness proxy from wind, humidity, temperature, and dew point. It cannot predict true optical seeing without turbulence and jet-stream measurements.">
           <span className="border-gray-500 border-b border-dotted font-medium text-sm text-white">
-            Seeing Forecast
+            Seeing Conditions Proxy
           </span>
         </Tooltip>
       </div>
       <div className="flex items-center justify-between">
         <span className={`font-medium text-sm ${colorClass}`}>{ratingLabel}</span>
-        <Tooltip content='FWHM (Full Width at Half Maximum) in arcseconds. Smaller = sharper stars. Under 2" is excellent, 2-3" is good, over 4" is poor.'>
-          <span className="text-gray-400 text-sm">~{seeingForecast.estimatedArcsec}" FWHM</span>
-        </Tooltip>
+        <span className="text-gray-500 text-xs">weather-only · not measured FWHM</span>
       </div>
       <p className="mt-1 text-gray-500 text-xs">{seeingForecast.recommendation}</p>
     </div>

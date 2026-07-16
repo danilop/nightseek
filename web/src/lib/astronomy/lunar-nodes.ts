@@ -1,191 +1,144 @@
 import * as Astronomy from 'astronomy-engine';
 import type { EclipseSeason } from '@/types';
 
-/**
- * Eclipse season window in days before/after a node crossing
- * Eclipses can only occur when the Moon is within ~17 days of crossing a node
- */
-const ECLIPSE_SEASON_WINDOW_DAYS = 17;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ECLIPSE_SEASON_HALF_LENGTH_DAYS = 17.25;
+const ECLIPSE_CLUSTER_GAP_DAYS = 40;
 
-/**
- * Search for the next lunar node crossing
- */
-function searchNextMoonNode(startDate: Date): Astronomy.NodeEventInfo | null {
-  try {
-    return Astronomy.SearchMoonNode(startDate);
-  } catch (_error) {
-    return null;
-  }
-}
+function collectEclipsePeaks(startDate: Date, endDate: Date): Date[] {
+  const peaks: Date[] = [];
 
-/**
- * Search for the previous lunar node crossing before a date
- */
-function searchPreviousMoonNode(date: Date): Astronomy.NodeEventInfo | null {
-  // Search from 30 days before
-  const searchStart = new Date(date);
-  searchStart.setDate(searchStart.getDate() - 30);
-
-  let lastNode: Astronomy.NodeEventInfo | null = null;
-  let currentNode = searchNextMoonNode(searchStart);
-
-  while (currentNode && currentNode.time.date.getTime() < date.getTime()) {
-    lastNode = currentNode;
-    currentNode = Astronomy.NextMoonNode(currentNode);
+  let lunar = Astronomy.SearchLunarEclipse(startDate);
+  while (lunar.peak.date <= endDate) {
+    peaks.push(lunar.peak.date);
+    lunar = Astronomy.NextLunarEclipse(lunar.peak);
   }
 
-  return lastNode;
+  let solar = Astronomy.SearchGlobalSolarEclipse(startDate);
+  while (solar.peak.date <= endDate) {
+    peaks.push(solar.peak.date);
+    solar = Astronomy.NextGlobalSolarEclipse(solar.peak);
+  }
+
+  return peaks.sort((a, b) => a.getTime() - b.getTime());
 }
 
-/**
- * Build eclipse season info from a node event
- */
-function buildEclipseSeason(node: Astronomy.NodeEventInfo, isActive: boolean): EclipseSeason {
-  const windowStart = new Date(node.time.date);
-  windowStart.setDate(windowStart.getDate() - ECLIPSE_SEASON_WINDOW_DAYS);
+function findClosestMoonNode(center: Date): Astronomy.NodeEventInfo {
+  const searchStart = new Date(center.getTime() - 15 * DAY_MS);
+  let closest = Astronomy.SearchMoonNode(searchStart);
+  let node = closest;
 
-  const windowEnd = new Date(node.time.date);
-  windowEnd.setDate(windowEnd.getDate() + ECLIPSE_SEASON_WINDOW_DAYS);
+  for (let index = 0; index < 3; index++) {
+    if (
+      Math.abs(node.time.date.getTime() - center.getTime()) <
+      Math.abs(closest.time.date.getTime() - center.getTime())
+    ) {
+      closest = node;
+    }
+    node = Astronomy.NextMoonNode(node);
+  }
+
+  return closest;
+}
+
+function buildSeason(peaks: Date[], referenceDate: Date): EclipseSeason {
+  const centerMs = (peaks[0].getTime() + peaks[peaks.length - 1].getTime()) / 2;
+  const center = new Date(centerMs);
+  const windowStart = new Date(centerMs - ECLIPSE_SEASON_HALF_LENGTH_DAYS * DAY_MS);
+  const windowEnd = new Date(centerMs + ECLIPSE_SEASON_HALF_LENGTH_DAYS * DAY_MS);
+  const closestNode = findClosestMoonNode(center);
 
   return {
-    nodeType: node.kind === 0 ? 'ascending' : 'descending',
-    nodeCrossingTime: node.time.date,
+    nodeType: closestNode.kind === Astronomy.NodeEventKind.Ascending ? 'ascending' : 'descending',
+    nodeCrossingTime: closestNode.time.date,
     windowStart,
     windowEnd,
-    isActive,
+    isActive: referenceDate >= windowStart && referenceDate <= windowEnd,
   };
 }
 
-/**
- * Determine if a date is within an eclipse season
- *
- * Eclipse seasons occur when the Moon is within ~17 days of crossing
- * either the ascending or descending node of its orbit.
- */
-export function getEclipseSeasonInfo(date: Date): EclipseSeason | null {
-  const previousNode = searchPreviousMoonNode(date);
-  const nextNode = searchNextMoonNode(date);
+function calculateSeasons(startDate: Date, endDate: Date, referenceDate: Date): EclipseSeason[] {
+  const extendedStart = new Date(startDate.getTime() - 60 * DAY_MS);
+  const extendedEnd = new Date(endDate.getTime() + 60 * DAY_MS);
+  const peaks = collectEclipsePeaks(extendedStart, extendedEnd);
+  const clusters: Date[][] = [];
 
-  if (!previousNode && !nextNode) {
-    return null;
-  }
-
-  // Check if we're within the window of the previous node
-  if (previousNode) {
-    const daysSincePrevious =
-      (date.getTime() - previousNode.time.date.getTime()) / (24 * 60 * 60 * 1000);
-
-    if (daysSincePrevious <= ECLIPSE_SEASON_WINDOW_DAYS) {
-      return buildEclipseSeason(previousNode, true);
+  for (const peak of peaks) {
+    const cluster = clusters[clusters.length - 1];
+    const previousPeak = cluster?.[cluster.length - 1];
+    if (!cluster || peak.getTime() - previousPeak.getTime() > ECLIPSE_CLUSTER_GAP_DAYS * DAY_MS) {
+      clusters.push([peak]);
+    } else {
+      cluster.push(peak);
     }
   }
 
-  // Check if we're within the window of the next node
-  if (nextNode) {
-    const daysToNext = (nextNode.time.date.getTime() - date.getTime()) / (24 * 60 * 60 * 1000);
-
-    if (daysToNext <= ECLIPSE_SEASON_WINDOW_DAYS) {
-      return buildEclipseSeason(nextNode, true);
-    }
-
-    // Not in an eclipse season, but return info about the next one
-    return buildEclipseSeason(nextNode, false);
-  }
-
-  return null;
+  return clusters
+    .map(cluster => buildSeason(cluster, referenceDate))
+    .filter(season => season.windowEnd >= startDate && season.windowStart <= endDate);
 }
 
-/**
- * Get upcoming eclipse seasons within a time window
- */
+/** Return the active eclipse season, or the next upcoming season. */
+export function getEclipseSeasonInfo(date: Date): EclipseSeason | null {
+  const endDate = new Date(date.getTime() + 240 * DAY_MS);
+  const seasons = calculateSeasons(date, endDate, date);
+  return seasons.find(season => season.isActive) ?? seasons[0] ?? null;
+}
+
+/** Return distinct eclipse seasons whose windows overlap the requested range. */
 export function getUpcomingEclipseSeasons(
   startDate: Date,
   windowDays: number = 90
 ): EclipseSeason[] {
-  const seasons: EclipseSeason[] = [];
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + windowDays);
-
-  let node = searchNextMoonNode(startDate);
-
-  while (node && node.time.date.getTime() <= endDate.getTime()) {
-    const windowStart = new Date(node.time.date);
-    windowStart.setDate(windowStart.getDate() - ECLIPSE_SEASON_WINDOW_DAYS);
-
-    const windowEnd = new Date(node.time.date);
-    windowEnd.setDate(windowEnd.getDate() + ECLIPSE_SEASON_WINDOW_DAYS);
-
-    const isActive = startDate >= windowStart && startDate <= windowEnd;
-
-    seasons.push({
-      nodeType: node.kind === 0 ? 'ascending' : 'descending',
-      nodeCrossingTime: node.time.date,
-      windowStart,
-      windowEnd,
-      isActive,
-    });
-
-    node = Astronomy.NextMoonNode(node);
-  }
-
-  return seasons;
+  const endDate = new Date(startDate.getTime() + windowDays * DAY_MS);
+  return calculateSeasons(startDate, endDate, startDate);
 }
 
-/**
- * Check if a date is within an active eclipse season
- */
 export function isInEclipseSeason(date: Date): boolean {
-  const season = getEclipseSeasonInfo(date);
-  return season?.isActive ?? false;
+  return getEclipseSeasonInfo(date)?.isActive ?? false;
 }
 
-/**
- * Get a description of the eclipse season
- */
-export function getEclipseSeasonDescription(season: EclipseSeason): string {
+function formatMonthDay(date: Date, timezone?: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(timezone ? { timeZone: timezone } : {}),
+  }).format(date);
+}
+
+export function getEclipseSeasonDescription(
+  season: EclipseSeason,
+  referenceDate: Date,
+  timezone?: string
+): string {
   if (season.isActive) {
-    const startMonth = season.windowStart.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-    const endMonth = season.windowEnd.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-    return `Eclipse Season Active: ${startMonth} - ${endMonth}`;
+    const start = formatMonthDay(season.windowStart, timezone);
+    const end = formatMonthDay(season.windowEnd, timezone);
+    return `Eclipse Season Active: ${start} - ${end}`;
   }
 
-  const daysToSeason = Math.round(
-    (season.windowStart.getTime() - Date.now()) / (24 * 60 * 60 * 1000)
-  );
-
-  if (daysToSeason <= 30) {
-    const startMonth = season.windowStart.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-    return `Eclipse Season begins ${startMonth} (${daysToSeason} days)`;
+  const daysToSeason = Math.ceil((season.windowStart.getTime() - referenceDate.getTime()) / DAY_MS);
+  if (daysToSeason >= 0 && daysToSeason <= 30) {
+    const start = formatMonthDay(season.windowStart, timezone);
+    return `Eclipse Season begins ${start} (${daysToSeason} days)`;
   }
-
   return '';
 }
 
-/**
- * Get the next node crossing time and type
- */
+/** Preserve node-crossing information as a separate lunar-orbit event. */
 export function getNextNodeCrossing(date: Date): {
   time: Date;
   nodeType: 'ascending' | 'descending';
   daysUntil: number;
 } | null {
-  const node = searchNextMoonNode(date);
-  if (!node) return null;
-
-  const daysUntil = Math.round((node.time.date.getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
-
-  return {
-    time: node.time.date,
-    nodeType: node.kind === 0 ? 'ascending' : 'descending',
-    daysUntil,
-  };
+  try {
+    const node = Astronomy.SearchMoonNode(date);
+    return {
+      time: node.time.date,
+      nodeType: node.kind === Astronomy.NodeEventKind.Ascending ? 'ascending' : 'descending',
+      daysUntil: (node.time.date.getTime() - date.getTime()) / DAY_MS,
+    };
+  } catch {
+    return null;
+  }
 }

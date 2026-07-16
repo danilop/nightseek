@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { formatDiameter, getDistanceDescription, getSizeCategory } from '@/lib/nasa/neows';
 import { getNightLabel } from '@/lib/utils/format';
+import { useApp } from '@/stores/AppContext';
 import type { NeoCloseApproach } from '@/types';
 
 interface CloseApproachCardProps {
@@ -11,6 +12,7 @@ interface CloseApproachCardProps {
 }
 
 export default function CloseApproachCard({ approaches, nightDate }: CloseApproachCardProps) {
+  const { state } = useApp();
   if (approaches.length === 0) {
     return null;
   }
@@ -22,7 +24,7 @@ export default function CloseApproachCard({ approaches, nightDate }: CloseApproa
           <Orbit className="h-4 w-4 text-amber-400" />
           Asteroid Close Approaches
           <span className="ml-1 font-normal text-gray-400 text-xs">
-            ({approaches.length} {getNightLabel(nightDate)})
+            ({approaches.length} {getNightLabel(nightDate, false, state.location?.timezone)})
           </span>
         </h3>
       </div>

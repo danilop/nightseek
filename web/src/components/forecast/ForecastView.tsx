@@ -1,7 +1,8 @@
 import { RefreshCw, Sparkles } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { useUIState } from '@/hooks/useUIState';
-import { formatDateRange } from '@/lib/utils/format';
+import { formatDateKey, formatDateRange } from '@/lib/utils/format';
+import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import type { Location, NightForecast, ScoredObject } from '@/types';
 import NightStrip from './NightStrip';
 import ObjectDetailPanel from './ObjectDetailPanel';
@@ -30,7 +31,10 @@ export default function ForecastView({
   onRefresh,
 }: ForecastViewProps) {
   const [selectedNightIndex, setSelectedNightIndex] = useState(0);
-  const [selectedObject, setSelectedObject] = useState<ScoredObject | null>(null);
+  const [selectedTarget, setSelectedTarget] = useState<{
+    object: ScoredObject;
+    accessibility?: TargetAccessibility;
+  } | null>(null);
   const { activeTab } = useUIState();
 
   if (forecasts.length === 0) {
@@ -44,11 +48,14 @@ export default function ForecastView({
   const firstNight = forecasts[0];
   const lastNight = forecasts[forecasts.length - 1];
   const selectedNight = forecasts[selectedNightIndex];
-  const selectedDateKey = selectedNight.nightInfo.date.toISOString().split('T')[0];
+  const selectedDateKey = formatDateKey(selectedNight.nightInfo.date, location.timezone);
   const selectedObjects = scoredObjects?.get(selectedDateKey) ?? [];
 
   return (
-    <main className="safe-area-inset container mx-auto px-4 py-4 sm:py-6">
+    <main
+      data-testid="forecast-view"
+      className="safe-area-inset container mx-auto px-4 py-4 sm:py-6"
+    >
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-4">
         <div className="min-w-0">
@@ -81,6 +88,7 @@ export default function ForecastView({
           selectedIndex={selectedNightIndex}
           onSelectNight={setSelectedNightIndex}
           bestNights={bestNights}
+          timezone={location.timezone}
         />
       </div>
 
@@ -105,7 +113,9 @@ export default function ForecastView({
               weather={selectedNight.weather}
               astronomicalEvents={selectedNight.astronomicalEvents}
               latitude={location.latitude}
-              onObjectSelect={setSelectedObject}
+              onObjectSelect={(object, accessibility) =>
+                setSelectedTarget({ object, accessibility })
+              }
             />
           )}
           {activeTab === 'sky' && (
@@ -121,12 +131,13 @@ export default function ForecastView({
       </div>
 
       {/* Object detail panel */}
-      {selectedObject && (
+      {selectedTarget && (
         <ObjectDetailPanel
-          object={selectedObject}
+          object={selectedTarget.object}
+          accessibility={selectedTarget.accessibility}
           nightInfo={selectedNight.nightInfo}
           weather={selectedNight.weather}
-          onClose={() => setSelectedObject(null)}
+          onClose={() => setSelectedTarget(null)}
         />
       )}
     </main>

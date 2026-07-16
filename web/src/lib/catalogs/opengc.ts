@@ -225,6 +225,19 @@ function filterCatalog(
   minAltitude: number = 30
 ): DSOCatalogEntry[] {
   return catalog.filter(entry => {
+    // Cached or upstream catalog rows must never be allowed to feed NaN or
+    // out-of-range coordinates into the ephemeris engine.
+    if (
+      !Number.isFinite(entry.raHours) ||
+      !Number.isFinite(entry.decDegrees) ||
+      entry.raHours < 0 ||
+      entry.raHours >= 24 ||
+      entry.decDegrees < -90 ||
+      entry.decDegrees > 90
+    ) {
+      return false;
+    }
+
     // Magnitude filter (allow null to pass for very extended objects)
     if (entry.magnitude !== null && entry.magnitude > maxMagnitude) {
       return false;

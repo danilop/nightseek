@@ -586,9 +586,9 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
           {/* Time Slider */}
           <div className="mb-4">
             <div className="mb-2 flex items-center justify-between text-gray-400 text-xs">
-              <span>{formatTime(nightInfo.sunset)}</span>
+              <span>{nightInfo.sunsetOccurs ? formatTime(nightInfo.sunset) : 'No sunset'}</span>
               <span className="font-medium text-indigo-400">{formatTime(currentTime)}</span>
-              <span>{formatTime(nightInfo.sunrise)}</span>
+              <span>{nightInfo.sunriseOccurs ? formatTime(nightInfo.sunrise) : 'No sunrise'}</span>
             </div>
             <div className="flex items-center gap-2">
               {/* Now button */}
@@ -604,7 +604,11 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
                 title={
                   isNowInNightRange
                     ? 'Jump to current time'
-                    : `Current time is outside ${getNightLabel(nightInfo.date, true)} range`
+                    : `Current time is outside ${getNightLabel(
+                        nightInfo.date,
+                        true,
+                        location.timezone
+                      )} range`
                 }
               >
                 <Clock className="h-3 w-3" />

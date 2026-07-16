@@ -176,6 +176,24 @@ describe('night-quality', () => {
       expect(quality.score).toBeLessThanOrEqual(100);
     });
 
+    it('does not call a twilight-only summer night excellent', () => {
+      const nightInfo = createMockNightInfo({ astronomicalNightMode: 'none' });
+      const weather = createMockWeather({
+        avgCloudCover: 0,
+        transparencyScore: 100,
+        avgWindSpeedKmh: 0,
+        dewRiskHours: 0,
+      });
+
+      const quality = calculateNightQuality(weather, nightInfo);
+
+      expect(quality.score).toBe(0);
+      expect(quality.rating.tier).toBe('poor');
+      expect(quality.summary).toContain('Twilight only');
+      expect(quality.summary).not.toContain('dark skies');
+      expect(quality.penalties[0].detail).toBe('no astronomical darkness');
+    });
+
     it('should cap at 2 stars when cloud cover exceeds 80%', () => {
       const nightInfo = createMockNightInfo({
         moonIllumination: 5,

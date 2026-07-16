@@ -1,7 +1,7 @@
 """Object search module for finding celestial objects and their visibility."""
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Callable
 import math
 
@@ -1071,43 +1071,8 @@ class ObjectSearcher:
         obj_type = mp.category
 
         try:
-            # Create skyfield object from embedded orbital elements or MPC row
             if getattr(mp, "skyfield_obj", None) is None:
-                from skyfield.constants import GM_SUN_Pitjeva_2005_km3_s2 as GM_SUN
-                from skyfield.data import mpc
-
-                if mp.row is not None:
-                    # Use MPC row data (legacy path)
-                    mp.skyfield_obj = self.calculator.sun + mpc.mpcorb_orbit(
-                        mp.row, self.calculator.ts, GM_SUN
-                    )
-                elif mp.semi_major_axis > 0:
-                    # Use embedded orbital elements via mock MPC row
-                    class MockMPCRow:
-                        designation: str = ""
-                        semimajor_axis_au: float = 0.0
-                        eccentricity: float = 0.0
-                        inclination_degrees: float = 0.0
-                        longitude_of_ascending_node_degrees: float = 0.0
-                        argument_of_perihelion_degrees: float = 0.0
-                        mean_anomaly_degrees: float = 0.0
-                        epoch_packed: str = ""
-
-                    row = MockMPCRow()
-                    row.designation = mp.designation
-                    row.semimajor_axis_au = mp.semi_major_axis
-                    row.eccentricity = mp.eccentricity
-                    row.inclination_degrees = mp.inclination
-                    row.longitude_of_ascending_node_degrees = mp.lon_asc_node
-                    row.argument_of_perihelion_degrees = mp.arg_perihelion
-                    row.mean_anomaly_degrees = mp.mean_anomaly
-                    # Convert JD to MPC packed epoch format (K00A0 = J2000.0)
-                    row.epoch_packed = "K00A0"  # J2000.0 = 2451545.0
-
-                    mp.skyfield_obj = self.calculator.sun + mpc.mpcorb_orbit(
-                        row, self.calculator.ts, GM_SUN
-                    )
-                else:
+                if mp.row is None and mp.semi_major_axis <= 0:
                     # No orbital data available
                     return SearchResult(
                         object_name=mp.name,
@@ -1115,7 +1080,7 @@ class ObjectSearcher:
                         object_type=obj_type,
                         ra_hours=0,
                         dec_degrees=0,
-                        magnitude=mp.magnitude_h,
+                        magnitude=None,
                         visibility_status="never_visible",
                         visible_tonight=False,
                         next_visible_date=None,
@@ -1128,16 +1093,20 @@ class ObjectSearcher:
                         can_reach_optimal=False,
                         optimal_altitude_note="No orbital data",
                     )
+                mp.skyfield_obj = self.calculator.create_minor_planet(mp)
 
             mp_obj = mp.skyfield_obj
 
             # Get current position
-            now = datetime.now()
-            t = self.calculator.ts.utc(now.year, now.month, now.day)
+            now = datetime.now(timezone.utc)
+            t = self.calculator.ts.from_datetime(now)
             astrometric = self.calculator.earth.at(t).observe(mp_obj)
             ra, dec, _ = astrometric.radec()
             ra_hours = ra.hours
             dec_degrees = dec.degrees
+            apparent_magnitude = self.calculator.calculate_minor_planet_magnitude(
+                mp, mp_obj, now
+            )
 
             can_be_visible, max_alt, reason = can_object_ever_be_visible(
                 dec_degrees, self.latitude
@@ -1165,7 +1134,7 @@ class ObjectSearcher:
                     object_type=obj_type,
                     ra_hours=ra_hours,
                     dec_degrees=dec_degrees,
-                    magnitude=mp.magnitude_h,
+                    magnitude=apparent_magnitude,
                     visibility_status="never_visible",
                     visible_tonight=False,
                     next_visible_date=None,
@@ -1183,7 +1152,10 @@ class ObjectSearcher:
             visibility = self.calculator.calculate_object_visibility(
                 mp_obj, mp.name, obj_type, self.tonight
             )
-            visibility.magnitude = mp.magnitude_h
+            if visibility.max_altitude_time is not None:
+                visibility.magnitude = self.calculator.calculate_minor_planet_magnitude(
+                    mp, mp_obj, visibility.max_altitude_time
+                )
 
             if visibility.is_visible and visibility.max_altitude >= MIN_ALTITUDE:
                 is_optimal_tonight = visibility.max_altitude >= OPTIMAL_ALTITUDE
@@ -1206,7 +1178,7 @@ class ObjectSearcher:
                     object_type=obj_type,
                     ra_hours=ra_hours,
                     dec_degrees=dec_degrees,
-                    magnitude=mp.magnitude_h,
+                    magnitude=visibility.magnitude,
                     visibility_status="visible_tonight",
                     visible_tonight=True,
                     next_visible_date=self.tonight.date,
@@ -1231,7 +1203,10 @@ class ObjectSearcher:
             if next_visible:
                 date, night_info, vis = next_visible
                 vis.object_name = mp.name
-                vis.magnitude = mp.magnitude_h
+                if vis.max_altitude_time is not None:
+                    vis.magnitude = self.calculator.calculate_minor_planet_magnitude(
+                        mp, mp_obj, vis.max_altitude_time
+                    )
                 days_until = (date - self.tonight.date).days
                 status = "visible_soon" if days_until <= 30 else "visible_later"
 
@@ -1251,7 +1226,7 @@ class ObjectSearcher:
                     object_type=obj_type,
                     ra_hours=ra_hours,
                     dec_degrees=dec_degrees,
-                    magnitude=mp.magnitude_h,
+                    magnitude=vis.magnitude,
                     visibility_status=status,
                     visible_tonight=False,
                     next_visible_date=date,
@@ -1273,7 +1248,7 @@ class ObjectSearcher:
                 object_type=obj_type,
                 ra_hours=ra_hours,
                 dec_degrees=dec_degrees,
-                magnitude=mp.magnitude_h,
+                magnitude=apparent_magnitude,
                 visibility_status="below_horizon",
                 visible_tonight=False,
                 next_visible_date=None,
@@ -1295,7 +1270,7 @@ class ObjectSearcher:
                 object_type=obj_type,
                 ra_hours=0,
                 dec_degrees=0,
-                magnitude=mp.magnitude_h,
+                magnitude=None,
                 visibility_status="never_visible",
                 visible_tonight=False,
                 next_visible_date=None,

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Optional, Callable
 import math
+from skyfield.magnitudelib import planetary_magnitude
 
 from catalog import Catalog
 from event_detection import Conjunction, detect_conjunctions, detect_meteor_showers
@@ -21,7 +22,6 @@ from sky_calculator import (
     calculate_planet_apparent_diameter,
     calculate_small_body_apparent_diameter,
     PLANET_APPARENT_DIAMETERS,
-    SMALL_BODY_DIAMETERS,
 )
 from weather import NightWeather, WeatherForecast
 
@@ -102,105 +102,50 @@ class VisibilityAnalyzer:
         # Load dwarf planets and asteroids (cached)
         self.dwarf_planets = self.catalog.load_dwarf_planets()
         self.asteroids = self.catalog.load_bright_asteroids()
+        for minor_planet in [*self.dwarf_planets, *self.asteroids]:
+            try:
+                minor_planet.skyfield_obj = self.calculator.create_minor_planet(
+                    minor_planet
+                )
+            except (ValueError, AttributeError, TypeError) as error:
+                logger.debug(
+                    "Could not initialize orbit for %s: %s",
+                    minor_planet.name,
+                    error,
+                )
 
-    def _load_filtered_comets(self, min_useful_alt: float = 30.0):
-        """Load comets and filter by declination first, then apparent magnitude.
-
-        This pre-filtering removes comets that:
-        1. Can never reach useful altitude from this latitude (cheap check)
-        2. Are currently too faint (apparent magnitude > threshold)
-
-        The apparent magnitude is calculated from absolute magnitude and current distances.
-        """
-
-        # Load comets with a generous absolute magnitude filter
+    def _load_filtered_comets(self):
+        """Load comet orbits without applying today's geometry to future nights."""
         all_comets = self.catalog.load_bright_comets(
-            max_magnitude=20.0,  # Very generous - we filter by apparent mag below
+            max_magnitude=self.comet_mag + 10.0,
             verbose=self.verbose,
         )
-        if not all_comets:
-            return []
-
-        # Use current date for magnitude calculation
-        from datetime import datetime
-
-        now = datetime.now()
-        t_ref = self.calculator.ts.utc(now.year, now.month, now.day, 0)
-
-        # OPTIMIZATION: Pre-filter by declination BEFORE expensive position calculations
-        # This is a cheap check that eliminates many comets
-        declination_filtered = []
+        loaded = []
         for comet in all_comets:
             try:
-                # Get declination from orbital elements (cheap)
-                comet_obj = self.calculator.create_comet(comet.row)
-                # Quick position check - just get declination
-                astrometric = self.calculator.earth.at(t_ref).observe(comet_obj)
-                _, dec, _ = astrometric.radec()
-                dec_degrees = dec.degrees
-
-                # Check if comet can reach useful altitude
-                max_possible_alt = 90 - abs(self.calculator.latitude - dec_degrees)
-                if max_possible_alt < min_useful_alt:
-                    continue
-
-                declination_filtered.append((comet, comet_obj, astrometric))
+                comet.skyfield_obj = self.calculator.create_comet(comet.row)
+                loaded.append(comet)
             except (ValueError, AttributeError, TypeError) as e:
                 logger.debug(
-                    "Could not compute position for comet %s: %s", comet.designation, e
+                    "Could not initialize orbit for comet %s: %s", comet.designation, e
                 )
-                continue
+        return loaded
 
-        # Now calculate apparent magnitude only for comets that passed declination filter
-        filtered = []
-        for comet, comet_obj, astrometric in declination_filtered:
-            try:
-                ra, dec, earth_dist = astrometric.radec()
-                delta = earth_dist.au  # Distance from Earth in AU
-
-                # Get comet position from Sun (for heliocentric distance)
-                sun_astrometric = self.calculator.sun.at(t_ref).observe(comet_obj)
-                _, _, sun_dist = sun_astrometric.radec()
-                r = sun_dist.au  # Distance from Sun in AU
-
-                # Calculate apparent magnitude using comet magnitude formula:
-                # m = g + 5*log10(Δ) + k*log10(r)
-                # where g = absolute mag, Δ = Earth distance (AU), r = Sun distance (AU)
-                # k = magnitude slope (typically 10, but use MPC value if available)
-                g = comet.magnitude_g
-                delta = earth_dist.au  # Distance from Earth in AU
-                r = sun_dist.au  # Distance from Sun in AU
-
-                # Get magnitude slope k from MPC data (default 10 if not available)
-                k = float(
-                    getattr(comet.row, "get", lambda x, d: d)("magnitude_k", 10.0)
-                )
-
-                # Compute apparent magnitude
-                if delta > 0 and r > 0:
-                    apparent_mag = g + 5 * math.log10(delta) + k * math.log10(r)
-                else:
-                    apparent_mag = 99.0  # Invalid, skip
-
-                # Filter by apparent magnitude threshold
-                if apparent_mag > self.comet_mag:
-                    continue
-
-                # Max possible altitude = 90 - |latitude - declination|
-                max_possible_alt = 90 - abs(self.latitude - dec.degrees)
-
-                if max_possible_alt >= min_useful_alt:
-                    # Store pre-computed comet object and apparent magnitude for reuse
-                    comet.skyfield_obj = comet_obj
-                    comet.apparent_magnitude = apparent_mag  # Store for later use
-                    filtered.append(comet)
-            except (ValueError, AttributeError, TypeError, ZeroDivisionError) as e:
-                logger.debug(
-                    "Could not compute magnitude for comet %s: %s", comet.designation, e
-                )
-                continue
-
-        return filtered
+    def _calculate_comet_magnitude(self, comet, comet_obj, when: datetime) -> float:
+        """Calculate a comet's apparent total magnitude for one forecast time."""
+        t = self.calculator.ts.from_datetime(when)
+        earth_distance = self.calculator.earth.at(t).observe(comet_obj).distance().au
+        sun_distance = self.calculator.sun.at(t).observe(comet_obj).distance().au
+        slope = float(comet.row.get("magnitude_k", 10.0))
+        if not math.isfinite(slope):
+            slope = 10.0
+        if earth_distance <= 0 or sun_distance <= 0:
+            return 99.0
+        return (
+            comet.magnitude_g
+            + 5 * math.log10(earth_distance)
+            + slope * math.log10(sun_distance)
+        )
 
     def analyze_forecast(
         self,
@@ -276,6 +221,9 @@ class VisibilityAnalyzer:
                     earth = self.calculator.earth
                     astrometric = earth.at(t_peak).observe(planet_obj)
                     distance_au = astrometric.distance().au
+                    visual_magnitude = float(planetary_magnitude(astrometric))
+                    if math.isfinite(visual_magnitude):
+                        visibility.magnitude = visual_magnitude
                     visibility.apparent_diameter_arcsec = (
                         calculate_planet_apparent_diameter(distance_au, planet_name)
                     )
@@ -335,11 +283,13 @@ class VisibilityAnalyzer:
                     night_info,
                     coarse=True,
                 )
-                # Use calculated apparent magnitude (computed in _load_filtered_comets)
-                # Fall back to absolute magnitude if apparent not available
-                visibility.magnitude = getattr(
-                    comet, "apparent_magnitude", comet.magnitude_g
+                if not visibility.is_visible or visibility.max_altitude_time is None:
+                    continue
+                visibility.magnitude = self._calculate_comet_magnitude(
+                    comet, comet_obj, visibility.max_altitude_time
                 )
+                if visibility.magnitude > self.comet_mag:
+                    continue
                 visibility.subtype = (
                     "interstellar" if comet.is_interstellar else "comet"
                 )
@@ -384,37 +334,26 @@ class VisibilityAnalyzer:
                         night_info,
                         coarse=True,
                     )
-                    visibility.magnitude = dp.magnitude_h
                     visibility.subtype = "dwarf_planet"
 
                     # Calculate apparent diameter
                     if visibility.is_visible and visibility.max_altitude_time:
                         try:
-                            t_peak = self.calculator.ts.utc(
-                                visibility.max_altitude_time.year,
-                                visibility.max_altitude_time.month,
-                                visibility.max_altitude_time.day,
-                                visibility.max_altitude_time.hour,
-                                visibility.max_altitude_time.minute,
-                            )
+                            peak_time = visibility.max_altitude_time
+                            t_peak = self.calculator.ts.from_datetime(peak_time)
                             earth = self.calculator.earth
                             astrometric = earth.at(t_peak).observe(dp_obj)
                             distance_au = astrometric.distance().au
+                            visibility.magnitude = (
+                                self.calculator.calculate_minor_planet_magnitude(
+                                    dp, dp_obj, peak_time
+                                )
+                            )
                             visibility.apparent_diameter_arcsec = (
                                 calculate_small_body_apparent_diameter(
                                     distance_au, dp.name
                                 )
                             )
-                            # Calculate min/max from orbital parameters (approximate)
-                            if dp.name in SMALL_BODY_DIAMETERS:
-                                # Use typical perihelion/aphelion distances for range
-                                # For simplicity, use ±30% of current distance
-                                visibility.apparent_diameter_min = (
-                                    visibility.apparent_diameter_arcsec * 0.7
-                                )
-                                visibility.apparent_diameter_max = (
-                                    visibility.apparent_diameter_arcsec * 1.3
-                                )
                         except (ValueError, KeyError, AttributeError) as e:
                             logger.debug(
                                 "Could not compute diameter for %s: %s", dp.name, e
@@ -449,36 +388,26 @@ class VisibilityAnalyzer:
                         night_info,
                         coarse=True,
                     )
-                    visibility.magnitude = ast.magnitude_h
                     visibility.subtype = "asteroid"
 
                     # Calculate apparent diameter
                     if visibility.is_visible and visibility.max_altitude_time:
                         try:
-                            t_peak = self.calculator.ts.utc(
-                                visibility.max_altitude_time.year,
-                                visibility.max_altitude_time.month,
-                                visibility.max_altitude_time.day,
-                                visibility.max_altitude_time.hour,
-                                visibility.max_altitude_time.minute,
-                            )
+                            peak_time = visibility.max_altitude_time
+                            t_peak = self.calculator.ts.from_datetime(peak_time)
                             earth = self.calculator.earth
                             astrometric = earth.at(t_peak).observe(ast_obj)
                             distance_au = astrometric.distance().au
+                            visibility.magnitude = (
+                                self.calculator.calculate_minor_planet_magnitude(
+                                    ast, ast_obj, peak_time
+                                )
+                            )
                             visibility.apparent_diameter_arcsec = (
                                 calculate_small_body_apparent_diameter(
                                     distance_au, ast.name
                                 )
                             )
-                            # Calculate min/max from orbital parameters (approximate)
-                            if ast.name in SMALL_BODY_DIAMETERS:
-                                # Use typical perihelion/aphelion distances for range
-                                visibility.apparent_diameter_min = (
-                                    visibility.apparent_diameter_arcsec * 0.7
-                                )
-                                visibility.apparent_diameter_max = (
-                                    visibility.apparent_diameter_arcsec * 1.3
-                                )
                         except (ValueError, KeyError, AttributeError) as e:
                             logger.debug(
                                 "Could not compute diameter for %s: %s", ast.name, e
@@ -511,7 +440,7 @@ class VisibilityAnalyzer:
 
         # Get weather data if available
         weather = None
-        if weather_forecast:
+        if weather_forecast and night_info.astronomical_night_mode != "none":
             weather = weather_forecast.get_night_weather(
                 date,
                 night_info.astronomical_dusk,
@@ -564,6 +493,9 @@ class VisibilityAnalyzer:
             List of ScoredObject instances, sorted by score (highest first)
         """
         all_scored = []
+
+        if forecast.night_info.astronomical_night_mode == "none":
+            return all_scored
 
         # Get observation window
         window_start = forecast.night_info.astronomical_dusk

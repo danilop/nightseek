@@ -24,10 +24,10 @@ function getSeasonsForYear(year: number): {
   } catch (_error) {
     // Return approximate dates as fallback
     return {
-      marchEquinox: new Date(year, 2, 20),
-      juneSolstice: new Date(year, 5, 21),
-      septemberEquinox: new Date(year, 8, 22),
-      decemberSolstice: new Date(year, 11, 21),
+      marchEquinox: new Date(Date.UTC(year, 2, 20, 12)),
+      juneSolstice: new Date(Date.UTC(year, 5, 21, 12)),
+      septemberEquinox: new Date(Date.UTC(year, 8, 22, 12)),
+      decemberSolstice: new Date(Date.UTC(year, 11, 21, 12)),
     };
   }
 }
@@ -37,7 +37,9 @@ function getSeasonsForYear(year: number): {
  */
 function getNextSeasonalMarker(date: Date, windowDays: number = 7): SeasonalMarker | null {
   try {
-    const year = date.getFullYear();
+    // Seasonal events are global instants; use the UTC year so results do not
+    // depend on the browser/device timezone.
+    const year = date.getUTCFullYear();
 
     // Get seasons for current and next year
     const currentYearSeasons = getSeasonsForYear(year);
@@ -77,9 +79,9 @@ function getNextSeasonalMarker(date: Date, windowDays: number = 7): SeasonalMark
  */
 export function describeSeasonalMarker(marker: SeasonalMarker): string {
   const descriptions: Record<SeasonType, string> = {
-    march_equinox: 'March Equinox - day and night equal length',
+    march_equinox: 'March Equinox - Sun crosses the celestial equator northward',
     june_solstice: 'June Solstice - longest day in Northern Hemisphere',
-    september_equinox: 'September Equinox - day and night equal length',
+    september_equinox: 'September Equinox - Sun crosses the celestial equator southward',
     december_solstice: 'December Solstice - shortest day in Northern Hemisphere',
   };
 

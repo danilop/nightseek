@@ -63,17 +63,6 @@ class ForecastFormatter:
         "supernova_remnant": "💥",
     }
 
-    # Planet magnitudes (approximate visual magnitudes)
-    PLANET_MAGNITUDES = {
-        "Mercury": 0.0,
-        "Venus": -4.0,
-        "Mars": 0.5,
-        "Jupiter": -2.5,
-        "Saturn": 0.5,
-        "Uranus": 5.7,
-        "Neptune": 7.8,
-    }
-
     def __init__(self, tz_converter):
         """Initialize the formatter.
 
@@ -393,10 +382,16 @@ class ForecastFormatter:
         for i, forecast in enumerate(forecasts):
             date_str = forecast.night_info.date.strftime("%a, %b %d")
 
-            # Format night time interval (astronomical dusk to dawn)
-            dusk_time = self.tz.format_time(forecast.night_info.astronomical_dusk)
-            dawn_time = self.tz.format_time(forecast.night_info.astronomical_dawn)
-            night_str = f"{dusk_time}-{dawn_time}"
+            # Format astronomical darkness without presenting polar fallback
+            # bounds as real dusk/dawn events.
+            if forecast.night_info.astronomical_night_mode == "none":
+                night_str = "No astro dark"
+            elif forecast.night_info.astronomical_night_mode == "continuous":
+                night_str = "24h astro dark"
+            else:
+                dusk_time = self.tz.format_time(forecast.night_info.astronomical_dusk)
+                dawn_time = self.tz.format_time(forecast.night_info.astronomical_dawn)
+                night_str = f"{dusk_time}-{dawn_time}"
 
             phase_name = self._get_moon_phase_name(forecast.night_info.moon_phase)
             moon_icon = self._get_moon_icon(phase_name)
@@ -439,10 +434,8 @@ class ForecastFormatter:
                 if forecast.weather:
                     # Show cloud cover range (min-max) during night
                     cloud_str = f"{forecast.weather.min_cloud_cover:.0f}-{forecast.weather.max_cloud_cover:.0f}%"
-                    # Best time to observe (uses shared helper with moon data)
-                    time_str, best_cloud = self._get_best_time_str(
-                        forecast.weather, forecast.night_info
-                    )
+                    # Best time to observe (uses shared weather helper)
+                    time_str, best_cloud = self._get_best_time_str(forecast.weather)
                     if time_str:
                         best_time_str = (
                             f"[green]{time_str}[/green]"
@@ -570,12 +563,14 @@ class ForecastFormatter:
 
                 # Peak status
                 if shower.days_from_peak is not None:
-                    if shower.days_from_peak == 0:
+                    peak_distance = abs(shower.days_from_peak)
+                    if peak_distance < 0.5:
                         peak_status = "[bold yellow]PEAK TONIGHT[/bold yellow]"
-                    elif shower.days_from_peak == 1:
+                    elif peak_distance < 1.5:
                         peak_status = "near peak"
-                    elif shower.days_from_peak <= 3:
-                        peak_status = f"{shower.days_from_peak}d from peak"
+                    elif peak_distance <= 3.5:
+                        direction = "after" if shower.days_from_peak > 0 else "before"
+                        peak_status = f"{peak_distance:.1f}d {direction} peak"
                     else:
                         peak_status = "active"
                 else:
@@ -763,9 +758,7 @@ class ForecastFormatter:
                 details.append(f"[red]Transparency: {ts:.0f}%[/red]")
 
         # Best observing time (uses helper for DRY with weekly forecast)
-        best_time_info = self._format_best_time_info(
-            weather, include_clouds=True, night_info=night_info
-        )
+        best_time_info = self._format_best_time_info(weather, include_clouds=True)
         if best_time_info:
             details.append(best_time_info)
 
@@ -839,7 +832,8 @@ class ForecastFormatter:
         from typing import Any
 
         if (
-            not forecast.night_info.astronomical_dusk
+            forecast.night_info.astronomical_night_mode == "none"
+            or not forecast.night_info.astronomical_dusk
             or not forecast.night_info.astronomical_dawn
         ):
             return []
@@ -1040,8 +1034,6 @@ class ForecastFormatter:
             mag = None
             if hasattr(obj, "magnitude") and obj.magnitude is not None:
                 mag = obj.magnitude
-            elif name in self.PLANET_MAGNITUDES:
-                mag = self.PLANET_MAGNITUDES[name]
 
             mag_str = f" (mag {mag:.1f})" if mag is not None else ""
 
@@ -1125,8 +1117,6 @@ class ForecastFormatter:
 
             # Get magnitude
             mag = scored.magnitude
-            if mag is None and scored.object_name in self.PLANET_MAGNITUDES:
-                mag = self.PLANET_MAGNITUDES[scored.object_name]
             mag_str = f" (mag {mag:.1f})" if mag is not None else ""
 
             # Add planet apparent diameter if available
@@ -1301,9 +1291,7 @@ class ForecastFormatter:
             if has_weather and forecast.weather:
                 conditions += f" • {self._format_cloud_conditions(forecast.weather)}"
                 # Add best observing time
-                best_time_info = self._format_best_time_info(
-                    forecast.weather, night_info=forecast.night_info
-                )
+                best_time_info = self._format_best_time_info(forecast.weather)
                 if best_time_info:
                     conditions += f" • {best_time_info}"
                 # Add air quality if notable
@@ -1336,8 +1324,6 @@ class ForecastFormatter:
 
                     # Get magnitude
                     mag = scored.magnitude
-                    if mag is None and scored.object_name in self.PLANET_MAGNITUDES:
-                        mag = self.PLANET_MAGNITUDES[scored.object_name]
                     mag_str = (
                         f" [italic](mag {mag:.1f})[/italic]" if mag is not None else ""
                     )
@@ -1399,43 +1385,28 @@ class ForecastFormatter:
             return f"{desc} ({avg:.0f}%)"
 
     def _get_best_time_str(
-        self, weather: NightWeather, night_info=None
+        self, weather: NightWeather
     ) -> tuple[str | None, float | None]:
         """Get best observing time string and cloud cover.
 
         Selects the best window using quality-based scoring that considers:
-        - Cloud cover (primary factor when altitude unavailable)
-        - Moon interference (if night_info provided)
+        - Measured cloud cover
 
-        This aligns with the Web's 4-factor scoring approach.
+        Moon interference is target- and time-dependent, so it is intentionally
+        excluded here rather than inferred from fabricated geometry.
 
         Args:
             weather: NightWeather with best_time and/or clear_windows
-            night_info: Optional NightInfo for moon data
-
         Returns:
             Tuple of (time_string, cloud_cover) or (None, None) if unavailable
         """
-        from scoring import get_cloud_quality, get_moon_quality
+        from scoring import get_cloud_quality
 
         # Prefer clear_windows if available - gives a range
         if weather.clear_windows:
             # Score windows using available factors
             def window_quality(w):
-                cloud_q = get_cloud_quality(w.avg_cloud_cover)
-
-                # Add moon quality if we have night_info
-                if night_info is not None:
-                    # Use a moderate separation estimate since we don't have
-                    # per-window object data. Moon illumination is the key factor.
-                    moon_q = get_moon_quality(
-                        moon_separation=60.0,  # Conservative estimate
-                        moon_illumination=night_info.moon_illumination,
-                        moon_altitude=30.0,  # Assume moon may be up
-                    )
-                    # Weight: cloud 50%, moon 50% (since we don't have altitude data)
-                    return cloud_q * 0.5 + moon_q * 0.5
-                return cloud_q
+                return get_cloud_quality(w.avg_cloud_cover)
 
             best_window = max(weather.clear_windows, key=window_quality)
             start_str = self.tz.format_time(best_window.start)
@@ -1450,7 +1421,7 @@ class ForecastFormatter:
         return None, None
 
     def _format_best_time_info(
-        self, weather: NightWeather, include_clouds: bool = False, night_info=None
+        self, weather: NightWeather, include_clouds: bool = False
     ) -> str | None:
         """Format best observing time with 'Best:' prefix and coloring.
 
@@ -1459,12 +1430,10 @@ class ForecastFormatter:
         Args:
             weather: NightWeather with best_time and/or clear_windows
             include_clouds: If True, append cloud percentage in parentheses
-            night_info: Optional NightInfo for quality-based window selection
-
         Returns:
             Formatted string like "Best: 2-4 AM" or "Best: 2 AM (25% clouds)"
         """
-        best_str, cloud_cover = self._get_best_time_str(weather, night_info)
+        best_str, cloud_cover = self._get_best_time_str(weather)
         if not best_str:
             return None
 

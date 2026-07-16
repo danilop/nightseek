@@ -91,13 +91,16 @@ describe('lunar-nodes', () => {
       }
     });
 
-    it('should find multiple node crossings in 60 days', () => {
+    it('returns one distinct eclipse season rather than every lunar node crossing', () => {
       const testDate = new Date('2025-01-15T12:00:00Z');
       const result = getUpcomingEclipseSeasons(testDate, 60);
 
-      // Moon crosses nodes approximately every 13.6 days
-      // With 60 days, we should see at least 2-4 node crossings
-      expect(result.length).toBeGreaterThanOrEqual(2);
+      expect(result).toHaveLength(1);
+    });
+
+    it('does not claim eclipse season is active between real seasons', () => {
+      expect(isInEclipseSeason(new Date('2025-01-15T12:00:00Z'))).toBe(false);
+      expect(isInEclipseSeason(new Date('2025-03-20T12:00:00Z'))).toBe(true);
     });
 
     it('should return seasons with all required properties', () => {
@@ -143,7 +146,7 @@ describe('lunar-nodes', () => {
         isActive: true,
       };
 
-      const result = getEclipseSeasonDescription(season);
+      const result = getEclipseSeasonDescription(season, new Date('2025-02-15T12:00:00Z'));
 
       expect(result).toContain('Eclipse Season Active');
       expect(result).toContain('Jan');
@@ -151,7 +154,7 @@ describe('lunar-nodes', () => {
     });
 
     it('should describe upcoming eclipse season within 30 days', () => {
-      const now = new Date();
+      const now = new Date('2025-01-01T12:00:00Z');
       const windowStart = new Date(now);
       windowStart.setDate(windowStart.getDate() + 20);
       const nodeCrossing = new Date(windowStart);
@@ -167,14 +170,14 @@ describe('lunar-nodes', () => {
         isActive: false,
       };
 
-      const result = getEclipseSeasonDescription(season);
+      const result = getEclipseSeasonDescription(season, now);
 
       expect(result).toContain('Eclipse Season begins');
       expect(result).toContain('days');
     });
 
     it('should return empty string for distant eclipse season', () => {
-      const now = new Date();
+      const now = new Date('2025-01-01T12:00:00Z');
       const windowStart = new Date(now);
       windowStart.setDate(windowStart.getDate() + 60);
       const nodeCrossing = new Date(windowStart);
@@ -190,7 +193,7 @@ describe('lunar-nodes', () => {
         isActive: false,
       };
 
-      const result = getEclipseSeasonDescription(season);
+      const result = getEclipseSeasonDescription(season, now);
 
       expect(result).toBe('');
     });

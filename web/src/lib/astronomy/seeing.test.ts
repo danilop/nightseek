@@ -146,7 +146,7 @@ describe('seeing', () => {
       expect(result.toLowerCase()).toContain('excellent');
     });
 
-    it('should include arcsec value', () => {
+    it('should identify the value as a weather proxy rather than measured FWHM', () => {
       const forecast: SeeingForecast = {
         rating: 'good',
         estimatedArcsec: 1.5,
@@ -156,7 +156,8 @@ describe('seeing', () => {
 
       const result = getSeeingDescription(forecast);
 
-      expect(result).toContain('1.5');
+      expect(result).toContain('weather-based seeing proxy');
+      expect(result).not.toContain('1.5');
     });
 
     it('should indicate low confidence when applicable', () => {

@@ -148,7 +148,8 @@ export function getPlanetConstellation(
   observer: Astronomy.Observer
 ): string {
   try {
-    const equator = Astronomy.Equator(body, time, observer, true, true);
+    // Constellation boundaries and Astronomy.Constellation use J2000 coordinates.
+    const equator = Astronomy.Equator(body, time, observer, false, true);
     return getConstellation(equator.ra, equator.dec);
   } catch (_error) {
     return 'Unknown';

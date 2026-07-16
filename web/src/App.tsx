@@ -8,6 +8,7 @@ import LoadingScreen from './components/ui/LoadingScreen';
 import OfflineBanner from './components/ui/OfflineBanner';
 import { generateForecast } from './lib/analyzer';
 import { CACHE_KEYS, setCache } from './lib/utils/cache';
+import { logger } from './lib/utils/logger';
 import { useApp } from './stores/AppContext';
 
 export default function App() {
@@ -53,6 +54,7 @@ export default function App() {
       });
       lastForecastLoadedAtRef.current = Date.now();
     } catch (err) {
+      logger.error('Forecast generation failed', err);
       dispatch({
         type: 'SET_ERROR',
         payload: err instanceof Error ? err.message : 'Failed to generate forecast',

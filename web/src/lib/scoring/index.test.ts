@@ -19,7 +19,6 @@ import {
   calculateMosaicPanels,
   calculateOppositionBonus,
   calculatePeakTimingScore,
-  calculatePerihelionBonus,
   calculateSeasonalWindowScore,
   calculateSeeingQualityScore,
   calculateTransientBonus,
@@ -268,29 +267,6 @@ describe('scoring', () => {
 
     it('should return 0 when elongation is undefined', () => {
       const score = calculateElongationBonus(undefined, 'Venus');
-      expect(score).toBe(0);
-    });
-  });
-
-  describe('calculatePerihelionBonus', () => {
-    it('should give bonus for planet near perihelion', () => {
-      const score = calculatePerihelionBonus(true, 15, 'planet');
-      expect(score).toBeGreaterThan(0);
-    });
-
-    it('should scale with brightness boost', () => {
-      const lowBoost = calculatePerihelionBonus(true, 5, 'planet');
-      const highBoost = calculatePerihelionBonus(true, 20, 'planet');
-      expect(highBoost).toBeGreaterThan(lowBoost);
-    });
-
-    it('should return 0 for non-planets', () => {
-      const score = calculatePerihelionBonus(true, 15, 'dso');
-      expect(score).toBe(0);
-    });
-
-    it('should return 0 when not near perihelion', () => {
-      const score = calculatePerihelionBonus(false, 0, 'planet');
       expect(score).toBe(0);
     });
   });

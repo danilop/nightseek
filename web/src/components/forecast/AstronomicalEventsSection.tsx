@@ -16,9 +16,9 @@ import { getVenusPeakDescription } from '@/lib/astronomy/venus-peak';
 import { describeLunarEclipse, describeSolarEclipse } from '@/lib/events/eclipses';
 import { describeSeasonalMarker, getSeasonalMarkerName } from '@/lib/events/seasons';
 import { getTransitAlertSummary } from '@/lib/events/transits';
-import { formatTime, getNightLabel } from '@/lib/utils/format';
+import { formatDate, formatTime, formatTimeRange, getNightLabel } from '@/lib/utils/format';
 import { useApp } from '@/stores/AppContext';
-import type { AstronomicalEvents } from '@/types';
+import type { AstronomicalEvents, LunarEclipse, SolarEclipse } from '@/types';
 import CloseApproachCard from './CloseApproachCard';
 import SpaceWeatherCard from './SpaceWeatherCard';
 
@@ -105,31 +105,9 @@ function CelestialEventCards({
 
   return (
     <>
-      {events.lunarEclipse && (
-        <EventCard
-          icon={<Moon className="h-4 w-4 text-orange-400" />}
-          title="Lunar Eclipse"
-          description={describeLunarEclipse(events.lunarEclipse)}
-          time={events.lunarEclipse.peakTime}
-          isHighlight={events.lunarEclipse.kind === 'total'}
-          details={
-            events.lunarEclipse.kind !== 'penumbral'
-              ? `${events.lunarEclipse.kind.charAt(0).toUpperCase() + events.lunarEclipse.kind.slice(1)} eclipse`
-              : undefined
-          }
-        />
-      )}
+      {events.lunarEclipse && <LunarEclipseCard eclipse={events.lunarEclipse} />}
 
-      {events.solarEclipse && (
-        <EventCard
-          icon={<Sun className="h-4 w-4 text-yellow-400" />}
-          title="Solar Eclipse"
-          description={describeSolarEclipse(events.solarEclipse)}
-          time={events.solarEclipse.peakTime}
-          isHighlight={events.solarEclipse.kind === 'total'}
-          details={`${(events.solarEclipse.obscuration * 100).toFixed(0)}% obscuration at ${events.solarEclipse.altitude.toFixed(0)}° altitude`}
-        />
-      )}
+      {events.solarEclipse && <SolarEclipseCard eclipse={events.solarEclipse} />}
 
       {events.lunarApsis?.isSupermoon && (
         <EventCard
@@ -151,7 +129,7 @@ function CelestialEventCards({
             title={`${opposition.planet} at Opposition`}
             description={
               opposition.daysUntil === 0
-                ? `Opposition ${getNightLabel(nightDate)}!`
+                ? `Opposition ${getNightLabel(nightDate, false, timezone)}!`
                 : opposition.daysUntil < 0
                   ? `${Math.abs(opposition.daysUntil)} days ago`
                   : `In ${opposition.daysUntil} days`
@@ -190,7 +168,7 @@ function CelestialEventCards({
         <EventCard
           icon={<span className="text-lg">{getMoonPhaseEmoji(events.moonPhaseEvent.phase)}</span>}
           title={getMoonPhaseName(events.moonPhaseEvent.phase)}
-          description={`Exact ${getMoonPhaseName(events.moonPhaseEvent.phase).toLowerCase()} ${getNightLabel(nightDate)}`}
+          description={`Exact ${getMoonPhaseName(events.moonPhaseEvent.phase).toLowerCase()} ${getNightLabel(nightDate, false, timezone)}`}
           time={events.moonPhaseEvent.time}
           isHighlight={
             events.moonPhaseEvent.phase === 'full' || events.moonPhaseEvent.phase === 'new'
@@ -203,7 +181,7 @@ function CelestialEventCards({
         <EventCard
           icon={<AlertTriangle className="h-4 w-4 text-orange-400" />}
           title="Eclipse Season Active"
-          description={getEclipseSeasonDescription(events.eclipseSeason)}
+          description={getEclipseSeasonDescription(events.eclipseSeason, nightDate, timezone)}
           time={events.eclipseSeason.nodeCrossingTime}
           isHighlight
           details="Watch for potential eclipses"
@@ -228,10 +206,10 @@ function CelestialEventCards({
           title={`${apsis.planet} Near Perihelion`}
           description={getPlanetApsisDescription(apsis)}
           time={apsis.date}
-          isHighlight={apsis.brightnessBoostPercent >= 10}
+          isHighlight={false}
           details={
-            apsis.brightnessBoostPercent > 0
-              ? `+${apsis.brightnessBoostPercent}% brighter`
+            apsis.solarFluxBoostPercent > 0
+              ? `${apsis.solarFluxBoostPercent}% more sunlight than at mean distance`
               : undefined
           }
         />
@@ -248,6 +226,177 @@ function CelestialEventCards({
         />
       )}
     </>
+  );
+}
+
+function EclipseCoverageMeter({
+  value,
+  label,
+  children,
+}: {
+  value: number;
+  label: string;
+  children: React.ReactNode;
+}) {
+  const percent = Math.round(Math.max(0, Math.min(1, value)) * 100);
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1">
+      <div
+        role="img"
+        aria-label={`${percent}% ${label}`}
+        className="grid h-16 w-16 place-items-center rounded-full p-1"
+        style={{
+          background: `conic-gradient(rgb(56 189 248) ${percent}%, rgb(55 65 81) ${percent}% 100%)`,
+        }}
+      >
+        <div className="grid h-full w-full place-items-center rounded-full bg-night-900">
+          {children}
+          <span className="sr-only">{percent}%</span>
+        </div>
+      </div>
+      <span className="text-[0.65rem] text-gray-500">{percent}%</span>
+    </div>
+  );
+}
+
+function EclipseTimeline({
+  start,
+  peak,
+  end,
+  timezone,
+}: {
+  start: Date;
+  peak: Date;
+  end: Date;
+  timezone?: string;
+}) {
+  return (
+    <div role="group" className="mt-3 grid grid-cols-3 gap-2" aria-label="Eclipse timeline">
+      {[
+        ['Starts', start],
+        ['Maximum', peak],
+        ['Ends', end],
+      ].map(([label, time], index) => (
+        <div key={label as string} className="relative text-center">
+          <div className="mb-1 flex items-center">
+            <span className={`h-px flex-1 ${index === 0 ? 'bg-transparent' : 'bg-sky-500/40'}`} />
+            <span className="h-2 w-2 rounded-full bg-sky-400" />
+            <span className={`h-px flex-1 ${index === 2 ? 'bg-transparent' : 'bg-sky-500/40'}`} />
+          </div>
+          <div className="text-[0.65rem] text-gray-500">{label as string}</div>
+          <div className="font-medium text-gray-200 text-xs">
+            {formatTime(time as Date, timezone)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SolarEclipseCard({ eclipse }: { eclipse: SolarEclipse }) {
+  const { state } = useApp();
+  const timezone = state.location?.timezone;
+  const kind = eclipse.kind.charAt(0).toUpperCase() + eclipse.kind.slice(1);
+  const geometricPeakHidden =
+    Math.abs(eclipse.geometricPeakTime.getTime() - eclipse.peakTime.getTime()) > 60_000;
+
+  return (
+    <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Sun className="h-4 w-4 text-yellow-400" />
+          <span className="font-medium text-white">{kind} Solar Eclipse</span>
+        </div>
+        <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs text-yellow-300">
+          {formatDate(eclipse.peakTime, timezone)}
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-center gap-4">
+        <EclipseCoverageMeter value={eclipse.obscuration} label="maximum visible solar coverage">
+          <Sun className="h-7 w-7 text-yellow-300" />
+        </EclipseCoverageMeter>
+        <div className="min-w-0 text-sm">
+          <p className="text-gray-200">{describeSolarEclipse(eclipse)}</p>
+          <p className="mt-1 text-gray-400 text-xs">
+            Visible {formatTimeRange(eclipse.visibleStart, eclipse.visibleEnd, timezone)} · Sun{' '}
+            {eclipse.altitude.toFixed(0)}° high at visible maximum
+          </p>
+          {eclipse.centralStart && eclipse.centralEnd && eclipse.kind !== 'partial' && (
+            <p className="mt-1 text-sky-300 text-xs">
+              {kind} phase {formatTimeRange(eclipse.centralStart, eclipse.centralEnd, timezone)}
+            </p>
+          )}
+          {geometricPeakHidden && (
+            <p className="mt-1 text-amber-300 text-xs">
+              Geometric maximum is below the horizon; coverage shown is the observable maximum.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <EclipseTimeline
+        start={eclipse.partialStart}
+        peak={eclipse.peakTime}
+        end={eclipse.partialEnd}
+        timezone={timezone}
+      />
+      <p className="mt-3 rounded-md bg-red-500/10 px-2 py-1.5 text-red-200 text-xs">
+        Never look at the Sun directly. Use certified ISO 12312-2 eclipse viewers or a proper solar
+        filter.
+      </p>
+    </div>
+  );
+}
+
+function LunarEclipseCard({ eclipse }: { eclipse: LunarEclipse }) {
+  const { state } = useApp();
+  const timezone = state.location?.timezone;
+  const kind = eclipse.kind.charAt(0).toUpperCase() + eclipse.kind.slice(1);
+  const timelineStart = eclipse.penumbralStart ?? eclipse.peakTime;
+  const timelineEnd = eclipse.penumbralEnd ?? eclipse.peakTime;
+
+  return (
+    <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Moon className="h-4 w-4 text-orange-300" />
+          <span className="font-medium text-white">{kind} Lunar Eclipse</span>
+        </div>
+        <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-orange-200 text-xs">
+          {formatDate(eclipse.peakTime, timezone)}
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-center gap-4">
+        <EclipseCoverageMeter value={eclipse.obscuration} label="global maximum umbral coverage">
+          <Moon className="h-7 w-7 text-orange-200" />
+        </EclipseCoverageMeter>
+        <div className="min-w-0 text-sm">
+          <p className="text-gray-200">{describeLunarEclipse(eclipse)}</p>
+          {eclipse.visibleStart && eclipse.visibleEnd ? (
+            <p className="mt-1 text-gray-400 text-xs">
+              Locally visible {formatTimeRange(eclipse.visibleStart, eclipse.visibleEnd, timezone)}{' '}
+              · up to {eclipse.maxAltitude.toFixed(0)}° high
+            </p>
+          ) : (
+            <p className="mt-1 text-gray-500 text-xs">
+              The Moon remains below your local horizon during the eclipse.
+            </p>
+          )}
+          <p className="mt-1 text-gray-500 text-xs">
+            Meter shows the global maximum fraction of the Moon inside Earth’s umbra.
+          </p>
+        </div>
+      </div>
+
+      <EclipseTimeline
+        start={timelineStart}
+        peak={eclipse.peakTime}
+        end={timelineEnd}
+        timezone={timezone}
+      />
+    </div>
   );
 }
 
@@ -283,7 +432,7 @@ function EventCard({
       <p className="text-gray-400 text-sm">{description}</p>
       <div className="mt-2 flex items-center justify-between">
         <span className="text-gray-500 text-xs">
-          {time.toLocaleDateString()} at {formatTime(time, timezone)}
+          {formatDate(time, timezone)} at {formatTime(time, timezone)}
         </span>
         {details && <span className="text-gray-500 text-xs">{details}</span>}
       </div>

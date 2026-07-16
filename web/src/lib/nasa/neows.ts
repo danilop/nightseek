@@ -5,6 +5,7 @@
  * Fetches asteroid close approach data for display in astronomical events
  */
 
+import { formatInTimeZone } from 'date-fns-tz';
 import neoJson from '@/data/neo.json';
 import type { NeoCloseApproach } from '@/types';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
@@ -57,8 +58,34 @@ interface NeoWsNeo {
 /**
  * Format ISO date string for API request
  */
-function formatDateForApi(date: Date): string {
-  return date.toISOString().split('T')[0];
+function formatDateForApi(date: Date, timezone?: string): string {
+  return timezone
+    ? formatInTimeZone(date, timezone, 'yyyy-MM-dd')
+    : date.toISOString().split('T')[0];
+}
+
+export function parseCloseApproachTime(value: string): Date {
+  const match = value.match(/^(\d{4})-([A-Za-z]{3})-(\d{2})\s+(\d{2}):(\d{2})$/);
+  if (!match) return new Date(value);
+
+  const monthIndex = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ].indexOf(match[2]);
+  if (monthIndex < 0) return new Date(Number.NaN);
+  return new Date(
+    Date.UTC(Number(match[1]), monthIndex, Number(match[3]), Number(match[4]), Number(match[5]))
+  );
 }
 
 /**
@@ -124,7 +151,7 @@ function transformNeoData(data: NeoWsApiResponse, targetDate: Date): NeoCloseApp
         min: diameterMin,
         max: diameterMax,
       },
-      closeApproachDate: new Date(approach.close_approach_date_full),
+      closeApproachDate: parseCloseApproachTime(approach.close_approach_date_full),
       missDistanceLunarDistances: missDistanceLD,
       relativeVelocityKmh: Number.parseFloat(approach.relative_velocity.kilometers_per_hour),
       absoluteMagnitude: neo.absolute_magnitude_h,
@@ -171,21 +198,48 @@ function tryStaticNeoData(startDate: Date, days: number): Map<string, NeoCloseAp
   return result;
 }
 
+function enumerateCivilDateKeys(startDate: Date, days: number, timezone?: string): Set<string> {
+  const [year, month, day] = formatDateForApi(startDate, timezone).split('-').map(Number);
+  const anchor = Date.UTC(year, month - 1, day);
+  return new Set(
+    Array.from({ length: days }, (_, index) =>
+      new Date(anchor + index * 86_400_000).toISOString().slice(0, 10)
+    )
+  );
+}
+
+function keepRequestedDates(
+  result: Map<string, NeoCloseApproach[]>,
+  requestedDateKeys: ReadonlySet<string>
+): Map<string, NeoCloseApproach[]> {
+  return new Map([...result].filter(([dateKey]) => requestedDateKeys.has(dateKey)));
+}
+
 export async function fetchNeoCloseApproachesRange(
   startDate: Date,
-  days: number
+  days: number,
+  timezone?: string
 ): Promise<Map<string, NeoCloseApproach[]>> {
+  const requestedDateKeys = enumerateCivilDateKeys(startDate, days, timezone);
+  // NeoWs buckets encounters by UTC date. A civil day in an extreme timezone
+  // overlaps the preceding or following UTC day, so pad both sides before
+  // re-keying by the observer's timezone.
+  const queryStart = timezone ? new Date(startDate.getTime() - 86_400_000) : startDate;
+  const queryDays = timezone ? days + 2 : days;
+
   // Try pre-fetched static data first
-  const staticResult = tryStaticNeoData(startDate, days);
-  if (staticResult) return staticResult;
+  const staticResult = tryStaticNeoData(queryStart, queryDays);
+  if (staticResult) {
+    return keepRequestedDates(rekeyApproachesByTimezone(staticResult, timezone), requestedDateKeys);
+  }
 
   const result = new Map<string, NeoCloseApproach[]>();
   const MAX_DAYS_PER_REQUEST = 7;
 
-  for (let offset = 0; offset < days; offset += MAX_DAYS_PER_REQUEST) {
-    const batchStart = new Date(startDate);
+  for (let offset = 0; offset < queryDays; offset += MAX_DAYS_PER_REQUEST) {
+    const batchStart = new Date(queryStart);
     batchStart.setDate(batchStart.getDate() + offset);
-    const batchDays = Math.min(MAX_DAYS_PER_REQUEST, days - offset);
+    const batchDays = Math.min(MAX_DAYS_PER_REQUEST, queryDays - offset);
     const batchEnd = new Date(batchStart);
     batchEnd.setDate(batchEnd.getDate() + batchDays - 1);
 
@@ -222,6 +276,29 @@ export async function fetchNeoCloseApproachesRange(
     await setCache(cacheKey, batchResults);
   }
 
+  return keepRequestedDates(rekeyApproachesByTimezone(result, timezone), requestedDateKeys);
+}
+
+function rekeyApproachesByTimezone(
+  approachesByUtcDate: Map<string, NeoCloseApproach[]>,
+  timezone?: string
+): Map<string, NeoCloseApproach[]> {
+  if (!timezone) return approachesByUtcDate;
+
+  const result = new Map<string, NeoCloseApproach[]>();
+  for (const approaches of approachesByUtcDate.values()) {
+    for (const approach of approaches) {
+      const localDate = formatDateForApi(approach.closeApproachDate, timezone);
+      const existing = result.get(localDate) ?? [];
+      existing.push(approach);
+      result.set(localDate, existing);
+    }
+  }
+  for (const approaches of result.values()) {
+    approaches.sort(
+      (first, second) => first.closeApproachDate.getTime() - second.closeApproachDate.getTime()
+    );
+  }
   return result;
 }
 

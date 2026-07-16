@@ -24,6 +24,9 @@ describe('moon-phases', () => {
       sunrise,
       astronomicalDusk: new Date(sunset.getTime() + 90 * 60 * 1000),
       astronomicalDawn: new Date(sunrise.getTime() - 90 * 60 * 1000),
+      sunsetOccurs: true,
+      sunriseOccurs: true,
+      astronomicalNightMode: 'normal',
       moonPhase: 0.5,
       moonIllumination: 100,
       moonRise: null,
@@ -98,6 +101,17 @@ describe('moon-phases', () => {
 
       // tonightEvent can be null if no phase occurs tonight
       expect(result.tonightEvent === null || result.tonightEvent.isTonight === true).toBe(true);
+    });
+
+    it('does not call a phase tonight when there is no astronomical darkness', () => {
+      const phase = getNextPhaseOfType(new Date('2025-01-01T00:00:00Z'), 'full');
+      const testDate = new Date(phase.time.getTime() - 60 * 60 * 1000);
+      const nightInfo = createMockNightInfo(testDate);
+      nightInfo.astronomicalNightMode = 'none';
+      nightInfo.sunset = new Date(phase.time.getTime() - 2 * 60 * 60 * 1000);
+      nightInfo.sunrise = new Date(phase.time.getTime() + 2 * 60 * 60 * 1000);
+
+      expect(getMoonPhaseEvents(testDate, nightInfo).tonightEvent).toBeNull();
     });
   });
 

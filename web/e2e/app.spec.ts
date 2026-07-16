@@ -12,7 +12,7 @@ test.describe('NightSeek App', () => {
     await expect(header).toBeVisible();
 
     // Check for app title or logo
-    await expect(page.getByRole('link', { name: /nightseek/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'NightSeek' })).toBeVisible();
   });
 
   test('should show setup screen on first visit', async ({ page }) => {
@@ -21,7 +21,7 @@ test.describe('NightSeek App', () => {
     await page.reload();
 
     // Should show location setup
-    await expect(page.getByText(/location/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Set Your Location' })).toBeVisible();
   });
 
   test('should allow location search', async ({ page }) => {
@@ -90,9 +90,12 @@ test.describe('Accessibility', () => {
   test('should be keyboard navigable', async ({ page }) => {
     await page.goto('/');
 
-    // Tab through focusable elements
-    await page.keyboard.press('Tab');
-    const focusedElement = page.locator(':focus');
-    await expect(focusedElement).toBeVisible();
+    // WebKit emulates the platform's Full Keyboard Access preference, so
+    // focus a native control directly and verify that it participates in the
+    // document focus order on every engine.
+    const firstControl = page.getByRole('button').first();
+    await firstControl.focus();
+    await expect(firstControl).toBeFocused();
+    expect(await firstControl.getAttribute('tabindex')).not.toBe('-1');
   });
 });

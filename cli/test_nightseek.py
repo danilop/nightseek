@@ -1,8 +1,13 @@
 """Tests for nightseek astronomy observation planning tool."""
 
+from datetime import datetime, timezone
+
 from catalog import Catalog, CelestialObject, Comet
 from formatter import ForecastFormatter
 from analyzer import VisibilityAnalyzer
+from event_detection import detect_meteor_showers
+from scoring import calculate_solar_ra_hours
+from sky_calculator import SkyCalculator, calculate_hg_magnitude
 
 
 class TestCatalog:
@@ -138,20 +143,39 @@ class TestForecastFormatter:
         assert desc == "Cloudy"
         assert color == "red"
 
-    def test_planet_magnitudes_defined(self):
-        """All major planets should have magnitudes defined."""
-        expected_planets = [
-            "Mercury",
-            "Venus",
-            "Mars",
-            "Jupiter",
-            "Saturn",
-            "Uranus",
-            "Neptune",
-        ]
-        for planet in expected_planets:
-            assert planet in ForecastFormatter.PLANET_MAGNITUDES
-            assert isinstance(ForecastFormatter.PLANET_MAGNITUDES[planet], (int, float))
+    def test_planet_magnitude_uses_epoch_geometry(self):
+        """Planet brightness should come from geometry, not a fixed lookup."""
+        from skyfield.magnitudelib import planetary_magnitude
+
+        calculator = SkyCalculator(51.5074, -0.1278)
+        january = calculator.ts.utc(2026, 1, 1)
+        july = calculator.ts.utc(2026, 7, 1)
+        january_mars = planetary_magnitude(
+            calculator.earth.at(january).observe(calculator.mars)
+        )
+        july_mars = planetary_magnitude(
+            calculator.earth.at(july).observe(calculator.mars)
+        )
+
+        assert abs(float(january_mars) - float(july_mars)) > 0.1
+
+
+class TestMeteorShowers:
+    """Meteor timing uses annual solar-longitude geometry."""
+
+    def test_quadrantids_in_late_december_use_the_upcoming_january_peak(self):
+        calculator = SkyCalculator(51.5074, -0.1278)
+        night = calculator.get_night_info(datetime(2026, 12, 30))
+        moon = calculator.calculate_object_visibility(
+            calculator.moon, "Moon", "moon", night
+        )
+
+        showers = detect_meteor_showers(calculator, night, moon)
+        quadrantids = next(shower for shower in showers if shower.code == "QUA")
+
+        assert quadrantids.days_from_peak is not None
+        assert -5 < quadrantids.days_from_peak < 0
+        assert quadrantids.radiant_ra_deg < 230.0
 
 
 class TestVisibilityAnalyzer:
@@ -180,6 +204,102 @@ class TestVisibilityAnalyzer:
         analyzer = VisibilityAnalyzer(45.0, -122.0)
         assert analyzer._get_quality_description(30) == "Fair"
         assert analyzer._get_quality_description(44) == "Fair"
+
+
+class TestNightBoundaries:
+    """Civil-night and polar-condition regressions."""
+
+    def test_requested_night_is_anchored_to_observer_local_noon(self):
+        calculator = SkyCalculator(-36.8485, 174.7633)  # Auckland
+        night = calculator.get_night_info(datetime(2026, 7, 16))
+
+        local_sunset = night.sunset.astimezone(calculator.timezone)
+        local_sunrise = night.sunrise.astimezone(calculator.timezone)
+        assert local_sunset.date().isoformat() == "2026-07-16"
+        assert local_sunrise.date().isoformat() == "2026-07-17"
+        assert night.astronomical_night_mode == "normal"
+
+    def test_midnight_sun_has_no_astronomical_observing_window(self):
+        calculator = SkyCalculator(69.6492, 18.9553)  # Tromso
+        night = calculator.get_night_info(datetime(2026, 6, 21))
+
+        assert night.astronomical_night_mode == "none"
+        assert night.astronomical_dusk == night.astronomical_dawn
+        assert not night.sunset_occurs
+
+
+class TestPrecisionRegressions:
+    """Independent and invariant-based astronomy regressions."""
+
+    def test_ceres_matches_jpl_horizons(self):
+        calculator = SkyCalculator(0, 0)
+        ceres = next(
+            body for body in Catalog().load_dwarf_planets() if body.name == "Ceres"
+        )
+        ceres_object = calculator.create_minor_planet(ceres)
+        when = datetime(2026, 7, 16, tzinfo=timezone.utc)
+        ra, dec, distance = (
+            calculator.earth.at(calculator.ts.from_datetime(when))
+            .observe(ceres_object)
+            .radec()
+        )
+
+        # JPL Horizons geocentric ICRF observer ephemeris (solution 48/DE441).
+        assert abs(ra.hours * 15 - 78.270079573) < 0.001
+        assert abs(dec.degrees - 21.090624255) < 0.001
+        assert abs(distance.au - 3.51684237480505) < 0.00001
+
+    def test_hg_model_includes_distance_and_phase_dimming(self):
+        opposition = calculate_hg_magnitude(3.2, 0.32, 2.4, 1.4, 0)
+        phased = calculate_hg_magnitude(3.2, 0.32, 2.4, 1.4, 30)
+
+        assert opposition > 3.2
+        assert phased > opposition
+
+    def test_seasonal_solar_ra_agrees_with_jpl_ephemeris(self):
+        calculator = SkyCalculator(0, 0)
+        for when in (
+            datetime(2026, 1, 15, tzinfo=timezone.utc),
+            datetime(2026, 7, 15, tzinfo=timezone.utc),
+        ):
+            skyfield_ra = (
+                calculator.earth.at(calculator.ts.from_datetime(when))
+                .observe(calculator.sun)
+                .apparent()
+                .radec(epoch="date")[0]
+                .hours
+            )
+            delta_hours = abs(calculate_solar_ra_hours(when) - skyfield_ra)
+            delta_hours = min(delta_hours, 24 - delta_hours)
+            assert delta_hours < 0.01
+
+    def test_altitude_threshold_times_are_interpolated(self):
+        from skyfield.api import Star
+
+        calculator = SkyCalculator(51.5074, -0.1278)
+        night = calculator.get_night_info(datetime(2026, 8, 16))
+        altair = Star(ra_hours=19.8464, dec_degrees=8.8683)
+        visibility = calculator.calculate_object_visibility(
+            altair, "Altair", "star", night
+        )
+
+        assert visibility.above_45_start is not None
+        assert visibility.above_45_end is not None
+        observer = calculator.earth + calculator.location
+        checked_crossings = 0
+        for boundary in (visibility.above_45_start, visibility.above_45_end):
+            if boundary in (night.astronomical_dusk, night.astronomical_dawn):
+                continue
+            altitude = (
+                observer.at(calculator.ts.from_datetime(boundary))
+                .observe(altair)
+                .apparent()
+                .altaz()[0]
+                .degrees
+            )
+            assert abs(altitude - 45) < 0.1
+            checked_crossings += 1
+        assert checked_crossings > 0
 
 
 class TestCelestialObject:

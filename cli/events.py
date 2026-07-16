@@ -21,6 +21,9 @@ class MeteorShower:
     radiant_dec_deg: float  # Declination in degrees
     velocity_kms: float  # Entry velocity in km/s
     parent_object: str
+    solar_longitude_peak: float  # Apparent geocentric ecliptic longitude of Sun
+    radiant_ra_drift: float = 0.0  # Degrees per day relative to peak
+    radiant_dec_drift: float = 0.0  # Degrees per day relative to peak
 
     # Calculated fields (set during analysis)
     is_active: bool = False
@@ -30,10 +33,9 @@ class MeteorShower:
     moon_separation_deg: Optional[float] = None
 
 
-# Major meteor showers for 2026
-# Data source: International Meteor Organization (IMO)
-# https://www.imo.net/resources/calendar/
-METEOR_SHOWERS_2026 = [
+# Major annual meteor showers. Peak geometry and radiant drift are from the
+# IAU Meteor Data Center catalog; ZHR is a typical value, not a forecast.
+METEOR_SHOWERS = [
     MeteorShower(
         name="Quadrantids",
         code="QUA",
@@ -48,6 +50,9 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=49.0,
         velocity_kms=40.4,
         parent_object="2003 EH1 (Asteroid)",
+        solar_longitude_peak=283.16,
+        radiant_ra_drift=0.74,
+        radiant_dec_drift=-0.22,
     ),
     MeteorShower(
         name="Lyrids",
@@ -63,6 +68,8 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=34.0,
         velocity_kms=49.0,
         parent_object="C/1861 G1 (Thatcher)",
+        solar_longitude_peak=32.32,
+        radiant_ra_drift=1.1,
     ),
     MeteorShower(
         name="Eta Aquariids",
@@ -78,6 +85,9 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=-1.0,
         velocity_kms=65.4,
         parent_object="1P/Halley",
+        solar_longitude_peak=45.5,
+        radiant_ra_drift=0.9,
+        radiant_dec_drift=0.4,
     ),
     MeteorShower(
         name="Southern Delta Aquariids",
@@ -93,6 +103,9 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=-16.4,
         velocity_kms=41.0,
         parent_object="96P/Machholz",
+        solar_longitude_peak=127.0,
+        radiant_ra_drift=0.9,
+        radiant_dec_drift=0.4,
     ),
     MeteorShower(
         name="Alpha Capricornids",
@@ -108,6 +121,9 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=-10.0,
         velocity_kms=23.0,
         parent_object="169P/NEAT",
+        solar_longitude_peak=127.0,
+        radiant_ra_drift=0.8,
+        radiant_dec_drift=0.2,
     ),
     MeteorShower(
         name="Perseids",
@@ -123,6 +139,9 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=58.1,
         velocity_kms=59.0,
         parent_object="109P/Swift-Tuttle",
+        solar_longitude_peak=140.0,
+        radiant_ra_drift=1.3,
+        radiant_dec_drift=0.1,
     ),
     MeteorShower(
         name="Orionids",
@@ -138,6 +157,9 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=15.8,
         velocity_kms=66.0,
         parent_object="1P/Halley",
+        solar_longitude_peak=208.0,
+        radiant_ra_drift=0.7,
+        radiant_dec_drift=0.1,
     ),
     MeteorShower(
         name="Southern Taurids",
@@ -153,6 +175,9 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=14.5,
         velocity_kms=27.0,
         parent_object="2P/Encke",
+        solar_longitude_peak=223.0,
+        radiant_ra_drift=0.8,
+        radiant_dec_drift=0.2,
     ),
     MeteorShower(
         name="Northern Taurids",
@@ -168,6 +193,9 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=22.2,
         velocity_kms=29.0,
         parent_object="2P/Encke",
+        solar_longitude_peak=230.0,
+        radiant_ra_drift=0.8,
+        radiant_dec_drift=0.2,
     ),
     MeteorShower(
         name="Leonids",
@@ -183,6 +211,9 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=21.8,
         velocity_kms=69.7,
         parent_object="55P/Tempel-Tuttle",
+        solar_longitude_peak=235.27,
+        radiant_ra_drift=0.7,
+        radiant_dec_drift=-0.4,
     ),
     MeteorShower(
         name="Geminids",
@@ -198,6 +229,9 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=33.0,
         velocity_kms=35.0,
         parent_object="3200 Phaethon (Asteroid)",
+        solar_longitude_peak=262.2,
+        radiant_ra_drift=1.0,
+        radiant_dec_drift=-0.1,
     ),
     MeteorShower(
         name="Ursids",
@@ -213,5 +247,6 @@ METEOR_SHOWERS_2026 = [
         radiant_dec_deg=76.0,
         velocity_kms=33.1,
         parent_object="8P/Tuttle",
+        solar_longitude_peak=270.7,
     ),
 ]

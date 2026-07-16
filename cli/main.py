@@ -248,8 +248,11 @@ def forecast(
                 "[yellow]⚠ Weather data unavailable (network/cache error)[/yellow]"
             )
 
-    # Analyze forecast with progress bar
-    start_date = datetime.now()
+    # Analyze the observer's current civil night, not the computer's timezone.
+    from timezone_utils import TimezoneConverter
+
+    tz_converter = TimezoneConverter(lat, lon)
+    start_date = datetime.now(tz_converter.tz).replace(tzinfo=None)
     num_dsos = len(analyzer.catalog.get_all_dsos())
     num_dwarf_planets = len(analyzer.dwarf_planets)
     num_asteroids = len(analyzer.asteroids)
@@ -313,10 +316,8 @@ def forecast(
     best_dark_nights = analyzer.get_best_dark_nights(forecasts)
 
     # Create timezone converter and formatter (lazy imports)
-    from timezone_utils import TimezoneConverter
     from formatter import ForecastFormatter
 
-    tz_converter = TimezoneConverter(lat, lon)
     formatter = ForecastFormatter(tz_converter)
     formatter.format_forecast(
         forecasts,

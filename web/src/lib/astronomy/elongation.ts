@@ -9,6 +9,7 @@ const INNER_PLANETS: Array<{ name: 'Mercury' | 'Venus'; body: Astronomy.Body }> 
 
 // Window for considering "at max elongation"
 const ELONGATION_WINDOW_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Get current elongation (angular separation from Sun) for a planet
@@ -70,8 +71,7 @@ function isNearMaxElongation(
     const current = getElongation(body, date);
 
     // Search backwards to find if we're past a recent max elongation
-    const pastSearchDate = new Date(date);
-    pastSearchDate.setDate(pastSearchDate.getDate() - windowDays - 5);
+    const pastSearchDate = new Date(date.getTime() - (windowDays + 5) * DAY_MS);
     const pastMax = searchMaxElongation(body, pastSearchDate);
 
     if (pastMax) {

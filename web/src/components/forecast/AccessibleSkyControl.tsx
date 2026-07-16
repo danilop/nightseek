@@ -106,7 +106,7 @@ function getCompassStatusText(
   switch (state) {
     case 'tracking':
       if (!hasHeading) return 'Move the phone slowly until a direction locks in.';
-      return `Direction follows your phone${accuracy === null ? '' : ` · ±${Math.round(accuracy)}° reported accuracy`}.`;
+      return `Direction follows your phone${accuracy === null ? '' : ` · ±${Math.round(accuracy)}° reported accuracy`}. Device headings can reference magnetic north; verify the sector against true north.`;
     case 'requesting':
       return 'Waiting for motion/orientation permission…';
     case 'denied':
@@ -114,7 +114,7 @@ function getCompassStatusText(
     case 'error':
       return 'Compass heading is unavailable. You can still select directions manually.';
     default:
-      return 'Select a direction below, or use your phone compass to point at it.';
+      return 'Directions use true-north astronomical azimuth. Select manually, or use the phone compass as an approximate aid.';
   }
 }
 

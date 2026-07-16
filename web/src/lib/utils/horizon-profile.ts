@@ -111,7 +111,10 @@ export function normalizeHorizonProfile(value: unknown): HorizonProfile {
 }
 
 export function getHorizonProfileCacheKey(location: Location): string {
-  return `${CACHE_KEYS.HORIZON_PREFIX}${location.latitude.toFixed(2)},${location.longitude.toFixed(2)}`;
+  // Horizon obstructions are site-specific. Five decimal places are roughly
+  // metre-scale; the old two-decimal key could share a profile across sites
+  // more than a kilometre apart.
+  return `${CACHE_KEYS.HORIZON_PREFIX}${location.latitude.toFixed(5)},${location.longitude.toFixed(5)}`;
 }
 
 export function cycleSectorMinAltitude(current: number): number {
