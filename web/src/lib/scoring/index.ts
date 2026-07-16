@@ -88,14 +88,12 @@ export function calculateMoonInterference(
 
   // Calculate base from separation (inverted - higher separation = higher score)
   let score = 0;
-  if (moonSeparation !== null) {
-    if (moonSeparation > 90) score = 30;
-    else if (moonSeparation > 60) score = 24;
-    else if (moonSeparation > 30) score = 15;
-    else score = 6;
-  } else {
+  if (moonSeparation === null) {
     score = 15; // Default if unknown
-  }
+  } else if (moonSeparation > 90) score = 30;
+  else if (moonSeparation > 60) score = 24;
+  else if (moonSeparation > 30) score = 15;
+  else score = 6;
 
   // Apply illumination penalty
   const illumPenalty = (moonIllumination / 100) * 0.5;
@@ -492,7 +490,7 @@ export function calculateVenusPeakBonus(
   venusPeak: VenusPeakInfo | null
 ): number {
   if (objectName.toLowerCase() !== 'venus') return 0;
-  if (!venusPeak || !venusPeak.isNearPeak) return 0;
+  if (!venusPeak?.isNearPeak) return 0;
 
   // Scale bonus based on days from peak
   if (venusPeak.daysUntil <= 3) return 8;

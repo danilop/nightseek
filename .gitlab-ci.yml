@@ -5,12 +5,12 @@ stages:
 
 build:
   stage: build
-  image: node:20
+  image: node:24
   before_script:
     - corepack enable
-    - corepack prepare pnpm@8 --activate
+    - corepack prepare pnpm@11.13.1 --activate
     - cd web
-    - pnpm install
+    - pnpm install --frozen-lockfile
   script:
     - pnpm build --base ./
   artifacts:

@@ -925,7 +925,7 @@ class ForecastFormatter:
 
         # Assign scored objects to windows where they're actually visible
         for window in windows:
-            window_objects = []
+            window_objects: list[dict[str, Any]] = []
 
             for scored in scored_objects:
                 # Find matching visibility object

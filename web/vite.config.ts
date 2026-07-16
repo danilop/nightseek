@@ -118,6 +118,10 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      'satellite.js': path.resolve(
+        __dirname,
+        './src/lib/satellites/satellite-js-browser.ts'
+      ),
       '@': path.resolve(__dirname, './src'),
     },
   },
@@ -126,6 +130,6 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    minify: 'esbuild',
+    minify: 'oxc',
   },
 });

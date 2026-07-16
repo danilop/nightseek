@@ -164,12 +164,12 @@ async function calculateAllVisibilities(
   for (const dso of dsoCatalog) {
     const baseCommonName = dso.commonName || getCommonName(dso.name);
     let formattedCommonName: string;
-    if (dso.messierNumber !== null) {
+    if (dso.messierNumber === null) {
+      formattedCommonName = baseCommonName ?? dso.name;
+    } else {
       formattedCommonName = baseCommonName
         ? `M${dso.messierNumber} ${baseCommonName}`
         : `M${dso.messierNumber}`;
-    } else {
-      formattedCommonName = baseCommonName ?? dso.name;
     }
 
     const constellation = dso.constellation
@@ -558,9 +558,9 @@ export async function generateForecast(
     const forecastConfidence: 'high' | 'medium' | 'low' =
       weather !== null && weather.avgAerosolOpticalDepth !== null
         ? 'high'
-        : weather !== null
-          ? 'medium'
-          : 'low';
+        : weather === null
+          ? 'low'
+          : 'medium';
 
     nightInfo.seeingForecast = getSeeingFromWeather(weather);
 

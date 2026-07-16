@@ -1,4 +1,17 @@
-import * as satellite from 'satellite.js';
+import {
+  degreesToRadians,
+  ecfToLookAngles,
+  eciToEcf,
+  type GeodeticLocation,
+  gstime,
+  jday,
+  type LookAngles,
+  propagate,
+  radiansToDegrees,
+  type SatRec,
+  sunPos,
+  twoline2satrec,
+} from 'satellite.js';
 import type { Location, NightInfo, SatellitePass, TLEData } from '@/types';
 
 // Minimum altitude to consider a pass visible (degrees)
@@ -35,12 +48,12 @@ export function calculateSatellitePasses(
   const passes: SatellitePass[] = [];
 
   // Initialize satellite record from TLE
-  const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
+  const satrec = twoline2satrec(tle.line1, tle.line2);
 
   // Observer location
   const observerGd = {
-    longitude: satellite.degreesToRadians(location.longitude),
-    latitude: satellite.degreesToRadians(location.latitude),
+    longitude: degreesToRadians(location.longitude),
+    latitude: degreesToRadians(location.latitude),
     height: 0, // meters above sea level (assume sea level)
   };
 
@@ -100,8 +113,8 @@ export function calculateMultiSatellitePasses(
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Pass tracking requires state machine logic
 function findPasses(
-  satrec: satellite.SatRec,
-  observerGd: satellite.GeodeticLocation,
+  satrec: SatRec,
+  observerGd: GeodeticLocation,
   startTime: Date,
   endTime: Date,
   tle: TLEData,
@@ -116,7 +129,7 @@ function findPasses(
   const startMs = startTime.getTime();
   const endMs = endTime.getTime();
   const midpoint = new Date((startMs + endMs) / 2);
-  if (Math.abs(Number(satellite.jday(midpoint)) - satrec.jdsatepoch) > 14) return passes;
+  if (Math.abs(Number(jday(midpoint)) - satrec.jdsatepoch) > 14) return passes;
   let previousTime: Date | null = null;
   let previousVisible = false;
 
@@ -124,9 +137,9 @@ function findPasses(
     const time = new Date(timeMs);
     const observation = getObservation(satrec, observerGd, time);
     const altitudeDeg = observation
-      ? satellite.radiansToDegrees(observation.lookAngles.elevation)
+      ? radiansToDegrees(observation.lookAngles.elevation)
       : Number.NEGATIVE_INFINITY;
-    const azimuthDeg = observation ? satellite.radiansToDegrees(observation.lookAngles.azimuth) : 0;
+    const azimuthDeg = observation ? radiansToDegrees(observation.lookAngles.azimuth) : 0;
     const isVisible = Boolean(
       observation && altitudeDeg >= MIN_ALTITUDE_DEG && observation.isSunlit
     );
@@ -153,9 +166,7 @@ function findPasses(
           satelliteName: tle.name,
           noradId: tle.noradId,
           riseTime,
-          riseAzimuth: normalizeAzimuth(
-            satellite.radiansToDegrees(riseObservation.lookAngles.azimuth)
-          ),
+          riseAzimuth: normalizeAzimuth(radiansToDegrees(riseObservation.lookAngles.azimuth)),
           maxAltitude: altitudeDeg,
           maxTime: time,
           maxAzimuth: normalizeAzimuth(azimuthDeg),
@@ -173,7 +184,7 @@ function findPasses(
       // End of pass (satellite dropped below threshold)
       currentPass.setTime = setTime;
       currentPass.setAzimuth = normalizeAzimuth(
-        setObservation ? satellite.radiansToDegrees(setObservation.lookAngles.azimuth) : azimuthDeg
+        setObservation ? radiansToDegrees(setObservation.lookAngles.azimuth) : azimuthDeg
       );
       currentPass.duration = Math.round(
         (setTime.getTime() - (currentPass.riseTime?.getTime() ?? 0)) / 1000
@@ -211,8 +222,8 @@ function findPasses(
 }
 
 function refineVisibilityTransition(
-  satrec: satellite.SatRec,
-  observerGd: satellite.GeodeticLocation,
+  satrec: SatRec,
+  observerGd: GeodeticLocation,
   firstTime: Date,
   secondTime: Date
 ): Date {
@@ -231,15 +242,11 @@ function refineVisibilityTransition(
   return new Date(Math.round((firstMs + secondMs) / 2));
 }
 
-function isVisibleAt(
-  satrec: satellite.SatRec,
-  observerGd: satellite.GeodeticLocation,
-  time: Date
-): boolean {
+function isVisibleAt(satrec: SatRec, observerGd: GeodeticLocation, time: Date): boolean {
   const observation = getObservation(satrec, observerGd, time);
   return Boolean(
     observation &&
-      satellite.radiansToDegrees(observation.lookAngles.elevation) >= MIN_ALTITUDE_DEG &&
+      radiansToDegrees(observation.lookAngles.elevation) >= MIN_ALTITUDE_DEG &&
       observation.isSunlit
   );
 }
@@ -248,11 +255,11 @@ function isVisibleAt(
  * Get look angles (azimuth, elevation, range) for a satellite at a given time
  */
 function getObservation(
-  satrec: satellite.SatRec,
-  observerGd: satellite.GeodeticLocation,
+  satrec: SatRec,
+  observerGd: GeodeticLocation,
   time: Date
-): { lookAngles: satellite.LookAngles; isSunlit: boolean } | null {
-  const positionAndVelocity = satellite.propagate(satrec, time);
+): { lookAngles: LookAngles; isSunlit: boolean } | null {
+  const positionAndVelocity = propagate(satrec, time);
 
   if (
     !positionAndVelocity ||
@@ -262,9 +269,9 @@ function getObservation(
     return null;
   }
 
-  const gmst = satellite.gstime(time);
-  const positionEcf = satellite.eciToEcf(positionAndVelocity.position, gmst);
-  const lookAngles = satellite.ecfToLookAngles(observerGd, positionEcf);
+  const gmst = gstime(time);
+  const positionEcf = eciToEcf(positionAndVelocity.position, gmst);
+  const lookAngles = ecfToLookAngles(observerGd, positionEcf);
 
   return { lookAngles, isSunlit: isSatelliteSunlit(positionAndVelocity.position, time) };
 }
@@ -274,9 +281,9 @@ export function isSatelliteSunlit(
   positionEciKm: { x: number; y: number; z: number },
   time: Date
 ): boolean {
-  const sun = satellite.sunPos(satellite.jday(time)).rsun;
+  const sun = sunPos(jday(time)).rsun;
   const AU_KM = 149597870.7;
-  const sunVector = { x: sun[0] * AU_KM, y: sun[1] * AU_KM, z: sun[2] * AU_KM };
+  const sunVector = { x: sun.x * AU_KM, y: sun.y * AU_KM, z: sun.z * AU_KM };
   const sunDistance = Math.hypot(sunVector.x, sunVector.y, sunVector.z);
   const sunUnit = {
     x: sunVector.x / sunDistance,

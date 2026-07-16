@@ -20,6 +20,7 @@ CometEls.txt
 .ruff_cache/
 .pytest_cache/
 .playwright-mcp/
+.pnpm-store/
 
 # Editor/AI tool configs (user-specific)
 .kiro/

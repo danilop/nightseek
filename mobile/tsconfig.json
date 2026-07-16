@@ -15,13 +15,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
     "paths": {
-      "@/stores/AppContext": ["src/stores/AppContext"],
-      "@/lib/geo/location": ["src/lib/geo/location"],
-      "@/hooks/useInstallPrompt": ["src/hooks/useInstallPrompt"],
-      "@/components/layout/SettingsModal": ["src/components/layout/SettingsModal"],
-      "@/components/forecast/SkyChart": ["src/components/forecast/SkyChart"],
+      "@/stores/AppContext": ["./src/stores/AppContext"],
+      "@/lib/geo/location": ["./src/lib/geo/location"],
+      "@/hooks/useInstallPrompt": ["./src/hooks/useInstallPrompt"],
+      "@/components/layout/SettingsModal": ["./src/components/layout/SettingsModal"],
+      "@/components/forecast/SkyChart": ["./src/components/forecast/SkyChart"],
       "@/*": ["../web/src/*"]
     }
   },

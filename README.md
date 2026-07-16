@@ -629,7 +629,7 @@ nightseek/
 │   ├── src/            # Override files (~5 files)
 │   ├── ios/            # Xcode project (auto-generated)
 │   ├── public/vendor/  # Bundled d3-celestial scripts & data
-│   ├── capacitor.config.ts
+│   ├── capacitor.config.json
 │   ├── vite.config.ts  # Alias overrides (no PWA plugin)
 │   └── scripts/        # sync-deps.sh helper
 └── .github/workflows/  # CI/CD

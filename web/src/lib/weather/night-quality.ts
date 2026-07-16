@@ -230,17 +230,17 @@ function buildPenaltyBreakdown(
     {
       key: 'dewRisk',
       detail:
-        metrics.dewRiskHours !== null
-          ? `${Math.round(metrics.dewRiskHours)}h dew risk`
-          : 'unknown dew risk',
+        metrics.dewRiskHours === null
+          ? 'unknown dew risk'
+          : `${Math.round(metrics.dewRiskHours)}h dew risk`,
       penalty: 100 - factors.dewRisk,
     },
     {
       key: 'wind',
       detail:
-        metrics.windSpeedKmh !== null
-          ? `${Math.round(metrics.windSpeedKmh)} km/h wind`
-          : 'unknown wind',
+        metrics.windSpeedKmh === null
+          ? 'unknown wind'
+          : `${Math.round(metrics.windSpeedKmh)} km/h wind`,
       penalty: 100 - factors.wind,
     },
   ];
@@ -439,14 +439,14 @@ function calculateFromMetrics(
   nightInfo: NightInfo | null = null
 ): NightQuality {
   const factors: NightQualityFactors = {
-    clouds: metrics.cloudCover !== null ? calculateCloudScore(metrics.cloudCover) : 50,
+    clouds: metrics.cloudCover === null ? 50 : calculateCloudScore(metrics.cloudCover),
     transparency: calculateTransparencyScore(metrics.transparencyScore),
     seeing: calculateSeeingScore(metrics.seeingRating),
     moon: calculateMoonScore(metrics.moonlightExposure),
     dewRisk:
-      metrics.dewRiskHours !== null
-        ? calculateDewScore(metrics.dewRiskHours, metrics.totalHours)
-        : 75,
+      metrics.dewRiskHours === null
+        ? 75
+        : calculateDewScore(metrics.dewRiskHours, metrics.totalHours),
     wind: calculateWindScore(metrics.windSpeedKmh),
   };
 

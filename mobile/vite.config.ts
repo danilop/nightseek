@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      'satellite.js': path.resolve(
+        __dirname,
+        './src/lib/satellites/satellite-js-browser.ts'
+      ),
       // Native overrides (specific paths BEFORE the catch-all)
       '@/stores/AppContext': path.resolve(__dirname, 'src/stores/AppContext'),
       '@/lib/geo/location': path.resolve(__dirname, 'src/lib/geo/location'),
@@ -25,6 +29,6 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    minify: 'esbuild',
+    minify: 'oxc',
   },
 });

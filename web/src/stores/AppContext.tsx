@@ -71,7 +71,7 @@ const initialState: AppState = {
   loadingMessage: '',
   loadingPercent: 0,
   error: null,
-  isOffline: typeof navigator !== 'undefined' ? !navigator.onLine : false,
+  isOffline: typeof navigator === 'undefined' ? false : !navigator.onLine,
   isSetupComplete: false,
 };
 

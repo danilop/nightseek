@@ -168,7 +168,7 @@ export function isNearPerihelion(
 } {
   const apsisInfo = getPlanetApsisInfo(planetName, date);
 
-  if (!apsisInfo || apsisInfo.type !== 'perihelion') {
+  if (apsisInfo?.type !== 'perihelion') {
     return { isNear: false, daysUntil: Infinity, solarFluxBoostPercent: 0 };
   }
 

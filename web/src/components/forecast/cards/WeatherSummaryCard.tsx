@@ -136,9 +136,9 @@ export default function WeatherSummaryCard({ forecast, timezone }: WeatherSummar
                 label="Transparency"
                 value={`${Math.round(weather.transparencyScore)}%`}
                 subtext={
-                  weather.avgAerosolOpticalDepth !== null
-                    ? `AOD: ${weather.avgAerosolOpticalDepth.toFixed(3)}`
-                    : undefined
+                  weather.avgAerosolOpticalDepth === null
+                    ? undefined
+                    : `AOD: ${weather.avgAerosolOpticalDepth.toFixed(3)}`
                 }
                 tooltip="How clear the atmosphere is. Higher = less haze, dust, and aerosols. AOD (Aerosol Optical Depth) measures particles in the air; lower is better."
               />

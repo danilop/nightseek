@@ -21,12 +21,13 @@ function comet(eccentricity: number): ParsedComet {
 }
 
 describe('comet conic propagation', () => {
-  it.each([
-    0.999995, 1, 1.000005,
-  ])('preserves perihelion distance for eccentricity %s', eccentricity => {
-    const position = calculateCometPosition(comet(eccentricity), 2460000);
-    expect(position.r).toBeCloseTo(4.208024, 8);
-  });
+  it.each([0.999995, 1, 1.000005])(
+    'preserves perihelion distance for eccentricity %s',
+    eccentricity => {
+      const position = calculateCometPosition(comet(eccentricity), 2460000);
+      expect(position.r).toBeCloseTo(4.208024, 8);
+    }
+  );
 
   it('moves outward symmetrically around a parabolic perihelion', () => {
     const before = calculateCometPosition(comet(1), 2460000 - 100);

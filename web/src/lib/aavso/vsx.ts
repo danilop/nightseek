@@ -380,7 +380,7 @@ function predictVariableStar(star: VariableStarInfo, jd: number): VariableStarPr
   return {
     star,
     predictedMagnitude:
-      predictedMagnitude !== null ? Math.round(predictedMagnitude * 10) / 10 : null,
+      predictedMagnitude === null ? null : Math.round(predictedMagnitude * 10) / 10,
     phase,
     isNearMaximum,
     isNearMinimum,

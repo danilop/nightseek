@@ -1,7 +1,7 @@
 import type { DSOSubtype, ScoredObject, TonightPick } from '@/types';
 
 function formatMagnitude(mag: number | null): string {
-  return mag !== null ? `mag ${mag.toFixed(1)}` : '';
+  return mag === null ? '' : `mag ${mag.toFixed(1)}`;
 }
 
 function isPlanet(obj: ScoredObject): boolean {

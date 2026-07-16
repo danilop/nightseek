@@ -449,7 +449,9 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
             <p className="font-medium text-amber-300">
               No astronomical night — the Sun never reaches 18° below the horizon.
             </p>
-            {nightInfo.observingWindowMode !== 'none' ? (
+            {nightInfo.observingWindowMode === 'none' ? (
+              <p className="mt-2 text-gray-400">The Sun remains too high for night imaging.</p>
+            ) : (
               <>
                 <div
                   role="img"
@@ -477,8 +479,6 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
                   limited by twilight.
                 </p>
               </>
-            ) : (
-              <p className="mt-2 text-gray-400">The Sun remains too high for night imaging.</p>
             )}
           </div>
         ) : (

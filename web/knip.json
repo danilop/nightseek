@@ -1,5 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["src/lib/satellites/satellite-js-browser.ts"],
   "ignore": ["src/test/**"],
   "ignoreDependencies": [],
   "project": ["src/**/*.{ts,tsx}"]

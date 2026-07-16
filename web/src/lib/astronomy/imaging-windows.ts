@@ -108,7 +108,7 @@ function getQualityRating(score: number): ImagingWindow['quality'] {
  * Get weather data for a specific hour
  */
 function getHourlyWeatherAt(weather: NightWeather | null, time: Date): HourlyWeather | null {
-  if (!weather || !weather.hourlyData || weather.hourlyData.size === 0) return null;
+  if (!weather?.hourlyData || weather.hourlyData.size === 0) return null;
 
   const targetTime = time.getTime();
   const THIRTY_MIN = 30 * 60 * 1000;

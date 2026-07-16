@@ -30,7 +30,7 @@ const DEFAULT_UNIT_PREFERENCES: UnitPreferences = {
  */
 export function getLocaleUnitDefaults(): UnitPreferences {
   // Get browser locale (e.g., "en-US", "en-GB", "de-DE")
-  const locale = typeof navigator !== 'undefined' ? navigator.language : 'en';
+  const locale = typeof navigator === 'undefined' ? 'en' : navigator.language;
   const countryCode = locale.split('-')[1]?.toUpperCase() || '';
 
   // US uses imperial for everything

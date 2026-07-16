@@ -172,7 +172,7 @@ export default function SkyChart({ nightInfo, location }: SkyChartProps) {
   // Display toggles matching d3-celestial viewer demo
   // Mobile defaults: reduced clutter (no DSOs, no Milky Way, no Ecliptic, no names)
   const getIsSmallScreen = useCallback(() => {
-    return (typeof window !== 'undefined' ? window.innerWidth : 1024) < SMALL_SCREEN_WIDTH;
+    return (typeof window === 'undefined' ? 1024 : window.innerWidth) < SMALL_SCREEN_WIDTH;
   }, []);
 
   const [showStars, setShowStars] = useState(true);

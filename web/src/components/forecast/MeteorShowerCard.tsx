@@ -133,9 +133,9 @@ function ShowerDetails({ shower, nightDate, timezone }: ShowerDetailsProps) {
         <div>
           <span className="text-gray-500">Altitude: </span>
           <span className={getAltitudeTextColor(shower.radiantAltitude ?? -1)}>
-            {shower.radiantAltitude !== null
-              ? `${shower.radiantAltitude.toFixed(0)}° at midnight`
-              : 'Below horizon'}
+            {shower.radiantAltitude === null
+              ? 'Below horizon'
+              : `${shower.radiantAltitude.toFixed(0)}° at midnight`}
           </span>
         </div>
       </div>

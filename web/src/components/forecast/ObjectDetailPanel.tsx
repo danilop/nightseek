@@ -384,9 +384,9 @@ export default function ObjectDetailPanel({
             value={
               visibility.moonAltitudeAtPeak !== null && visibility.moonAltitudeAtPeak <= 0
                 ? 'Below horizon at peak'
-                : visibility.moonSeparation !== null
-                  ? formatMoonSeparation(visibility.moonSeparation)
-                  : '—'
+                : visibility.moonSeparation === null
+                  ? '—'
+                  : formatMoonSeparation(visibility.moonSeparation)
             }
             valueClass={visibility.moonWarning ? 'text-amber-400' : ''}
           />

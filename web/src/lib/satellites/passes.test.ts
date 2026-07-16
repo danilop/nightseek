@@ -1,4 +1,4 @@
-import * as satellite from 'satellite.js';
+import { jday, sunPos } from 'satellite.js';
 import { describe, expect, it } from 'vitest';
 import {
   azimuthToCompass,
@@ -107,17 +107,17 @@ describe('Satellite pass utilities', () => {
 
   describe('Earth shadow', () => {
     const time = new Date('2026-01-15T00:00:00Z');
-    const sun = satellite.sunPos(satellite.jday(time)).rsun;
-    const length = Math.hypot(...sun);
-    const unit = sun.map(value => value / length);
+    const sun = sunPos(jday(time)).rsun;
+    const length = Math.hypot(sun.x, sun.y, sun.z);
+    const unit = { x: sun.x / length, y: sun.y / length, z: sun.z / length };
 
     it('marks a satellite behind the Earth as eclipsed', () => {
-      const position = { x: -unit[0] * 7000, y: -unit[1] * 7000, z: -unit[2] * 7000 };
+      const position = { x: -unit.x * 7000, y: -unit.y * 7000, z: -unit.z * 7000 };
       expect(isSatelliteSunlit(position, time)).toBe(false);
     });
 
     it('marks a satellite on the sunward side as illuminated', () => {
-      const position = { x: unit[0] * 7000, y: unit[1] * 7000, z: unit[2] * 7000 };
+      const position = { x: unit.x * 7000, y: unit.y * 7000, z: unit.z * 7000 };
       expect(isSatelliteSunlit(position, time)).toBe(true);
     });
   });
