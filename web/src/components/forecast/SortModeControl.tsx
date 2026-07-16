@@ -1,5 +1,6 @@
 import { Clock } from 'lucide-react';
 import { useCallback, useRef } from 'react';
+import { formatTime } from '@/lib/utils/format';
 import type { NightInfo } from '@/types';
 
 export type SortMode = 'score' | 'altitude';
@@ -19,20 +20,22 @@ function getTimeFromSlider(position: number, dusk: Date, dawn: Date): Date {
   return new Date(start + (position / 100) * (end - start));
 }
 
-function formatSliderTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
 interface TimeSliderProps {
   nightInfo: NightInfo;
   selectedTime: Date;
   onSelectedTimeChange: (time: Date) => void;
+  timezone?: string;
 }
 
-export function TimeSlider({ nightInfo, selectedTime, onSelectedTimeChange }: TimeSliderProps) {
+export function TimeSlider({
+  nightInfo,
+  selectedTime,
+  onSelectedTimeChange,
+  timezone,
+}: TimeSliderProps) {
   const animationRef = useRef<number | null>(null);
   const sliderPositionRef = useRef(
-    getSliderPosition(selectedTime, nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)
+    getSliderPosition(selectedTime, nightInfo.observingWindowStart, nightInfo.observingWindowEnd)
   );
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,8 +43,8 @@ export function TimeSlider({ nightInfo, selectedTime, onSelectedTimeChange }: Ti
     sliderPositionRef.current = position;
     const time = getTimeFromSlider(
       position,
-      nightInfo.astronomicalDusk,
-      nightInfo.astronomicalDawn
+      nightInfo.observingWindowStart,
+      nightInfo.observingWindowEnd
     );
     onSelectedTimeChange(time);
   };
@@ -49,8 +52,8 @@ export function TimeSlider({ nightInfo, selectedTime, onSelectedTimeChange }: Ti
   const handleNowClick = useCallback(() => {
     const nowPosition = getSliderPosition(
       new Date(),
-      nightInfo.astronomicalDusk,
-      nightInfo.astronomicalDawn
+      nightInfo.observingWindowStart,
+      nightInfo.observingWindowEnd
     );
 
     if (animationRef.current) {
@@ -71,8 +74,8 @@ export function TimeSlider({ nightInfo, selectedTime, onSelectedTimeChange }: Ti
       sliderPositionRef.current = newPosition;
       const time = getTimeFromSlider(
         newPosition,
-        nightInfo.astronomicalDusk,
-        nightInfo.astronomicalDawn
+        nightInfo.observingWindowStart,
+        nightInfo.observingWindowEnd
       );
       onSelectedTimeChange(time);
 
@@ -84,20 +87,25 @@ export function TimeSlider({ nightInfo, selectedTime, onSelectedTimeChange }: Ti
     };
 
     animationRef.current = requestAnimationFrame(animate);
-  }, [nightInfo.astronomicalDusk, nightInfo.astronomicalDawn, onSelectedTimeChange]);
+  }, [nightInfo.observingWindowStart, nightInfo.observingWindowEnd, onSelectedTimeChange]);
 
   const sliderPosition = getSliderPosition(
     selectedTime,
-    nightInfo.astronomicalDusk,
-    nightInfo.astronomicalDawn
+    nightInfo.observingWindowStart,
+    nightInfo.observingWindowEnd
   );
 
-  if (nightInfo.astronomicalNightMode === 'none') {
-    return <p className="text-amber-300 text-sm">No astronomical darkness at this location.</p>;
+  if (nightInfo.observingWindowMode === 'none') {
+    return <p className="text-amber-300 text-sm">No usable night or twilight window.</p>;
   }
 
   return (
     <div>
+      {nightInfo.astronomicalNightMode === 'none' && (
+        <p className="mb-2 text-amber-300 text-xs">
+          Twilight-only window · Sun {nightInfo.minimumSunAltitude.toFixed(1)}° at darkest
+        </p>
+      )}
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -117,12 +125,12 @@ export function TimeSlider({ nightInfo, selectedTime, onSelectedTimeChange }: Ti
           className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-indigo-500 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:hover:bg-indigo-400"
         />
         <span className="w-20 text-right font-medium text-indigo-400 text-sm">
-          {formatSliderTime(selectedTime)}
+          {formatTime(selectedTime, timezone)}
         </span>
       </div>
       <div className="mt-1 flex justify-between px-12 text-gray-600 text-xs">
-        <span>Dusk</span>
-        <span>Dawn</span>
+        <span>{nightInfo.astronomicalNightMode === 'none' ? 'Window start' : 'Dusk'}</span>
+        <span>{nightInfo.astronomicalNightMode === 'none' ? 'Window end' : 'Dawn'}</span>
       </div>
     </div>
   );

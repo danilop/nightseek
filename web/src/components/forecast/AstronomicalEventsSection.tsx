@@ -264,18 +264,20 @@ function EclipseTimeline({
   peak,
   end,
   timezone,
+  labels = ['Starts', 'Maximum', 'Ends'],
 }: {
   start: Date;
   peak: Date;
   end: Date;
   timezone?: string;
+  labels?: [string, string, string];
 }) {
   return (
     <div role="group" className="mt-3 grid grid-cols-3 gap-2" aria-label="Eclipse timeline">
       {[
-        ['Starts', start],
-        ['Maximum', peak],
-        ['Ends', end],
+        [labels[0], start],
+        [labels[1], peak],
+        [labels[2], end],
       ].map(([label, time], index) => (
         <div key={label as string} className="relative text-center">
           <div className="mb-1 flex items-center">
@@ -299,6 +301,9 @@ function SolarEclipseCard({ eclipse }: { eclipse: SolarEclipse }) {
   const kind = eclipse.kind.charAt(0).toUpperCase() + eclipse.kind.slice(1);
   const geometricPeakHidden =
     Math.abs(eclipse.geometricPeakTime.getTime() - eclipse.peakTime.getTime()) > 60_000;
+  const visibilityClipped =
+    Math.abs(eclipse.visibleStart.getTime() - eclipse.partialStart.getTime()) > 60_000 ||
+    Math.abs(eclipse.visibleEnd.getTime() - eclipse.partialEnd.getTime()) > 60_000;
 
   return (
     <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
@@ -336,11 +341,19 @@ function SolarEclipseCard({ eclipse }: { eclipse: SolarEclipse }) {
       </div>
 
       <EclipseTimeline
-        start={eclipse.partialStart}
+        start={eclipse.visibleStart}
         peak={eclipse.peakTime}
-        end={eclipse.partialEnd}
+        end={eclipse.visibleEnd}
         timezone={timezone}
+        labels={['Visible from', 'Visible max', 'Visible until']}
       />
+      {visibilityClipped && (
+        <p className="mt-2 text-gray-500 text-xs">
+          Formal partial contacts:{' '}
+          {formatTimeRange(eclipse.partialStart, eclipse.partialEnd, timezone)}. Your horizon
+          shortens the visible portion shown above.
+        </p>
+      )}
       <p className="mt-3 rounded-md bg-red-500/10 px-2 py-1.5 text-red-200 text-xs">
         Never look at the Sun directly. Use certified ISO 12312-2 eclipse viewers or a proper solar
         filter.
@@ -395,6 +408,7 @@ function LunarEclipseCard({ eclipse }: { eclipse: LunarEclipse }) {
         peak={eclipse.peakTime}
         end={timelineEnd}
         timezone={timezone}
+        labels={['Global start', 'Global max', 'Global end']}
       />
     </div>
   );

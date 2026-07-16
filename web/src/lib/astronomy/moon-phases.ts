@@ -70,11 +70,11 @@ function searchPreviousMoonQuarter(date: Date): Astronomy.MoonQuarter {
  */
 function isPhaseTonight(phaseTime: Date, nightInfo: NightInfo): boolean {
   const phaseTimestamp = phaseTime.getTime();
-  if (nightInfo.astronomicalNightMode === 'none') return false;
+  if (nightInfo.observingWindowMode === 'none') return false;
   if (nightInfo.astronomicalNightMode === 'continuous') {
     return (
-      phaseTimestamp >= nightInfo.astronomicalDusk.getTime() &&
-      phaseTimestamp <= nightInfo.astronomicalDawn.getTime()
+      phaseTimestamp >= nightInfo.observingWindowStart.getTime() &&
+      phaseTimestamp <= nightInfo.observingWindowEnd.getTime()
     );
   }
   return (

@@ -18,7 +18,7 @@ export default function EventsTab({ forecast, location }: EventsTabProps) {
         latitude={location.latitude}
         nightDate={forecast.nightInfo.date}
       />
-      <VariableStarsCard nightDate={forecast.nightInfo.date} />
+      <VariableStarsCard nightDate={forecast.nightInfo.date} timezone={location.timezone} />
       <SatellitePassesCard nightInfo={forecast.nightInfo} location={location} />
     </div>
   );

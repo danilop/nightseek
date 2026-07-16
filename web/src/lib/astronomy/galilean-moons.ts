@@ -182,8 +182,8 @@ function refineTransitionTime(
  */
 function detectGalileanMoonEvents(nightInfo: NightInfo): GalileanMoonEvent[] {
   const events: GalileanMoonEvent[] = [];
-  const startTime = nightInfo.astronomicalDusk.getTime();
-  const endTime = nightInfo.astronomicalDawn.getTime();
+  const startTime = nightInfo.observingWindowStart.getTime();
+  const endTime = nightInfo.observingWindowEnd.getTime();
   const interval = 5 * 60 * 1000; // 5 minutes
 
   const prevTransiting: Map<MoonName, boolean> = new Map();
@@ -247,14 +247,14 @@ export function getJupiterMoonsData(
   nightInfo: NightInfo,
   jupiterVisible: boolean
 ): { positions: GalileanMoonPosition[]; events: GalileanMoonEvent[] } | null {
-  if (!jupiterVisible || nightInfo.astronomicalNightMode === 'none') {
+  if (!jupiterVisible || nightInfo.observingWindowMode === 'none') {
     return null;
   }
 
   try {
     // Get positions at midnight
     const midnight = new Date(
-      (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
+      (nightInfo.observingWindowStart.getTime() + nightInfo.observingWindowEnd.getTime()) / 2
     );
 
     const positions = getGalileanMoonPositions(midnight);

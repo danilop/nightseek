@@ -298,7 +298,7 @@ export function calculateMinorPlanetVisibility(
 ): ObjectVisibility | null {
   // Get Julian date for midnight
   const midnight = new Date(
-    (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
+    (nightInfo.observingWindowStart.getTime() + nightInfo.observingWindowEnd.getTime()) / 2
   );
   const jd = midnight.getTime() / 86400000 + 2440587.5;
 

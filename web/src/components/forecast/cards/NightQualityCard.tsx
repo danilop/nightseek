@@ -61,6 +61,33 @@ const TWILIGHT_ZONES = [
   },
 ] as const;
 
+const TWILIGHT_GUIDE = [
+  {
+    name: 'Civil twilight',
+    range: '0° to −6°',
+    description: 'Bright horizon; only the brightest objects stand out',
+    colorClass: 'bg-orange-400',
+  },
+  {
+    name: 'Nautical twilight',
+    range: '−6° to −12°',
+    description: 'Most bright stars are visible',
+    colorClass: 'bg-amber-500',
+  },
+  {
+    name: 'Astronomical twilight',
+    range: '−12° to −18°',
+    description: 'Nearly dark, but faint targets still lose contrast',
+    colorClass: 'bg-blue-600',
+  },
+  {
+    name: 'Astronomical night',
+    range: 'Below −18°',
+    description: 'Full natural darkness',
+    colorClass: 'bg-indigo-950',
+  },
+] as const;
+
 function twilightSegments(boundaries: ReturnType<typeof twilightBoundaries>) {
   const { civilDuskPct, nauticalDuskPct, duskPct, dawnPct, nauticalDawnPct, civilDawnPct } =
     boundaries;
@@ -341,6 +368,19 @@ function formatAstronomicalBoundary(nightInfo: NightInfo, time: Date, timezone?:
   return nightInfo.astronomicalNightMode === 'continuous' ? '24h dark' : formatTime(time, timezone);
 }
 
+function getTwilightWindowLabel(mode: NightInfo['observingWindowMode']): string {
+  switch (mode) {
+    case 'nautical':
+      return 'Astronomical twilight window';
+    case 'civil':
+      return 'Nautical twilight window';
+    case 'sunset':
+      return 'Civil twilight window';
+    default:
+      return 'No usable twilight window';
+  }
+}
+
 export default function NightQualityCard({ forecast, timezone }: NightQualityCardProps) {
   const { nightInfo, weather } = forecast;
 
@@ -397,7 +437,7 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
           <p className="text-amber-300 text-sm">Held back by: {topPenalties.join(', ')}</p>
         )}
         <p className="text-gray-500 text-xs">
-          Whole night average:{' '}
+          Whole observing-window average:{' '}
           <span className={nightlyAverageQuality.rating.color}>
             {nightlyAverageQuality.rating.starString} {nightlyAverageQuality.rating.label}
           </span>
@@ -405,8 +445,41 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
 
         {/* Night timeline */}
         {nightInfo.astronomicalNightMode === 'none' ? (
-          <div className="rounded-lg bg-night-800 p-3 text-center text-amber-300 text-sm">
-            The Sun does not reach 18° below the horizon, so there is no astronomical darkness.
+          <div className="rounded-lg bg-night-800 p-3 text-sm">
+            <p className="font-medium text-amber-300">
+              No astronomical night — the Sun never reaches 18° below the horizon.
+            </p>
+            {nightInfo.observingWindowMode !== 'none' ? (
+              <>
+                <div
+                  role="img"
+                  aria-label={`${getTwilightWindowLabel(nightInfo.observingWindowMode)}, ${formatTimeRange(nightInfo.observingWindowStart, nightInfo.observingWindowEnd, timezone)}`}
+                  className="mt-3 h-2 rounded-full bg-gradient-to-r from-amber-500 via-indigo-700 to-amber-500"
+                />
+                <div className="mt-1 grid grid-cols-3 gap-2 text-xs">
+                  <span className="text-left text-amber-300">
+                    {formatTime(nightInfo.observingWindowStart, timezone)}
+                  </span>
+                  <span className="text-center text-indigo-300">
+                    Darkest {formatTime(nightInfo.darkestTime, timezone)}
+                  </span>
+                  <span className="text-right text-amber-300">
+                    {formatTime(nightInfo.observingWindowEnd, timezone)}
+                  </span>
+                </div>
+                <p className="mt-2 text-gray-300">
+                  {getTwilightWindowLabel(nightInfo.observingWindowMode)} · Sun{' '}
+                  {nightInfo.minimumSunAltitude.toFixed(1)}° at its lowest. Targets and weather are
+                  evaluated during this interval.
+                </p>
+                <p className="mt-1 text-gray-500 text-xs">
+                  Prefer narrowband, planets and bright targets; faint broadband detail remains
+                  limited by twilight.
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-gray-400">The Sun remains too high for night imaging.</p>
+            )}
           </div>
         ) : (
           <div className="rounded-lg bg-night-800 p-3">
@@ -450,6 +523,32 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
             />
           </div>
         )}
+
+        <details className="group rounded-lg border border-night-700 bg-night-800/50 text-sm">
+          <summary className="cursor-pointer select-none px-3 py-2 font-medium text-gray-300 transition-colors hover:text-white">
+            Twilight guide <span className="font-normal text-gray-500">(Sun below horizon)</span>
+          </summary>
+          <div className="border-night-700 border-t px-3 py-3">
+            <div
+              className="mb-3 grid h-2 grid-cols-4 overflow-hidden rounded-full"
+              role="img"
+              aria-label="Civil, nautical and astronomical twilight followed by astronomical night as the Sun moves from the horizon to more than 18 degrees below it"
+            >
+              {TWILIGHT_GUIDE.map(phase => (
+                <span key={phase.name} className={phase.colorClass} />
+              ))}
+            </div>
+            <dl className="space-y-2">
+              {TWILIGHT_GUIDE.map(phase => (
+                <div key={phase.name} className="grid grid-cols-[8rem_6rem_1fr] gap-2 text-xs">
+                  <dt className="font-medium text-gray-200">{phase.name}</dt>
+                  <dd className="text-indigo-300 tabular-nums">{phase.range}</dd>
+                  <dd className="text-gray-500">{phase.description}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </details>
 
         {forecast.forecastConfidence === 'low' && (
           <div className="flex items-start gap-2 text-amber-400 text-sm">

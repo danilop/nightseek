@@ -86,8 +86,8 @@ function buildConjunction(
     body1,
     body2,
     observer,
-    nightInfo.astronomicalDusk,
-    nightInfo.astronomicalDawn
+    nightInfo.observingWindowStart,
+    nightInfo.observingWindowEnd
   );
 
   if (
@@ -113,7 +113,7 @@ export function detectConjunctions(
   visiblePlanets: ObjectVisibility[],
   nightInfo: NightInfo
 ): Conjunction[] {
-  if (nightInfo.astronomicalNightMode === 'none') return [];
+  if (nightInfo.observingWindowMode === 'none') return [];
 
   const planets = visiblePlanets
     .filter(planet => planet.maxAltitude >= 15)

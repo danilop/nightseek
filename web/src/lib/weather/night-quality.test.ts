@@ -176,8 +176,12 @@ describe('night-quality', () => {
       expect(quality.score).toBeLessThanOrEqual(100);
     });
 
-    it('does not call a twilight-only summer night excellent', () => {
-      const nightInfo = createMockNightInfo({ astronomicalNightMode: 'none' });
+    it('scores a twilight-only summer window without calling it excellent', () => {
+      const nightInfo = createMockNightInfo({
+        astronomicalNightMode: 'none',
+        observingWindowMode: 'nautical',
+        minimumSunAltitude: -16.7,
+      });
       const weather = createMockWeather({
         avgCloudCover: 0,
         transparencyScore: 100,
@@ -187,11 +191,24 @@ describe('night-quality', () => {
 
       const quality = calculateNightQuality(weather, nightInfo);
 
-      expect(quality.score).toBe(0);
-      expect(quality.rating.tier).toBe('poor');
-      expect(quality.summary).toContain('Twilight only');
+      expect(quality.score).toBeGreaterThan(0);
+      expect(quality.score).toBeLessThanOrEqual(69);
+      expect(quality.summary).toContain('Astronomical twilight only');
       expect(quality.summary).not.toContain('dark skies');
-      expect(quality.penalties[0].detail).toBe('no astronomical darkness');
+      expect(quality.penalties[0].detail).toContain('Sun -16.7° at darkest');
+    });
+
+    it('returns zero only when there is no usable night or twilight window', () => {
+      const nightInfo = createMockNightInfo({
+        astronomicalNightMode: 'none',
+        observingWindowMode: 'none',
+        minimumSunAltitude: 3,
+      });
+
+      const quality = calculateNightQuality(createMockWeather(), nightInfo);
+
+      expect(quality.score).toBe(0);
+      expect(quality.summary).toBe('No usable night or twilight observing window');
     });
 
     it('should cap at 2 stars when cloud cover exceeds 80%', () => {
@@ -391,7 +408,7 @@ describe('night-quality', () => {
       const quality = calculateHeadlineNightQuality(weather, nightInfo);
       const topPenaltyDetails = quality.penalties.slice(0, 2).map(penalty => penalty.detail);
 
-      expect(topPenaltyDetails).toContain('75% moon');
+      expect(topPenaltyDetails).toContain('75% moonlight exposure');
       expect(topPenaltyDetails).toContain('fair seeing');
     });
 

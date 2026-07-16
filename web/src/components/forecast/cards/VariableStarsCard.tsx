@@ -2,12 +2,14 @@ import { Star } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Card, CountBadge, ToggleChevron } from '@/components/ui/Card';
 import { predictVariableStars, type VariableStarPrediction } from '@/lib/aavso/vsx';
+import { formatDate } from '@/lib/utils/format';
 
 interface VariableStarsCardProps {
   nightDate: Date;
+  timezone?: string;
 }
 
-export default function VariableStarsCard({ nightDate }: VariableStarsCardProps) {
+export default function VariableStarsCard({ nightDate, timezone }: VariableStarsCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const predictions = useMemo(() => predictVariableStars(nightDate), [nightDate]);
@@ -40,7 +42,11 @@ export default function VariableStarsCard({ nightDate }: VariableStarsCardProps)
       {expanded && (
         <div className="space-y-2 border-night-700 border-t p-4">
           {notablePredictions.map(prediction => (
-            <VariableStarItem key={prediction.star.name} prediction={prediction} />
+            <VariableStarItem
+              key={prediction.star.name}
+              prediction={prediction}
+              timezone={timezone}
+            />
           ))}
           <p className="mt-3 text-center text-gray-500 text-xs">
             Cycle estimates use AAVSO VSX periods and epochs; irregular changes require current
@@ -52,7 +58,13 @@ export default function VariableStarsCard({ nightDate }: VariableStarsCardProps)
   );
 }
 
-function VariableStarItem({ prediction }: { prediction: VariableStarPrediction }) {
+function VariableStarItem({
+  prediction,
+  timezone,
+}: {
+  prediction: VariableStarPrediction;
+  timezone?: string;
+}) {
   const { star, predictedMagnitude, phaseDescription, isNearMaximum, isNearMinimum } = prediction;
 
   const statusColor = isNearMaximum
@@ -81,7 +93,7 @@ function VariableStarItem({ prediction }: { prediction: VariableStarPrediction }
       {prediction.nextNotableEvent && prediction.nextNotableEventTime && (
         <p className="mt-1 text-gray-500 text-xs">
           {prediction.predictionQuality === 'approximate' ? 'Estimate' : 'Next'}:{' '}
-          {prediction.nextNotableEvent} — {prediction.nextNotableEventTime.toLocaleDateString()}
+          {prediction.nextNotableEvent} — {formatDate(prediction.nextNotableEventTime, timezone)}
         </p>
       )}
     </div>

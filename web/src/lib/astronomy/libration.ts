@@ -67,7 +67,7 @@ export function getLibrationForNight(nightInfo: NightInfo): LunarLibration {
   // Use the physical midpoint of the selected observing night. Mutating
   // `setHours(0)` would instead use the browser's timezone.
   const midpoint = new Date(
-    (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
+    (nightInfo.observingWindowStart.getTime() + nightInfo.observingWindowEnd.getTime()) / 2
   );
   return calculateLibration(midpoint);
 }

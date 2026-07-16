@@ -296,8 +296,8 @@ export function parseNightWeather(
   const timezone = weatherData.timezone ?? BROWSER_TZ;
   const airTimezone = airQualityData?.timezone ?? timezone;
 
-  const duskTime = nightInfo.astronomicalDusk.getTime();
-  const dawnTime = nightInfo.astronomicalDawn.getTime();
+  const duskTime = nightInfo.observingWindowStart.getTime();
+  const dawnTime = nightInfo.observingWindowEnd.getTime();
 
   const hourlyMap = new Map<number, HourlyWeather>();
   const arrays = createEmptyWeatherArrays();

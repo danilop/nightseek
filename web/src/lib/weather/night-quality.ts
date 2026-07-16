@@ -1,7 +1,7 @@
 /**
  * Night Quality Calculator
  * Calculates an overall quality score for a night of astronomical observation
- * based on weather conditions, moon phase, and other factors.
+ * based on weather conditions, actual observing-window moonlight, and other factors.
  */
 
 import { estimateSeeing } from '@/lib/astronomy/seeing';
@@ -28,7 +28,7 @@ export interface NightQualityMetrics {
   cloudCover: number | null;
   transparencyScore: number | null;
   seeingRating: SeeingForecast['rating'] | null;
-  moonIllumination: number;
+  moonlightExposure: number;
   dewRiskHours: number | null;
   totalHours: number;
   windSpeedKmh: number | null;
@@ -96,10 +96,10 @@ function calculateSeeingScore(seeingRating: SeeingForecast['rating'] | null): nu
 
 /**
  * Calculate moon contribution (0-100)
- * Lower illumination = higher score (better for dark sky)
+ * Lower moonlight exposure = higher score (better for dark sky)
  */
-function calculateMoonScore(illumination: number): number {
-  return Math.max(0, Math.min(100, 100 - illumination));
+function calculateMoonScore(exposure: number): number {
+  return Math.max(0, Math.min(100, 100 - exposure));
 }
 
 /**
@@ -151,7 +151,7 @@ function buildWholeNightMetrics(
   nightInfo: NightInfo
 ): NightQualityMetrics {
   const totalHours =
-    (nightInfo.astronomicalDawn.getTime() - nightInfo.astronomicalDusk.getTime()) /
+    (nightInfo.observingWindowEnd.getTime() - nightInfo.observingWindowStart.getTime()) /
     (1000 * 60 * 60);
 
   return {
@@ -159,7 +159,7 @@ function buildWholeNightMetrics(
     cloudCover: weather?.avgCloudCover ?? null,
     transparencyScore: weather?.transparencyScore ?? null,
     seeingRating: nightInfo.seeingForecast?.rating ?? null,
-    moonIllumination: nightInfo.moonIllumination,
+    moonlightExposure: nightInfo.moonlight.exposurePercent,
     dewRiskHours: weather?.dewRiskHours ?? null,
     totalHours,
     windSpeedKmh: weather?.avgWindSpeedKmh ?? null,
@@ -191,7 +191,7 @@ function buildBestWindowMetrics(
     transparencyScore: weather.transparencyScore,
     seeingRating: estimateSeeing(avgWindSpeedKmh ?? 0, avgHumidity ?? 50, avgTempC, avgDewPointC)
       .rating,
-    moonIllumination: nightInfo.moonIllumination,
+    moonlightExposure: nightInfo.moonlight.exposurePercent,
     dewRiskHours,
     totalHours: Math.max(
       (weather.bestTime.end.getTime() - weather.bestTime.start.getTime()) / (1000 * 60 * 60),
@@ -224,7 +224,7 @@ function buildPenaltyBreakdown(
     },
     {
       key: 'moon',
-      detail: `${Math.round(metrics.moonIllumination)}% moon`,
+      detail: `${Math.round(metrics.moonlightExposure)}% moonlight exposure`,
       penalty: 100 - factors.moon,
     },
     {
@@ -291,7 +291,7 @@ function generateSummary(factors: NightQualityFactors, metrics: NightQualityMetr
   }
 
   if (factors.moon >= 90) {
-    descriptions.push('dark skies');
+    descriptions.push('little moonlight');
   } else if (factors.moon <= 30) {
     descriptions.push('bright moon');
   }
@@ -313,7 +313,7 @@ function buildPracticalWindowPenalty(
   const durationHours =
     (weather.bestTime.end.getTime() - weather.bestTime.start.getTime()) / (1000 * 60 * 60);
   const hoursBeforeDawn =
-    (nightInfo.astronomicalDawn.getTime() - weather.bestTime.end.getTime()) / (1000 * 60 * 60);
+    (nightInfo.observingWindowEnd.getTime() - weather.bestTime.end.getTime()) / (1000 * 60 * 60);
 
   let penalty = 0;
   const detailParts: string[] = [];
@@ -372,6 +372,67 @@ function applyPracticalWindowScoreCaps(
   return cappedScore;
 }
 
+interface ObservingWindowLimit {
+  penalty: number;
+  cap: number;
+  penaltyLabel: string;
+  summaryLabel: string;
+}
+
+const OBSERVING_WINDOW_LIMITS: Partial<
+  Record<NightInfo['observingWindowMode'], ObservingWindowLimit>
+> = {
+  nautical: {
+    penalty: 15,
+    cap: 69,
+    penaltyLabel: 'astronomical twilight only',
+    summaryLabel: 'Astronomical twilight only',
+  },
+  civil: {
+    penalty: 35,
+    cap: 49,
+    penaltyLabel: 'nautical twilight only',
+    summaryLabel: 'Nautical twilight only',
+  },
+  sunset: {
+    penalty: 55,
+    cap: 34,
+    penaltyLabel: 'civil twilight only',
+    summaryLabel: 'Civil twilight only',
+  },
+};
+
+function applyObservingWindowLimit(
+  score: number,
+  penalties: NightQualityPenalty[],
+  conditionsSummary: string,
+  nightInfo: NightInfo | null
+): { score: number; summary: string } {
+  const mode = nightInfo?.observingWindowMode ?? 'astronomical';
+  if (mode === 'none') {
+    penalties.unshift({
+      key: 'practicality',
+      detail: 'Sun does not set or enter a usable twilight window',
+      penalty: 100,
+    });
+    return { score: 0, summary: 'No usable night or twilight observing window' };
+  }
+
+  const limit = OBSERVING_WINDOW_LIMITS[mode];
+  if (!limit) return { score, summary: conditionsSummary };
+
+  const minimumSunAltitude = nightInfo?.minimumSunAltitude ?? 0;
+  penalties.unshift({
+    key: 'practicality',
+    detail: `${limit.penaltyLabel} (Sun ${minimumSunAltitude.toFixed(1)}° at darkest)`,
+    penalty: limit.penalty,
+  });
+  return {
+    score: Math.min(Math.max(0, score - limit.penalty), limit.cap),
+    summary: `${limit.summaryLabel} — ${conditionsSummary}`,
+  };
+}
+
 function calculateFromMetrics(
   metrics: NightQualityMetrics,
   weather: NightWeather | null = null,
@@ -381,7 +442,7 @@ function calculateFromMetrics(
     clouds: metrics.cloudCover !== null ? calculateCloudScore(metrics.cloudCover) : 50,
     transparency: calculateTransparencyScore(metrics.transparencyScore),
     seeing: calculateSeeingScore(metrics.seeingRating),
-    moon: calculateMoonScore(metrics.moonIllumination),
+    moon: calculateMoonScore(metrics.moonlightExposure),
     dewRisk:
       metrics.dewRiskHours !== null
         ? calculateDewScore(metrics.dewRiskHours, metrics.totalHours)
@@ -415,26 +476,14 @@ function calculateFromMetrics(
 
   score = applyPracticalWindowScoreCaps(score, metrics, practicalWindowPenalty);
 
-  const hasAstronomicalDarkness = nightInfo?.astronomicalNightMode !== 'none';
-  if (!hasAstronomicalDarkness) {
-    score = 0;
-  }
-
+  const conditionsSummary = generateSummary(factors, metrics);
   const penalties = buildPenaltyBreakdown(metrics, factors, practicalWindowPenalty);
-  if (!hasAstronomicalDarkness) {
-    penalties.unshift({
-      key: 'practicality',
-      detail: 'no astronomical darkness',
-      penalty: 100,
-    });
-  }
+  const windowLimited = applyObservingWindowLimit(score, penalties, conditionsSummary, nightInfo);
 
   return {
-    score,
-    rating: getRatingFromPercentage(score),
-    summary: hasAstronomicalDarkness
-      ? generateSummary(factors, metrics)
-      : 'Twilight only — no astronomical darkness for deep-sky observing',
+    score: windowLimited.score,
+    rating: getRatingFromPercentage(windowLimited.score),
+    summary: windowLimited.summary,
     factors,
     penalties,
     metrics,

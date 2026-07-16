@@ -127,6 +127,7 @@ describe('SkyCalculator', () => {
       const result = tromso.getNightInfo(new Date('2026-06-21T12:00:00Z'));
 
       expect(result.astronomicalNightMode).toBe('none');
+      expect(result.observingWindowMode).toBe('none');
       expect(result.sunsetOccurs).toBe(false);
       expect(result.sunriseOccurs).toBe(false);
       expect(result.astronomicalDusk.getTime()).toBe(result.astronomicalDawn.getTime());
@@ -136,11 +137,47 @@ describe('SkyCalculator', () => {
       expect(visibility.altitudeSamples).toHaveLength(0);
     });
 
+    it('uses London astronomical twilight as a real imaging window in midsummer', () => {
+      const london = new SkyCalculator(51.5074, -0.1278, 0);
+      const result = london.getNightInfo(new Date('2026-07-16T11:00:00Z'));
+
+      expect(result.astronomicalNightMode).toBe('none');
+      expect(result.observingWindowMode).toBe('nautical');
+      expect(result.observingWindowStart.getTime()).toBeCloseTo(
+        new Date('2026-07-16T21:58:15Z').getTime(),
+        -3
+      );
+      expect(result.observingWindowEnd.getTime()).toBeCloseTo(
+        new Date('2026-07-17T02:15:27Z').getTime(),
+        -3
+      );
+      expect(result.minimumSunAltitude).toBeCloseTo(-16.74, 1);
+      expect(result.darkestTime.getTime()).toBeCloseTo(
+        new Date('2026-07-17T00:06:40Z').getTime(),
+        -3
+      );
+      expect(result.moonIllumination).toBeCloseTo(9.35, 1);
+      expect(result.moonlight.level).toBe('none');
+      expect(result.moonlight.exposurePercent).toBe(0);
+
+      const meridianRa = Astronomy.SiderealTime(result.darkestTime) + london.getLongitude() / 15;
+      const visibility = london.calculateVisibility(
+        ((meridianRa % 24) + 24) % 24,
+        45,
+        result,
+        'Twilight target',
+        'dso'
+      );
+      expect(visibility.isVisible).toBe(true);
+      expect(visibility.altitudeSamples.length).toBeGreaterThan(20);
+    });
+
     it('represents continuous polar darkness as a 24-hour analysis interval', () => {
       const highArctic = new SkyCalculator(89, 0, 0);
       const result = highArctic.getNightInfo(new Date('2026-12-21T12:00:00Z'));
 
       expect(result.astronomicalNightMode).toBe('continuous');
+      expect(result.observingWindowMode).toBe('continuous');
       expect(result.sunsetOccurs).toBe(false);
       expect(result.sunriseOccurs).toBe(false);
       expect(result.astronomicalDawn.getTime() - result.astronomicalDusk.getTime()).toBe(
@@ -697,20 +734,20 @@ describe('SkyCalculator', () => {
       expect(result.altitudeSamples.length).toBeGreaterThan(0);
     });
 
-    it('includes the exact astronomical dawn sample', () => {
+    it('includes the exact observing-window end sample', () => {
       const nightInfo = calculator.getNightInfo(new Date('2025-01-15T12:00:00Z'));
       const result = calculator.calculateVisibility(12, 45, nightInfo, 'Test Object', 'dso');
       const lastAltitudeSample = result.altitudeSamples[result.altitudeSamples.length - 1];
       const lastAzimuthSample = result.azimuthSamples[result.azimuthSamples.length - 1];
 
-      expect(lastAltitudeSample[0]).toEqual(nightInfo.astronomicalDawn);
-      expect(lastAzimuthSample[0]).toEqual(nightInfo.astronomicalDawn);
+      expect(lastAltitudeSample[0]).toEqual(nightInfo.observingWindowEnd);
+      expect(lastAzimuthSample[0]).toEqual(nightInfo.observingWindowEnd);
     });
 
     it('keeps a low target physically visible so the user horizon profile can decide', () => {
       const nightInfo = calculator.getNightInfo(new Date('2025-01-15T12:00:00Z'));
       const midpoint = new Date(
-        (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
+        (nightInfo.observingWindowStart.getTime() + nightInfo.observingWindowEnd.getTime()) / 2
       );
       const meridianRa = Astronomy.SiderealTime(midpoint) + calculator.getLongitude() / 15;
       const result = calculator.calculateVisibility(

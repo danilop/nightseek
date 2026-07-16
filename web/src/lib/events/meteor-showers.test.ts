@@ -34,6 +34,7 @@ describe('meteor shower timing', () => {
         radiantAltitude: 30,
         moonIllumination: 100,
         moonSeparationDeg: 1,
+        moonAltitudeDeg: 45,
       })
     ).toBe(Math.round(IAU_METEOR_SHOWERS[0].zhr * 0.5));
   });

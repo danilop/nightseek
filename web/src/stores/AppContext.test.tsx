@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCached } from '@/lib/utils/cache';
+import { getCached, setCache } from '@/lib/utils/cache';
 import { AppProvider, useApp } from './AppContext';
 
 // Mock IDB cache module
@@ -97,6 +97,36 @@ describe('AppContext', () => {
       longitude: -0.1,
       name: 'London',
     });
+  });
+
+  it('setLocation invalidates old forecasts and persists the new location', async () => {
+    const { result } = await renderAppHook();
+
+    act(() => {
+      result.current.dispatch({
+        type: 'SET_FORECAST',
+        payload: {
+          forecasts: [],
+          scoredObjects: new Map(),
+          bestNights: ['2026-07-16'],
+        },
+      });
+    });
+
+    const newLocation = {
+      latitude: 40.7128,
+      longitude: -74.006,
+      name: 'New York',
+    };
+    await act(async () => {
+      await result.current.setLocation(newLocation);
+    });
+
+    expect(result.current.state.location).toEqual(newLocation);
+    expect(result.current.state.forecasts).toBeNull();
+    expect(result.current.state.scoredObjects).toBeNull();
+    expect(result.current.state.bestNights).toEqual([]);
+    expect(setCache).toHaveBeenCalledWith('location', newLocation);
   });
 
   it('SET_SETTINGS merges settings', async () => {

@@ -451,14 +451,19 @@ export default function ObjectCard({
           )}
         </div>
 
-        {visibility.moonSeparation !== null && (
+        {visibility.moonAltitudeAtPeak !== null && visibility.moonAltitudeAtPeak <= 0 ? (
+          <div className="flex items-center gap-2 text-green-400">
+            <Moon className="h-4 w-4" />
+            <span>Moon below horizon at peak</span>
+          </div>
+        ) : visibility.moonSeparation !== null ? (
           <div className="flex items-center gap-2 text-gray-400">
             <Moon className="h-4 w-4" />
             <span className={visibility.moonWarning ? 'text-amber-400' : ''}>
               {formatMoonSeparation(visibility.moonSeparation)}
             </span>
           </div>
-        )}
+        ) : null}
 
         {(visibility.above45Start || visibility.above60Start) && (
           <div className="flex items-center gap-2 text-gray-400">

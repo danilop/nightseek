@@ -14,7 +14,12 @@ import type { IAUMeteorShower } from '@/types';
  */
 export const IAU_METEOR_SHOWERS: Omit<
   IAUMeteorShower,
-  'isActive' | 'daysFromPeak' | 'radiantAltitude' | 'moonIllumination' | 'moonSeparationDeg'
+  | 'isActive'
+  | 'daysFromPeak'
+  | 'radiantAltitude'
+  | 'moonIllumination'
+  | 'moonSeparationDeg'
+  | 'moonAltitudeDeg'
 >[] = [
   // January
   {

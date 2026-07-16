@@ -14,13 +14,19 @@ import { useApp } from './stores/AppContext';
 export default function App() {
   const { state, dispatch, setProgress } = useApp();
   const { location, settings, forecasts, isLoading, error, isOffline, isSetupComplete } = state;
-  const isRefreshingRef = useRef(false);
+  const activeForecastKeyRef = useRef<string | null>(null);
+  const forecastRequestIdRef = useRef(0);
   const lastForecastLoadedAtRef = useRef<number | null>(null);
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: coordinates superseding async forecast requests and stale-result guards
   const loadForecast = useCallback(async () => {
-    if (!location || isRefreshingRef.current) return;
+    if (!location) return;
 
-    isRefreshingRef.current = true;
+    const forecastKey = `${location.latitude},${location.longitude}|${JSON.stringify(settings)}`;
+    if (activeForecastKeyRef.current === forecastKey) return;
+
+    const requestId = ++forecastRequestIdRef.current;
+    activeForecastKeyRef.current = forecastKey;
 
     dispatch({
       type: 'SET_LOADING',
@@ -30,19 +36,23 @@ export default function App() {
 
     try {
       const result = await generateForecast(location, settings, (message, percent) => {
-        setProgress(message, percent);
+        if (forecastRequestIdRef.current === requestId) setProgress(message, percent);
       });
 
-      // Backfill location timezone from Open-Meteo response
-      if (result.timezone && location.timezone !== result.timezone) {
-        const updated = { ...location, timezone: result.timezone };
-        dispatch({ type: 'SET_LOCATION', payload: updated });
-        await setCache(CACHE_KEYS.LOCATION, updated);
-      }
+      if (forecastRequestIdRef.current !== requestId) return;
 
       // Show 100% complete briefly before hiding loading screen
       setProgress('Complete!', 100);
       await new Promise(resolve => setTimeout(resolve, 300));
+      if (forecastRequestIdRef.current !== requestId) return;
+
+      // Backfill location timezone from Open-Meteo response. Dispatch it in the
+      // same turn as the matching forecast so observers never see mixed locations.
+      if (result.timezone && location.timezone !== result.timezone) {
+        const updated = { ...location, timezone: result.timezone };
+        dispatch({ type: 'SET_LOCATION', payload: updated });
+        void setCache(CACHE_KEYS.LOCATION, updated);
+      }
 
       dispatch({
         type: 'SET_FORECAST',
@@ -54,23 +64,25 @@ export default function App() {
       });
       lastForecastLoadedAtRef.current = Date.now();
     } catch (err) {
+      if (forecastRequestIdRef.current !== requestId) return;
       logger.error('Forecast generation failed', err);
       dispatch({
         type: 'SET_ERROR',
         payload: err instanceof Error ? err.message : 'Failed to generate forecast',
       });
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: { isLoading: false } });
-      isRefreshingRef.current = false;
+      if (forecastRequestIdRef.current === requestId) {
+        activeForecastKeyRef.current = null;
+        dispatch({ type: 'SET_LOADING', payload: { isLoading: false } });
+      }
     }
   }, [location, settings, dispatch, setProgress]);
 
-  // Load forecast when location changes (only if not already loading or errored)
+  // A new location/settings key supersedes any in-flight calculation. Stale
+  // requests are ignored, while the replacement starts immediately.
   useEffect(() => {
-    if (location && !forecasts && !isLoading && !error) {
-      loadForecast();
-    }
-  }, [location, forecasts, isLoading, error, loadForecast]);
+    if (location && !forecasts) void loadForecast();
+  }, [location, forecasts, loadForecast]);
 
   useEffect(() => {
     const staleForecastMs = 20 * 60 * 1000;
@@ -121,6 +133,7 @@ export default function App() {
       {!isLoading && !error && forecasts && (
         <ErrorBoundary>
           <ForecastView
+            key={`${location.latitude},${location.longitude}`}
             forecasts={forecasts}
             scoredObjects={state.scoredObjects}
             bestNights={state.bestNights}

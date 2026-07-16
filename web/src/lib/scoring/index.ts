@@ -74,10 +74,14 @@ export function calculateMoonInterference(
   moonIllumination: number,
   moonSeparation: number | null,
   objectType: ObjectCategory,
-  subtype: DSOSubtype | null
+  subtype: DSOSubtype | null,
+  moonAltitude: number | null = null
 ): number {
   // Planets are less affected
   if (objectType === 'planet') return 27;
+
+  // A Moon below the local horizon contributes no direct sky glow.
+  if (moonAltitude !== null && moonAltitude <= 0) return 30;
 
   // Dark sky bonus
   if (moonIllumination < 5) return 30;
@@ -724,6 +728,7 @@ export function calculateTotalScore(
     maxAltitude,
     maxAltitudeTime,
     moonSeparation,
+    moonAltitudeAtPeak,
     raHours,
     angularSizeArcmin,
     surfaceBrightness,
@@ -739,19 +744,22 @@ export function calculateTotalScore(
   } = visibility;
 
   const moonIllumination = nightInfo.moonIllumination;
+  const effectiveMoonIllumination =
+    moonAltitudeAtPeak !== null && moonAltitudeAtPeak <= 0 ? 0 : moonIllumination;
 
   // Imaging Quality (0-100)
   const altitudeScore = calculateAltitudeScore(minAirmass, maxAltitude);
   const moonInterference = calculateMoonInterference(
-    moonIllumination,
+    effectiveMoonIllumination,
     moonSeparation,
     objectType,
-    subtype
+    subtype,
+    moonAltitudeAtPeak
   );
   const peakTiming = calculatePeakTimingScore(
     maxAltitudeTime,
-    nightInfo.astronomicalDusk,
-    nightInfo.astronomicalDawn
+    nightInfo.observingWindowStart,
+    nightInfo.observingWindowEnd
   );
   const weatherScore = calculateWeatherScore(weather, objectType, subtype);
 
@@ -761,7 +769,11 @@ export function calculateTotalScore(
       ? calculateSurfaceBrightnessScore(surfaceBrightness, magnitude, angularSizeArcmin)
       : 10;
   const magnitudeScore = calculateMagnitudeScore(magnitude, objectType);
-  const typeSuitability = calculateTypeSuitabilityScore(objectType, subtype, moonIllumination);
+  const typeSuitability = calculateTypeSuitabilityScore(
+    objectType,
+    subtype,
+    effectiveMoonIllumination
+  );
 
   // Priority/Rarity (0-50)
   const transientBonus = calculateTransientBonus(objectType, isInterstellar);

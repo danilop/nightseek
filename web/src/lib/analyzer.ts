@@ -108,7 +108,7 @@ async function calculateAllVisibilities(
 
         visibility.constellation = getPlanetConstellation(
           body,
-          nightInfo.astronomicalDusk,
+          nightInfo.observingWindowStart,
           observer
         );
 
@@ -124,7 +124,10 @@ async function calculateAllVisibilities(
 
         if (visibility.maxAltitudeTime) {
           visibility.hourAngle = calculator.getHourAngle(body, visibility.maxAltitudeTime);
-          const meridianTime = calculator.getMeridianTransitTime(body, nightInfo.astronomicalDusk);
+          const meridianTime = calculator.getMeridianTransitTime(
+            body,
+            nightInfo.observingWindowStart
+          );
           if (
             meridianTime &&
             meridianTime >= nightInfo.sunset &&
@@ -134,7 +137,7 @@ async function calculateAllVisibilities(
           }
         }
 
-        visibility.sunAngle = calculator.getSunAngle(body, nightInfo.astronomicalDusk);
+        visibility.sunAngle = calculator.getSunAngle(body, nightInfo.observingWindowStart);
         visibility.heliocentricDistanceAU = calculator.getHeliocentricDistance(body, nightDate);
         visibility.geocentricDistanceAU = calculator.getGeocentricDistance(body, nightDate);
 
@@ -207,14 +210,14 @@ async function calculateAllVisibilities(
           visibility.meridianTransitTime =
             calculator.getMeridianTransitTimeForRA(
               dso.raHours,
-              nightInfo.astronomicalDusk,
+              nightInfo.observingWindowStart,
               dso.decDegrees
             ) ?? undefined;
         }
         visibility.sunAngle = calculator.getSunAngleForPosition(
           dso.raHours,
           dso.decDegrees,
-          nightInfo.astronomicalDusk
+          nightInfo.observingWindowStart
         );
       } catch (error) {
         throw errorWithCause(`Deep-sky metadata calculation failed: ${dso.name}`, error);
@@ -517,7 +520,7 @@ export async function generateForecast(
 
     // Calculate local sidereal time at midnight (UTC midpoint of astronomical night)
     const midnight = new Date(
-      (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
+      (nightInfo.observingWindowStart.getTime() + nightInfo.observingWindowEnd.getTime()) / 2
     );
     nightInfo.localSiderealTimeAtMidnight = getLocalSiderealTime(
       midnight,

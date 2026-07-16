@@ -313,8 +313,8 @@ export default function TargetsTab({
   // Check if we're currently in the dark window
   const now = useCurrentTime();
   const isDarkWindow =
-    now.getTime() >= nightInfo.astronomicalDusk.getTime() &&
-    now.getTime() <= nightInfo.astronomicalDawn.getTime();
+    now.getTime() >= nightInfo.observingWindowStart.getTime() &&
+    now.getTime() <= nightInfo.observingWindowEnd.getTime();
 
   // Auto-revert to score mode when dark window ends
   useEffect(() => {
@@ -657,6 +657,7 @@ export default function TargetsTab({
         onSelectedTimeChange={setSelectedTime}
         secondarySort={secondarySort}
         onSecondarySortChange={setSecondarySort}
+        timezone={location?.timezone}
       />
 
       {accessibleObjects.length === 0 && (

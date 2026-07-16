@@ -1,3 +1,4 @@
+import { getMoonlightLevel } from '@/lib/astronomy/moonlight';
 import type {
   AstronomicalEvents,
   NightForecast,
@@ -9,7 +10,7 @@ import type {
 } from '@/types';
 
 export function createMockNightInfo(overrides: Partial<NightInfo> = {}): NightInfo {
-  return {
+  const nightInfo: NightInfo = {
     date: new Date('2025-01-15'),
     sunset: new Date('2025-01-15T17:00:00'),
     sunrise: new Date('2025-01-16T07:00:00'),
@@ -18,15 +19,46 @@ export function createMockNightInfo(overrides: Partial<NightInfo> = {}): NightIn
     sunsetOccurs: true,
     sunriseOccurs: true,
     astronomicalNightMode: 'normal',
+    observingWindowMode: 'astronomical',
+    observingWindowStart: new Date('2025-01-15T18:30:00'),
+    observingWindowEnd: new Date('2025-01-16T05:30:00'),
+    minimumSunAltitude: -45,
+    darkestTime: new Date('2025-01-16T00:00:00'),
     moonPhase: 0.25,
     moonIllumination: 50,
     moonRise: new Date('2025-01-15T12:00:00'),
     moonSet: new Date('2025-01-16T02:00:00'),
+    moonlight: {
+      visibleHours: 11,
+      visibleFraction: 1,
+      maxAltitude: 55,
+      exposurePercent: 50,
+      level: 'moderate',
+    },
     moonPhaseExact: null,
     localSiderealTimeAtMidnight: '12:00:00',
     seeingForecast: null,
     ...overrides,
   };
+
+  // Keep related test fields coherent when a focused test overrides the older
+  // astronomical-boundary or illumination inputs only.
+  if (overrides.astronomicalDusk && !overrides.observingWindowStart) {
+    nightInfo.observingWindowStart = overrides.astronomicalDusk;
+  }
+  if (overrides.astronomicalDawn && !overrides.observingWindowEnd) {
+    nightInfo.observingWindowEnd = overrides.astronomicalDawn;
+  }
+  if (overrides.moonIllumination !== undefined && !overrides.moonlight) {
+    const exposurePercent = overrides.moonIllumination;
+    nightInfo.moonlight = {
+      ...nightInfo.moonlight,
+      exposurePercent,
+      level: getMoonlightLevel(exposurePercent, nightInfo.moonlight.maxAltitude),
+    };
+  }
+
+  return nightInfo;
 }
 
 export function createMockNightWeather(overrides: Partial<NightWeather> = {}): NightWeather {
@@ -80,6 +112,7 @@ export function createMockObjectVisibility(
     above75Start: null,
     above75End: null,
     moonSeparation: 90,
+    moonAltitudeAtPeak: 45,
     moonWarning: false,
     magnitude: 3.4,
     isInterstellar: false,

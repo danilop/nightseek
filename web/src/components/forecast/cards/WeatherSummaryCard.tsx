@@ -11,18 +11,7 @@ import {
 import type React from 'react';
 import { useState } from 'react';
 import Tooltip from '@/components/ui/Tooltip';
-import {
-  getMoonPhaseEmoji as getExactMoonPhaseEmoji,
-  getMoonPhaseName as getExactMoonPhaseName,
-} from '@/lib/astronomy/moon-phases';
-import {
-  formatTime,
-  formatTimeRange,
-  getMoonPhaseEmoji,
-  getMoonPhaseName,
-  getWeatherDescription,
-  getWeatherEmoji,
-} from '@/lib/utils/format';
+import { formatTimeRange, getWeatherDescription, getWeatherEmoji } from '@/lib/utils/format';
 import { getSeeingForecastColorClass } from '@/lib/utils/quality-helpers';
 import {
   formatPressure,
@@ -39,7 +28,6 @@ interface WeatherSummaryCardProps {
   timezone?: string;
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: UI component with multiple conditional weather sections
 export default function WeatherSummaryCard({ forecast, timezone }: WeatherSummaryCardProps) {
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const { nightInfo, weather } = forecast;
@@ -81,7 +69,7 @@ export default function WeatherSummaryCard({ forecast, timezone }: WeatherSummar
 
       <div className="p-4">
         {/* Summary grid */}
-        <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-3">
           <div className="cursor-help">
             <Tooltip content="Average cloud cover during the night. Lower is better for observing. 0-25% is ideal.">
               <span className="block">
@@ -91,28 +79,6 @@ export default function WeatherSummaryCard({ forecast, timezone }: WeatherSummar
                 </div>
                 <div className="text-gray-500 text-xs">
                   {Math.round(weather.avgCloudCover)}% clouds
-                </div>
-              </span>
-            </Tooltip>
-          </div>
-
-          <div className="cursor-help">
-            <Tooltip content="Moon phase affects sky brightness. New moon is best for deep-sky objects. Full moon is good for lunar and planetary observation.">
-              <span className="block">
-                <div className="mb-1 text-3xl">
-                  {nightInfo.moonPhaseExact
-                    ? getExactMoonPhaseEmoji(nightInfo.moonPhaseExact.phase)
-                    : getMoonPhaseEmoji(nightInfo.moonPhase)}
-                </div>
-                <div className="text-gray-400 text-sm">
-                  {nightInfo.moonPhaseExact
-                    ? getExactMoonPhaseName(nightInfo.moonPhaseExact.phase)
-                    : getMoonPhaseName(nightInfo.moonPhase)}
-                </div>
-                <div className="text-gray-500 text-xs">
-                  {nightInfo.moonPhaseExact?.isTonight
-                    ? `at ${formatTime(nightInfo.moonPhaseExact.time, timezone)}`
-                    : `${Math.round(nightInfo.moonIllumination)}% illuminated`}
                 </div>
               </span>
             </Tooltip>

@@ -382,9 +382,11 @@ export default function ObjectDetailPanel({
             icon={<Moon className="h-4 w-4 text-amber-400" />}
             label="Moon Separation"
             value={
-              visibility.moonSeparation !== null
-                ? formatMoonSeparation(visibility.moonSeparation)
-                : '—'
+              visibility.moonAltitudeAtPeak !== null && visibility.moonAltitudeAtPeak <= 0
+                ? 'Below horizon at peak'
+                : visibility.moonSeparation !== null
+                  ? formatMoonSeparation(visibility.moonSeparation)
+                  : '—'
             }
             valueClass={visibility.moonWarning ? 'text-amber-400' : ''}
           />

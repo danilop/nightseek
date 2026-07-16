@@ -79,14 +79,37 @@ export interface NightInfo {
   sunsetOccurs: boolean;
   sunriseOccurs: boolean;
   astronomicalNightMode: 'normal' | 'continuous' | 'none';
+  /** Deepest useful Sun-altitude window used for target/weather analysis. */
+  observingWindowMode: 'astronomical' | 'nautical' | 'civil' | 'sunset' | 'continuous' | 'none';
+  /** Actual interval used for weather, target visibility, and quality analysis. */
+  observingWindowStart: Date;
+  observingWindowEnd: Date;
+  /** Lowest apparent solar altitude during the local night. */
+  minimumSunAltitude: number;
+  /** Time at which the Sun reaches its lowest apparent altitude. */
+  darkestTime: Date;
   moonPhase: number; // 0-1 (0=new, 0.5=full)
   moonIllumination: number; // 0-100%
   moonRise: Date | null;
   moonSet: Date | null;
+  /** Moonlight present during the observing window, distinct from lunar phase alone. */
+  moonlight: MoonlightInfo;
   // New fields
   moonPhaseExact: MoonPhaseEvent | null;
   localSiderealTimeAtMidnight: string | null;
   seeingForecast: SeeingForecast | null;
+}
+
+export type MoonlightLevel = 'none' | 'minimal' | 'low' | 'moderate' | 'strong';
+
+export interface MoonlightInfo {
+  /** Time the Moon's center is above the apparent horizon during the observing window. */
+  visibleHours: number;
+  visibleFraction: number;
+  maxAltitude: number;
+  /** Illumination weighted by the fraction of the window for which the Moon is up. */
+  exposurePercent: number;
+  level: MoonlightLevel;
 }
 
 export interface ObjectVisibility {
@@ -102,6 +125,7 @@ export interface ObjectVisibility {
   above75Start: Date | null;
   above75End: Date | null;
   moonSeparation: number | null;
+  moonAltitudeAtPeak: number | null;
   moonWarning: boolean;
   magnitude: number | null;
   isInterstellar: boolean;
@@ -287,6 +311,7 @@ export interface MeteorShower {
   radiantAltitude: number | null;
   moonIllumination: number | null;
   moonSeparationDeg: number | null;
+  moonAltitudeDeg: number | null;
 }
 
 export interface Location {

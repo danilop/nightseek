@@ -26,6 +26,7 @@ interface TargetsToolbarProps {
   onSelectedTimeChange: (time: Date) => void;
   secondarySort: SecondarySortField;
   onSecondarySortChange: (field: SecondarySortField) => void;
+  timezone?: string;
 }
 
 export default function TargetsToolbar({
@@ -42,6 +43,7 @@ export default function TargetsToolbar({
   onSelectedTimeChange,
   secondarySort,
   onSecondarySortChange,
+  timezone,
 }: TargetsToolbarProps) {
   const hasActiveFilters = activeFilters.length > 0;
 
@@ -138,6 +140,7 @@ export default function TargetsToolbar({
             nightInfo={nightInfo}
             selectedTime={selectedTime}
             onSelectedTimeChange={onSelectedTimeChange}
+            timezone={timezone}
           />
         </div>
       )}

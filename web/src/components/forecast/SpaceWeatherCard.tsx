@@ -11,7 +11,7 @@ import {
   getTodayFlareProbability,
   type SWPCData,
 } from '@/lib/nasa/swpc';
-import { formatTime } from '@/lib/utils/format';
+import { formatDate, formatTime } from '@/lib/utils/format';
 import { useApp } from '@/stores/AppContext';
 import type { AuroraForecast, SpaceWeather } from '@/types';
 
@@ -198,7 +198,7 @@ function RecentStormsSection({
       <div className="space-y-2">
         {storms.slice(0, 3).map(storm => (
           <div key={storm.gstID} className="flex items-center justify-between text-sm">
-            <span className="text-gray-400">{new Date(storm.startTime).toLocaleDateString()}</span>
+            <span className="text-gray-400">{formatDate(new Date(storm.startTime), timezone)}</span>
             <div className="flex items-center gap-2">
               <span className={getKpColorClass(storm.maxKp)}>Max Kp {storm.maxKp}</span>
               <span className="text-gray-500 text-xs">
@@ -231,7 +231,7 @@ function SolarFlaresSection({
               <span className="text-gray-300">{flare.classType}</span>
             </div>
             <span className="text-gray-500 text-xs">
-              {new Date(flare.peakTime).toLocaleDateString()}{' '}
+              {formatDate(new Date(flare.peakTime), timezone)}{' '}
               {formatTime(new Date(flare.peakTime), timezone)}
             </span>
           </div>

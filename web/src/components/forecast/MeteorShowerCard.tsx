@@ -99,7 +99,10 @@ interface ShowerDetailsProps {
 function ShowerDetails({ shower, nightDate, timezone }: ShowerDetailsProps) {
   const geometricCeiling = getGeometricHourlyRateCeiling(shower);
   const { constellation } = getIAUMeteorShowerInfo(shower);
-  const moonInterference = getMoonInterference(shower.moonIllumination);
+  const moonInterference =
+    shower.moonAltitudeDeg !== null && shower.moonAltitudeDeg <= 0
+      ? { text: 'No interference', textColor: 'text-green-400' }
+      : getMoonInterference(shower.moonIllumination);
 
   return (
     <div className="space-y-3 rounded-lg bg-night-800 p-4">
@@ -141,13 +144,17 @@ function ShowerDetails({ shower, nightDate, timezone }: ShowerDetailsProps) {
       <div className="flex items-center gap-2 border-night-700 border-t pt-2">
         <Moon className="h-4 w-4 text-gray-500" />
         <span className="text-gray-400 text-sm">
-          Moon: {shower.moonIllumination?.toFixed(0) ?? 0}%
+          {shower.moonAltitudeDeg !== null && shower.moonAltitudeDeg <= 0
+            ? `Moon below horizon (${shower.moonIllumination?.toFixed(0) ?? 0}% illuminated)`
+            : `Moon: ${shower.moonIllumination?.toFixed(0) ?? 0}%`}
         </span>
-        {shower.moonSeparationDeg !== null && (
-          <span className="text-gray-500 text-sm">
-            ({shower.moonSeparationDeg.toFixed(0)}° from radiant)
-          </span>
-        )}
+        {shower.moonAltitudeDeg !== null &&
+          shower.moonAltitudeDeg > 0 &&
+          shower.moonSeparationDeg !== null && (
+            <span className="text-gray-500 text-sm">
+              ({shower.moonSeparationDeg.toFixed(0)}° from radiant)
+            </span>
+          )}
         <span className={`ml-auto text-sm ${moonInterference.textColor}`}>
           {moonInterference.text}
         </span>

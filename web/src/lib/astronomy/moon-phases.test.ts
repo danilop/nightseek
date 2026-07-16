@@ -17,20 +17,34 @@ describe('moon-phases', () => {
     const sunrise = new Date(date);
     sunrise.setDate(sunrise.getDate() + 1);
     sunrise.setHours(6, 0, 0, 0);
+    const observingWindowStart = new Date(sunset.getTime() + 90 * 60 * 1000);
+    const observingWindowEnd = new Date(sunrise.getTime() - 90 * 60 * 1000);
 
     return {
       date,
       sunset,
       sunrise,
-      astronomicalDusk: new Date(sunset.getTime() + 90 * 60 * 1000),
-      astronomicalDawn: new Date(sunrise.getTime() - 90 * 60 * 1000),
+      astronomicalDusk: observingWindowStart,
+      astronomicalDawn: observingWindowEnd,
       sunsetOccurs: true,
       sunriseOccurs: true,
       astronomicalNightMode: 'normal',
+      observingWindowMode: 'astronomical',
+      observingWindowStart,
+      observingWindowEnd,
+      minimumSunAltitude: -45,
+      darkestTime: new Date(date.getTime() + 12 * 60 * 60 * 1000),
       moonPhase: 0.5,
       moonIllumination: 100,
       moonRise: null,
       moonSet: null,
+      moonlight: {
+        visibleHours: 10,
+        visibleFraction: 1,
+        maxAltitude: 60,
+        exposurePercent: 100,
+        level: 'strong',
+      },
       moonPhaseExact: null,
       localSiderealTimeAtMidnight: null,
       seeingForecast: null,
@@ -108,6 +122,7 @@ describe('moon-phases', () => {
       const testDate = new Date(phase.time.getTime() - 60 * 60 * 1000);
       const nightInfo = createMockNightInfo(testDate);
       nightInfo.astronomicalNightMode = 'none';
+      nightInfo.observingWindowMode = 'none';
       nightInfo.sunset = new Date(phase.time.getTime() - 2 * 60 * 60 * 1000);
       nightInfo.sunrise = new Date(phase.time.getTime() + 2 * 60 * 60 * 1000);
 

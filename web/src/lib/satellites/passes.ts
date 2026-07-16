@@ -50,10 +50,10 @@ export function calculateSatellitePasses(
   };
 
   for (const night of nights) {
-    if (night.astronomicalNightMode === 'none') continue;
+    if (night.observingWindowMode === 'none') continue;
     // Search from astronomical dusk to dawn
-    const startTime = night.astronomicalDusk;
-    const endTime = night.astronomicalDawn;
+    const startTime = night.observingWindowStart;
+    const endTime = night.observingWindowEnd;
 
     const nightPasses = findPasses(
       satrec,

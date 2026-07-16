@@ -9,7 +9,12 @@ import { getRadiantConstellation, IAU_METEOR_SHOWERS } from './iau-meteor-data';
  */
 const METEOR_SHOWERS: Omit<
   MeteorShower,
-  'isActive' | 'daysFromPeak' | 'radiantAltitude' | 'moonIllumination' | 'moonSeparationDeg'
+  | 'isActive'
+  | 'daysFromPeak'
+  | 'radiantAltitude'
+  | 'moonIllumination'
+  | 'moonSeparationDeg'
+  | 'moonAltitudeDeg'
 >[] = [
   {
     name: 'Quadrantids',
@@ -252,11 +257,11 @@ export function detectMeteorShowers(
   nightInfo: NightInfo
 ): MeteorShower[] {
   const results: MeteorShower[] = [];
-  if (nightInfo.astronomicalNightMode === 'none') return results;
+  if (nightInfo.observingWindowMode === 'none') return results;
 
   // Calculate at midnight
   const midnight = new Date(
-    (nightInfo.astronomicalDusk.getTime() + nightInfo.astronomicalDawn.getTime()) / 2
+    (nightInfo.observingWindowStart.getTime() + nightInfo.observingWindowEnd.getTime()) / 2
   );
 
   // Use IAU catalog for comprehensive meteor shower data
@@ -288,6 +293,7 @@ export function detectMeteorShowers(
       radiantAltitude: altitude,
       moonIllumination: nightInfo.moonIllumination,
       moonSeparationDeg: moonSeparation,
+      moonAltitudeDeg: moonPos.altitude,
     });
   }
 

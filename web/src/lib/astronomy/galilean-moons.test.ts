@@ -63,6 +63,7 @@ describe('Galilean moon geometry', () => {
   it('does not invent events when the selected date has no astronomical darkness', () => {
     const nightInfo = createMockNightInfo({
       astronomicalNightMode: 'none',
+      observingWindowMode: 'none',
       astronomicalDusk: new Date('2026-06-21T12:00:00Z'),
       astronomicalDawn: new Date('2026-06-21T12:00:00Z'),
     });

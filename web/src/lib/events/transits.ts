@@ -155,11 +155,12 @@ export function getTransitForDisplay(startDate: Date): PlanetaryTransit | null {
 /**
  * Get description text for a transit
  */
-export function getTransitDescription(transit: PlanetaryTransit): string {
+export function getTransitDescription(transit: PlanetaryTransit, timezone?: string): string {
   const dateStr = transit.peak.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
+    ...(timezone ? { timeZone: timezone } : {}),
   });
 
   const durationMinutes = Math.round(

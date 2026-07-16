@@ -71,7 +71,7 @@ export default function MosaicTipsPanel({
       assessMosaicConditions({
         mosaic,
         fov,
-        moonIllumination: nightInfo.moonIllumination,
+        moonIllumination: nightInfo.moonlight.exposurePercent,
         moonSeparation: visibility.moonSeparation,
         weather,
         imagingWindow: visibility.imagingWindow as ImagingWindow | null,
@@ -79,7 +79,7 @@ export default function MosaicTipsPanel({
     [
       mosaic,
       fov,
-      nightInfo.moonIllumination,
+      nightInfo.moonlight.exposurePercent,
       visibility.moonSeparation,
       weather,
       visibility.imagingWindow,

@@ -16,6 +16,7 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
 
   useEffect(() => {
     let cancelled = false;
+    setData(null);
     setLoading(true);
 
     fetchHistoricalWeather(latitude, longitude)

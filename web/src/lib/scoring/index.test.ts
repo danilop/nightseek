@@ -77,6 +77,10 @@ describe('scoring', () => {
       // Emission nebulae are more sensitive to moonlight
       expect(galaxy).toBeGreaterThanOrEqual(emissionNebula);
     });
+
+    it('does not penalize a target when the Moon is below its local horizon', () => {
+      expect(calculateMoonInterference(100, 5, 'dso', 'galaxy', -2)).toBe(30);
+    });
   });
 
   describe('calculatePeakTimingScore', () => {

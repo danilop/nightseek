@@ -314,6 +314,7 @@ function SatellitePassesContent({
         position={issPosition}
         locationName={issLocationName}
         loading={issPositionLoading}
+        timezone={location.timezone}
       />
     </div>
   );
@@ -376,9 +377,15 @@ interface ISSPositionDisplayProps {
   position: ISSPosition | null;
   locationName: string | null;
   loading: boolean;
+  timezone?: string;
 }
 
-function ISSPositionDisplay({ position, locationName, loading }: ISSPositionDisplayProps) {
+function ISSPositionDisplay({
+  position,
+  locationName,
+  loading,
+  timezone,
+}: ISSPositionDisplayProps) {
   if (loading && !position) {
     return (
       <div className="mt-4 border-night-700 border-t pt-4">
@@ -450,7 +457,7 @@ function ISSPositionDisplay({ position, locationName, loading }: ISSPositionDisp
             {getVisibilityDescription(position.visibility)}
           </span>
           <span className="ml-auto text-gray-500 text-xs">
-            Updated {position.timestamp.toLocaleTimeString()}
+            Updated {formatTime(position.timestamp, timezone)}
           </span>
         </div>
       </div>

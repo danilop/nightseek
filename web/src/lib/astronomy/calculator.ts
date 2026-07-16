@@ -8,6 +8,7 @@ import type {
 } from '@/types';
 import { calculateAirmass } from './airmass';
 import { AU_TO_KM } from './constants';
+import { calculateMoonlightInfo } from './moonlight';
 import { calculateApparentDiameter, PLANET_DIAMETER_RANGES } from './planets';
 
 function getAboveAltitudeSegment(
@@ -115,6 +116,96 @@ function equatorOfDateFromJ2000(
   return { ra: equator.ra, dec: equator.dec };
 }
 
+interface SolarObservingWindow {
+  astronomicalNightMode: NightInfo['astronomicalNightMode'];
+  observingWindowMode: NightInfo['observingWindowMode'];
+  start: Date;
+  end: Date;
+}
+
+function searchTwilightWindow(
+  observer: Astronomy.Observer,
+  date: Date,
+  altitude: number
+): [Date, Date] | null {
+  const evening = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, -1, date, 1, altitude);
+  if (!evening) return null;
+  const morning = Astronomy.SearchAltitude(
+    Astronomy.Body.Sun,
+    observer,
+    +1,
+    evening.date,
+    1,
+    altitude
+  );
+  return morning ? [evening.date, morning.date] : null;
+}
+
+function resolveSolarObservingWindow(
+  observer: Astronomy.Observer,
+  date: Date,
+  nextDay: Date,
+  sunset: Date | null,
+  sunrise: Date | null,
+  astronomicalWindow: [Date, Date] | null
+): SolarObservingWindow {
+  if (astronomicalWindow) {
+    return {
+      astronomicalNightMode: 'normal',
+      observingWindowMode: 'astronomical',
+      start: astronomicalWindow[0],
+      end: astronomicalWindow[1],
+    };
+  }
+
+  const brightestSunAltitude = Astronomy.SearchHourAngle(Astronomy.Body.Sun, observer, 0, date, +1)
+    .hor.altitude;
+  if (brightestSunAltitude <= -18) {
+    return {
+      astronomicalNightMode: 'continuous',
+      observingWindowMode: 'continuous',
+      start: date,
+      end: nextDay,
+    };
+  }
+
+  const nauticalWindow = searchTwilightWindow(observer, date, -12);
+  if (nauticalWindow) {
+    return {
+      astronomicalNightMode: 'none',
+      observingWindowMode: 'nautical',
+      start: nauticalWindow[0],
+      end: nauticalWindow[1],
+    };
+  }
+
+  const civilWindow = searchTwilightWindow(observer, date, -6);
+  if (civilWindow) {
+    return {
+      astronomicalNightMode: 'none',
+      observingWindowMode: 'civil',
+      start: civilWindow[0],
+      end: civilWindow[1],
+    };
+  }
+
+  if (sunset && sunrise) {
+    return {
+      astronomicalNightMode: 'none',
+      observingWindowMode: 'sunset',
+      start: sunset,
+      end: sunrise,
+    };
+  }
+
+  return {
+    astronomicalNightMode: 'none',
+    observingWindowMode: 'none',
+    start: date,
+    end: date,
+  };
+}
+
 export class SkyCalculator {
   private observer: Astronomy.Observer;
 
@@ -157,46 +248,28 @@ export class SkyCalculator {
       -18
     );
 
-    let astronomicalNightMode: NightInfo['astronomicalNightMode'];
-    let astronomicalDusk: Date;
-    let astronomicalDawn: Date;
+    const darkestEvent = Astronomy.SearchHourAngle(Astronomy.Body.Sun, this.observer, 12, date, +1);
+    const minimumSunAltitude = darkestEvent.hor.altitude;
+    const darkestTime = darkestEvent.time.date;
 
-    if (duskSearch && dawnSearch) {
-      astronomicalNightMode = 'normal';
-      astronomicalDusk = duskSearch.date;
-      astronomicalDawn = dawnSearch.date;
-    } else {
-      let maximumSunAltitude = -90;
-      for (let time = date.getTime(); time <= nextDay.getTime(); time += 60 * 60 * 1000) {
-        const sampleDate = new Date(time);
-        const equator = Astronomy.Equator(
-          Astronomy.Body.Sun,
-          sampleDate,
-          this.observer,
-          true,
-          true
-        );
-        const altitude = Astronomy.Horizon(
-          sampleDate,
-          this.observer,
-          equator.ra,
-          equator.dec
-        ).altitude;
-        maximumSunAltitude = Math.max(maximumSunAltitude, altitude);
-      }
-
-      astronomicalNightMode = maximumSunAltitude <= -18 ? 'continuous' : 'none';
-      astronomicalDusk = date;
-      astronomicalDawn = astronomicalNightMode === 'continuous' ? nextDay : date;
-    }
-
-    // These serve as chart bounds in polar conditions. The occurrence flags
-    // ensure the UI never presents the fallback bounds as real events.
+    const solarWindow = resolveSolarObservingWindow(
+      this.observer,
+      date,
+      nextDay,
+      sunsetSearch?.date ?? null,
+      sunriseSearch?.date ?? null,
+      duskSearch && dawnSearch ? [duskSearch.date, dawnSearch.date] : null
+    );
+    const { astronomicalNightMode, observingWindowMode } = solarWindow;
+    const observingWindowStart = solarWindow.start;
+    const observingWindowEnd = solarWindow.end;
+    const astronomicalDusk = astronomicalNightMode === 'none' ? darkestTime : observingWindowStart;
+    const astronomicalDawn = astronomicalNightMode === 'none' ? darkestTime : observingWindowEnd;
     const sunset = sunsetSearch?.date ?? date;
     const sunrise = sunriseSearch?.date ?? nextDay;
 
-    // Moon phase and illumination at midnight (UTC midpoint of astronomical night)
-    const midnight = new Date((astronomicalDusk.getTime() + astronomicalDawn.getTime()) / 2);
+    // Moon phase and illumination at the midpoint of the actual analysis window.
+    const midnight = new Date((observingWindowStart.getTime() + observingWindowEnd.getTime()) / 2);
 
     // MoonPhase returns 0-360 degrees where 0=new, 180=full
     const moonPhaseDegrees = Astronomy.MoonPhase(midnight);
@@ -223,7 +296,7 @@ export class SkyCalculator {
       1
     );
 
-    return {
+    const nightInfo: NightInfo = {
       date,
       sunset,
       sunrise,
@@ -232,15 +305,40 @@ export class SkyCalculator {
       sunsetOccurs: sunsetSearch !== null,
       sunriseOccurs: sunriseSearch !== null,
       astronomicalNightMode,
+      observingWindowMode,
+      observingWindowStart,
+      observingWindowEnd,
+      minimumSunAltitude,
+      darkestTime,
       moonPhase: moonPhaseFraction,
       moonIllumination: moonIlluminationPct,
       moonRise: moonRiseSearch?.date ?? null,
       moonSet: moonSetSearch?.date ?? null,
+      moonlight: {
+        visibleHours: 0,
+        visibleFraction: 0,
+        maxAltitude: -90,
+        exposurePercent: 0,
+        level: 'none',
+      },
       // New fields - populated by analyzer
       moonPhaseExact: null,
       localSiderealTimeAtMidnight: null,
       seeingForecast: null,
     };
+
+    const moonSamples = this.sampleAltitudesForNight(time => {
+      const position = this.getMoonPosition(time);
+      return { altitude: position.altitude, azimuth: position.azimuth };
+    }, nightInfo).altitudeSamples;
+    nightInfo.moonlight = calculateMoonlightInfo(
+      moonIlluminationPct,
+      moonSamples,
+      observingWindowStart,
+      observingWindowEnd
+    );
+
+    return nightInfo;
   }
 
   /**
@@ -331,6 +429,10 @@ export class SkyCalculator {
     return this.getMoonSeparation(equator.ra, equator.dec, time);
   }
 
+  private getMoonAltitudeAtOptionalTime(time: Date | null): number | null {
+    return time === null ? null : this.getMoonPosition(time).altitude;
+  }
+
   /**
    * Calculate moon separation from a celestial object
    */
@@ -383,12 +485,12 @@ export class SkyCalculator {
     let maxAltitudeTime: Date | null = null;
     let azimuthAtPeak = 0;
 
-    if (nightInfo.astronomicalNightMode === 'none') {
+    if (nightInfo.observingWindowMode === 'none') {
       return { altitudeSamples, azimuthSamples, maxAltitude, maxAltitudeTime, azimuthAtPeak };
     }
 
-    const startTime = nightInfo.astronomicalDusk.getTime();
-    const endTime = nightInfo.astronomicalDawn.getTime();
+    const startTime = nightInfo.observingWindowStart.getTime();
+    const endTime = nightInfo.observingWindowEnd.getTime();
     const interval = 10 * 60 * 1000; // 10 minutes
 
     const sampleAt = (timeMs: number) => {
@@ -486,6 +588,7 @@ export class SkyCalculator {
     const moonSeparation = maxAltitudeTime
       ? this.getMoonSeparation(peakPosition.raHours, peakPosition.decDegrees, maxAltitudeTime)
       : null;
+    const moonAltitudeAtPeak = this.getMoonAltitudeAtOptionalTime(maxAltitudeTime);
 
     return {
       objectName,
@@ -503,7 +606,12 @@ export class SkyCalculator {
       above75Start: windows.above75?.[0] ?? null,
       above75End: windows.above75?.[1] ?? null,
       moonSeparation,
-      moonWarning: moonSeparation !== null && moonSeparation < 30,
+      moonAltitudeAtPeak,
+      moonWarning:
+        moonAltitudeAtPeak !== null &&
+        moonAltitudeAtPeak > 0 &&
+        moonSeparation !== null &&
+        moonSeparation < 30,
       altitudeSamples,
       azimuthSamples,
       minAirmass: maxAltitude > 0 ? calculateAirmass(maxAltitude) : Infinity,
@@ -568,6 +676,7 @@ export class SkyCalculator {
     const windows = this.findAllAltitudeWindows(altitudeSamples);
 
     const moonSeparation = this.getBodyMoonSeparationAtOptionalTime(body, maxAltitudeTime);
+    const moonAltitudeAtPeak = this.getMoonAltitudeAtOptionalTime(maxAltitudeTime);
 
     const ranges = PLANET_DIAMETER_RANGES[planetName.toLowerCase()];
     const apparentDiameter = peakDistance
@@ -589,7 +698,12 @@ export class SkyCalculator {
       above75Start: windows.above75?.[0] ?? null,
       above75End: windows.above75?.[1] ?? null,
       moonSeparation,
-      moonWarning: moonSeparation !== null && moonSeparation < 30,
+      moonAltitudeAtPeak,
+      moonWarning:
+        moonAltitudeAtPeak !== null &&
+        moonAltitudeAtPeak > 0 &&
+        moonSeparation !== null &&
+        moonSeparation < 30,
       altitudeSamples,
       azimuthSamples,
       minAirmass: maxAltitude > 0 ? calculateAirmass(maxAltitude) : Infinity,
@@ -633,7 +747,7 @@ export class SkyCalculator {
    * Calculate Moon visibility (for display purposes)
    */
   calculateMoonVisibility(nightInfo: NightInfo): ObjectVisibility {
-    if (nightInfo.astronomicalNightMode === 'none') {
+    if (nightInfo.observingWindowMode === 'none') {
       return {
         objectName: 'Moon',
         objectType: 'moon',
@@ -647,6 +761,7 @@ export class SkyCalculator {
         above75Start: null,
         above75End: null,
         moonSeparation: null,
+        moonAltitudeAtPeak: null,
         moonWarning: false,
         altitudeSamples: [],
         azimuthSamples: [],
@@ -691,6 +806,7 @@ export class SkyCalculator {
       above75Start: null,
       above75End: null,
       moonSeparation: null,
+      moonAltitudeAtPeak: null,
       moonWarning: false,
       altitudeSamples,
       azimuthSamples,
