@@ -1,33 +1,26 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
+# Dependencies and build output
+node_modules/
 dist/
-wheels/
-*.egg-info
-
-# Virtual environments
-.venv
-
-# Environment variables
-.env
-
-# Skyfield ephemeris data
-*.bsp
-CometEls.txt
-
-# Tool caches
-.ruff_cache/
-.pytest_cache/
-.playwright-mcp/
+mobile/www/
+mobile/ios/App/Pods/
 .pnpm-store/
 
-# Editor/AI tool configs (user-specific)
+# Test and tooling output
+coverage/
+playwright-report/
+test-results/
+.playwright-mcp/
+.vite/
+*.tsbuildinfo
+/*.png
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
+.idea/
+.vscode/
 .kiro/
 .claude/
-
-# Test artifacts
-*.png
-
-# Allow PWA icons
-!web/public/icons/*.png

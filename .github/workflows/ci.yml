@@ -10,7 +10,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  validate:
+  validate-web:
+    name: Web app
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,39 +47,24 @@ jobs:
         working-directory: ./web
         run: pnpm run test:coverage
 
-  validate-cli:
+  validate-mobile:
+    name: Mobile wrapper
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          enable-cache: true
-          cache-dependency-glob: cli/uv.lock
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
 
-      - name: Install Python
-        run: uv python install 3.12
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
 
-      - name: Sync locked dependencies
-        working-directory: ./cli
-        run: uv sync --locked --dev
-
-      - name: Lint and formatting
-        working-directory: ./cli
-        run: |
-          uv run ruff check .
-          uv run ruff format --check .
-
-      - name: Type-check
-        working-directory: ./cli
-        run: uv run ty check .
-
-      - name: Dead code detection
-        working-directory: ./cli
-        run: uv run vulture *.py --min-confidence 80 --exclude test_*.py
-
-      - name: Tests
-        working-directory: ./cli
-        run: uv run pytest -q
+      - name: Build
+        working-directory: ./mobile
+        run: npm run build
