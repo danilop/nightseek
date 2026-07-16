@@ -111,9 +111,8 @@ native integration failure cannot hide behind a successful web build.
 ## Deployment and data refresh
 
 Pushes to `main` build and deploy the PWA through GitHub Pages, then invalidate
-the production CloudFront distribution. The GitLab mirror contains an
-equivalent Pages deployment. A scheduled GitHub workflow refreshes astronomy
-data daily and redeploys only when the generated data changes.
+the production CloudFront distribution. A scheduled GitHub workflow refreshes
+astronomy data daily and redeploys only when the generated data changes.
 
 The deployment inputs are intentionally rooted under `web/`; generated browser
 reports, coverage output, native build products, and dependency directories are
