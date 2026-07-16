@@ -1,3 +1,4 @@
+import { registerSW } from 'virtual:pwa-register';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -5,6 +6,10 @@ import { preloadLightPollutionGrid } from './lib/lightpollution';
 import { cleanupOldCaches } from './lib/utils/cache';
 import { AppProvider } from './stores/AppContext';
 import './index.css';
+
+// Register from application code so autoUpdate can reload an already-open client
+// as soon as a newly deployed service worker takes control.
+registerSW({ immediate: true });
 
 // Clean up old versioned caches on app startup
 cleanupOldCaches();
