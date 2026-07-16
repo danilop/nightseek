@@ -86,15 +86,17 @@ Additional requirements:
 - CocoaPods
 
 ```bash
-cd mobile
-npm ci
-npm run sync-deps       # Run after shared web dependencies change
-npm run sync            # Build and synchronize the Capacitor project
-npm run open            # Open the Xcode workspace
+pnpm --dir web install --frozen-lockfile
+npm --prefix mobile ci
+npm --prefix mobile run sync-deps  # Run after shared web dependencies change
+npm --prefix mobile run sync       # Build and synchronize the Capacitor project
+npm --prefix mobile run open       # Open the Xcode workspace
 ```
 
 The native wrapper adds local notifications, native location permissions,
-sharing, haptics, bundled sky-chart assets, and Mac Catalyst support.
+sharing, haptics, bundled sky-chart assets, and Mac Catalyst support. Both
+dependency installs are required because shared files remain physically rooted
+under `web/src`, and TypeScript resolves their imports through `web/node_modules`.
 
 ## Validate everything
 

@@ -61,7 +61,16 @@ jobs:
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
-      - name: Install dependencies
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.13.1
+
+      - name: Install shared web dependencies
+        working-directory: ./web
+        run: pnpm install --frozen-lockfile
+
+      - name: Install mobile dependencies
         working-directory: ./mobile
         run: npm ci
 
