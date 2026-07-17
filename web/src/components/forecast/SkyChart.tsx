@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeviceCompass } from '@/hooks/useDeviceCompass';
 import { formatTime as formatTimeUtil, getNightLabel } from '@/lib/utils/format';
 import type { Location, NightInfo, SkyMapFocus } from '@/types';
-import MilkyWayToggle from './MilkyWayToggle';
+import SkyLayerToggle from './SkyLayerToggle';
 
 /**
  * Calculate the slider position (0-100) for a given time within the night range.
@@ -133,32 +133,6 @@ function addSkyFocusLayer(getFocus: () => SkyMapFocus | null): void {
       context.restore();
     },
   });
-}
-
-/** Reusable toggle button for display options */
-function ToggleButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-full px-3 py-1.5 font-medium text-xs transition-colors ${
-        active
-          ? 'border border-white/30 bg-white/10 text-white'
-          : 'border border-night-700 bg-night-800 text-gray-500'
-      }`}
-    >
-      {label}
-    </button>
-  );
 }
 
 function SkyFocusStatus({ focus }: { focus: SkyMapFocus | null }) {
@@ -811,35 +785,40 @@ export default function SkyChart({ nightInfo, location, focus }: SkyChartProps) 
 
           {/* Display Options - matching d3-celestial viewer demo */}
           <div className="mb-4 flex flex-wrap gap-2">
-            <ToggleButton
+            <SkyLayerToggle
               label="Stars"
               active={showStars}
-              onClick={() => setShowStars(!showStars)}
+              onToggle={() => setShowStars(value => !value)}
             />
-            <ToggleButton label="DSOs" active={showDSOs} onClick={() => setShowDSOs(!showDSOs)} />
-            <ToggleButton
+            <SkyLayerToggle
+              label="DSOs"
+              active={showDSOs}
+              onToggle={() => setShowDSOs(value => !value)}
+            />
+            <SkyLayerToggle
               label="Constellations"
               active={showConstellations}
-              onClick={() => setShowConstellations(!showConstellations)}
+              onToggle={() => setShowConstellations(value => !value)}
             />
-            <ToggleButton
+            <SkyLayerToggle
               label="Names"
               active={showNames}
-              onClick={() => setShowNames(!showNames)}
+              onToggle={() => setShowNames(value => !value)}
             />
-            <ToggleButton
+            <SkyLayerToggle
               label="Ecliptic"
               active={showLines}
-              onClick={() => setShowLines(!showLines)}
+              onToggle={() => setShowLines(value => !value)}
             />
-            <MilkyWayToggle
-              visible={showMilkyWay}
+            <SkyLayerToggle
+              label="Milky Way"
+              active={showMilkyWay}
               onToggle={() => setShowMilkyWay(visible => !visible)}
             />
-            <ToggleButton
+            <SkyLayerToggle
               label="Planets"
               active={showPlanets}
-              onClick={() => setShowPlanets(!showPlanets)}
+              onToggle={() => setShowPlanets(value => !value)}
             />
           </div>
 
