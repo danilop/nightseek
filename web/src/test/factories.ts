@@ -1,6 +1,7 @@
 import { getMoonlightLevel } from '@/lib/astronomy/moonlight';
 import type {
   AstronomicalEvents,
+  MilkyWayPlan,
   NightForecast,
   NightInfo,
   NightWeather,
@@ -175,6 +176,44 @@ export function createMockScoredObject(overrides: Partial<ScoredObject> = {}): S
   };
 }
 
+export function createMockMilkyWayPlan(overrides: Partial<MilkyWayPlan> = {}): MilkyWayPlan {
+  const bandVisibility = createMockObjectVisibility({
+    objectName: 'Milky Way',
+    objectType: 'milky_way',
+    commonName: 'Cygnus band',
+    magnitude: null,
+    surfaceBrightness: null,
+    raHours: 20.5,
+    decDegrees: 40,
+    constellation: 'Cygnus band',
+  });
+  const coreVisibility = createMockObjectVisibility({
+    objectName: 'Galactic Core',
+    objectType: 'milky_way',
+    commonName: 'Galactic Core (Sagittarius A*)',
+    magnitude: null,
+    surfaceBrightness: null,
+    raHours: 17.761122,
+    decDegrees: -29.007811,
+    constellation: 'Sagittarius',
+  });
+
+  return {
+    sections: [
+      {
+        id: 'cygnus',
+        label: 'Cygnus band',
+        description: 'A bright northern star field split by the Great Rift.',
+        galacticLongitudeDeg: 80,
+        relativeProminence: 0.88,
+        samples: [{ galacticLatitudeDeg: 0, visibility: bandVisibility }],
+      },
+    ],
+    coreVisibility,
+    ...overrides,
+  };
+}
+
 export function createMockAstronomicalEvents(
   overrides: Partial<AstronomicalEvents> = {}
 ): AstronomicalEvents {
@@ -207,16 +246,7 @@ export function createMockNightForecast(overrides: Partial<NightForecast> = {}):
     comets: [],
     dwarfPlanets: [],
     asteroids: [],
-    milkyWay: createMockObjectVisibility({
-      objectName: 'Milky Way Core',
-      objectType: 'milky_way',
-      commonName: 'Milky Way Core (Sagittarius A*)',
-      magnitude: null,
-      surfaceBrightness: null,
-      raHours: 17.761122,
-      decDegrees: -29.007811,
-      constellation: 'Sagittarius',
-    }),
+    milkyWay: createMockMilkyWayPlan(),
     moon: null,
     weather: createMockNightWeather(),
     forecastConfidence: 'high',

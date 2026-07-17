@@ -164,6 +164,29 @@ export interface ObjectVisibility {
   physicalData?: AsteroidPhysicalData; // JPL SBDB physical data (asteroids)
 }
 
+/** A sampled line of sight through the Milky Way's visible band. */
+export interface MilkyWayBandSample {
+  galacticLatitudeDeg: number;
+  visibility: ObjectVisibility;
+}
+
+/** A recognisable photographic region along the Galactic plane. */
+export interface MilkyWaySection {
+  id: string;
+  label: string;
+  description: string;
+  galacticLongitudeDeg: number;
+  /** Relative visual prominence under the same observing conditions (0-1). */
+  relativeProminence: number;
+  samples: MilkyWayBandSample[];
+}
+
+/** Full-band Milky Way geometry plus the Galactic Core as a secondary marker. */
+export interface MilkyWayPlan {
+  sections: MilkyWaySection[];
+  coreVisibility: ObjectVisibility;
+}
+
 /** A requested time and equatorial position to reveal on the interactive sky chart. */
 export interface SkyMapFocus {
   time: Date;
@@ -243,8 +266,8 @@ export interface NightForecast {
   comets: ObjectVisibility[];
   dwarfPlanets: ObjectVisibility[];
   asteroids: ObjectVisibility[];
-  /** Galactic Center visibility, retained even when it never clears the usable night window. */
-  milkyWay: ObjectVisibility;
+  /** Extended Milky Way band geometry and secondary Galactic Core marker. */
+  milkyWay: MilkyWayPlan;
   moon: ObjectVisibility | null;
   weather: NightWeather | null;
   forecastConfidence: 'high' | 'medium' | 'low';

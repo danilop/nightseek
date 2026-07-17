@@ -5,6 +5,8 @@ export interface PhotoReadyWindow extends ImagingWindow {
   durationMinutes: number;
 }
 
+const MIN_PHOTO_READY_DURATION_MINUTES = 30;
+
 /**
  * Restrict atmosphere/Moon/weather imaging windows to the exact intervals that
  * clear the user's whole-sky minimum and directional horizon obstructions.
@@ -21,11 +23,14 @@ export function intersectImagingAndAccessWindows(
       const endMs = Math.min(imagingWindow.end.getTime(), accessWindow.end.getTime());
       if (endMs <= startMs) continue;
 
+      const durationMinutes = (endMs - startMs) / 60_000;
+      if (durationMinutes < MIN_PHOTO_READY_DURATION_MINUTES) continue;
+
       intersections.push({
         ...imagingWindow,
         start: new Date(startMs),
         end: new Date(endMs),
-        durationMinutes: (endMs - startMs) / 60_000,
+        durationMinutes,
       });
     }
   }

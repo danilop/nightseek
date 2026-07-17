@@ -145,8 +145,8 @@ function SkyFocusStatus({ focus }: { focus: SkyMapFocus | null }) {
     >
       <Crosshair className="h-4 w-4 shrink-0 text-amber-300" />
       <span>
-        Focused on <strong>{focus.label}</strong>. The amber marker identifies the core; the
-        brighter band shows the Milky Way.
+        Focused on <strong>{focus.label}</strong>. The amber marker identifies the selected region;
+        the brighter shape shows the full Milky Way band.
       </span>
     </div>
   );
@@ -567,7 +567,7 @@ export default function SkyChart({ nightInfo, location, focus }: SkyChartProps) 
 
   // Update display options
   useEffect(() => {
-    if (!celestialInitialized.current || typeof Celestial === 'undefined') return;
+    if (!chartReady || !celestialInitialized.current || typeof Celestial === 'undefined') return;
 
     try {
       Celestial.apply({
@@ -586,7 +586,10 @@ export default function SkyChart({ nightInfo, location, focus }: SkyChartProps) 
         },
         mw: {
           show: showMilkyWay,
-          style: { fill: '#94a3b8', opacity: isTargetFocused ? 0.32 : 0.2 },
+          style: {
+            fill: isTargetFocused ? '#c7d2fe' : '#a5b4fc',
+            opacity: isTargetFocused ? 0.72 : 0.26,
+          },
         },
         lines: {
           graticule: { show: false },
@@ -612,6 +615,7 @@ export default function SkyChart({ nightInfo, location, focus }: SkyChartProps) 
     showPlanets,
     showNames,
     isTargetFocused,
+    chartReady,
   ]);
 
   // Cleanup on unmount

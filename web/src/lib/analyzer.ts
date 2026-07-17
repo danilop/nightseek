@@ -4,6 +4,7 @@ import type {
   AstronomicalEvents,
   DSOCatalogEntry,
   Location,
+  MilkyWayPlan,
   NeoCloseApproach,
   NightForecast,
   NightInfo,
@@ -29,6 +30,7 @@ import { getBestImagingWindow } from './astronomy/imaging-windows';
 import { getLibrationForNight } from './astronomy/libration';
 import { getLunarApsisForNight } from './astronomy/lunar-apsis';
 import { getEclipseSeasonInfo } from './astronomy/lunar-nodes';
+import { calculateMilkyWayPlan, selectMilkyWayRepresentative } from './astronomy/milky-way';
 import { getMoonPhaseEvents } from './astronomy/moon-phases';
 import { detectOppositions, getOppositionForPlanet } from './astronomy/opposition';
 import { getPlanetsNearPerihelion, isNearPerihelion } from './astronomy/planet-apsis';
@@ -72,7 +74,7 @@ interface AllVisibilities {
   comets: ObjectVisibility[];
   dwarfPlanets: ObjectVisibility[];
   asteroids: ObjectVisibility[];
-  milkyWay: ObjectVisibility;
+  milkyWay: MilkyWayPlan;
   moon: ObjectVisibility;
   jupiterVisible: boolean;
 }
@@ -284,11 +286,10 @@ async function calculateAllVisibilities(
     }
   }
 
-  let milkyWay: ObjectVisibility;
+  let milkyWay: MilkyWayPlan;
   let moon: ObjectVisibility;
   try {
-    milkyWay = calculator.calculateMilkyWayVisibility(nightInfo);
-    milkyWay.constellation = 'Sagittarius';
+    milkyWay = calculateMilkyWayPlan(calculator, nightInfo);
   } catch (error) {
     throw errorWithCause('Milky Way visibility calculation failed', error);
   }
@@ -572,8 +573,8 @@ export async function generateForecast(
       comets: vis.comets,
       dwarfPlanets: vis.dwarfPlanets,
       asteroids: vis.asteroids,
-      // Keep the core ephemeris even when it is below the usable night window so
-      // the planner can explain why there is no opportunity instead of vanishing.
+      // Keep the complete band and core geometry even when parts are below the
+      // usable night window so the planner can explain every outcome.
       milkyWay: vis.milkyWay,
       moon: vis.moon,
       weather,
@@ -592,7 +593,7 @@ export async function generateForecast(
       ...vis.comets,
       ...vis.dwarfPlanets,
       ...vis.asteroids,
-      vis.milkyWay,
+      selectMilkyWayRepresentative(vis.milkyWay),
       ...(vis.moon.isVisible ? [vis.moon] : []),
     ];
 

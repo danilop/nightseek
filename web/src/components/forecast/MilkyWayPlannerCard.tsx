@@ -11,7 +11,11 @@ import {
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { SkyCalculator } from '@/lib/astronomy/calculator';
-import { calculateImagingWindows } from '@/lib/astronomy/imaging-windows';
+import {
+  buildMilkyWayNightPlan,
+  type MilkyWayNightPlan,
+  type MilkyWaySamplePlan,
+} from '@/lib/astronomy/milky-way-planning';
 import { calculateBortle, getBortleColorClass } from '@/lib/lightpollution/bortle';
 import { getAltitudeAtTime, getAzimuthAtTime } from '@/lib/utils/altitude-interpolation';
 import {
@@ -21,8 +25,8 @@ import {
   formatTimeRange,
   getNightLabel,
 } from '@/lib/utils/format';
-import { evaluateTargetAccessibility, type TargetAccessibility } from '@/lib/utils/horizon-profile';
-import { getBestPhotoReadyWindow, type PhotoReadyWindow } from '@/lib/utils/target-photo-windows';
+import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
+import type { PhotoReadyWindow } from '@/lib/utils/target-photo-windows';
 import type {
   HorizonProfile,
   Location,
@@ -32,8 +36,8 @@ import type {
   SkyMapFocus,
 } from '@/types';
 
-interface GalacticCorePlannerCardProps {
-  core: ScoredObject;
+interface MilkyWayPlannerCardProps {
+  target: ScoredObject;
   forecast: NightForecast;
   forecastRange: NightForecast[];
   horizonProfile: HorizonProfile;
@@ -42,56 +46,10 @@ interface GalacticCorePlannerCardProps {
   onShowSky: (focus: SkyMapFocus) => void;
 }
 
-interface CorePlan {
-  forecast: NightForecast;
-  accessibility: TargetAccessibility;
-  qualityWindow: PhotoReadyWindow | null;
-  candidateWindow: PhotoReadyWindow | null;
-  photoWindow: PhotoReadyWindow | null;
-}
-
 interface SkyPoint {
   time: Date;
   altitude: number;
   azimuth: number;
-}
-
-function buildCorePlan(
-  forecast: NightForecast,
-  horizonProfile: HorizonProfile,
-  location: Location
-): CorePlan {
-  const accessibility = evaluateTargetAccessibility(
-    forecast.milkyWay,
-    horizonProfile,
-    forecast.weather
-  );
-  const calculator = new SkyCalculator(location.latitude, location.longitude);
-  const imagingWindows = calculateImagingWindows(
-    forecast.milkyWay,
-    forecast.nightInfo,
-    forecast.weather,
-    calculator
-  );
-
-  const candidateWindow = getBestPhotoReadyWindow(imagingWindows, accessibility);
-  const transparency = forecast.weather?.transparencyScore;
-  const transparencyReady =
-    transparency === null || transparency === undefined || transparency >= 30;
-
-  return {
-    forecast,
-    accessibility,
-    qualityWindow: imagingWindows[0]
-      ? {
-          ...imagingWindows[0],
-          durationMinutes:
-            (imagingWindows[0].end.getTime() - imagingWindows[0].start.getTime()) / 60_000,
-        }
-      : null,
-    candidateWindow,
-    photoWindow: transparencyReady ? candidateWindow : null,
-  };
 }
 
 function getSkyPoint(visibility: ObjectVisibility, time: Date): SkyPoint {
@@ -135,61 +93,77 @@ function getTransparencyLabel(forecast: NightForecast): string {
   return score === null || score === undefined ? 'No forecast' : `${Math.round(score)}/100`;
 }
 
-function getPositionWindowLabel(plan: CorePlan): 'photo' | 'candidate' | 'best conditions' {
-  if (plan.photoWindow) return 'photo';
-  if (plan.candidateWindow) return 'candidate';
+function getPositionWindowLabel(
+  samplePlan: MilkyWaySamplePlan
+): 'photo' | 'candidate' | 'best conditions' {
+  if (samplePlan.photoWindow) return 'photo';
+  if (samplePlan.candidateWindow) return 'candidate';
   return 'best conditions';
 }
 
-function getStatus(plan: CorePlan): { label: string; detail: string; className: string } {
-  if (plan.photoWindow) {
+function getStatus(plan: MilkyWayNightPlan): {
+  label: string;
+  detail: string;
+  className: string;
+} {
+  const best = plan.bestSample;
+  if (best?.photoWindow) {
     return {
       label: 'Photo-ready',
-      detail: 'Clears your horizon while Moon, weather, altitude, and darkness are acceptable.',
+      detail: `${best.section.label} has the strongest accessible window tonight.`,
       className: 'border-green-500/30 bg-green-500/15 text-green-300',
     };
   }
-  if (plan.forecast.nightInfo.observingWindowMode === 'none') {
+  if (!plan.isAstronomicallyDark) {
     return {
-      label: 'No dark-enough window',
-      detail: 'The Sun never reaches the app’s usable darkness threshold on this night.',
+      label: 'No astronomical darkness',
+      detail:
+        'The band may be above your horizon, but the Sun never reaches 18° below it during this night.',
       className: 'border-amber-500/30 bg-amber-500/15 text-amber-300',
     };
   }
-  if (!plan.forecast.milkyWay.isVisible) {
+  if (!best || !plan.samples.some(sample => sample.sample.visibility.isVisible)) {
     return {
       label: 'Below the usable night sky',
-      detail: 'The core does not rise during this night’s usable darkness window.',
+      detail: 'No sampled Milky Way region rises during the usable dark window.',
       className: 'border-night-600 bg-night-800 text-gray-300',
     };
   }
-  if (!plan.accessibility.isAccessible) {
+  if (!plan.samples.some(sample => sample.accessibility.isAccessible)) {
     return {
       label: 'Blocked by your sky profile',
-      detail: 'The core stays below your minimum altitude or a directional obstruction.',
+      detail: 'The visible band stays below your minimum altitude or directional obstructions.',
       className: 'border-orange-500/30 bg-orange-500/15 text-orange-300',
     };
   }
-  if (plan.qualityWindow && !plan.candidateWindow) {
-    return {
-      label: 'Blocked during best conditions',
-      detail: 'The core clears your sky later, but your profile blocks the useful quality window.',
-      className: 'border-orange-500/30 bg-orange-500/15 text-orange-300',
-    };
-  }
-  if (plan.candidateWindow && (plan.forecast.weather?.transparencyScore ?? 100) < 30) {
+  if (!plan.transparencyReady) {
     return {
       label: 'Poor transparency',
-      detail: 'The geometry works, but haze or aerosols are suppressing Milky Way contrast.',
+      detail: 'The geometry works, but haze or aerosols will suppress the band’s contrast.',
+      className: 'border-orange-500/30 bg-orange-500/15 text-orange-300',
+    };
+  }
+  if (!plan.skyglowReady) {
+    return {
+      label: 'Low contrast from skyglow',
+      detail:
+        'The band is geometrically available, but city skyglow makes a darker site advisable.',
       className: 'border-orange-500/30 bg-orange-500/15 text-orange-300',
     };
   }
   return {
     label: 'Visible, not photo-ready',
     detail:
-      'It clears your horizon, but altitude, Moon, or weather stays below the photo threshold.',
+      'A section clears your horizon, but altitude, Moon, or weather misses the photo threshold.',
     className: 'border-amber-500/30 bg-amber-500/15 text-amber-300',
   };
+}
+
+function getProminenceLabel(prominence: number): string {
+  if (prominence >= 0.9) return 'Very prominent';
+  if (prominence >= 0.7) return 'Prominent';
+  if (prominence >= 0.5) return 'Subtle';
+  return 'Very subtle';
 }
 
 function PositionPoint({
@@ -217,13 +191,13 @@ function CitySkyglowWarning({ bortleClass }: { bortleClass: number }) {
   if (bortleClass < 7) return null;
   return (
     <p className="rounded-lg border border-orange-500/20 bg-orange-500/10 px-3 py-2 text-orange-200 text-xs">
-      Strong city skyglow will reduce core contrast even in a valid window. A darker site is the
-      highest-impact improvement.
+      Strong city skyglow will reduce band contrast even when its position is favourable. A darker
+      site is the highest-impact improvement.
     </p>
   );
 }
 
-function CorePath({
+function BandPath({
   visibility,
   window,
   windowLabel,
@@ -235,19 +209,28 @@ function CorePath({
   timezone?: string;
 }) {
   if (window) {
-    const startPoint = getSkyPoint(visibility, window.start);
-    const peakPoint = getPeakPoint(visibility, window);
-    const endPoint = getSkyPoint(visibility, window.end);
     return (
       <div>
         <div className="mb-2 flex items-center gap-2 text-gray-300 text-sm">
           <Compass className="h-4 w-4 text-sky-400" />
-          Where it moves during the {windowLabel} window
+          Where this section moves during the {windowLabel} window
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <PositionPoint label="Start" point={startPoint} timezone={timezone} />
-          <PositionPoint label="Highest" point={peakPoint} timezone={timezone} />
-          <PositionPoint label="End" point={endPoint} timezone={timezone} />
+          <PositionPoint
+            label="Start"
+            point={getSkyPoint(visibility, window.start)}
+            timezone={timezone}
+          />
+          <PositionPoint
+            label="Highest"
+            point={getPeakPoint(visibility, window)}
+            timezone={timezone}
+          />
+          <PositionPoint
+            label="End"
+            point={getSkyPoint(visibility, window.end)}
+            timezone={timezone}
+          />
         </div>
       </div>
     );
@@ -265,41 +248,104 @@ function CorePath({
   );
 }
 
-export default function GalacticCorePlannerCard({
-  core,
+function GalacticCoreSummary({ plan, timezone }: { plan: MilkyWayNightPlan; timezone?: string }) {
+  const core = plan.core;
+  let value = 'Not available tonight';
+  let detail = 'The core stays below the usable night sky.';
+
+  if (core.photoWindow) {
+    value = formatTimeRange(core.photoWindow.start, core.photoWindow.end, timezone);
+    detail = 'The core is also photo-ready during this interval.';
+  } else if (!core.accessibility.isAccessible && core.visibility.isVisible) {
+    value = 'Blocked by sky profile';
+    detail = 'It does not clear your height or directional obstruction settings.';
+  } else if (!plan.isAstronomicallyDark && core.visibility.isVisible) {
+    value = 'Above horizon in twilight';
+    detail = 'The core rises, but there is no astronomical darkness for useful contrast.';
+  } else if (core.candidateWindow) {
+    value = 'Visible, conditions limited';
+    detail = 'Its position works, but transparency, skyglow, or darkness is limiting contrast.';
+  } else if (core.visibility.isVisible) {
+    value = 'Visible, no photo window';
+    detail = 'It rises, but Moon, weather, altitude, or duration misses the photo threshold.';
+  }
+
+  return (
+    <div className="rounded-lg border border-night-700 bg-night-950/40 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="font-medium text-gray-200 text-sm">Galactic Core</p>
+          <p className="mt-0.5 text-gray-500 text-xs">Secondary feature within the Milky Way</p>
+        </div>
+        <span className="font-medium text-sky-300 text-sm">{value}</span>
+      </div>
+      <p className="mt-2 text-gray-400 text-xs">{detail}</p>
+    </div>
+  );
+}
+
+function getBestForecastPlan(plans: MilkyWayNightPlan[]): MilkyWayNightPlan | undefined {
+  return plans
+    .filter(item => item.bestSample?.photoWindow)
+    .sort(
+      (a, b) =>
+        (b.bestSample?.planningScore ?? 0) - (a.bestSample?.planningScore ?? 0) ||
+        (b.bestSample?.photoWindow?.durationMinutes ?? 0) -
+          (a.bestSample?.photoWindow?.durationMinutes ?? 0)
+    )[0];
+}
+
+function createSelectedTarget(target: ScoredObject, best: MilkyWaySamplePlan | null): ScoredObject {
+  if (!best) return target;
+  return {
+    ...target,
+    objectName: 'Milky Way',
+    magnitude: null,
+    visibility: best.sample.visibility,
+  };
+}
+
+export default function MilkyWayPlannerCard({
+  target,
   forecast,
   forecastRange,
   horizonProfile,
   location,
   onOpenDetails,
   onShowSky,
-}: GalacticCorePlannerCardProps) {
-  const plans = useMemo(
-    () => forecastRange.map(item => buildCorePlan(item, horizonProfile, location)),
-    [forecastRange, horizonProfile, location]
-  );
+}: MilkyWayPlannerCardProps) {
+  const bortle = calculateBortle(location.latitude, location.longitude);
+  const plans = useMemo(() => {
+    const calculator = new SkyCalculator(location.latitude, location.longitude);
+    return forecastRange.map(item =>
+      buildMilkyWayNightPlan(item, horizonProfile, calculator, bortle.value)
+    );
+  }, [forecastRange, horizonProfile, location.latitude, location.longitude, bortle.value]);
   const plan =
     plans.find(
       item => item.forecast.nightInfo.date.getTime() === forecast.nightInfo.date.getTime()
-    ) ?? buildCorePlan(forecast, horizonProfile, location);
-  const bestForecastPlan = plans
-    .filter(item => item.photoWindow)
-    .sort(
-      (a, b) =>
-        (b.photoWindow?.qualityScore ?? 0) - (a.photoWindow?.qualityScore ?? 0) ||
-        (b.photoWindow?.durationMinutes ?? 0) - (a.photoWindow?.durationMinutes ?? 0)
-    )[0];
+    ) ??
+    buildMilkyWayNightPlan(
+      forecast,
+      horizonProfile,
+      new SkyCalculator(location.latitude, location.longitude),
+      bortle.value
+    );
+  const bestForecastPlan = getBestForecastPlan(plans);
+  const best = plan.bestSample;
   const status = getStatus(plan);
-  const bortle = calculateBortle(location.latitude, location.longitude);
   const timezone = location.timezone;
-  const photoWindow = plan.photoWindow;
-  const positionWindow = photoWindow ?? plan.candidateWindow ?? plan.qualityWindow;
-  const peakPoint = positionWindow ? getPeakPoint(forecast.milkyWay, positionWindow) : null;
-  const focusTime = peakPoint?.time ?? forecast.milkyWay.maxAltitudeTime;
+  const positionWindow = best
+    ? (best.photoWindow ?? best.candidateWindow ?? best.qualityWindow)
+    : null;
+  const visibility = best?.sample.visibility;
+  const peakPoint = visibility && positionWindow ? getPeakPoint(visibility, positionWindow) : null;
+  const focusTime = peakPoint?.time ?? visibility?.maxAltitudeTime;
+  const selectedTarget = createSelectedTarget(target, best);
 
   return (
     <section
-      aria-labelledby="galactic-core-planner-title"
+      aria-labelledby="milky-way-planner-title"
       className="overflow-hidden rounded-xl border border-indigo-500/30 bg-gradient-to-br from-night-900 via-night-900 to-indigo-950/50"
     >
       <div className="border-night-700 border-b p-4 sm:p-5">
@@ -310,12 +356,14 @@ export default function GalacticCorePlannerCard({
             </div>
             <div className="min-w-0">
               <p className="font-medium text-indigo-300 text-xs uppercase tracking-wide">
-                Milky Way photography
+                Extended band and arch
               </p>
-              <h4 id="galactic-core-planner-title" className="font-semibold text-lg text-white">
-                Galactic Core planner
+              <h4 id="milky-way-planner-title" className="font-semibold text-lg text-white">
+                Milky Way Planner
               </h4>
-              <p className="mt-0.5 text-gray-400 text-sm">Sagittarius A* direction marker</p>
+              <p className="mt-0.5 text-gray-400 text-sm">
+                Best visible section, direction, and photo window
+              </p>
             </div>
           </div>
           <div className={`rounded-full border px-3 py-1 font-medium text-xs ${status.className}`}>
@@ -325,7 +373,20 @@ export default function GalacticCorePlannerCard({
       </div>
 
       <div className="space-y-4 p-4 sm:p-5">
-        {photoWindow ? (
+        {best ? (
+          <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-indigo-400/20 bg-indigo-400/10 p-4">
+            <div>
+              <p className="text-indigo-200 text-xs uppercase tracking-wide">Best section</p>
+              <p className="mt-1 font-semibold text-white text-xl">{best.section.label}</p>
+              <p className="mt-1 max-w-xl text-gray-400 text-sm">{best.section.description}</p>
+            </div>
+            <div className="rounded-full bg-night-950/50 px-3 py-1.5 text-indigo-200 text-xs">
+              {getProminenceLabel(best.section.relativeProminence)}
+            </div>
+          </div>
+        ) : null}
+
+        {best?.photoWindow ? (
           <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -334,15 +395,15 @@ export default function GalacticCorePlannerCard({
                   Best photo window
                 </div>
                 <div className="mt-1 font-semibold text-2xl text-white">
-                  {formatTimeRange(photoWindow.start, photoWindow.end, timezone)}
+                  {formatTimeRange(best.photoWindow.start, best.photoWindow.end, timezone)}
                 </div>
               </div>
               <div className="text-right">
                 <div className="font-medium text-green-300">
-                  {formatDurationMinutes(photoWindow.durationMinutes)}
+                  {formatDurationMinutes(best.photoWindow.durationMinutes)}
                 </div>
                 <div className="text-gray-500 text-xs">
-                  {photoWindow.quality} · {photoWindow.qualityScore}/100
+                  {best.photoWindow.quality} · {best.photoWindow.qualityScore}/100
                 </div>
               </div>
             </div>
@@ -350,38 +411,33 @@ export default function GalacticCorePlannerCard({
         ) : (
           <div className="rounded-xl border border-night-700 bg-night-950/40 p-4">
             <p className="text-gray-300 text-sm">{status.detail}</p>
-            {plan.accessibility.bestWindow ? (
+            {best?.accessibility.bestWindow ? (
               <p className="mt-2 text-sky-300 text-xs">
                 Sky-access window:{' '}
                 {formatTimeRange(
-                  plan.accessibility.bestWindow.start,
-                  plan.accessibility.bestWindow.end,
+                  best.accessibility.bestWindow.start,
+                  best.accessibility.bestWindow.end,
                   timezone
                 )}
               </p>
             ) : null}
-            {plan.candidateWindow ? (
+            {best?.candidateWindow ? (
               <p className="mt-2 text-amber-300 text-xs">
-                Candidate window if conditions improve:{' '}
-                {formatTimeRange(plan.candidateWindow.start, plan.candidateWindow.end, timezone)}
-              </p>
-            ) : null}
-            {!plan.candidateWindow && plan.qualityWindow ? (
-              <p className="mt-2 text-orange-300 text-xs">
-                Best conditions occur at{' '}
-                {formatTimeRange(plan.qualityWindow.start, plan.qualityWindow.end, timezone)}, while
-                that direction is blocked.
+                Geometry + Moon/cloud window:{' '}
+                {formatTimeRange(best.candidateWindow.start, best.candidateWindow.end, timezone)}
               </p>
             ) : null}
           </div>
         )}
 
-        <CorePath
-          visibility={forecast.milkyWay}
-          window={positionWindow}
-          windowLabel={getPositionWindowLabel(plan)}
-          timezone={timezone}
-        />
+        {visibility ? (
+          <BandPath
+            visibility={visibility}
+            window={positionWindow}
+            windowLabel={getPositionWindowLabel(best)}
+            timezone={timezone}
+          />
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Condition
@@ -408,58 +464,64 @@ export default function GalacticCorePlannerCard({
         </div>
 
         <CitySkyglowWarning bortleClass={bortle.value} />
+        <GalacticCoreSummary plan={plan} timezone={timezone} />
 
-        {bestForecastPlan?.photoWindow ? (
+        {bestForecastPlan?.bestSample?.photoWindow ? (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-night-700 bg-night-950/40 px-3 py-2 text-sm">
             <span className="text-gray-400">Best in this forecast</span>
             <span className="text-white">
               {getNightLabel(bestForecastPlan.forecast.nightInfo.date, false, timezone)} ·{' '}
+              {bestForecastPlan.bestSample.section.label} ·{' '}
               {formatTimeRange(
-                bestForecastPlan.photoWindow.start,
-                bestForecastPlan.photoWindow.end,
+                bestForecastPlan.bestSample.photoWindow.start,
+                bestForecastPlan.bestSample.photoWindow.end,
                 timezone
               )}
             </span>
           </div>
         ) : (
           <p className="text-gray-500 text-xs">
-            No photo-ready Galactic Core window appears in the current forecast range.
+            No photo-ready Milky Way window appears in the current forecast range.
           </p>
         )}
 
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => onOpenDetails(core, plan.accessibility)}
-            className="rounded-lg bg-night-800 px-3 py-2 font-medium text-gray-200 text-sm transition-colors hover:bg-night-700"
+            disabled={!best}
+            onClick={() => best && onOpenDetails(selectedTarget, best.accessibility)}
+            className="rounded-lg bg-night-800 px-3 py-2 font-medium text-gray-200 text-sm transition-colors hover:bg-night-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             More details
           </button>
           <button
             type="button"
-            disabled={!focusTime}
+            disabled={!focusTime || !visibility || !best}
             onClick={() =>
               focusTime &&
+              visibility &&
+              best &&
               onShowSky({
                 time: focusTime,
-                raHours: forecast.milkyWay.raHours,
-                decDegrees: forecast.milkyWay.decDegrees,
-                label: 'Galactic Core',
+                raHours: visibility.raHours,
+                decDegrees: visibility.decDegrees,
+                label: best.section.label,
               })
             }
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-3 py-2 font-medium text-sm text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <MapIcon className="h-4 w-4" />
-            Show on sky map
+            Show Milky Way on sky map
           </button>
         </div>
 
         <div className="flex gap-2 border-night-700 border-t pt-3 text-gray-500 text-xs">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-400" />
           <p>
-            No single magnitude usefully describes the Milky Way core: it is extended glow, not a
-            point source. Apparent contrast varies with altitude, atmospheric transparency, skyglow,
-            and Moonlight, so the planner scores those conditions directly.
+            The Milky Way has no single useful magnitude: it is an extended, uneven band. Relative
+            prominence describes its structure; photo readiness is calculated from astronomical
+            darkness, Moon position and phase, weather, altitude, skyglow, and your directional
+            obstructions.
           </p>
         </div>
       </div>

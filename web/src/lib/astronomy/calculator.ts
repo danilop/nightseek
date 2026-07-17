@@ -593,9 +593,8 @@ export class SkyCalculator {
     return {
       objectName,
       objectType,
-      // Visibility means the target actually rises during astronomical
-      // darkness. Imaging-quality cutoffs belong to the user's sky profile,
-      // not this physical visibility flag.
+      // Visibility means the target rises during the selected usable observing
+      // window. Darkness and imaging-quality cutoffs are evaluated separately.
       isVisible: maxAltitude >= 0,
       maxAltitude,
       maxAltitudeTime,
@@ -728,7 +727,7 @@ export class SkyCalculator {
    * Sagittarius A* ICRS/J2000 position: RA 17h 45m 40.04s, Dec -29° 00′ 28.1″.
    * The compact radio source is used as a stable marker for the photographic core.
    */
-  calculateMilkyWayVisibility(nightInfo: NightInfo): ObjectVisibility {
+  calculateGalacticCoreVisibility(nightInfo: NightInfo): ObjectVisibility {
     const milkyWayRA = 17.761122;
     const milkyWayDec = -29.007811;
 
@@ -736,10 +735,10 @@ export class SkyCalculator {
       milkyWayRA,
       milkyWayDec,
       nightInfo,
-      'Milky Way Core',
+      'Galactic Core',
       'milky_way',
       {
-        commonName: 'Milky Way Core (Sagittarius A*)',
+        commonName: 'Galactic Core (Sagittarius A*)',
       }
     );
   }

@@ -48,8 +48,8 @@ import type {
 } from '@/types';
 import AccessibleSkyControl from '../AccessibleSkyControl';
 import CategorySection from '../CategorySection';
-import GalacticCorePlannerCard from '../GalacticCorePlannerCard';
 import JupiterMoonsCard from '../JupiterMoonsCard';
+import MilkyWayPlannerCard from '../MilkyWayPlannerCard';
 import type { SortMode } from '../SortModeControl';
 import TargetsToolbar from '../TargetsToolbar';
 import TonightPicksCard from '../TonightPicksCard';
@@ -311,7 +311,7 @@ export default function TargetsTab({
   const [selectedTime, setSelectedTime] = useState<Date>(() => new Date());
   const [horizonProfile, setHorizonProfile] = useState<HorizonProfile>(createDefaultHorizonProfile);
   const [horizonProfileReady, setHorizonProfileReady] = useState(false);
-  const galacticCore = useMemo(
+  const milkyWayTarget = useMemo(
     () => objects.find(object => object.category === 'milky_way') ?? null,
     [objects]
   );
@@ -579,7 +579,7 @@ export default function TargetsTab({
     ? categoriesWithObjects.find(c => c.key === activeDragId)
     : null;
 
-  if (catalogObjects.length === 0 && !galacticCore) {
+  if (catalogObjects.length === 0 && !milkyWayTarget) {
     return (
       <div className="rounded-xl border border-night-700 bg-night-900 p-6 text-center">
         <Sparkles className="mx-auto mb-3 h-8 w-8 text-gray-600" />
@@ -642,9 +642,9 @@ export default function TargetsTab({
         onReset={handleResetHorizonProfile}
       />
 
-      {galacticCore && horizonProfileReady ? (
-        <GalacticCorePlannerCard
-          core={galacticCore}
+      {milkyWayTarget && horizonProfileReady ? (
+        <MilkyWayPlannerCard
+          target={milkyWayTarget}
           forecast={forecast}
           forecastRange={forecastRange}
           horizonProfile={horizonProfile}

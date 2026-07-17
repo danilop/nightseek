@@ -50,6 +50,15 @@ describe('target photo windows', () => {
     expect(result).toBeNull();
   });
 
+  it('rejects an obstruction-clipped fragment shorter than the useful minimum', () => {
+    const result = getBestPhotoReadyWindow(
+      [imagingWindow],
+      accessibility('2025-07-17T00:40:01Z', '2025-07-17T01:00:00Z')
+    );
+
+    expect(result).toBeNull();
+  });
+
   it('prefers quality before duration when several accessible windows overlap', () => {
     const excellent = {
       ...imagingWindow,
