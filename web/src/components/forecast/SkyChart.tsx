@@ -588,7 +588,7 @@ export default function SkyChart({ nightInfo, location, focus }: SkyChartProps) 
           show: showMilkyWay,
           style: {
             fill: isTargetFocused ? '#c7d2fe' : '#a5b4fc',
-            opacity: isTargetFocused ? 0.72 : 0.26,
+            opacity: isTargetFocused ? 0.4 : 0.26,
           },
         },
         lines: {
