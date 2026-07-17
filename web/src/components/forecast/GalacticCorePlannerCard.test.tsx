@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createDefaultHorizonProfile } from '@/lib/utils/horizon-profile';
 import {
@@ -65,7 +65,7 @@ function createCoreFixture() {
   return { forecast, core };
 }
 
-function renderPlanner(horizonProfile: HorizonProfile) {
+function renderPlanner(horizonProfile: HorizonProfile, onShowSky = vi.fn()) {
   const { forecast, core } = createCoreFixture();
   render(
     <GalacticCorePlannerCard
@@ -75,7 +75,7 @@ function renderPlanner(horizonProfile: HorizonProfile) {
       horizonProfile={horizonProfile}
       location={location}
       onOpenDetails={vi.fn()}
-      onShowSky={vi.fn()}
+      onShowSky={onShowSky}
     />
   );
 }
@@ -104,5 +104,19 @@ describe('GalacticCorePlannerCard', () => {
 
     expect(screen.getByText('Blocked by your sky profile')).toBeInTheDocument();
     expect(screen.queryByText('Best photo window')).not.toBeInTheDocument();
+  });
+
+  it('hands the sky chart the core coordinates and selected peak time', () => {
+    const onShowSky = vi.fn();
+    renderPlanner(createDefaultHorizonProfile(), onShowSky);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show on sky map' }));
+
+    expect(onShowSky).toHaveBeenCalledWith({
+      time: new Date('2026-07-17T02:30:00Z'),
+      raHours: 17.761122,
+      decDegrees: -29.007811,
+      label: 'Galactic Core',
+    });
   });
 });

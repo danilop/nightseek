@@ -3,7 +3,7 @@ import { lazy, Suspense, useState } from 'react';
 import { useUIState } from '@/hooks/useUIState';
 import { formatDateKey, formatDateRange } from '@/lib/utils/format';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
-import type { Location, NightForecast, ScoredObject } from '@/types';
+import type { Location, NightForecast, ScoredObject, SkyMapFocus } from '@/types';
 import NightStrip from './NightStrip';
 import ObjectDetailPanel from './ObjectDetailPanel';
 import TabBar from './TabBar';
@@ -35,7 +35,7 @@ export default function ForecastView({
     object: ScoredObject;
     accessibility?: TargetAccessibility;
   } | null>(null);
-  const [skyFocusTime, setSkyFocusTime] = useState<Date | null>(null);
+  const [skyFocus, setSkyFocus] = useState<SkyMapFocus | null>(null);
   const { activeTab, setActiveTab } = useUIState();
 
   if (forecasts.length === 0) {
@@ -120,18 +120,14 @@ export default function ForecastView({
               onObjectSelect={(object, accessibility) =>
                 setSelectedTarget({ object, accessibility })
               }
-              onShowSky={time => {
-                setSkyFocusTime(time);
+              onShowSky={focus => {
+                setSkyFocus(focus);
                 setActiveTab('sky');
               }}
             />
           )}
           {activeTab === 'sky' && (
-            <SkyTab
-              nightInfo={selectedNight.nightInfo}
-              location={location}
-              focusTime={skyFocusTime}
-            />
+            <SkyTab nightInfo={selectedNight.nightInfo} location={location} focus={skyFocus} />
           )}
           {activeTab === 'events' && <EventsTab forecast={selectedNight} location={location} />}
         </Suspense>

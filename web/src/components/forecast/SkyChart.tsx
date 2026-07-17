@@ -11,7 +11,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeviceCompass } from '@/hooks/useDeviceCompass';
 import { formatTime as formatTimeUtil, getNightLabel } from '@/lib/utils/format';
-import type { Location, NightInfo } from '@/types';
+import type { Location, NightInfo, SkyMapFocus } from '@/types';
 
 /**
  * Calculate the slider position (0-100) for a given time within the night range.
@@ -37,7 +37,7 @@ declare const Celestial: any;
 interface SkyChartProps {
   nightInfo: NightInfo;
   location: Location;
-  focusTime?: Date | null;
+  focus?: SkyMapFocus | null;
 }
 
 // Responsive config thresholds (Tailwind breakpoints)
@@ -74,6 +74,66 @@ function loadExternalScript(src: string, integrity?: string): Promise<void> {
   });
 }
 
+function rotateToSkyFocus(focus: SkyMapFocus): void {
+  // Use the library's exposed projection directly so its asynchronous
+  // zenith-follow updates cannot win a delayed animation race.
+  const longitude = focus.raHours * 15;
+  Celestial.apply({ follow: 'center' });
+  Celestial.mapProjection.rotate([-longitude, -focus.decDegrees, 0]);
+  Celestial.redraw();
+}
+
+function redrawSkyFocus(focus: SkyMapFocus | null, initialized: boolean): void {
+  if (!focus || !initialized || typeof Celestial === 'undefined') return;
+  rotateToSkyFocus(focus);
+  Celestial.redraw();
+}
+
+function getActiveSkyFocus(
+  isTargetFocused: boolean,
+  focus?: SkyMapFocus | null
+): SkyMapFocus | null {
+  return isTargetFocused ? (focus ?? null) : null;
+}
+
+/** Register a supported d3-celestial raw layer that follows the latest requested target. */
+function addSkyFocusLayer(getFocus: () => SkyMapFocus | null): void {
+  Celestial.add({
+    type: 'raw',
+    callback: () => undefined,
+    redraw: () => {
+      const focus = getFocus();
+      if (!focus) return;
+
+      // The app stores right ascension in hours; d3-celestial projects longitude in degrees.
+      const coordinates = [focus.raHours * 15, focus.decDegrees];
+      if (!Celestial.clip(coordinates)) return;
+
+      const point = Celestial.mapProjection(coordinates);
+      const context = Celestial.context as CanvasRenderingContext2D;
+      if (!point || !context) return;
+
+      context.save();
+      context.shadowColor = '#020617';
+      context.shadowBlur = 5;
+      context.strokeStyle = '#fbbf24';
+      context.fillStyle = '#fbbf24';
+      context.lineWidth = 3;
+      context.beginPath();
+      context.arc(point[0], point[1], 10, 0, Math.PI * 2);
+      context.stroke();
+      context.beginPath();
+      context.arc(point[0], point[1], 3, 0, Math.PI * 2);
+      context.fill();
+      context.font = "600 14px 'Helvetica Neue', Arial, sans-serif";
+      context.textAlign = 'center';
+      context.textBaseline = 'bottom';
+      context.fillText(focus.label, point[0], point[1] - 15);
+      context.restore();
+    },
+  });
+}
+
 /** Reusable toggle button for display options */
 function ToggleButton({
   label,
@@ -99,8 +159,28 @@ function ToggleButton({
   );
 }
 
-export default function SkyChart({ nightInfo, location, focusTime }: SkyChartProps) {
+function SkyFocusStatus({ focus }: { focus: SkyMapFocus | null }) {
+  if (!focus) return null;
+
+  return (
+    <div
+      role="status"
+      className="mb-4 flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-amber-100 text-sm"
+    >
+      <Crosshair className="h-4 w-4 shrink-0 text-amber-300" />
+      <span>
+        Focused on <strong>{focus.label}</strong>. The amber marker identifies the core; the
+        brighter band shows the Milky Way.
+      </span>
+    </div>
+  );
+}
+
+export default function SkyChart({ nightInfo, location, focus }: SkyChartProps) {
   const [expanded, setExpanded] = useState(false);
+  const [isTargetFocused, setIsTargetFocused] = useState(false);
+  const focusRef = useRef<SkyMapFocus | null>(focus ?? null);
+  focusRef.current = focus ?? null;
 
   // Calculate initial slider position: "now" if within night, otherwise midpoint
   const getInitialSliderPosition = useCallback(() => {
@@ -160,10 +240,12 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
     try {
       const zenith = Celestial.zenith();
       if (zenith) {
+        Celestial.apply({ follow: 'zenith' });
         // Center on zenith with orientation 0 (north up)
         // zenith returns [longitude, latitude], we add 0 for orientation
         Celestial.rotate({ center: [zenith[0], zenith[1], 0] });
         Celestial.redraw(); // Force redraw to apply changes (needed on mobile)
+        setIsTargetFocused(false);
       }
     } catch {
       // Celestial not ready
@@ -185,20 +267,23 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
   const [showNames, setShowNames] = useState(() => !getIsSmallScreen()); // Names OFF on mobile
 
   useEffect(() => {
-    if (!focusTime) return;
-    const position = getSliderPositionForTime(focusTime, nightInfo.sunset, nightInfo.sunrise);
+    if (!focus) return;
+    const position = getSliderPositionForTime(focus.time, nightInfo.sunset, nightInfo.sunrise);
     if (position !== null) setSelectedTime(position);
     setShowMilkyWay(true);
+    setIsTargetFocused(true);
     setExpanded(true);
-  }, [focusTime, nightInfo.sunset, nightInfo.sunrise]);
+  }, [focus, nightInfo.sunset, nightInfo.sunrise]);
 
   // Compass via custom hook
   const { compassAvailable, compassEnabled, compassHeading, toggleCompass } = useDeviceCompass();
   const lastOrientationRef = useRef<number>(0); // Track current orientation for smooth rotation
 
   const celestialInitialized = useRef(false);
+  const celestialInitializing = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [chartStatus, setChartStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const chartReady = chartStatus === 'ready';
 
   // Store initial time for first render - don't add currentTime as init dependency
   const initialTimeRef = useRef<Date | null>(null);
@@ -221,6 +306,8 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
   useEffect(() => {
     if (!expanded) return;
     if (celestialInitialized.current) return;
+    if (celestialInitializing.current) return;
+    celestialInitializing.current = true;
 
     // Capture current time at init start
     initialTimeRef.current = currentTime;
@@ -267,9 +354,14 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
       try {
         await loadCelestialScript();
       } catch {
+        celestialInitializing.current = false;
         setChartStatus('error');
         return;
       }
+
+      // d3-celestial keeps custom layers globally across display() calls.
+      Celestial.data = [];
+      addSkyFocusLayer(() => focusRef.current);
 
       await new Promise<void>(resolve => {
         const checkReady = () => {
@@ -295,6 +387,7 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
         containerWidth = containerRef.current?.clientWidth ?? window.innerWidth;
       }
+      const mapWidth = Math.min(containerWidth, 760);
       const isSmall = containerWidth < SMALL_SCREEN_WIDTH;
       const isLarge = containerWidth >= MEDIUM_SCREEN_WIDTH;
 
@@ -329,18 +422,21 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
       const planetNameFontSize = isSmall ? '9px' : isLarge ? '15px' : '14px';
 
       // Config with app-matching dark theme styling and responsive settings
+      const initialFocus = focusRef.current;
       const config = {
         container: 'celestial-map',
         datapath: dataPath,
-        width: containerWidth, // Explicit width (auto-size with 0 can fail)
+        width: mapWidth, // Keep the full horizon readable without a page-height canvas.
         projection: 'stereographic', // Good for local sky views
         transform: 'equatorial',
-        follow: 'zenith',
+        follow: initialFocus ? 'center' : 'zenith',
+        center: initialFocus ? [initialFocus.raHours * 15, initialFocus.decDegrees, 0] : null,
         geopos: [location.latitude, location.longitude],
         zoomlevel: null,
         zoomextend: isSmall ? 5 : isLarge ? 12 : 10, // Zoom range by screen size
         interactive: true,
-        disableAnimations: false,
+        // Programmatic date/location/focus updates must not race delayed rotations.
+        disableAnimations: true,
         form: false, // We use our own UI
         location: true, // Enable location-based zenith calculation
         controls: false,
@@ -401,7 +497,7 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
         },
         mw: {
           show: !isSmall, // Milky Way OFF on mobile
-          style: { fill: '#64748b', opacity: 0.12 }, // slate-500
+          style: { fill: '#94a3b8', opacity: focusRef.current ? 0.32 : 0.2 },
         },
         lines: {
           graticule: { show: false },
@@ -435,14 +531,19 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
 
         // KEY: Use Celestial.zenith() to get proper zenith coordinates and rotate to it
         // This is how d3-celestial's form UI achieves zenith centering
+        const requestedFocus = focusRef.current;
         const zenith = Celestial.zenith();
-        if (zenith) {
+        if (requestedFocus) {
+          rotateToSkyFocus(requestedFocus);
+        } else if (zenith) {
           Celestial.rotate({ center: zenith });
         }
 
         celestialInitialized.current = true;
+        celestialInitializing.current = false;
         setChartStatus('ready');
       } catch {
+        celestialInitializing.current = false;
         setChartStatus('error');
       }
     };
@@ -458,8 +559,11 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
       Celestial.date(currentTime);
 
       // Rotate to zenith for the new time, preserving compass orientation if enabled
+      const requestedFocus = isTargetFocused ? focusRef.current : null;
       const zenith = Celestial.zenith();
-      if (zenith) {
+      if (requestedFocus) {
+        rotateToSkyFocus(requestedFocus);
+      } else if (zenith) {
         // Use tracked orientation when compass is enabled, otherwise 0 (north up)
         const orientation = compassEnabled ? lastOrientationRef.current : 0;
         Celestial.rotate({ center: [zenith[0], zenith[1], orientation] });
@@ -469,7 +573,21 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
     } catch {
       // Celestial not ready
     }
-  }, [currentTime, compassEnabled]);
+  }, [currentTime, compassEnabled, isTargetFocused]);
+
+  useEffect(() => {
+    redrawSkyFocus(
+      getActiveSkyFocus(isTargetFocused, focus),
+      celestialInitialized.current && chartReady
+    );
+  }, [isTargetFocused, focus, chartReady]);
+
+  useEffect(() => {
+    if (!chartReady || !isTargetFocused) return;
+    requestAnimationFrame(() =>
+      containerRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+    );
+  }, [chartReady, isTargetFocused]);
 
   // Update display options
   useEffect(() => {
@@ -490,7 +608,10 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
           names: showConstellations && showNames, // Names toggle controls constellation names
           lines: showConstellations, // Lines stay visible when constellations enabled
         },
-        mw: { show: showMilkyWay },
+        mw: {
+          show: showMilkyWay,
+          style: { fill: '#94a3b8', opacity: isTargetFocused ? 0.32 : 0.2 },
+        },
         lines: {
           graticule: { show: false },
           equatorial: { show: false },
@@ -506,7 +627,16 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
     } catch {
       // Celestial not ready
     }
-  }, [showStars, showDSOs, showConstellations, showLines, showMilkyWay, showPlanets, showNames]);
+  }, [
+    showStars,
+    showDSOs,
+    showConstellations,
+    showLines,
+    showMilkyWay,
+    showPlanets,
+    showNames,
+    isTargetFocused,
+  ]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -525,6 +655,7 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
           // Ignore cleanup errors
         }
         celestialInitialized.current = false;
+        celestialInitializing.current = false;
       }
     };
   }, []);
@@ -711,12 +842,14 @@ export default function SkyChart({ nightInfo, location, focusTime }: SkyChartPro
             />
           </div>
 
+          <SkyFocusStatus focus={getActiveSkyFocus(isTargetFocused, focus)} />
+
           {/* Sky Chart */}
           <div className="relative">
             <div
               ref={containerRef}
               id="celestial-map"
-              className="min-h-[300px] w-full overflow-hidden rounded-lg bg-night-950 sm:min-h-[400px] lg:min-h-[500px] xl:min-h-[600px]"
+              className="min-h-[300px] w-full overflow-hidden rounded-lg bg-night-950"
             />
             {chartStatus === 'loading' && (
               <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-night-950">

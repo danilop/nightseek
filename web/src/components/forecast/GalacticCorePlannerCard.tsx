@@ -29,6 +29,7 @@ import type {
   NightForecast,
   ObjectVisibility,
   ScoredObject,
+  SkyMapFocus,
 } from '@/types';
 
 interface GalacticCorePlannerCardProps {
@@ -38,7 +39,7 @@ interface GalacticCorePlannerCardProps {
   horizonProfile: HorizonProfile;
   location: Location;
   onOpenDetails: (object: ScoredObject, accessibility: TargetAccessibility) => void;
-  onShowSky: (time: Date) => void;
+  onShowSky: (focus: SkyMapFocus) => void;
 }
 
 interface CorePlan {
@@ -437,7 +438,15 @@ export default function GalacticCorePlannerCard({
           <button
             type="button"
             disabled={!focusTime}
-            onClick={() => focusTime && onShowSky(focusTime)}
+            onClick={() =>
+              focusTime &&
+              onShowSky({
+                time: focusTime,
+                raHours: forecast.milkyWay.raHours,
+                decDegrees: forecast.milkyWay.decDegrees,
+                label: 'Galactic Core',
+              })
+            }
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-3 py-2 font-medium text-sm text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <MapIcon className="h-4 w-4" />

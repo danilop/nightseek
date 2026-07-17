@@ -164,6 +164,14 @@ export interface ObjectVisibility {
   physicalData?: AsteroidPhysicalData; // JPL SBDB physical data (asteroids)
 }
 
+/** A requested time and equatorial position to reveal on the interactive sky chart. */
+export interface SkyMapFocus {
+  time: Date;
+  raHours: number;
+  decDegrees: number;
+  label: string;
+}
+
 export interface NightWeather {
   date: Date;
   avgCloudCover: number;

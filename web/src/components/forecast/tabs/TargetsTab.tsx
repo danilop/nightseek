@@ -44,6 +44,7 @@ import type {
   NightInfo,
   NightWeather,
   ScoredObject,
+  SkyMapFocus,
 } from '@/types';
 import AccessibleSkyControl from '../AccessibleSkyControl';
 import CategorySection from '../CategorySection';
@@ -63,7 +64,7 @@ interface TargetsTabProps {
   latitude?: number;
   location: Location;
   onObjectSelect: (object: ScoredObject, accessibility?: TargetAccessibility) => void;
-  onShowSky: (time: Date) => void;
+  onShowSky: (focus: SkyMapFocus) => void;
 }
 
 interface CategoryConfig {

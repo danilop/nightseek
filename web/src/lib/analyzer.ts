@@ -81,6 +81,14 @@ function errorWithCause(message: string, cause: unknown): Error {
   return Object.assign(new Error(message), { cause });
 }
 
+async function withFallback<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await operation();
+  } catch {
+    return fallback;
+  }
+}
+
 /**
  * Calculate visibility for all object types for a given night.
  */
@@ -417,50 +425,32 @@ export async function generateForecast(
   const calculator = new SkyCalculator(latitude, longitude);
   const observer = new Astronomy.Observer(latitude, longitude, 0);
 
-  // Load DSO catalog
-  progress('Loading deep sky object catalog...', 10);
-  let dsoCatalog: DSOCatalogEntry[] = [];
-  try {
-    dsoCatalog = await loadOpenNGCCatalog({
-      maxMagnitude: dsoMagnitude,
-      observerLatitude: latitude,
-      // Keep every object that can physically rise. The user's global and
-      // directional horizon profile applies the desired imaging cutoff later.
-      minAltitude: 0,
-    });
-  } catch {
-    // DSO catalog loading failed - continue without DSO data
-  }
-
-  // Fetch comets from MPC
-  progress('Loading comet data...', 15);
-  let cometCatalog: Awaited<ReturnType<typeof fetchComets>> = [];
-  try {
-    cometCatalog = await fetchComets(settings.cometMagnitude);
-  } catch {
-    // Comet fetch failed - continue without comet data
-  }
+  // Start independent data sources together. On a cold load this removes a
+  // catalog → comet → weather → air-quality network waterfall.
+  progress('Loading catalogs and observing conditions...', 10);
+  const spaceWeatherPromise = withFallback(() => fetchSpaceWeather(), null);
+  const [dsoCatalog, cometCatalog, weatherData, airQualityData] = await Promise.all([
+    withFallback(
+      () =>
+        loadOpenNGCCatalog({
+          maxMagnitude: dsoMagnitude,
+          observerLatitude: latitude,
+          // Keep every object that can physically rise. The user's global and
+          // directional horizon profile applies the desired imaging cutoff later.
+          minAltitude: 0,
+        }),
+      [] as DSOCatalogEntry[]
+    ),
+    withFallback(() => fetchComets(settings.cometMagnitude), []),
+    withFallback(() => fetchWeather(latitude, longitude, forecastDays), null),
+    withFallback(() => fetchAirQuality(latitude, longitude, forecastDays), null),
+  ]);
 
   // Load minor planets (dwarf planets and asteroids)
   const dwarfPlanets = getDwarfPlanets();
   const asteroids = getNotableAsteroids();
 
-  // Fetch weather data (if within range)
-  progress('Fetching weather data...', 20);
-  let weatherData = null;
-  let airQualityData = null;
-
-  try {
-    weatherData = await fetchWeather(latitude, longitude, forecastDays);
-  } catch {
-    // Weather fetch failed - continue without weather data
-  }
-
-  try {
-    airQualityData = await fetchAirQuality(latitude, longitude, forecastDays);
-  } catch {
-    // Air quality fetch failed - continue without air quality data
-  }
+  progress('Preparing astronomical calculations...', 20);
 
   // Extract authoritative timezone from Open-Meteo response
   const locationTimezone =
@@ -475,26 +465,20 @@ export async function generateForecast(
   localNow.setHours(12, 0, 0, 0);
   const today = fromZonedTime(localNow, locationTimezone);
 
+  // Start the location-dependent NEO request before synchronous event work so
+  // its network latency overlaps those calculations.
+  const neoDataPromise = withFallback(
+    () => fetchNeoCloseApproachesRange(today, forecastDays, locationTimezone),
+    new Map<string, NeoCloseApproach[]>()
+  );
+
   // Pre-calculate planetary events for the forecast window (cache these)
   progress('Calculating planetary events...', 25);
   const oppositions = detectOppositions(today, forecastDays);
   const maxElongations = detectMaxElongations(today, forecastDays);
 
-  // Pre-fetch NEO close approaches for the entire forecast window (single batched call)
-  let neoDataByDate = new Map<string, NeoCloseApproach[]>();
-  try {
-    neoDataByDate = await fetchNeoCloseApproachesRange(today, forecastDays, locationTimezone);
-  } catch {
-    // NEO data fetch failed - continue without asteroid close approach data
-  }
-
-  // Pre-fetch space weather data (DONKI)
-  let spaceWeather: Awaited<ReturnType<typeof fetchSpaceWeather>> = null;
-  try {
-    spaceWeather = await fetchSpaceWeather();
-  } catch {
-    // Space weather fetch failed - continue without aurora data
-  }
+  // Both feeds are independent and were started as early as their inputs allowed.
+  const [neoDataByDate, spaceWeather] = await Promise.all([neoDataPromise, spaceWeatherPromise]);
 
   // Compute effective FOV for scoring
   const fov = getEffectiveFOV(settings.telescope, settings.customFOV);

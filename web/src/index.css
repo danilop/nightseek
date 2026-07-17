@@ -110,3 +110,9 @@ html {
 #celestial-form {
   display: none !important;
 }
+
+#celestial-map canvas {
+  display: block;
+  margin-inline: auto;
+  max-width: 100%;
+}
