@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-07-26T08:24:55.326Z",
-  "startDate": "2026-07-26",
-  "endDate": "2026-08-01",
+  "fetchedAt": "2026-07-27T09:50:44.936Z",
+  "startDate": "2026-07-27",
+  "endDate": "2026-08-02",
   "data": {
     "2026-07-27": [],
     "2026-07-28": [],
@@ -9,20 +9,6 @@
     "2026-07-30": [],
     "2026-07-31": [],
     "2026-08-01": [],
-    "2026-07-26": [
-      {
-        "name": "2015 BF",
-        "neoId": "3703792",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0127219879,
-          "max": 0.0284472297
-        },
-        "closeApproachDate": "2026-Jul-26 23:39",
-        "missDistanceLunarDistances": 17.2447747545,
-        "relativeVelocityKmh": 45035.4019943574,
-        "absoluteMagnitude": 26.6
-      }
-    ]
+    "2026-08-02": []
   }
 }
