@@ -2,12 +2,6 @@
   "geomagneticStorms": [],
   "solarFlares": [
     {
-      "flrID": "2026-07-22T06:27:00-FLR-001",
-      "classType": "M3.6",
-      "beginTime": "2026-07-22T06:27Z",
-      "peakTime": "2026-07-22T06:35Z"
-    },
-    {
       "flrID": "2026-07-26T15:17:00-FLR-001",
       "classType": "M3.2",
       "beginTime": "2026-07-26T15:17Z",
@@ -20,5 +14,5 @@
       "peakTime": "2026-07-27T02:43Z"
     }
   ],
-  "fetchedAt": "2026-07-29T08:39:24.708Z"
+  "fetchedAt": "2026-07-30T08:25:38.773Z"
 }
