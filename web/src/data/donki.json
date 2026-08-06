@@ -15,17 +15,11 @@
   ],
   "solarFlares": [
     {
-      "flrID": "2026-07-27T02:37:00-FLR-001",
-      "classType": "M1.0",
-      "beginTime": "2026-07-27T02:37Z",
-      "peakTime": "2026-07-27T02:43Z"
-    },
-    {
       "flrID": "2026-07-30T15:53:00-FLR-001",
       "classType": "M1.9",
       "beginTime": "2026-07-30T15:53Z",
       "peakTime": "2026-07-30T17:00Z"
     }
   ],
-  "fetchedAt": "2026-08-03T09:42:40.522Z"
+  "fetchedAt": "2026-08-06T08:34:17.526Z"
 }
