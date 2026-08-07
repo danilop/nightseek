@@ -13,13 +13,6 @@
       "maxKp": 5.67
     }
   ],
-  "solarFlares": [
-    {
-      "flrID": "2026-07-30T15:53:00-FLR-001",
-      "classType": "M1.9",
-      "beginTime": "2026-07-30T15:53Z",
-      "peakTime": "2026-07-30T17:00Z"
-    }
-  ],
-  "fetchedAt": "2026-08-06T08:34:17.526Z"
+  "solarFlares": [],
+  "fetchedAt": "2026-08-07T07:13:56.220Z"
 }
