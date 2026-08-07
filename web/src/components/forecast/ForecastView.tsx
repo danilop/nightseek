@@ -1,5 +1,6 @@
 import { RefreshCw, Sparkles } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
+import { useHorizonProfile } from '@/hooks/useHorizonProfile';
 import { useUIState } from '@/hooks/useUIState';
 import { formatDateKey, formatDateRange } from '@/lib/utils/format';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
@@ -37,6 +38,9 @@ export default function ForecastView({
   } | null>(null);
   const [skyFocus, setSkyFocus] = useState<SkyMapFocus | null>(null);
   const { activeTab, setActiveTab } = useUIState();
+  // Held here rather than in TargetsTab so the target detail panel can draw the
+  // same horizon limits the target list filters by.
+  const horizon = useHorizonProfile();
 
   if (forecasts.length === 0) {
     return (
@@ -117,6 +121,7 @@ export default function ForecastView({
               astronomicalEvents={selectedNight.astronomicalEvents}
               latitude={location.latitude}
               location={location}
+              horizon={horizon}
               onObjectSelect={(object, accessibility) =>
                 setSelectedTarget({ object, accessibility })
               }
@@ -143,6 +148,7 @@ export default function ForecastView({
         <ObjectDetailPanel
           object={selectedTarget.object}
           accessibility={selectedTarget.accessibility}
+          horizonProfile={horizon.horizonProfile}
           nightInfo={selectedNight.nightInfo}
           weather={selectedNight.weather}
           onClose={() => setSelectedTarget(null)}

@@ -18,17 +18,14 @@ import { CSS } from '@dnd-kit/utilities';
 import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
+import type { HorizonProfileController } from '@/hooks/useHorizonProfile';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
 import { getEffectiveFOV } from '@/lib/telescopes/presets';
 import { getAltitudeAtTime } from '@/lib/utils/altitude-interpolation';
-import { getCached, setCache } from '@/lib/utils/cache';
 import { getNightLabel } from '@/lib/utils/format';
 import {
-  createDefaultHorizonProfile,
   evaluateTargetAccessibility,
-  getHorizonProfileCacheKey,
   type HorizonAltitudeLevel,
-  normalizeHorizonProfile,
   type TargetAccessibility,
 } from '@/lib/utils/horizon-profile';
 import { applyQuickFilters } from '@/lib/utils/quick-filters';
@@ -63,6 +60,7 @@ interface TargetsTabProps {
   astronomicalEvents?: AstronomicalEvents;
   latitude?: number;
   location: Location;
+  horizon: HorizonProfileController;
   onObjectSelect: (object: ScoredObject, accessibility?: TargetAccessibility) => void;
   onShowSky: (focus: SkyMapFocus) => void;
 }
@@ -289,6 +287,7 @@ export default function TargetsTab({
   astronomicalEvents,
   latitude = 0,
   location: forecastLocation,
+  horizon,
   onObjectSelect,
   onShowSky,
 }: TargetsTabProps) {
@@ -304,13 +303,11 @@ export default function TargetsTab({
     setTonightPicksDismissed,
   } = useUIState();
   const { state } = useApp();
-  const { location } = state;
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('score');
   const [selectedTime, setSelectedTime] = useState<Date>(() => new Date());
-  const [horizonProfile, setHorizonProfile] = useState<HorizonProfile>(createDefaultHorizonProfile);
-  const [horizonProfileReady, setHorizonProfileReady] = useState(false);
+  const { horizonProfile, isReady: horizonProfileReady } = horizon;
   const milkyWayTarget = useMemo(
     () => objects.find(object => object.category === 'milky_way') ?? null,
     [objects]
@@ -341,40 +338,6 @@ export default function TargetsTab({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  const horizonProfileCacheKey = useMemo(() => {
-    return location ? getHorizonProfileCacheKey(location) : null;
-  }, [location]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const defaultProfile = createDefaultHorizonProfile();
-
-    setHorizonProfileReady(false);
-    setHorizonProfile(defaultProfile);
-
-    if (!horizonProfileCacheKey) {
-      setHorizonProfileReady(true);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void getCached<HorizonProfile>(horizonProfileCacheKey, Infinity).then(cached => {
-      if (cancelled) return;
-      setHorizonProfile(normalizeHorizonProfile(cached ?? defaultProfile));
-      setHorizonProfileReady(true);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [horizonProfileCacheKey]);
-
-  useEffect(() => {
-    if (!horizonProfileReady || !horizonProfileCacheKey) return;
-    void setCache(horizonProfileCacheKey, horizonProfile);
-  }, [horizonProfileReady, horizonProfileCacheKey, horizonProfile]);
 
   // Calculate magnitude range
   const { minMag, maxMag } = useMemo(() => {
@@ -512,8 +475,10 @@ export default function TargetsTab({
   const totalCount = filteredObjects.length;
   const totalLoaded = catalogObjects.length;
 
+  // Any horizon edit changes which targets qualify, so the dismissed picks card
+  // becomes relevant again.
   const handleResetHorizonProfile = () => {
-    setHorizonProfile(createDefaultHorizonProfile());
+    horizon.reset();
     setTonightPicksDismissed(false);
   };
 
@@ -521,17 +486,12 @@ export default function TargetsTab({
     sectorLabel: HorizonProfile['sectors'][number]['label'],
     minAltitude: HorizonAltitudeLevel
   ) => {
-    setHorizonProfile(current => ({
-      ...current,
-      sectors: current.sectors.map(sector =>
-        sector.label === sectorLabel ? { ...sector, minAltitude } : sector
-      ),
-    }));
+    horizon.setSectorAltitude(sectorLabel, minAltitude);
     setTonightPicksDismissed(false);
   };
 
   const handleSetMinimumAltitude = (minimumAltitude: number) => {
-    setHorizonProfile(current => ({ ...current, minimumAltitude }));
+    horizon.setMinimumAltitude(minimumAltitude);
     setTonightPicksDismissed(false);
   };
 
@@ -595,7 +555,7 @@ export default function TargetsTab({
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 font-semibold text-white">
           <Sparkles className="h-5 w-5 text-yellow-400" />
-          {getNightLabel(nightInfo.date, true, location?.timezone)} Targets
+          {getNightLabel(nightInfo.date, true, state.location?.timezone)} Targets
         </h3>
         <span className="text-gray-400 text-sm">
           {totalCount === totalLoaded
@@ -679,7 +639,7 @@ export default function TargetsTab({
         onSelectedTimeChange={setSelectedTime}
         secondarySort={secondarySort}
         onSecondarySortChange={setSecondarySort}
-        timezone={location?.timezone}
+        timezone={state.location?.timezone}
       />
 
       {accessibleObjects.length === 0 && (

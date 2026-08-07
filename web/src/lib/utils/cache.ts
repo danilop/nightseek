@@ -100,7 +100,7 @@ const CACHE_VERSION = 4;
 export const CACHE_KEYS = {
   LOCATION: 'nightseek:location', // User data - no version needed
   SETTINGS: 'nightseek:settings', // User data - no version needed
-  FORECAST: 'nightseek:forecast:v2',
+  FORECAST: 'nightseek:forecast:v3',
   OPENGC: `nightseek:opengc:v${CACHE_VERSION}`, // Versioned - depends on common-names.ts
   COMETS: `nightseek:comets:v${CACHE_VERSION}`, // Versioned - catalog data
   WEATHER_PREFIX: 'nightseek:weather:',

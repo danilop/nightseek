@@ -1,12 +1,12 @@
 import { MapPin, RefreshCw, Search, Settings } from 'lucide-react';
 import { useState } from 'react';
 import BortleIndicator from '@/components/forecast/BortleIndicator';
+import SettingsModal from '@/components/layout/SettingsModal';
 import ObjectSearchModal from '@/components/search/ObjectSearchModal';
 import NightSeekIcon from '@/components/ui/NightSeekIcon';
 import { formatCoordinates } from '@/lib/geo/location';
 import { useApp } from '@/stores/AppContext';
 import AboutDialog from './AboutDialog';
-import SettingsModal from './SettingsModal';
 
 export default function Header() {
   const { state } = useApp();

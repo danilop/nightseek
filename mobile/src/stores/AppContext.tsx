@@ -1,9 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useReducer } from 'react';
+// Native fork of web/src/stores/AppContext.tsx.
+//
+// A verbatim copy plus the blocks marked NATIVE ADDITION. Keep it in step with
+// the web file — anything not marked as a native addition should be identical.
+import { createContext, useCallback, useContext, useEffect, useReducer, useState } from 'react';
 import { resetUIState } from '@/hooks/useUIState';
 import { CACHE_KEYS, clearAllCache, getCached, setCache } from '@/lib/utils/cache';
 import { getLocaleUnitDefaults } from '@/lib/utils/units';
-import type { Location, NightForecast, ScoredObject, Settings } from '@/types';
 import { scheduleNotificationsFromForecast } from '../lib/notifications/scheduler';
+import type { Location, NightForecast, ScoredObject, Settings } from '@/types';
 
 interface AppState {
   location: Location | null;
@@ -41,7 +45,7 @@ const DEFAULT_SETTINGS: Settings = {
   forecastDays: 7,
   maxObjects: 8,
   cometMagnitude: 12.0,
-  dsoMagnitude: 16.0,
+  dsoMagnitude: 16.0, // Support deep astrophotography setups
   theme: 'dark',
   units: {
     temperature: 'celsius',
@@ -50,7 +54,7 @@ const DEFAULT_SETTINGS: Settings = {
     distance: 'km',
   },
   showSatellitePasses: true,
-  telescope: 'dwarf_mini',
+  telescope: 'generic',
   customFOV: null,
 };
 
@@ -72,7 +76,7 @@ const initialState: AppState = {
   loadingMessage: '',
   loadingPercent: 0,
   error: null,
-  isOffline: typeof navigator !== 'undefined' ? !navigator.onLine : false,
+  isOffline: typeof navigator === 'undefined' ? false : !navigator.onLine,
   isSetupComplete: false,
 };
 
@@ -126,6 +130,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [hasHydratedSettings, setHasHydratedSettings] = useState(false);
 
   // Load saved location and settings on mount
   useEffect(() => {
@@ -138,11 +143,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_SETUP_COMPLETE', payload: true });
       }
 
-      // Load settings from localStorage
-      const savedSettings = localStorage.getItem('nightseek:settings');
-      if (savedSettings) {
-        try {
+      try {
+        // Load settings only after the asynchronous location lookup, without letting
+        // the persistence effect overwrite them with defaults in the meantime.
+        const savedSettings = localStorage.getItem('nightseek:settings');
+        if (savedSettings) {
           const parsed = JSON.parse(savedSettings);
+          // Validate that parsed is a plain object with expected types
           if (
             parsed !== null &&
             typeof parsed === 'object' &&
@@ -162,11 +169,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           } else {
             dispatch({ type: 'RESET_SETTINGS' });
           }
-        } catch {
+        } else {
+          // First-time user: apply locale-based unit defaults
           dispatch({ type: 'RESET_SETTINGS' });
         }
-      } else {
+      } catch {
+        // Ignore parse errors, use locale defaults
         dispatch({ type: 'RESET_SETTINGS' });
+      } finally {
+        setHasHydratedSettings(true);
       }
     }
 
@@ -175,8 +186,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Persist settings to localStorage
   useEffect(() => {
+    if (!hasHydratedSettings) return;
     localStorage.setItem('nightseek:settings', JSON.stringify(state.settings));
-  }, [state.settings]);
+  }, [hasHydratedSettings, state.settings]);
 
   // Track online/offline status
   useEffect(() => {
@@ -192,7 +204,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // NATIVE ADDITION: Schedule notifications when forecast data changes
+  // NATIVE ADDITION: reschedule local notifications when the forecast changes.
   useEffect(() => {
     if (state.forecasts && state.scoredObjects) {
       scheduleNotificationsFromForecast(state.forecasts, state.scoredObjects);
@@ -201,6 +213,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setLocation = useCallback(async (location: Location) => {
     dispatch({ type: 'SET_LOCATION', payload: location });
+    dispatch({ type: 'CLEAR_FORECAST' });
     await setCache(CACHE_KEYS.LOCATION, location);
   }, []);
 
@@ -209,11 +222,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetAllData = useCallback(async () => {
+    // Clear all cached data
     await clearAllCache();
     localStorage.removeItem('nightseek:settings');
     localStorage.removeItem('nightseek:onboarded');
+    // NATIVE ADDITION: notification preferences are native-only state.
     localStorage.removeItem('nightseek:notification-prefs');
+    // Reset UI state (category order, active tab, expanded sections)
     resetUIState();
+    // Reset to defaults with locale units
     dispatch({ type: 'RESET_SETTINGS' });
     dispatch({ type: 'CLEAR_FORECAST' });
     dispatch({ type: 'SET_SETUP_COMPLETE', payload: false });

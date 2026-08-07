@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { useApp } from '@/stores/AppContext';
 import ForecastView from './components/forecast/ForecastView';
 import Header from './components/layout/Header';
 import OnboardingWizard from './components/setup/OnboardingWizard';
@@ -9,7 +10,6 @@ import OfflineBanner from './components/ui/OfflineBanner';
 import { generateForecast } from './lib/analyzer';
 import { CACHE_KEYS, setCache } from './lib/utils/cache';
 import { logger } from './lib/utils/logger';
-import { useApp } from './stores/AppContext';
 
 export default function App() {
   const { state, dispatch, setProgress } = useApp();

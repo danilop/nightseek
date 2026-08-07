@@ -88,6 +88,15 @@ export interface NightInfo {
   minimumSunAltitude: number;
   /** Time at which the Sun reaches its lowest apparent altitude. */
   darkestTime: Date;
+  /**
+   * Sun at −6°. Optional because forecasts cached before this field existed do
+   * not carry it; null when the Sun never reaches −6° at this latitude.
+   */
+  civilDusk?: Date | null;
+  civilDawn?: Date | null;
+  /** Sun at −12°. Same optionality rules as the civil boundaries. */
+  nauticalDusk?: Date | null;
+  nauticalDawn?: Date | null;
   moonPhase: number; // 0-1 (0=new, 0.5=full)
   moonIllumination: number; // 0-100%
   moonRise: Date | null;

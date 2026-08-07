@@ -1,9 +1,12 @@
 import { Compass, RotateCcw } from 'lucide-react';
-import type { KeyboardEvent } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { useRef, useState } from 'react';
+import { type CompassAssistState, useCompassAssist } from '@/hooks/useCompassAssist';
 import {
+  cycleSectorMinAltitude,
   getSectorAltitudeLabel,
-  getSectorToneClass,
+  getSectorFillClass,
+  getSectorTextClass,
   HORIZON_ALTITUDE_LEVELS,
   HORIZON_SECTOR_CONFIGS,
   type HorizonAltitudeLevel,
@@ -17,85 +20,66 @@ interface AccessibleSkyControlProps {
   onReset: () => void;
 }
 
-type CompassAssistState = 'unsupported' | 'idle' | 'requesting' | 'tracking' | 'denied' | 'error';
+/** Horizontal gridlines drawn behind the skyline. */
+const GRID_DEGREES = [15, 30, 45, 60, 75] as const;
+const LABELLED_DEGREES = [0, 30, 60, 90] as const;
+const MAX_ALTITUDE = 90;
 
-interface BrowserDeviceOrientationEvent extends DeviceOrientationEvent {
-  webkitCompassAccuracy?: number;
-  webkitCompassHeading?: number;
+/**
+ * Compact in-column label. A 320px viewport leaves each column about 34px, too
+ * narrow for "Blocked" — the full wording stays in `aria-valuetext`.
+ */
+function getSectorChipLabel(minAltitude: number): string {
+  return minAltitude >= MAX_ALTITUDE ? '✕' : `${minAltitude}°`;
 }
 
-interface DeviceOrientationEventWithPermission {
-  requestPermission?: () => Promise<'granted' | 'denied'>;
+function toPercent(minAltitude: number): number {
+  return Math.max(0, Math.min((minAltitude / MAX_ALTITUDE) * 100, 100));
 }
 
-const SECTOR_WIDTH_DEGREES = 45;
-const SECTOR_HYSTERESIS_DEGREES = 3;
-
-function normalizeHeading(heading: number): number {
-  const normalized = heading % 360;
-  return normalized < 0 ? normalized + 360 : normalized;
+/** Nearest configurable level to a raw altitude, used when tapping a column. */
+function snapToLevel(altitude: number): HorizonAltitudeLevel {
+  return HORIZON_ALTITUDE_LEVELS.reduce((closest, level) =>
+    Math.abs(level - altitude) < Math.abs(closest - altitude) ? level : closest
+  );
 }
 
-function angularDistance(first: number, second: number): number {
-  return Math.abs(((first - second + 540) % 360) - 180);
+function stepLevel(current: number, direction: 1 | -1): HorizonAltitudeLevel | null {
+  const index = HORIZON_ALTITUDE_LEVELS.indexOf(current as HorizonAltitudeLevel);
+  const currentIndex = index === -1 ? HORIZON_ALTITUDE_LEVELS.indexOf(snapToLevel(current)) : index;
+  const nextIndex = currentIndex + direction;
+  if (nextIndex < 0 || nextIndex >= HORIZON_ALTITUDE_LEVELS.length) return null;
+  return HORIZON_ALTITUDE_LEVELS[nextIndex];
 }
 
-function getSectorIndexFromHeading(heading: number, currentSectorIndex: number | null): number {
-  const normalizedHeading = normalizeHeading(heading);
+/** Keys that move focus between directions rather than change a value. */
+const NAVIGATION_KEY_OFFSETS: Record<string, number | undefined> = {
+  ArrowLeft: -1,
+  ArrowRight: 1,
+};
 
-  if (currentSectorIndex !== null) {
-    const currentCenter = HORIZON_SECTOR_CONFIGS[currentSectorIndex].centerAzimuth;
-    if (
-      angularDistance(normalizedHeading, currentCenter) <=
-      SECTOR_WIDTH_DEGREES / 2 + SECTOR_HYSTERESIS_DEGREES
-    ) {
-      return currentSectorIndex;
-    }
+/**
+ * The level a key should apply: `undefined` when the key is not a value key,
+ * `null` when the key is a value key but the level cannot move any further.
+ */
+function resolveLevelForKey(key: string, current: number): HorizonAltitudeLevel | null | undefined {
+  switch (key) {
+    case 'ArrowUp':
+    case 'PageUp':
+      return stepLevel(current, 1);
+    case 'ArrowDown':
+    case 'PageDown':
+      return stepLevel(current, -1);
+    case 'Home':
+      return 0;
+    case 'End':
+      return 90;
+    case 'Enter':
+    case ' ':
+      return cycleSectorMinAltitude(current) as HorizonAltitudeLevel;
+    default:
+      return undefined;
   }
-
-  return Math.round(normalizedHeading / SECTOR_WIDTH_DEGREES) % HORIZON_SECTOR_CONFIGS.length;
-}
-
-function getScreenOrientationAngle(): number {
-  const screenAngle = window.screen.orientation?.angle;
-  if (typeof screenAngle === 'number') return screenAngle;
-
-  const legacyAngle = (window as Window & { orientation?: number }).orientation;
-  return typeof legacyAngle === 'number' ? legacyAngle : 0;
-}
-
-function getHeadingFromOrientationEvent(event: BrowserDeviceOrientationEvent): {
-  accuracy: number | null;
-  heading: number | null;
-} {
-  const screenAngle = getScreenOrientationAngle();
-
-  if (
-    typeof event.webkitCompassHeading === 'number' &&
-    Number.isFinite(event.webkitCompassHeading)
-  ) {
-    return {
-      heading: normalizeHeading(event.webkitCompassHeading + screenAngle),
-      accuracy:
-        typeof event.webkitCompassAccuracy === 'number' &&
-        Number.isFinite(event.webkitCompassAccuracy)
-          ? event.webkitCompassAccuracy
-          : null,
-    };
-  }
-
-  if (event.absolute && typeof event.alpha === 'number' && Number.isFinite(event.alpha)) {
-    return {
-      heading: normalizeHeading(360 - event.alpha + screenAngle),
-      accuracy: null,
-    };
-  }
-
-  return { heading: null, accuracy: null };
-}
-
-function getBlockedHeightPercent(minAltitude: number): number {
-  return Math.max(0, Math.min((minAltitude / 90) * 100, 100));
 }
 
 function getCompassStatusText(
@@ -114,7 +98,7 @@ function getCompassStatusText(
     case 'error':
       return 'Compass heading is unavailable. You can still select directions manually.';
     default:
-      return 'Directions use true-north astronomical azimuth. Select manually, or use the phone compass as an approximate aid.';
+      return 'Directions use true-north astronomical azimuth. Set them manually, or use the phone compass as an approximate aid.';
   }
 }
 
@@ -130,139 +114,113 @@ function getCompassButtonLabel(state: CompassAssistState): string {
   return 'Use phone compass';
 }
 
-function removeOrientationListeners(listener: ((event: Event) => void) | null): void {
-  if (listener === null) return;
-  window.removeEventListener('deviceorientation', listener);
-  window.removeEventListener('deviceorientationabsolute', listener);
-}
-
-function useCompassAssist(onDirectionChange: (sectorIndex: number) => void) {
-  const orientationListenerRef = useRef<((event: Event) => void) | null>(null);
-  const trackedSectorIndexRef = useRef<number | null>(null);
-  const [state, setState] = useState<CompassAssistState>('unsupported');
-  const [accuracy, setAccuracy] = useState<number | null>(null);
-  const [trackedSectorIndex, setTrackedSectorIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    setState(typeof window.DeviceOrientationEvent === 'undefined' ? 'unsupported' : 'idle');
-  }, []);
-
-  const stop = (nextState: CompassAssistState = 'idle') => {
-    removeOrientationListeners(orientationListenerRef.current);
-    orientationListenerRef.current = null;
-    trackedSectorIndexRef.current = null;
-    setTrackedSectorIndex(null);
-    setAccuracy(null);
-    setState(nextState);
-  };
-
-  useEffect(
-    () => () => {
-      removeOrientationListeners(orientationListenerRef.current);
-    },
-    []
-  );
-
-  const toggle = async () => {
-    if (state === 'tracking') {
-      stop();
-      return;
-    }
-
-    if (typeof window.DeviceOrientationEvent === 'undefined') {
-      setState('unsupported');
-      return;
-    }
-
-    setState('requesting');
-    const orientationEventClass = window.DeviceOrientationEvent as typeof DeviceOrientationEvent &
-      DeviceOrientationEventWithPermission;
-
-    try {
-      const permission =
-        typeof orientationEventClass.requestPermission === 'function'
-          ? await orientationEventClass.requestPermission()
-          : 'granted';
-      if (permission !== 'granted') {
-        setState('denied');
-        return;
-      }
-
-      const handleOrientation = (incomingEvent: Event) => {
-        const headingResult = getHeadingFromOrientationEvent(
-          incomingEvent as BrowserDeviceOrientationEvent
-        );
-        if (headingResult.heading === null) return;
-
-        const sectorIndex = getSectorIndexFromHeading(
-          headingResult.heading,
-          trackedSectorIndexRef.current
-        );
-        trackedSectorIndexRef.current = sectorIndex;
-        setTrackedSectorIndex(sectorIndex);
-        setAccuracy(headingResult.accuracy);
-        onDirectionChange(sectorIndex);
-      };
-
-      orientationListenerRef.current = handleOrientation;
-      window.addEventListener('deviceorientationabsolute', handleOrientation);
-      window.addEventListener('deviceorientation', handleOrientation);
-      setState('tracking');
-    } catch {
-      stop('error');
-    }
-  };
-
-  return { accuracy, state, stop, toggle, trackedSectorIndex };
-}
-
 export default function AccessibleSkyControl({
   horizonProfile,
   onSetMinimumAltitude,
   onSetSectorAltitude,
   onReset,
 }: AccessibleSkyControlProps) {
-  const [selectedSectorIndex, setSelectedSectorIndex] = useState(0);
-  const sectorButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const columnRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const draggingIndexRef = useRef<number | null>(null);
+  /** Last level emitted during the current drag, so a drag fires once per step. */
+  const lastEmittedLevelRef = useRef<number | null>(null);
   const {
     accuracy,
     state: compassState,
     stop,
     toggle,
     trackedSectorIndex,
-  } = useCompassAssist(setSelectedSectorIndex);
-  const selectedConfig = HORIZON_SECTOR_CONFIGS[selectedSectorIndex];
-  const selectedSector =
-    horizonProfile.sectors.find(sector => sector.label === selectedConfig.label) ??
-    horizonProfile.sectors[0];
+  } = useCompassAssist(setActiveIndex);
   const showCompassButton = compassState !== 'unsupported';
 
-  const selectSector = (sectorIndex: number) => {
+  const getSector = (label: HorizonSectorLabel) =>
+    horizonProfile.sectors.find(candidate => candidate.label === label);
+
+  const focusColumn = (index: number) => {
     if (compassState === 'tracking') stop();
-    setSelectedSectorIndex(sectorIndex);
+    setActiveIndex(index);
+    columnRefs.current[index]?.focus();
   };
 
-  const handleSectorKeyDown = (event: KeyboardEvent<HTMLButtonElement>, sectorIndex: number) => {
-    const columns = window.matchMedia('(min-width: 640px)').matches ? 8 : 4;
-    const offsetByKey: Partial<Record<string, number>> = {
-      ArrowLeft: -1,
-      ArrowRight: 1,
-      ArrowUp: -columns,
-      ArrowDown: columns,
-    };
-    const offset = offsetByKey[event.key];
-    if (offset === undefined) return;
+  /** Altitude the pointer is over, snapped to a configurable level. */
+  const levelFromPointer = (element: HTMLElement, clientY: number): HorizonAltitudeLevel | null => {
+    const rect = element.getBoundingClientRect();
+    // jsdom (and a detached element) reports a zero-height box.
+    if (rect.height === 0) return null;
+    const fromBottom = 1 - (clientY - rect.top) / rect.height;
+    return snapToLevel(Math.max(0, Math.min(1, fromBottom)) * MAX_ALTITUDE);
+  };
+
+  const applyPointerLevel = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    label: HorizonSectorLabel,
+    current: number
+  ) => {
+    const level = levelFromPointer(event.currentTarget, event.clientY);
+    if (level === null || level === current || level === lastEmittedLevelRef.current) return;
+    lastEmittedLevelRef.current = level;
+    onSetSectorAltitude(label, level);
+  };
+
+  const handlePointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    index: number,
+    label: HorizonSectorLabel,
+    current: number
+  ) => {
+    // Touch is tap-only: `touch-action: pan-y` keeps the page scrollable, and a
+    // vertical drag would fight that gesture.
+    lastEmittedLevelRef.current = null;
+    if (event.pointerType !== 'touch') {
+      draggingIndexRef.current = index;
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
+    focusColumn(index);
+    applyPointerLevel(event, label, current);
+  };
+
+  const handlePointerMove = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    index: number,
+    label: HorizonSectorLabel,
+    current: number
+  ) => {
+    if (draggingIndexRef.current !== index) return;
+    applyPointerLevel(event, label, current);
+  };
+
+  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    draggingIndexRef.current = null;
+    lastEmittedLevelRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  };
+
+  const handleKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+    index: number,
+    label: HorizonSectorLabel,
+    current: number
+  ) => {
+    const lastIndex = HORIZON_SECTOR_CONFIGS.length - 1;
+    const focusOffset = NAVIGATION_KEY_OFFSETS[event.key];
+
+    if (focusOffset !== undefined) {
+      event.preventDefault();
+      focusColumn((index + focusOffset + lastIndex + 1) % (lastIndex + 1));
+      return;
+    }
+
+    const next = resolveLevelForKey(event.key, current);
+    if (next === undefined) return;
 
     event.preventDefault();
-    const nextIndex =
-      (sectorIndex + offset + HORIZON_SECTOR_CONFIGS.length) % HORIZON_SECTOR_CONFIGS.length;
-    selectSector(nextIndex);
-    sectorButtonRefs.current[nextIndex]?.focus();
+    if (next !== null && next !== current) onSetSectorAltitude(label, next);
   };
 
   return (
     <section
-      className="rounded-xl border border-night-700 bg-night-900 p-4"
+      className="rounded-xl border border-night-700 bg-night-900 p-3 sm:p-4"
       aria-labelledby="sky-access-heading"
     >
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -274,8 +232,8 @@ export default function AccessibleSkyControl({
             </h4>
           </div>
           <p className="mt-1 max-w-2xl text-gray-400 text-xs">
-            Set one minimum imaging altitude for the whole sky, then raise individual directions
-            where trees, buildings, or hills block the view.
+            Set one minimum imaging altitude for the whole sky, then raise the skyline where trees,
+            buildings, or hills block the view.
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:shrink-0">
@@ -330,99 +288,137 @@ export default function AccessibleSkyControl({
         </div>
       </div>
 
+      <p id="sky-access-instructions" className="sr-only">
+        Each direction is a column of the skyline around you. Click or tap a column at the height
+        your view is blocked, or use the up and down arrow keys. Left and right arrows move between
+        directions, and Enter cycles through the levels.
+      </p>
+
+      <div className="mt-4">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <span className="font-medium text-gray-300 text-xs">Skyline around you</span>
+          <span className="text-gray-500 text-xs">Height blocked in each direction</span>
+        </div>
+
+        <div className="flex gap-1.5">
+          {/* Altitude axis — dropped on the narrowest phones to keep the
+              columns comfortably wide. */}
+          <div className="relative xs:block hidden w-6 shrink-0" aria-hidden="true">
+            <div className="h-36 sm:h-40">
+              {LABELLED_DEGREES.map(degrees => (
+                <span
+                  key={degrees}
+                  className="absolute right-0 translate-y-1/2 text-[10px] text-gray-500"
+                  style={{ bottom: `${toPercent(degrees)}%` }}
+                >
+                  {degrees}°
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative h-36 min-w-0 flex-1 select-none sm:h-40">
+            <div className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-t from-night-800/60 to-transparent" />
+
+            {GRID_DEGREES.map(degrees => (
+              <div
+                key={degrees}
+                className="pointer-events-none absolute inset-x-0 border-night-700/50 border-t"
+                style={{ bottom: `${toPercent(degrees)}%` }}
+              />
+            ))}
+
+            {horizonProfile.minimumAltitude > 0 && (
+              <div
+                data-testid="whole-sky-minimum"
+                className="pointer-events-none absolute inset-x-0 z-20 border-indigo-300 border-t border-dashed"
+                style={{ bottom: `${toPercent(horizonProfile.minimumAltitude)}%` }}
+              >
+                <span className="absolute -top-4 right-0 rounded bg-night-950/70 px-1 text-[10px] text-indigo-300">
+                  {horizonProfile.minimumAltitude}°
+                </span>
+              </div>
+            )}
+
+            <div
+              role="group"
+              aria-label="Horizon obstruction by direction"
+              className="absolute inset-0 grid grid-cols-8 overflow-hidden rounded-lg ring-1 ring-white/10"
+            >
+              {HORIZON_SECTOR_CONFIGS.map((config, index) => {
+                const minAltitude = getSector(config.label)?.minAltitude ?? 0;
+                const isTracked = index === trackedSectorIndex;
+
+                return (
+                  <div
+                    key={config.label}
+                    ref={element => {
+                      columnRefs.current[index] = element;
+                    }}
+                    role="slider"
+                    tabIndex={index === activeIndex ? 0 : -1}
+                    aria-label={`${config.label} obstruction${isTracked ? ', aligned with phone heading' : ''}`}
+                    aria-orientation="vertical"
+                    aria-valuemin={0}
+                    aria-valuemax={MAX_ALTITUDE}
+                    aria-valuenow={minAltitude}
+                    aria-valuetext={getSectorAltitudeLabel(minAltitude)}
+                    aria-describedby="sky-access-instructions"
+                    data-blocked={minAltitude >= MAX_ALTITUDE}
+                    style={{ touchAction: 'pan-y' }}
+                    onPointerDown={event =>
+                      handlePointerDown(event, index, config.label, minAltitude)
+                    }
+                    onPointerMove={event =>
+                      handlePointerMove(event, index, config.label, minAltitude)
+                    }
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
+                    onKeyDown={event => handleKeyDown(event, index, config.label, minAltitude)}
+                    className={`relative cursor-ns-resize border-night-950/60 border-r last:border-r-0 focus-visible:z-30 focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:ring-inset ${
+                      isTracked ? 'z-30 ring-2 ring-sky-400/60 ring-inset' : ''
+                    }`}
+                  >
+                    <div
+                      data-testid={`sector-fill-${config.label}`}
+                      className={`pointer-events-none absolute inset-x-0 bottom-0 ${getSectorFillClass(minAltitude)}`}
+                      style={{ height: `${toPercent(minAltitude)}%` }}
+                    />
+                    {minAltitude > 0 && (
+                      <span
+                        aria-hidden="true"
+                        className={`pointer-events-none absolute inset-x-0 bottom-1 overflow-hidden text-center text-[10px] ${getSectorTextClass(minAltitude)}`}
+                      >
+                        {getSectorChipLabel(minAltitude)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-1 flex gap-1.5">
+          <div className="xs:block hidden w-6 shrink-0" aria-hidden="true" />
+          <div className="grid min-w-0 flex-1 grid-cols-8 text-center">
+            {HORIZON_SECTOR_CONFIGS.map(config => (
+              <span
+                key={config.label}
+                className="font-semibold text-[11px] text-gray-300 tracking-[0.08em]"
+              >
+                {config.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {showCompassButton ? (
         <p className={`mt-3 text-xs ${getCompassStatusClass(compassState)}`}>
           {getCompassStatusText(compassState, accuracy, trackedSectorIndex !== null)}
         </p>
       ) : null}
-
-      <div className="mt-4">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <span className="font-medium text-gray-300 text-xs">Directional obstructions</span>
-          <span className="text-gray-500 text-xs">All eight directions are shown</span>
-        </div>
-        <div
-          className="grid grid-cols-4 gap-2 sm:grid-cols-8"
-          role="group"
-          aria-label="Horizon directions"
-        >
-          {HORIZON_SECTOR_CONFIGS.map((config, sectorIndex) => {
-            const sector =
-              horizonProfile.sectors.find(candidate => candidate.label === config.label) ??
-              ({ ...config, minAltitude: 0 } as const);
-            const isSelected = sectorIndex === selectedSectorIndex;
-            const isTracked = sectorIndex === trackedSectorIndex;
-
-            return (
-              <button
-                key={config.label}
-                ref={element => {
-                  sectorButtonRefs.current[sectorIndex] = element;
-                }}
-                type="button"
-                onClick={() => selectSector(sectorIndex)}
-                onKeyDown={event => handleSectorKeyDown(event, sectorIndex)}
-                aria-pressed={isSelected}
-                aria-label={`${config.label}, ${getSectorAltitudeLabel(sector.minAltitude)}${isTracked ? ', aligned with phone heading' : ''}`}
-                className={`relative min-h-16 overflow-hidden rounded-xl border px-2 py-2 text-center transition-all ${getSectorToneClass(
-                  sector.minAltitude
-                )} ${
-                  isSelected
-                    ? 'ring-2 ring-sky-400/70 ring-offset-2 ring-offset-night-900'
-                    : 'opacity-80 hover:opacity-100'
-                }`}
-              >
-                <div
-                  className="pointer-events-none absolute inset-x-1 bottom-1 rounded-b-lg bg-night-950/60"
-                  style={{ height: `${getBlockedHeightPercent(sector.minAltitude)}%` }}
-                />
-                <span className="relative z-10 block font-semibold text-sm tracking-[0.12em]">
-                  {config.label}
-                </span>
-                <span className="relative z-10 mt-1 block text-[11px]">
-                  {getSectorAltitudeLabel(sector.minAltitude)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-lg border border-night-700/80 bg-night-950/50 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <span className="text-gray-400 text-xs">
-              {compassState === 'tracking' ? 'Pointing at' : 'Editing'}
-            </span>
-            <span className="ml-2 font-semibold text-sky-300 text-sm tracking-[0.14em]">
-              {selectedConfig.label}
-            </span>
-          </div>
-          <span className="text-gray-500 text-xs">
-            Blocks targets below this height in {selectedConfig.label}
-          </span>
-        </div>
-        <div className="mt-3 grid grid-cols-5 gap-2">
-          {HORIZON_ALTITUDE_LEVELS.map(level => {
-            const isActive = selectedSector?.minAltitude === level;
-            return (
-              <button
-                key={level}
-                type="button"
-                onClick={() => onSetSectorAltitude(selectedConfig.label, level)}
-                aria-pressed={isActive}
-                className={`rounded-lg border px-1.5 py-2 text-xs transition-colors ${
-                  isActive
-                    ? 'border-sky-400/40 bg-sky-500/20 text-sky-100'
-                    : 'border-night-700 bg-night-900 text-gray-300 hover:bg-night-800'
-                }`}
-              >
-                {getSectorAltitudeLabel(level)}
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </section>
   );
 }

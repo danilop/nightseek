@@ -25,6 +25,12 @@ export function createMockNightInfo(overrides: Partial<NightInfo> = {}): NightIn
     observingWindowEnd: new Date('2025-01-16T05:30:00'),
     minimumSunAltitude: -45,
     darkestTime: new Date('2025-01-16T00:00:00'),
+    // Default to null so existing tests keep exercising the interpolated
+    // twilight fallback; tests that need real boundaries opt in explicitly.
+    civilDusk: null,
+    civilDawn: null,
+    nauticalDusk: null,
+    nauticalDawn: null,
     moonPhase: 0.25,
     moonIllumination: 50,
     moonRise: new Date('2025-01-15T12:00:00'),

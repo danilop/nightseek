@@ -141,13 +141,28 @@ function searchTwilightWindow(
   return morning ? [evening.date, morning.date] : null;
 }
 
+/** The civil/nautical boundary fields stored on NightInfo for the twilight bands. */
+function toTwilightBoundaries(
+  nauticalWindow: [Date, Date] | null,
+  civilWindow: [Date, Date] | null
+): Pick<NightInfo, 'civilDusk' | 'civilDawn' | 'nauticalDusk' | 'nauticalDawn'> {
+  return {
+    civilDusk: civilWindow?.[0] ?? null,
+    civilDawn: civilWindow?.[1] ?? null,
+    nauticalDusk: nauticalWindow?.[0] ?? null,
+    nauticalDawn: nauticalWindow?.[1] ?? null,
+  };
+}
+
 function resolveSolarObservingWindow(
   observer: Astronomy.Observer,
   date: Date,
   nextDay: Date,
   sunset: Date | null,
   sunrise: Date | null,
-  astronomicalWindow: [Date, Date] | null
+  astronomicalWindow: [Date, Date] | null,
+  nauticalWindow: [Date, Date] | null,
+  civilWindow: [Date, Date] | null
 ): SolarObservingWindow {
   if (astronomicalWindow) {
     return {
@@ -169,7 +184,6 @@ function resolveSolarObservingWindow(
     };
   }
 
-  const nauticalWindow = searchTwilightWindow(observer, date, -12);
   if (nauticalWindow) {
     return {
       astronomicalNightMode: 'none',
@@ -179,7 +193,6 @@ function resolveSolarObservingWindow(
     };
   }
 
-  const civilWindow = searchTwilightWindow(observer, date, -6);
   if (civilWindow) {
     return {
       astronomicalNightMode: 'none',
@@ -252,13 +265,22 @@ export class SkyCalculator {
     const minimumSunAltitude = darkestEvent.hor.altitude;
     const darkestTime = darkestEvent.time.date;
 
+    // Civil (-6°) and nautical (-12°) boundaries are searched unconditionally.
+    // They drive the twilight bands the UI paints, and the polar fallback in
+    // resolveSolarObservingWindow reuses the same results instead of repeating
+    // the searches.
+    const nauticalWindow = searchTwilightWindow(this.observer, date, -12);
+    const civilWindow = searchTwilightWindow(this.observer, date, -6);
+
     const solarWindow = resolveSolarObservingWindow(
       this.observer,
       date,
       nextDay,
       sunsetSearch?.date ?? null,
       sunriseSearch?.date ?? null,
-      duskSearch && dawnSearch ? [duskSearch.date, dawnSearch.date] : null
+      duskSearch && dawnSearch ? [duskSearch.date, dawnSearch.date] : null,
+      nauticalWindow,
+      civilWindow
     );
     const { astronomicalNightMode, observingWindowMode } = solarWindow;
     const observingWindowStart = solarWindow.start;
@@ -310,6 +332,7 @@ export class SkyCalculator {
       observingWindowEnd,
       minimumSunAltitude,
       darkestTime,
+      ...toTwilightBoundaries(nauticalWindow, civilWindow),
       moonPhase: moonPhaseFraction,
       moonIllumination: moonIlluminationPct,
       moonRise: moonRiseSearch?.date ?? null,

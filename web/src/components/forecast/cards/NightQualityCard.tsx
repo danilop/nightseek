@@ -2,6 +2,15 @@ import { Clock, Info } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Tooltip from '@/components/ui/Tooltip';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
+import {
+  fractionToTime,
+  getTwilightBoundaries,
+  getTwilightGradientCss,
+  getTwilightPhaseAtFraction,
+  getTwilightWindowLabel,
+  TWILIGHT_GUIDE_ORDER,
+  TWILIGHT_PHASES,
+} from '@/lib/astronomy/twilight';
 import { formatTime, formatTimeRange, getNightLabel } from '@/lib/utils/format';
 import { calculateHeadlineNightQuality, calculateNightQuality } from '@/lib/weather/night-quality';
 import type { NightForecast, NightInfo } from '@/types';
@@ -9,133 +18,6 @@ import type { NightForecast, NightInfo } from '@/types';
 function formatDarkHours(dusk: Date, dawn: Date): string {
   const hours = (dawn.getTime() - dusk.getTime()) / 3_600_000;
   return `${hours.toFixed(1)}h`;
-}
-
-/** Fraction of the sunset→sunrise span at which a time falls (clamped 0–1). */
-function nightFraction(time: Date, sunset: Date, sunrise: Date): number {
-  const total = sunrise.getTime() - sunset.getTime();
-  if (total <= 0) return 0;
-  return Math.max(0, Math.min(1, (time.getTime() - sunset.getTime()) / total));
-}
-
-/** Approximate civil (-6°) and nautical (-12°) twilight boundary fractions. */
-function twilightBoundaries(nightInfo: NightInfo) {
-  const duskPct = nightFraction(nightInfo.astronomicalDusk, nightInfo.sunset, nightInfo.sunrise);
-  const dawnPct = nightFraction(nightInfo.astronomicalDawn, nightInfo.sunset, nightInfo.sunrise);
-
-  return {
-    civilDuskPct: duskPct / 3,
-    nauticalDuskPct: (duskPct * 2) / 3,
-    duskPct,
-    dawnPct,
-    nauticalDawnPct: dawnPct + (1 - dawnPct) / 3,
-    civilDawnPct: dawnPct + ((1 - dawnPct) * 2) / 3,
-  };
-}
-
-interface TwilightPhase {
-  name: string;
-  description: string;
-  colorClass: string;
-  sunAltitude: string;
-}
-
-const TWILIGHT_ZONES = [
-  {
-    name: 'Civil Twilight',
-    description: 'Horizon visible, brightest stars appearing',
-    colorClass: 'text-orange-400',
-    altBase: 0,
-  },
-  {
-    name: 'Nautical Twilight',
-    description: 'Horizon fading, most stars visible',
-    colorClass: 'text-amber-400',
-    altBase: 6,
-  },
-  {
-    name: 'Astronomical Twilight',
-    description: 'Sky nearly dark, deep-sky becoming viable',
-    colorClass: 'text-blue-400',
-    altBase: 12,
-  },
-] as const;
-
-const TWILIGHT_GUIDE = [
-  {
-    name: 'Civil twilight',
-    range: '0° to −6°',
-    description: 'Bright horizon; only the brightest objects stand out',
-    colorClass: 'bg-orange-400',
-  },
-  {
-    name: 'Nautical twilight',
-    range: '−6° to −12°',
-    description: 'Most bright stars are visible',
-    colorClass: 'bg-amber-500',
-  },
-  {
-    name: 'Astronomical twilight',
-    range: '−12° to −18°',
-    description: 'Nearly dark, but faint targets still lose contrast',
-    colorClass: 'bg-blue-600',
-  },
-  {
-    name: 'Astronomical night',
-    range: 'Below −18°',
-    description: 'Full natural darkness',
-    colorClass: 'bg-indigo-950',
-  },
-] as const;
-
-function twilightSegments(boundaries: ReturnType<typeof twilightBoundaries>) {
-  const { civilDuskPct, nauticalDuskPct, duskPct, dawnPct, nauticalDawnPct, civilDawnPct } =
-    boundaries;
-  return [
-    { start: 0, end: civilDuskPct, zoneIdx: 0, reverse: false },
-    { start: civilDuskPct, end: nauticalDuskPct, zoneIdx: 1, reverse: false },
-    { start: nauticalDuskPct, end: duskPct, zoneIdx: 2, reverse: false },
-    { start: dawnPct, end: nauticalDawnPct, zoneIdx: 2, reverse: true },
-    { start: nauticalDawnPct, end: civilDawnPct, zoneIdx: 1, reverse: true },
-    { start: civilDawnPct, end: 1, zoneIdx: 0, reverse: true },
-  ];
-}
-
-function getTwilightPhase(
-  fraction: number,
-  boundaries: ReturnType<typeof twilightBoundaries>
-): TwilightPhase {
-  const { duskPct, dawnPct } = boundaries;
-
-  // Full darkness (astronomical dusk → dawn)
-  if (fraction >= duskPct && fraction <= dawnPct) {
-    const midFraction = (duskPct + dawnPct) / 2;
-    const halfSpan = (dawnPct - duskPct) / 2;
-    const distFromMid = Math.abs(fraction - midFraction);
-    const alt = Math.round(18 + (1 - distFromMid / (halfSpan || 1)) * 12);
-    return {
-      name: 'Astronomical Night',
-      description: 'Full darkness — ideal for deep-sky imaging',
-      colorClass: 'text-indigo-400',
-      sunAltitude: `${alt}° below horizon`,
-    };
-  }
-
-  // Find matching twilight segment
-  const segments = twilightSegments(boundaries);
-  const seg = segments.find(s => fraction >= s.start && fraction <= s.end) ?? segments[0];
-  const zone = TWILIGHT_ZONES[seg.zoneIdx];
-  const span = seg.end - seg.start;
-  const rawT = span > 0 ? (fraction - seg.start) / span : 0;
-  const t = seg.reverse ? 1 - rawT : rawT;
-  const alt = Math.round(zone.altBase + t * 6);
-
-  return {
-    name: zone.name,
-    description: zone.description,
-    colorClass: zone.colorClass,
-    sunAltitude: `${alt}° below horizon`,
-  };
 }
 
 /** Convert a Date to slider percentage (0–100), or null if outside range. */
@@ -149,9 +31,7 @@ function timeToSlider(time: Date, sunset: Date, sunrise: Date): number | null {
 
 /** Convert slider percentage (0–100) to a Date within the night range. */
 function sliderToTime(pct: number, sunset: Date, sunrise: Date): Date {
-  const startMs = sunset.getTime();
-  const endMs = sunrise.getTime();
-  return new Date(startMs + (pct / 100) * (endMs - startMs));
+  return fractionToTime(pct / 100, sunset, sunrise);
 }
 
 function NightTimelineScrubber({
@@ -166,7 +46,7 @@ function NightTimelineScrubber({
   const now = useCurrentTime();
   const animationRef = useRef<number | null>(null);
 
-  const boundaries = useMemo(() => twilightBoundaries(nightInfo), [nightInfo]);
+  const boundaries = useMemo(() => getTwilightBoundaries(nightInfo), [nightInfo]);
 
   const nowPosition = useMemo(
     () => timeToSlider(now, nightInfo.sunset, nightInfo.sunrise),
@@ -176,7 +56,7 @@ function NightTimelineScrubber({
   const isNowInRange = isTonight && nowPosition !== null;
 
   const [pointerPct, setPointerPct] = useState(
-    isTonight && nowPosition !== null ? nowPosition : boundaries.duskPct * 100
+    isTonight && nowPosition !== null ? nowPosition : boundaries.astronomicalDuskFraction * 100
   );
   const [isTracking, setIsTracking] = useState(isTonight && nowPosition !== null);
 
@@ -239,23 +119,12 @@ function NightTimelineScrubber({
     [pointerPct, nightInfo.sunset, nightInfo.sunrise]
   );
 
-  const phase = useMemo(
-    () => getTwilightPhase(pointerPct / 100, boundaries),
+  const { phase, sunAltitudeLabel } = useMemo(
+    () => getTwilightPhaseAtFraction(pointerPct / 100, boundaries),
     [pointerPct, boundaries]
   );
 
-  const { civilDuskPct, nauticalDuskPct, duskPct, dawnPct, nauticalDawnPct, civilDawnPct } =
-    boundaries;
-
-  const gradient = `linear-gradient(to right,
-    #ea580c 0%,
-    #d97706 ${civilDuskPct * 100}%,
-    #3b82f6 ${nauticalDuskPct * 100}%,
-    #4f46e5 ${duskPct * 100}%,
-    #4f46e5 ${dawnPct * 100}%,
-    #3b82f6 ${nauticalDawnPct * 100}%,
-    #d97706 ${civilDawnPct * 100}%,
-    #ea580c 100%)`;
+  const gradient = useMemo(() => getTwilightGradientCss(boundaries), [boundaries]);
 
   return (
     <div>
@@ -289,12 +158,12 @@ function NightTimelineScrubber({
 
       {/* Phase info line */}
       <div className="mt-2 flex items-center justify-between text-xs">
-        <div className={`flex items-center gap-1.5 ${phase.colorClass}`}>
+        <div className={`flex items-center gap-1.5 ${phase.textClass}`}>
           <span className="inline-block h-2 w-2 rounded-full bg-current" />
           <span className="text-gray-300">{formatTime(currentTime, timezone)}</span>
           <span className="text-gray-600">·</span>
-          <span className="font-medium">{phase.name}</span>
-          <span className="hidden text-gray-500 sm:inline">— Sun {phase.sunAltitude}</span>
+          <span className="font-medium">{phase.label}</span>
+          <span className="hidden text-gray-500 sm:inline">— Sun {sunAltitudeLabel}</span>
         </div>
 
         {isNowInRange && (
@@ -317,34 +186,15 @@ function NightTimelineScrubber({
 
       {/* 4-zone legend */}
       <div className="mt-1.5 flex items-center justify-center gap-3 text-[11px] text-gray-500">
-        <span className="flex items-center gap-1">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: '#ea580c' }}
-          />{' '}
-          Civil
-        </span>
-        <span className="flex items-center gap-1">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: '#d97706' }}
-          />{' '}
-          Nautical
-        </span>
-        <span className="flex items-center gap-1">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: '#3b82f6' }}
-          />{' '}
-          Astro
-        </span>
-        <span className="flex items-center gap-1">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: '#4f46e5' }}
-          />{' '}
-          Night
-        </span>
+        {TWILIGHT_GUIDE_ORDER.map(id => (
+          <span key={id} className="flex items-center gap-1">
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: TWILIGHT_PHASES[id].color }}
+            />{' '}
+            {TWILIGHT_PHASES[id].shortLabel}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -366,19 +216,6 @@ function formatSunEvent(
 
 function formatAstronomicalBoundary(nightInfo: NightInfo, time: Date, timezone?: string): string {
   return nightInfo.astronomicalNightMode === 'continuous' ? '24h dark' : formatTime(time, timezone);
-}
-
-function getTwilightWindowLabel(mode: NightInfo['observingWindowMode']): string {
-  switch (mode) {
-    case 'nautical':
-      return 'Astronomical twilight window';
-    case 'civil':
-      return 'Nautical twilight window';
-    case 'sunset':
-      return 'Civil twilight window';
-    default:
-      return 'No usable twilight window';
-  }
 }
 
 export default function NightQualityCard({ forecast, timezone }: NightQualityCardProps) {
@@ -534,16 +371,16 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
               role="img"
               aria-label="Civil, nautical and astronomical twilight followed by astronomical night as the Sun moves from the horizon to more than 18 degrees below it"
             >
-              {TWILIGHT_GUIDE.map(phase => (
-                <span key={phase.name} className={phase.colorClass} />
+              {TWILIGHT_GUIDE_ORDER.map(id => (
+                <span key={id} className={TWILIGHT_PHASES[id].guideBgClass} />
               ))}
             </div>
             <dl className="space-y-2">
-              {TWILIGHT_GUIDE.map(phase => (
-                <div key={phase.name} className="grid grid-cols-[8rem_6rem_1fr] gap-2 text-xs">
-                  <dt className="font-medium text-gray-200">{phase.name}</dt>
-                  <dd className="text-indigo-300 tabular-nums">{phase.range}</dd>
-                  <dd className="text-gray-500">{phase.description}</dd>
+              {TWILIGHT_GUIDE_ORDER.map(id => (
+                <div key={id} className="grid grid-cols-[8rem_6rem_1fr] gap-2 text-xs">
+                  <dt className="font-medium text-gray-200">{TWILIGHT_PHASES[id].guideLabel}</dt>
+                  <dd className="text-indigo-300 tabular-nums">{TWILIGHT_PHASES[id].guideRange}</dd>
+                  <dd className="text-gray-500">{TWILIGHT_PHASES[id].guideDescription}</dd>
                 </div>
               ))}
             </dl>

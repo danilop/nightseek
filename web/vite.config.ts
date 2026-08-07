@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-import path from 'path';
 
 export default defineConfig({
   plugins: [
@@ -118,11 +117,9 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      'satellite.js': path.resolve(
-        __dirname,
-        './src/lib/satellites/satellite-js-browser.ts'
-      ),
-      '@': path.resolve(__dirname, './src'),
+      'satellite.js': new URL('./src/lib/satellites/satellite-js-browser.ts', import.meta.url)
+        .pathname,
+      '@': new URL('./src', import.meta.url).pathname,
     },
   },
   optimizeDeps: {

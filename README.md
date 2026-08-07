@@ -50,6 +50,12 @@ while native-specific implementations in `mobile/src` override location,
 sharing, notifications, haptics, settings, and bundled sky-chart behavior. This
 keeps one product implementation without copying the full web application.
 
+The overlay works through Vite path aliases and therefore only intercepts
+`@/`-prefixed imports. Any module listed as an override in
+`mobile/vite.config.ts` must be imported as `@/...` everywhere in `web/src`; a
+relative import silently bypasses the override and loads the web version
+instead.
+
 ## Web development
 
 Requirements:

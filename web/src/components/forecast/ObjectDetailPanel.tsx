@@ -1,9 +1,10 @@
 import { Camera, Clock, Compass, Focus, Moon, Mountain, Ruler, Star, X } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
+import { SkyCalculator } from '@/lib/astronomy/calculator';
 import { formatDistance } from '@/lib/gaia';
 import { fetchEnhancedGaiaStarField } from '@/lib/gaia/enhanced-queries';
 import { formatAsteroidDiameter, formatRotationPeriod } from '@/lib/jpl/sbdb';
@@ -25,19 +26,27 @@ import {
   getCategoryIcon,
 } from '@/lib/utils/format';
 import { formatSubtype } from '@/lib/utils/format-subtype';
-import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
+import { evaluateTargetAccessibility, type TargetAccessibility } from '@/lib/utils/horizon-profile';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
 import { getBestPhotoReadyWindow } from '@/lib/utils/target-photo-windows';
 import { useApp } from '@/stores/AppContext';
-import type { EnhancedGaiaStarField, NightInfo, NightWeather, ScoredObject } from '@/types';
+import type {
+  EnhancedGaiaStarField,
+  HorizonProfile,
+  NightInfo,
+  NightWeather,
+  ScoredObject,
+} from '@/types';
 import EnhancedStarFieldCanvas from './EnhancedStarFieldCanvas';
 import MosaicTipsPanel from './MosaicTipsPanel';
+import TargetAltitudeChart from './TargetAltitudeChart';
 
 const AladinSurveyView = lazy(() => import('./AladinSurveyView'));
 
 interface ObjectDetailPanelProps {
   object: ScoredObject;
   accessibility?: TargetAccessibility;
+  horizonProfile: HorizonProfile;
   nightInfo: NightInfo;
   weather: NightWeather | null;
   onClose: () => void;
@@ -47,6 +56,7 @@ interface ObjectDetailPanelProps {
 export default function ObjectDetailPanel({
   object,
   accessibility,
+  horizonProfile,
   nightInfo,
   weather,
   onClose,
@@ -62,9 +72,24 @@ export default function ObjectDetailPanel({
   const { state } = useApp();
   const timezone = state.location?.timezone;
   const { visibility, magnitude, category, subtype, totalScore } = object;
+  // Callers that open the panel without pre-computed accessibility (Tonight's
+  // Picks, for one) still get the windows and the chart's threshold overlay.
+  const resolvedAccessibility = useMemo(
+    () => accessibility ?? evaluateTargetAccessibility(visibility, horizonProfile, weather),
+    [accessibility, visibility, horizonProfile, weather]
+  );
+  const latitude = state.location?.latitude;
+  const longitude = state.location?.longitude;
+  const calculator = useMemo(
+    () =>
+      latitude === undefined || longitude === undefined
+        ? null
+        : new SkyCalculator(latitude, longitude),
+    [latitude, longitude]
+  );
   const accessibleImagingWindow =
-    visibility.imagingWindow && accessibility
-      ? getBestPhotoReadyWindow([visibility.imagingWindow], accessibility)
+    visibility.imagingWindow && resolvedAccessibility
+      ? getBestPhotoReadyWindow([visibility.imagingWindow], resolvedAccessibility)
       : visibility.imagingWindow;
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const icon = getCategoryIcon(category, subtype);
@@ -407,24 +432,34 @@ export default function ObjectDetailPanel({
           />
         </div>
 
+        {/* Altitude through the night, against the same horizon limits. */}
+        <TargetAltitudeChart
+          visibility={visibility}
+          nightInfo={nightInfo}
+          horizonProfile={horizonProfile}
+          accessibility={resolvedAccessibility}
+          calculator={calculator}
+          timezone={timezone}
+        />
+
         {/* Exact intervals allowed by the user's minimum altitude and horizon profile. */}
-        {accessibility?.windows.length ? (
+        {resolvedAccessibility.windows.length ? (
           <div className="rounded-lg bg-night-800 p-3">
             <div className="mb-2 flex items-center gap-2 text-sm">
               <Clock className="h-4 w-4 text-sky-400" />
               <span className="text-gray-300">Your accessible windows</span>
               <span className="ml-auto text-gray-500 text-xs">
-                {formatDurationMinutes(accessibility.accessibleMinutes)} total
+                {formatDurationMinutes(resolvedAccessibility.accessibleMinutes)} total
               </span>
             </div>
             <div className="space-y-2">
-              {accessibility.windows.map((window, index) => (
+              {resolvedAccessibility.windows.map((window, index) => (
                 <div
                   key={`${window.start.toISOString()}-${window.end.toISOString()}`}
                   className="flex items-center justify-between gap-3 text-sm"
                 >
                   <span className="text-gray-500">
-                    {window === accessibility.bestWindow ? 'Best' : `Window ${index + 1}`}
+                    {window === resolvedAccessibility.bestWindow ? 'Best' : `Window ${index + 1}`}
                   </span>
                   <span className="text-right text-gray-200">
                     {formatTimeRange(window.start, window.end, timezone)}

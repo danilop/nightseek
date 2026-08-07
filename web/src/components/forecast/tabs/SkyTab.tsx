@@ -1,5 +1,5 @@
+import SkyChart from '@/components/forecast/SkyChart';
 import type { Location, NightInfo, SkyMapFocus } from '@/types';
-import SkyChart from '../SkyChart';
 
 interface SkyTabProps {
   nightInfo: NightInfo;

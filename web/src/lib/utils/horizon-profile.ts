@@ -23,10 +23,32 @@ export interface TargetAccessibility {
   priorityScore: number;
 }
 
-interface PairedSample {
+/** A time-ordered altitude/azimuth sample pair for one object. */
+export interface AltAzSample {
   timeMs: number;
   altitude: number;
   azimuth: number;
+}
+
+/**
+ * The minimum altitude the horizon demands over one stretch of time, derived
+ * from the sector the object occupies during that stretch.
+ */
+export interface HorizonThresholdSegment {
+  startMs: number;
+  endMs: number;
+  /** max(whole-sky minimum, sector obstruction). 90 means fully blocked. */
+  thresholdDegrees: number;
+  /** The sector's own obstruction height, without the whole-sky minimum. */
+  sectorThresholdDegrees: number;
+  sectorLabel: HorizonSectorLabel;
+  isBlocked: boolean;
+}
+
+/** A threshold segment plus the object's altitude at each end of it. */
+interface ThresholdSpan extends HorizonThresholdSegment {
+  startAltitude: number;
+  endAltitude: number;
 }
 
 interface TimeInterval {
@@ -131,12 +153,26 @@ export function getSectorAltitudeLabel(minAltitude: number): string {
   return `${minAltitude}°+`;
 }
 
-export function getSectorToneClass(minAltitude: number): string {
-  if (minAltitude >= BLOCKED_ALTITUDE) return 'border-red-500/30 bg-red-500/15 text-red-300';
-  if (minAltitude >= 45) return 'border-orange-500/30 bg-orange-500/15 text-orange-300';
-  if (minAltitude >= 30) return 'border-amber-500/30 bg-amber-500/15 text-amber-300';
-  if (minAltitude >= 15) return 'border-lime-500/30 bg-lime-500/15 text-lime-300';
-  return 'border-green-500/30 bg-green-500/15 text-green-300';
+/**
+ * Fill for a sector's block in the horizon silhouette. Blocked gets a hatch so
+ * it reads as a wall rather than as very tall trees.
+ */
+export function getSectorFillClass(minAltitude: number): string {
+  if (minAltitude >= BLOCKED_ALTITUDE)
+    return 'bg-red-500/35 [background-image:repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(0,0,0,0.28)_4px,rgba(0,0,0,0.28)_8px)]';
+  if (minAltitude >= 45) return 'bg-orange-500/35';
+  if (minAltitude >= 30) return 'bg-amber-500/30';
+  if (minAltitude >= 15) return 'bg-lime-500/25';
+  return '';
+}
+
+/** Label colour matching a sector's obstruction height. */
+export function getSectorTextClass(minAltitude: number): string {
+  if (minAltitude >= BLOCKED_ALTITUDE) return 'text-red-300';
+  if (minAltitude >= 45) return 'text-orange-300';
+  if (minAltitude >= 30) return 'text-amber-300';
+  if (minAltitude >= 15) return 'text-lime-300';
+  return 'text-green-300';
 }
 
 export function getMinVisibleAltitudeForAzimuth(profile: HorizonProfile, azimuth: number): number {
@@ -149,7 +185,22 @@ export function getMinVisibleAltitudeForAzimuth(profile: HorizonProfile, azimuth
   return Math.max(minimumAltitude, clampAltitude(sector?.minAltitude));
 }
 
-function pairVisibilitySamples(visibility: ObjectVisibility): PairedSample[] {
+/** The sector an azimuth belongs to, and that sector's own obstruction height. */
+function getSectorAtAzimuth(
+  profile: HorizonProfile,
+  azimuth: number
+): { label: HorizonSectorLabel; sectorMinAltitude: number } {
+  const sectorIndex = getSectorIndexForAzimuth(azimuth);
+  // A non-finite azimuth carries no directional information, so only the
+  // whole-sky minimum applies — matching getMinVisibleAltitudeForAzimuth.
+  if (sectorIndex === null) return { label: 'N', sectorMinAltitude: 0 };
+
+  const label = HORIZON_SECTOR_CONFIGS[sectorIndex].label;
+  const sector = profile.sectors.find(candidate => candidate.label === label);
+  return { label, sectorMinAltitude: clampAltitude(sector?.minAltitude) };
+}
+
+function pairVisibilitySamples(visibility: ObjectVisibility): AltAzSample[] {
   const azimuthByTime = new Map(
     visibility.azimuthSamples
       .filter(([time, azimuth]) => Number.isFinite(time.getTime()) && Number.isFinite(azimuth))
@@ -234,11 +285,18 @@ function appendAccessiblePart(
   }
 }
 
-function calculateAccessibleIntervals(
-  samples: PairedSample[],
+/**
+ * Split each consecutive sample pair at every 45° sector boundary it crosses,
+ * so every resulting span sits in exactly one sector and therefore has one
+ * constant altitude threshold. Both the accessible-window maths and the chart's
+ * step line are built from this, so the two can never disagree.
+ */
+function buildThresholdSpans(
+  samples: readonly AltAzSample[],
   horizonProfile: HorizonProfile
-): TimeInterval[] {
-  const intervals: TimeInterval[] = [];
+): ThresholdSpan[] {
+  const spans: ThresholdSpan[] = [];
+  const minimumAltitude = clampGlobalAltitude(horizonProfile.minimumAltitude);
 
   for (let sampleIndex = 0; sampleIndex < samples.length - 1; sampleIndex++) {
     const start = samples[sampleIndex];
@@ -252,25 +310,80 @@ function calculateAccessibleIntervals(
       const startRatio = boundaryRatios[ratioIndex];
       const endRatio = boundaryRatios[ratioIndex + 1];
       const midpointRatio = (startRatio + endRatio) / 2;
-      const threshold = getMinVisibleAltitudeForAzimuth(
+      const { label, sectorMinAltitude } = getSectorAtAzimuth(
         horizonProfile,
         start.azimuth + azimuthDelta * midpointRatio
       );
-      if (threshold >= BLOCKED_ALTITUDE) continue;
+      const thresholdDegrees = Math.max(minimumAltitude, sectorMinAltitude);
 
-      const segmentStartMs = start.timeMs + (end.timeMs - start.timeMs) * startRatio;
-      const segmentEndMs = start.timeMs + (end.timeMs - start.timeMs) * endRatio;
-      const segmentStartAltitude = start.altitude + (end.altitude - start.altitude) * startRatio;
-      const segmentEndAltitude = start.altitude + (end.altitude - start.altitude) * endRatio;
-
-      appendAccessiblePart(
-        intervals,
-        segmentStartMs,
-        segmentEndMs,
-        segmentStartAltitude - threshold,
-        segmentEndAltitude - threshold
-      );
+      spans.push({
+        startMs: start.timeMs + (end.timeMs - start.timeMs) * startRatio,
+        endMs: start.timeMs + (end.timeMs - start.timeMs) * endRatio,
+        thresholdDegrees,
+        sectorThresholdDegrees: sectorMinAltitude,
+        sectorLabel: label,
+        isBlocked: thresholdDegrees >= BLOCKED_ALTITUDE,
+        startAltitude: start.altitude + (end.altitude - start.altitude) * startRatio,
+        endAltitude: start.altitude + (end.altitude - start.altitude) * endRatio,
+      });
     }
+  }
+
+  return spans;
+}
+
+/**
+ * Render-ready step segments: adjacent spans sharing a sector and threshold are
+ * merged. Do not feed these back into the window maths — a merged segment can
+ * hide a dip below and back above the threshold.
+ */
+export function getHorizonThresholdSegments(
+  samples: readonly AltAzSample[],
+  horizonProfile: HorizonProfile
+): HorizonThresholdSegment[] {
+  const segments: HorizonThresholdSegment[] = [];
+
+  for (const span of buildThresholdSpans(samples, normalizeHorizonProfile(horizonProfile))) {
+    const previous = segments[segments.length - 1];
+
+    if (
+      previous &&
+      previous.sectorLabel === span.sectorLabel &&
+      previous.thresholdDegrees === span.thresholdDegrees &&
+      span.startMs - previous.endMs <= MERGE_TOLERANCE_MS
+    ) {
+      previous.endMs = Math.max(previous.endMs, span.endMs);
+      continue;
+    }
+
+    segments.push({
+      startMs: span.startMs,
+      endMs: span.endMs,
+      thresholdDegrees: span.thresholdDegrees,
+      sectorThresholdDegrees: span.sectorThresholdDegrees,
+      sectorLabel: span.sectorLabel,
+      isBlocked: span.isBlocked,
+    });
+  }
+
+  return segments;
+}
+
+function calculateAccessibleIntervals(
+  samples: readonly AltAzSample[],
+  horizonProfile: HorizonProfile
+): TimeInterval[] {
+  const intervals: TimeInterval[] = [];
+
+  for (const span of buildThresholdSpans(samples, horizonProfile)) {
+    if (span.isBlocked) continue;
+    appendAccessiblePart(
+      intervals,
+      span.startMs,
+      span.endMs,
+      span.startAltitude - span.thresholdDegrees,
+      span.endAltitude - span.thresholdDegrees
+    );
   }
 
   return intervals;
