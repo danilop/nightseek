@@ -1,9 +1,8 @@
 {
-  "fetchedAt": "2026-08-08T06:51:14.452Z",
-  "startDate": "2026-08-08",
-  "endDate": "2026-08-14",
+  "fetchedAt": "2026-08-09T06:54:51.469Z",
+  "startDate": "2026-08-09",
+  "endDate": "2026-08-15",
   "data": {
-    "2026-08-08": [],
     "2026-08-09": [
       {
         "name": "173561 (2000 YV137)",
@@ -14,8 +13,8 @@
           "max": 1.2648527775
         },
         "closeApproachDate": "2026-Aug-09 05:12",
-        "missDistanceLunarDistances": 13.0558775408,
-        "relativeVelocityKmh": 58298.5479273523,
+        "missDistanceLunarDistances": 13.0558771518,
+        "relativeVelocityKmh": 58298.5479161052,
         "absoluteMagnitude": 18.36
       }
     ],
@@ -64,6 +63,7 @@
         "absoluteMagnitude": 21.58
       }
     ],
-    "2026-08-14": []
+    "2026-08-14": [],
+    "2026-08-15": []
   }
 }
