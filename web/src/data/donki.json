@@ -1,18 +1,6 @@
 {
   "geomagneticStorms": [
     {
-      "gstID": "2026-08-02T15:00:00-GST-001",
-      "startTime": "2026-08-02T15:00Z",
-      "kpIndexes": [
-        {
-          "observedTime": "2026-08-02T18:00Z",
-          "kpIndex": 5.67,
-          "source": "NOAA"
-        }
-      ],
-      "maxKp": 5.67
-    },
-    {
       "gstID": "2026-08-08T18:00:00-GST-001",
       "startTime": "2026-08-08T18:00Z",
       "kpIndexes": [
@@ -26,5 +14,5 @@
     }
   ],
   "solarFlares": [],
-  "fetchedAt": "2026-08-09T06:54:52.486Z"
+  "fetchedAt": "2026-08-10T07:39:05.055Z"
 }
