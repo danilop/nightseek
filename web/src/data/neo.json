@@ -1,36 +1,9 @@
 {
-  "fetchedAt": "2026-08-10T07:39:04.399Z",
-  "startDate": "2026-08-10",
-  "endDate": "2026-08-16",
+  "fetchedAt": "2026-08-11T07:05:27.975Z",
+  "startDate": "2026-08-11",
+  "endDate": "2026-08-17",
   "data": {
-    "2026-08-10": [
-      {
-        "name": "2019 NY2",
-        "neoId": "3843155",
-        "isPotentiallyHazardous": true,
-        "estimatedDiameterKm": {
-          "min": 0.1529519353,
-          "max": 0.3420109247
-        },
-        "closeApproachDate": "2026-Aug-10 00:19",
-        "missDistanceLunarDistances": 6.5414492072,
-        "relativeVelocityKmh": 34589.8169538131,
-        "absoluteMagnitude": 21.2
-      },
-      {
-        "name": "2016 BV14",
-        "neoId": "3740926",
-        "isPotentiallyHazardous": true,
-        "estimatedDiameterKm": {
-          "min": 0.1214940408,
-          "max": 0.2716689341
-        },
-        "closeApproachDate": "2026-Aug-10 09:41",
-        "missDistanceLunarDistances": 19.0098950861,
-        "relativeVelocityKmh": 75878.3414567804,
-        "absoluteMagnitude": 21.7
-      }
-    ],
+    "2026-08-17": [],
     "2026-08-11": [],
     "2026-08-12": [],
     "2026-08-13": [
