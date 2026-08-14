@@ -1,26 +1,12 @@
 {
-  "fetchedAt": "2026-08-13T07:25:07.854Z",
-  "startDate": "2026-08-13",
-  "endDate": "2026-08-19",
+  "fetchedAt": "2026-08-14T07:23:03.127Z",
+  "startDate": "2026-08-14",
+  "endDate": "2026-08-20",
   "data": {
     "2026-08-17": [],
     "2026-08-18": [],
     "2026-08-19": [],
-    "2026-08-13": [
-      {
-        "name": "2013 QC11",
-        "neoId": "3646734",
-        "isPotentiallyHazardous": true,
-        "estimatedDiameterKm": {
-          "min": 0.1283970296,
-          "max": 0.2871044863
-        },
-        "closeApproachDate": "2026-Aug-13 01:33",
-        "missDistanceLunarDistances": 14.4149230286,
-        "relativeVelocityKmh": 68302.9163533478,
-        "absoluteMagnitude": 21.58
-      }
-    ],
+    "2026-08-20": [],
     "2026-08-14": [],
     "2026-08-15": [],
     "2026-08-16": []
