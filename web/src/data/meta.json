@@ -1,10 +1,10 @@
 {
-  "fetchedAt": "2026-08-15T06:36:03.773Z",
+  "fetchedAt": "2026-08-16T06:38:03.335Z",
   "hashes": {
-    "neo.json": "57e224e6c501",
-    "comets.json": "621648ce54c3",
-    "donki.json": "67e8b0f26970",
+    "neo.json": "5245e316b1c3",
+    "comets.json": "8cf5de24ba14",
+    "donki.json": "0e566348bdb8",
     "asteroids.json": "472d75092f66",
-    "ephemeris.json": "b989b6451941"
+    "ephemeris.json": "a5f2e28f857d"
   }
 }
