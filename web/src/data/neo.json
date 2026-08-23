@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-08-22T06:37:46.513Z",
-  "startDate": "2026-08-22",
-  "endDate": "2026-08-28",
+  "fetchedAt": "2026-08-23T06:38:51.627Z",
+  "startDate": "2026-08-23",
+  "endDate": "2026-08-29",
   "data": {
     "2026-08-28": [
       {
@@ -31,7 +31,7 @@
         "absoluteMagnitude": 19.84
       }
     ],
-    "2026-08-22": [],
+    "2026-08-29": [],
     "2026-08-23": [],
     "2026-08-24": [],
     "2026-08-25": [],
@@ -46,8 +46,8 @@
           "max": 0.7379721607
         },
         "closeApproachDate": "2026-Aug-27 02:01",
-        "missDistanceLunarDistances": 18.4033520098,
-        "relativeVelocityKmh": 81898.5057367183,
+        "missDistanceLunarDistances": 18.4033474585,
+        "relativeVelocityKmh": 81898.5035729416,
         "absoluteMagnitude": 19.53
       }
     ]
