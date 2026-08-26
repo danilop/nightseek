@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-08-25T06:44:22.035Z",
-  "startDate": "2026-08-25",
-  "endDate": "2026-08-31",
+  "fetchedAt": "2026-08-26T06:47:18.184Z",
+  "startDate": "2026-08-26",
+  "endDate": "2026-09-01",
   "data": {
     "2026-08-28": [
       {
@@ -48,7 +48,21 @@
         "absoluteMagnitude": 26.14
       }
     ],
-    "2026-08-25": [],
+    "2026-09-01": [
+      {
+        "name": "2018 RD2",
+        "neoId": "3827321",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0101989386,
+          "max": 0.02280552
+        },
+        "closeApproachDate": "2026-Sep-01 08:10",
+        "missDistanceLunarDistances": 19.4272702632,
+        "relativeVelocityKmh": 34498.9514732656,
+        "absoluteMagnitude": 27.08
+      }
+    ],
     "2026-08-26": [],
     "2026-08-27": [
       {
@@ -60,8 +74,8 @@
           "max": 0.7379721607
         },
         "closeApproachDate": "2026-Aug-27 02:01",
-        "missDistanceLunarDistances": 18.4033391339,
-        "relativeVelocityKmh": 81898.5002016445,
+        "missDistanceLunarDistances": 18.4033396007,
+        "relativeVelocityKmh": 81898.500575916,
         "absoluteMagnitude": 19.53
       }
     ]
