@@ -1,15 +1,8 @@
-import {
-  Camera,
-  Clock3,
-  Compass,
-  Info,
-  Map as MapIcon,
-  Moon,
-  Mountain,
-  Sparkles,
-} from 'lucide-react';
+import { Camera, Clock3, Compass, Info, Map as MapIcon, Moon, Mountain } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import SectionCard from '@/components/ui/SectionCard';
+import { useUIState } from '@/hooks/useUIState';
 import { SkyCalculator } from '@/lib/astronomy/calculator';
 import {
   buildMilkyWayNightPlan,
@@ -28,6 +21,7 @@ import {
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import type { PhotoReadyWindow } from '@/lib/utils/target-photo-windows';
 import type {
+  BortleScore,
   HorizonProfile,
   Location,
   NightForecast,
@@ -36,12 +30,17 @@ import type {
   SkyMapFocus,
 } from '@/types';
 
+const CATEGORY_KEY = 'milky_way';
+
 interface MilkyWayPlannerCardProps {
   target: ScoredObject;
   forecast: NightForecast;
   forecastRange: NightForecast[];
   horizonProfile: HorizonProfile;
   location: Location;
+  defaultExpanded?: boolean;
+  isDragging?: boolean;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
   onOpenDetails: (object: ScoredObject, accessibility: TargetAccessibility) => void;
   onShowSky: (focus: SkyMapFocus) => void;
 }
@@ -166,6 +165,19 @@ function getProminenceLabel(prominence: number): string {
   return 'Very subtle';
 }
 
+function getCollapsedPreview(
+  best: MilkyWaySamplePlan | null,
+  statusLabel: string,
+  timezone?: string
+): string {
+  if (!best) return statusLabel;
+  const window = best.photoWindow ?? best.candidateWindow;
+  if (window) {
+    return `${best.section.label} · ${formatTimeRange(window.start, window.end, timezone)}`;
+  }
+  return `${best.section.label} · ${statusLabel}`;
+}
+
 function PositionPoint({
   label,
   point,
@@ -187,7 +199,7 @@ function PositionPoint({
   );
 }
 
-function CitySkyglowWarning({ bortleClass }: { bortleClass: number }) {
+function CitySkyglowWarning({ bortleClass }: { bortleClass: BortleScore['value'] }) {
   if (bortleClass < 7) return null;
   return (
     <p className="rounded-lg border border-orange-500/20 bg-orange-500/10 px-3 py-2 text-orange-200 text-xs">
@@ -211,7 +223,7 @@ function BandPath({
   if (window) {
     return (
       <div>
-        <div className="mb-2 flex items-center gap-2 text-gray-300 text-sm">
+        <div className="mb-2 flex items-center gap-2 text-gray-400 text-xs">
           <Compass className="h-4 w-4 text-sky-400" />
           Where this section moves during the {windowLabel} window
         </div>
@@ -305,15 +317,165 @@ function createSelectedTarget(target: ScoredObject, best: MilkyWaySamplePlan | n
   };
 }
 
+function BestSectionSummary({ best }: { best: MilkyWaySamplePlan }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-indigo-400/20 bg-indigo-400/10 p-3">
+      <div className="min-w-0">
+        <p className="text-indigo-200/70 text-xs">Best section</p>
+        <p className="font-semibold text-white">{best.section.label}</p>
+        <p className="mt-0.5 max-w-xl text-gray-400 text-xs">{best.section.description}</p>
+      </div>
+      <span className="shrink-0 rounded-full bg-night-950/50 px-2 py-0.5 text-indigo-200 text-xs">
+        {getProminenceLabel(best.section.relativeProminence)}
+      </span>
+    </div>
+  );
+}
+
+function WindowSummary({
+  best,
+  statusDetail,
+  timezone,
+}: {
+  best: MilkyWaySamplePlan | null;
+  statusDetail: string;
+  timezone?: string;
+}) {
+  if (best?.photoWindow) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-green-500/20 bg-green-500/10 p-3">
+        <div className="flex items-center gap-2 text-green-300 text-sm">
+          <Camera className="h-4 w-4" />
+          Best photo window
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="font-semibold text-lg text-white">
+            {formatTimeRange(best.photoWindow.start, best.photoWindow.end, timezone)}
+          </span>
+          <span className="text-gray-500 text-xs">
+            {formatDurationMinutes(best.photoWindow.durationMinutes)} · {best.photoWindow.quality}{' '}
+            {best.photoWindow.qualityScore}/100
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-night-700 bg-night-950/40 p-3">
+      <p className="text-gray-300 text-sm">{statusDetail}</p>
+      {best?.accessibility.bestWindow ? (
+        <p className="mt-2 text-sky-300 text-xs">
+          Sky-access window:{' '}
+          {formatTimeRange(
+            best.accessibility.bestWindow.start,
+            best.accessibility.bestWindow.end,
+            timezone
+          )}
+        </p>
+      ) : null}
+      {best?.candidateWindow ? (
+        <p className="mt-2 text-amber-300 text-xs">
+          Geometry + Moon/cloud window:{' '}
+          {formatTimeRange(best.candidateWindow.start, best.candidateWindow.end, timezone)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Conditions, Galactic Core, and forecast context — hidden until asked for. */
+function PlanningDetails({
+  plan,
+  forecast,
+  bestForecastPlan,
+  bortleClass,
+  timezone,
+}: {
+  plan: MilkyWayNightPlan;
+  forecast: NightForecast;
+  bestForecastPlan: MilkyWayNightPlan | undefined;
+  bortleClass: BortleScore['value'];
+  timezone?: string;
+}) {
+  const bestForecastSample = bestForecastPlan?.bestSample;
+
+  return (
+    <div className="space-y-3 border-night-700 border-t pt-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Condition
+          icon={<Moon className="h-4 w-4 text-amber-400" />}
+          label="Moonlight"
+          value={`${Math.round(forecast.nightInfo.moonlight.exposurePercent)}% exposure`}
+        />
+        <Condition
+          icon={<Clock3 className="h-4 w-4 text-indigo-400" />}
+          label="Darkness"
+          value={getDarknessLabel(forecast)}
+        />
+        <Condition
+          icon={<Mountain className="h-4 w-4 text-cyan-400" />}
+          label="Transparency"
+          value={getTransparencyLabel(forecast)}
+        />
+        <Condition
+          icon={<span className="text-xs">🌌</span>}
+          label="Skyglow"
+          value={`Bortle ${bortleClass}`}
+          valueClass={getBortleColorClass(bortleClass)}
+        />
+      </div>
+
+      <CitySkyglowWarning bortleClass={bortleClass} />
+      <GalacticCoreSummary plan={plan} timezone={timezone} />
+
+      {bestForecastPlan && bestForecastSample?.photoWindow ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-night-700 bg-night-950/40 px-3 py-2 text-sm">
+          <span className="text-gray-400">Best in this forecast</span>
+          <span className="text-white">
+            {getNightLabel(bestForecastPlan.forecast.nightInfo.date, false, timezone)} ·{' '}
+            {bestForecastSample.section.label} ·{' '}
+            {formatTimeRange(
+              bestForecastSample.photoWindow.start,
+              bestForecastSample.photoWindow.end,
+              timezone
+            )}
+          </span>
+        </div>
+      ) : (
+        <p className="text-gray-500 text-xs">
+          No photo-ready Milky Way window appears in the current forecast range.
+        </p>
+      )}
+
+      <div className="flex gap-2 text-gray-500 text-xs">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-400" />
+        <p>
+          The Milky Way has no single useful magnitude: it is an extended, uneven band. Relative
+          prominence describes its structure; photo readiness is calculated from astronomical
+          darkness, Moon position and phase, weather, altitude, skyglow, and your directional
+          obstructions.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function MilkyWayPlannerCard({
   target,
   forecast,
   forecastRange,
   horizonProfile,
   location,
+  defaultExpanded = true,
+  isDragging,
+  dragHandleProps,
   onOpenDetails,
   onShowSky,
 }: MilkyWayPlannerCardProps) {
+  const { isCategoryExpanded, toggleCategoryExpanded } = useUIState();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const expanded = isCategoryExpanded(CATEGORY_KEY, defaultExpanded);
   const bortle = calculateBortle(location.latitude, location.longitude);
   const plans = useMemo(() => {
     const calculator = new SkyCalculator(location.latitude, location.longitude);
@@ -331,7 +493,6 @@ export default function MilkyWayPlannerCard({
       new SkyCalculator(location.latitude, location.longitude),
       bortle.value
     );
-  const bestForecastPlan = getBestForecastPlan(plans);
   const best = plan.bestSample;
   const status = getStatus(plan);
   const timezone = location.timezone;
@@ -341,191 +502,90 @@ export default function MilkyWayPlannerCard({
   const visibility = best?.sample.visibility;
   const peakPoint = visibility && positionWindow ? getPeakPoint(visibility, positionWindow) : null;
   const focusTime = peakPoint?.time ?? visibility?.maxAltitudeTime;
-  const selectedTarget = createSelectedTarget(target, best);
+  const canShowSky = Boolean(focusTime && visibility && best);
+
+  const handleShowSky = () => {
+    if (!focusTime || !visibility || !best) return;
+    onShowSky({
+      time: focusTime,
+      raHours: visibility.raHours,
+      decDegrees: visibility.decDegrees,
+      label: best.section.label,
+    });
+  };
 
   return (
-    <section
-      aria-labelledby="milky-way-planner-title"
-      className="overflow-hidden rounded-xl border border-indigo-500/30 bg-gradient-to-br from-night-900 via-night-900 to-indigo-950/50"
+    <SectionCard
+      icon="🌌"
+      title="Milky Way"
+      titleId="milky-way-planner-title"
+      badge={
+        <span
+          className={`shrink-0 rounded-full border px-2 py-0.5 font-medium text-xs ${status.className}`}
+        >
+          {status.label}
+        </span>
+      }
+      preview={getCollapsedPreview(best, status.label, timezone)}
+      expanded={expanded}
+      onToggle={() => toggleCategoryExpanded(CATEGORY_KEY)}
+      dragHandleProps={dragHandleProps}
+      isDragging={isDragging}
+      bodyClassName="space-y-3 p-4"
     >
-      <div className="border-night-700 border-b p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="rounded-lg bg-indigo-500/15 p-2.5 text-indigo-300">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-medium text-indigo-300 text-xs uppercase tracking-wide">
-                Extended band and arch
-              </p>
-              <h4 id="milky-way-planner-title" className="font-semibold text-lg text-white">
-                Milky Way Planner
-              </h4>
-              <p className="mt-0.5 text-gray-400 text-sm">
-                Best visible section, direction, and photo window
-              </p>
-            </div>
-          </div>
-          <div className={`rounded-full border px-3 py-1 font-medium text-xs ${status.className}`}>
-            {status.label}
-          </div>
-        </div>
+      {best ? <BestSectionSummary best={best} /> : null}
+
+      <WindowSummary best={best} statusDetail={status.detail} timezone={timezone} />
+
+      {visibility && best ? (
+        <BandPath
+          visibility={visibility}
+          window={positionWindow}
+          windowLabel={getPositionWindowLabel(best)}
+          timezone={timezone}
+        />
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={!best}
+          onClick={() =>
+            best && onOpenDetails(createSelectedTarget(target, best), best.accessibility)
+          }
+          className="rounded-lg bg-night-800 px-3 py-2 font-medium text-gray-200 text-sm transition-colors hover:bg-night-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          More details
+        </button>
+        <button
+          type="button"
+          disabled={!canShowSky}
+          onClick={handleShowSky}
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-3 py-2 font-medium text-sm text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <MapIcon className="h-4 w-4" />
+          Show on sky map
+        </button>
       </div>
 
-      <div className="space-y-4 p-4 sm:p-5">
-        {best ? (
-          <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-indigo-400/20 bg-indigo-400/10 p-4">
-            <div>
-              <p className="text-indigo-200 text-xs uppercase tracking-wide">Best section</p>
-              <p className="mt-1 font-semibold text-white text-xl">{best.section.label}</p>
-              <p className="mt-1 max-w-xl text-gray-400 text-sm">{best.section.description}</p>
-            </div>
-            <div className="rounded-full bg-night-950/50 px-3 py-1.5 text-indigo-200 text-xs">
-              {getProminenceLabel(best.section.relativeProminence)}
-            </div>
-          </div>
-        ) : null}
+      <button
+        type="button"
+        onClick={() => setDetailsOpen(!detailsOpen)}
+        className="w-full rounded-lg py-2 text-sky-400 text-sm transition-colors hover:bg-night-800 hover:text-sky-300"
+      >
+        {detailsOpen ? 'Hide conditions and core' : 'Show conditions and core'}
+      </button>
 
-        {best?.photoWindow ? (
-          <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-4">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2 text-green-300 text-sm">
-                  <Camera className="h-4 w-4" />
-                  Best photo window
-                </div>
-                <div className="mt-1 font-semibold text-2xl text-white">
-                  {formatTimeRange(best.photoWindow.start, best.photoWindow.end, timezone)}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-medium text-green-300">
-                  {formatDurationMinutes(best.photoWindow.durationMinutes)}
-                </div>
-                <div className="text-gray-500 text-xs">
-                  {best.photoWindow.quality} · {best.photoWindow.qualityScore}/100
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-night-700 bg-night-950/40 p-4">
-            <p className="text-gray-300 text-sm">{status.detail}</p>
-            {best?.accessibility.bestWindow ? (
-              <p className="mt-2 text-sky-300 text-xs">
-                Sky-access window:{' '}
-                {formatTimeRange(
-                  best.accessibility.bestWindow.start,
-                  best.accessibility.bestWindow.end,
-                  timezone
-                )}
-              </p>
-            ) : null}
-            {best?.candidateWindow ? (
-              <p className="mt-2 text-amber-300 text-xs">
-                Geometry + Moon/cloud window:{' '}
-                {formatTimeRange(best.candidateWindow.start, best.candidateWindow.end, timezone)}
-              </p>
-            ) : null}
-          </div>
-        )}
-
-        {visibility ? (
-          <BandPath
-            visibility={visibility}
-            window={positionWindow}
-            windowLabel={getPositionWindowLabel(best)}
-            timezone={timezone}
-          />
-        ) : null}
-
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Condition
-            icon={<Moon className="h-4 w-4 text-amber-400" />}
-            label="Moonlight"
-            value={`${Math.round(forecast.nightInfo.moonlight.exposurePercent)}% exposure`}
-          />
-          <Condition
-            icon={<Clock3 className="h-4 w-4 text-indigo-400" />}
-            label="Darkness"
-            value={getDarknessLabel(forecast)}
-          />
-          <Condition
-            icon={<Mountain className="h-4 w-4 text-cyan-400" />}
-            label="Transparency"
-            value={getTransparencyLabel(forecast)}
-          />
-          <Condition
-            icon={<Sparkles className="h-4 w-4 text-violet-400" />}
-            label="Skyglow"
-            value={`Bortle ${bortle.value}`}
-            valueClass={getBortleColorClass(bortle.value)}
-          />
-        </div>
-
-        <CitySkyglowWarning bortleClass={bortle.value} />
-        <GalacticCoreSummary plan={plan} timezone={timezone} />
-
-        {bestForecastPlan?.bestSample?.photoWindow ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-night-700 bg-night-950/40 px-3 py-2 text-sm">
-            <span className="text-gray-400">Best in this forecast</span>
-            <span className="text-white">
-              {getNightLabel(bestForecastPlan.forecast.nightInfo.date, false, timezone)} ·{' '}
-              {bestForecastPlan.bestSample.section.label} ·{' '}
-              {formatTimeRange(
-                bestForecastPlan.bestSample.photoWindow.start,
-                bestForecastPlan.bestSample.photoWindow.end,
-                timezone
-              )}
-            </span>
-          </div>
-        ) : (
-          <p className="text-gray-500 text-xs">
-            No photo-ready Milky Way window appears in the current forecast range.
-          </p>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={!best}
-            onClick={() => best && onOpenDetails(selectedTarget, best.accessibility)}
-            className="rounded-lg bg-night-800 px-3 py-2 font-medium text-gray-200 text-sm transition-colors hover:bg-night-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            More details
-          </button>
-          <button
-            type="button"
-            disabled={!focusTime || !visibility || !best}
-            onClick={() =>
-              focusTime &&
-              visibility &&
-              best &&
-              onShowSky({
-                time: focusTime,
-                raHours: visibility.raHours,
-                decDegrees: visibility.decDegrees,
-                label: best.section.label,
-              })
-            }
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-3 py-2 font-medium text-sm text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <MapIcon className="h-4 w-4" />
-            Show Milky Way on sky map
-          </button>
-        </div>
-
-        <div className="flex gap-2 border-night-700 border-t pt-3 text-gray-500 text-xs">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-400" />
-          <p>
-            The Milky Way has no single useful magnitude: it is an extended, uneven band. Relative
-            prominence describes its structure; photo readiness is calculated from astronomical
-            darkness, Moon position and phase, weather, altitude, skyglow, and your directional
-            obstructions.
-          </p>
-        </div>
-      </div>
-    </section>
+      {detailsOpen && (
+        <PlanningDetails
+          plan={plan}
+          forecast={forecast}
+          bestForecastPlan={getBestForecastPlan(plans)}
+          bortleClass={bortle.value}
+          timezone={timezone}
+        />
+      )}
+    </SectionCard>
   );
 }
 

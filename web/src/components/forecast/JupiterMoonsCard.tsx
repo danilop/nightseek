@@ -1,6 +1,5 @@
-import { GripVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
-import { Card, ToggleChevron } from '@/components/ui/Card';
+import SectionCard from '@/components/ui/SectionCard';
 import Tooltip from '@/components/ui/Tooltip';
 import { useUIState } from '@/hooks/useUIState';
 import { describeGalileanMoonEvent } from '@/lib/astronomy/galilean-moons';
@@ -8,11 +7,15 @@ import { formatTime, getNightLabel } from '@/lib/utils/format';
 import { useApp } from '@/stores/AppContext';
 import type { GalileanMoonEvent, GalileanMoonPosition } from '@/types';
 
+const CATEGORY_KEY = 'jupiter_moons';
+
 interface JupiterMoonsCardProps {
   positions: GalileanMoonPosition[];
   events: GalileanMoonEvent[];
   latitude: number;
   nightDate: Date;
+  defaultExpanded?: boolean;
+  isDragging?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
 }
 
@@ -48,86 +51,64 @@ export default function JupiterMoonsCard({
   events,
   latitude,
   nightDate,
+  defaultExpanded = false,
+  isDragging,
   dragHandleProps,
 }: JupiterMoonsCardProps) {
-  const { jupiterMoonsExpanded, setJupiterMoonsExpanded } = useUIState();
+  const { isCategoryExpanded, toggleCategoryExpanded } = useUIState();
   const { state } = useApp();
   const timezone = state.location?.timezone;
-  const expanded = jupiterMoonsExpanded;
+  const expanded = isCategoryExpanded(CATEGORY_KEY, defaultExpanded);
   const nightLabel = getNightLabel(nightDate, false, timezone);
 
   const hasActiveEvents =
     events.length > 0 || positions.some(p => p.isTransiting || p.shadowOnJupiter);
 
   return (
-    <Card>
-      <div className="flex items-center">
-        {/* Drag handle */}
-        {dragHandleProps && (
-          <button
-            type="button"
-            className="cursor-grab touch-none px-2 py-3 text-gray-500 hover:text-gray-300 active:cursor-grabbing"
-            {...dragHandleProps}
-          >
-            <GripVertical className="h-5 w-5" />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => setJupiterMoonsExpanded(!expanded)}
-          className={`flex-1 ${dragHandleProps ? 'pl-0' : 'pl-4'} flex items-center justify-between border-night-700 border-b py-3 pr-4 transition-colors hover:bg-night-800`}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-xl">&#x2643;</span>
-            <h3 className="font-semibold text-white">Jupiter's Galilean Moons</h3>
-            {hasActiveEvents && (
-              <Badge variant="warning" className="ml-1 rounded-full">
-                Events {nightLabel}
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {!expanded && (
-              <span className="hidden text-gray-500 text-sm sm:block">
-                {getCollapsedPreview(positions, events, timezone)}
-              </span>
-            )}
-            <ToggleChevron expanded={expanded} className="h-4 w-4 text-gray-400" />
-          </div>
-        </button>
+    <SectionCard
+      icon={'\u2643'}
+      title="Jupiter's Galilean Moons"
+      badge={
+        hasActiveEvents ? (
+          <Badge variant="warning" className="rounded-full">
+            Events {nightLabel}
+          </Badge>
+        ) : undefined
+      }
+      preview={getCollapsedPreview(positions, events, timezone)}
+      expanded={expanded}
+      onToggle={() => toggleCategoryExpanded(CATEGORY_KEY)}
+      dragHandleProps={dragHandleProps}
+      isDragging={isDragging}
+      bodyClassName="space-y-4 p-4"
+    >
+      {/* Visual diagram of moon positions */}
+      <MoonPositionDiagram positions={positions} isNorthernHemisphere={latitude >= 0} />
+
+      {/* Moon details */}
+      <div className="grid grid-cols-2 gap-2">
+        {positions.map(moon => (
+          <MoonStatus key={moon.name} moon={moon} />
+        ))}
       </div>
 
-      {expanded && (
-        <div className="space-y-4 p-4">
-          {/* Visual diagram of moon positions */}
-          <MoonPositionDiagram positions={positions} isNorthernHemisphere={latitude >= 0} />
-
-          {/* Moon details */}
-          <div className="grid grid-cols-2 gap-2">
-            {positions.map(moon => (
-              <MoonStatus key={moon.name} moon={moon} />
+      {/* Events timeline */}
+      {events.length > 0 && (
+        <div className="border-night-700 border-t pt-3">
+          <h4 className="mb-2 font-medium text-sm text-white">
+            {getNightLabel(nightDate, true, timezone)} Events
+          </h4>
+          <div className="space-y-2">
+            {events.map(event => (
+              <EventItem
+                key={`${event.type}-${event.moon}-${event.time.getTime()}`}
+                event={event}
+              />
             ))}
           </div>
-
-          {/* Events timeline */}
-          {events.length > 0 && (
-            <div className="border-night-700 border-t pt-3">
-              <h4 className="mb-2 font-medium text-sm text-white">
-                {getNightLabel(nightDate, true, timezone)} Events
-              </h4>
-              <div className="space-y-2">
-                {events.map(event => (
-                  <EventItem
-                    key={`${event.type}-${event.moon}-${event.time.getTime()}`}
-                    event={event}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
-    </Card>
+    </SectionCard>
   );
 }
 

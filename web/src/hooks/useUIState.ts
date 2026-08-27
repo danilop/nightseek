@@ -22,9 +22,8 @@ const VALID_QUICK_FILTERS: readonly QuickFilterId[] = [
 ];
 
 interface UIState {
-  // Expanded sections
+  // Expanded sections (keyed by section/category key)
   expandedCategories: Record<string, boolean>;
-  jupiterMoonsExpanded: boolean;
   weatherDetailsExpanded: boolean;
 
   // Category ordering (array of category keys)
@@ -44,6 +43,7 @@ interface UIState {
 }
 
 const DEFAULT_CATEGORY_ORDER = [
+  'milky_way',
   'nebulae',
   'galaxies',
   'clusters',
@@ -66,7 +66,6 @@ const DEFAULT_UI_STATE: UIState = {
     milky_way: true,
     other: false,
   },
-  jupiterMoonsExpanded: false,
   weatherDetailsExpanded: false,
   categoryOrder: DEFAULT_CATEGORY_ORDER,
   activeTab: 'overview',
@@ -116,10 +115,6 @@ function loadUIState(): UIState {
           : DEFAULT_UI_STATE.tonightPicksDismissed;
       return {
         ...DEFAULT_UI_STATE,
-        jupiterMoonsExpanded:
-          typeof parsed.jupiterMoonsExpanded === 'boolean'
-            ? parsed.jupiterMoonsExpanded
-            : DEFAULT_UI_STATE.jupiterMoonsExpanded,
         weatherDetailsExpanded:
           typeof parsed.weatherDetailsExpanded === 'boolean'
             ? parsed.weatherDetailsExpanded
@@ -141,16 +136,17 @@ function loadUIState(): UIState {
   return DEFAULT_UI_STATE;
 }
 
-// Merge saved order with defaults, preserving user order but adding any new categories
+// Merge saved order with defaults, preserving user order but adding any new
+// categories next to the neighbour they default to following.
 function mergeOrder(saved: string[], defaults: string[]): string[] {
-  const result = [...saved];
-  for (const key of defaults) {
-    if (!result.includes(key)) {
-      result.push(key);
-    }
+  const result = saved.filter(key => defaults.includes(key));
+  for (const [index, key] of defaults.entries()) {
+    if (result.includes(key)) continue;
+    const previous = defaults[index - 1];
+    const previousIndex = previous === undefined ? -1 : result.indexOf(previous);
+    result.splice(previousIndex + 1, 0, key);
   }
-  // Remove any categories that no longer exist
-  return result.filter(key => defaults.includes(key));
+  return result;
 }
 
 function saveUIState(state: UIState): void {
@@ -204,15 +200,6 @@ export function useUIState() {
     },
     [setCategoryExpanded]
   );
-
-  const setJupiterMoonsExpanded = useCallback((expanded: boolean) => {
-    globalState = {
-      ...globalState,
-      jupiterMoonsExpanded: expanded,
-    };
-    saveUIState(globalState);
-    notifyListeners();
-  }, []);
 
   const setWeatherDetailsExpanded = useCallback((expanded: boolean) => {
     globalState = {
@@ -284,7 +271,6 @@ export function useUIState() {
   return {
     // State
     expandedCategories: globalState.expandedCategories,
-    jupiterMoonsExpanded: globalState.jupiterMoonsExpanded,
     weatherDetailsExpanded: globalState.weatherDetailsExpanded,
     categoryOrder: globalState.categoryOrder,
     activeTab: globalState.activeTab,
@@ -296,7 +282,6 @@ export function useUIState() {
     setCategoryExpanded,
     toggleCategoryExpanded,
     isCategoryExpanded,
-    setJupiterMoonsExpanded,
     setWeatherDetailsExpanded,
     setActiveTab,
     setCategoryOrder,

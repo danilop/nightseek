@@ -1,6 +1,6 @@
 import { BarChart3, Cloud, Droplets, Sun, Thermometer } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Card, ToggleChevron } from '@/components/ui/Card';
+import SectionCard from '@/components/ui/SectionCard';
 import type { LocationWeatherHistory } from '@/lib/weather/open-meteo';
 import { fetchHistoricalWeather } from '@/lib/weather/open-meteo';
 
@@ -41,91 +41,82 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
   const currentMonthStats = data?.monthlyStats.find(m => m.month === currentMonth);
 
   return (
-    <Card>
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-night-800"
-      >
-        <div className="flex items-center gap-3">
-          <BarChart3 className="h-5 w-5 text-indigo-400" />
-          <h3 className="font-semibold text-white">Location Quality</h3>
-        </div>
-        <div className="flex items-center gap-2">
+    <SectionCard
+      icon={<BarChart3 className="h-5 w-5 shrink-0 text-indigo-400" />}
+      title="Location Quality"
+      headerAside={
+        <>
           {loading && <span className="text-gray-500 text-xs">Loading...</span>}
           {data && currentMonthStats && (
-            <span className="text-gray-400 text-xs">
+            <span className="hidden truncate text-gray-400 text-xs sm:block">
               ~{currentMonthStats.clearNights} clear nights in {currentMonthStats.monthName}
             </span>
           )}
-          <ToggleChevron expanded={expanded} />
-        </div>
-      </button>
-
-      {expanded && (
-        <div className="border-night-700 border-t p-4">
-          {loading && (
-            <div className="flex items-center justify-center py-6">
-              <div className="h-5 w-5 animate-spin rounded-full border-indigo-500 border-b-2" />
-            </div>
-          )}
-
-          {data && (
-            <div className="space-y-4">
-              {/* Annual summary */}
-              <div className="rounded-lg bg-night-800 p-3">
-                <p className="mb-1 font-medium text-sm text-white">Annual Summary</p>
-                <p className="text-gray-300 text-sm">
-                  This location averages{' '}
-                  <span className="font-medium text-indigo-400">
-                    {Math.round(data.annualClearNights)} clear nights
-                  </span>{' '}
-                  per year ({data.annualClearNightPercentage.toFixed(0)}% of nights).
-                </p>
-              </div>
-
-              {/* Best months */}
-              {data.bestMonths.length > 0 && (
-                <div>
-                  <p className="mb-2 text-gray-500 text-xs">Best Months for Observing</p>
-                  <div className="space-y-2">
-                    {data.bestMonths.map(month => (
-                      <div key={month.month} className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300">{month.monthName}</span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-indigo-400">{month.clearNights} clear nights</span>
-                          <span className="text-gray-500 text-xs">
-                            {month.clearNightPercentage.toFixed(0)}%
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Monthly breakdown */}
-              <div>
-                <p className="mb-2 text-gray-500 text-xs">Monthly Breakdown</p>
-                <div className="space-y-1">
-                  {data.monthlyStats.map(month => (
-                    <MonthRow
-                      key={month.month}
-                      month={month}
-                      isCurrent={month.month === currentMonth}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <p className="text-center text-gray-500 text-xs">
-                Based on weather data from the past 12 months
-              </p>
-            </div>
-          )}
+        </>
+      }
+      expanded={expanded}
+      onToggle={() => setExpanded(!expanded)}
+    >
+      {loading && (
+        <div className="flex items-center justify-center py-6">
+          <div className="h-5 w-5 animate-spin rounded-full border-indigo-500 border-b-2" />
         </div>
       )}
-    </Card>
+
+      {data && (
+        <div className="space-y-4">
+          {/* Annual summary */}
+          <div className="rounded-lg bg-night-800 p-3">
+            <p className="mb-1 font-medium text-sm text-white">Annual Summary</p>
+            <p className="text-gray-300 text-sm">
+              This location averages{' '}
+              <span className="font-medium text-indigo-400">
+                {Math.round(data.annualClearNights)} clear nights
+              </span>{' '}
+              per year ({data.annualClearNightPercentage.toFixed(0)}% of nights).
+            </p>
+          </div>
+
+          {/* Best months */}
+          {data.bestMonths.length > 0 && (
+            <div>
+              <p className="mb-2 text-gray-500 text-xs">Best Months for Observing</p>
+              <div className="space-y-2">
+                {data.bestMonths.map(month => (
+                  <div key={month.month} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-300">{month.monthName}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-indigo-400">{month.clearNights} clear nights</span>
+                      <span className="text-gray-500 text-xs">
+                        {month.clearNightPercentage.toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Monthly breakdown */}
+          <div>
+            <p className="mb-2 text-gray-500 text-xs">Monthly Breakdown</p>
+            <div className="space-y-1">
+              {data.monthlyStats.map(month => (
+                <MonthRow
+                  key={month.month}
+                  month={month}
+                  isCurrent={month.month === currentMonth}
+                />
+              ))}
+            </div>
+          </div>
+
+          <p className="text-center text-gray-500 text-xs">
+            Based on weather data from the past 12 months
+          </p>
+        </div>
+      )}
+    </SectionCard>
   );
 }
 

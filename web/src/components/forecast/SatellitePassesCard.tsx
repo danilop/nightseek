@@ -1,6 +1,7 @@
 import { Globe, MapPin, Rocket, Satellite, Zap } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Card, CountBadge, ToggleChevron } from '@/components/ui/Card';
+import { CountBadge } from '@/components/ui/Card';
+import SectionCard from '@/components/ui/SectionCard';
 import {
   azimuthToCompass,
   calculateMultiSatellitePasses,
@@ -172,49 +173,45 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
   const headerLabel = showAllSatellites ? 'Satellite Passes' : 'ISS Passes';
 
   return (
-    <Card>
-      {/* Header */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-night-800"
-      >
-        <div className="flex items-center gap-3">
-          <Satellite className="h-6 w-6 text-sky-400" />
-          <h3 className="font-semibold text-white">{headerLabel}</h3>
+    <SectionCard
+      icon={<Satellite className="h-6 w-6 shrink-0 text-sky-400" />}
+      title={headerLabel}
+      badge={
+        <>
           {passes.length > 0 && <CountBadge count={passes.length} />}
           {showAllSatellites && uniqueSatelliteCount > 1 && (
             <span className="text-gray-500 text-xs">{uniqueSatelliteCount} satellites</span>
           )}
-        </div>
-        <div className="flex items-center gap-2">
+        </>
+      }
+      headerAside={
+        <>
           {loading && <span className="text-gray-500 text-xs">Loading...</span>}
           {error && <span className="text-red-400 text-xs">Unavailable</span>}
           {!loading && !error && passes.length === 0 && (
-            <span className="text-gray-500 text-xs">
+            <span className="hidden text-gray-500 text-xs sm:block">
               No visible passes {getNightLabel(nightInfo.date, false, location.timezone)}
             </span>
           )}
-          <ToggleChevron expanded={expanded} />
-        </div>
-      </button>
-
-      {/* Content */}
-      {expanded && (
-        <SatellitePassesContent
-          showAllSatellites={showAllSatellites}
-          setShowAllSatellites={setShowAllSatellites}
-          loading={loading}
-          error={error}
-          passes={passes}
-          nightInfo={nightInfo}
-          location={location}
-          issPosition={issPosition}
-          issLocationName={issLocationName}
-          issPositionLoading={issPositionLoading}
-        />
-      )}
-    </Card>
+        </>
+      }
+      expanded={expanded}
+      onToggle={() => setExpanded(!expanded)}
+      bodyClassName=""
+    >
+      <SatellitePassesContent
+        showAllSatellites={showAllSatellites}
+        setShowAllSatellites={setShowAllSatellites}
+        loading={loading}
+        error={error}
+        passes={passes}
+        nightInfo={nightInfo}
+        location={location}
+        issPosition={issPosition}
+        issLocationName={issLocationName}
+        issPositionLoading={issPositionLoading}
+      />
+    </SectionCard>
   );
 }
 

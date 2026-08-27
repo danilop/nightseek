@@ -1,14 +1,6 @@
-import {
-  AlertTriangle,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Compass,
-  Crosshair,
-  Loader2,
-  Map as MapIcon,
-} from 'lucide-react';
+import { AlertTriangle, Clock, Compass, Crosshair, Loader2, Map as MapIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import SectionCard from '@/components/ui/SectionCard';
 import { useDeviceCompass } from '@/hooks/useDeviceCompass';
 import { formatTime as formatTimeUtil, getNightLabel } from '@/lib/utils/format';
 import type { Location, NightInfo, SkyMapFocus } from '@/types';
@@ -681,202 +673,185 @@ export default function SkyChart({ nightInfo, location, focus }: SkyChartProps) 
   }, [compassEnabled, compassHeading]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-night-700 bg-night-900">
-      {/* Header */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-night-800"
-      >
-        <div className="flex items-center gap-3">
-          <MapIcon className="h-5 w-5 text-indigo-400" />
-          <h3 className="font-semibold text-white">Sky Chart</h3>
-          <span className="text-gray-500 text-xs">Interactive sky view</span>
+    <SectionCard
+      icon={<MapIcon className="h-5 w-5 shrink-0 text-indigo-400" />}
+      title="Sky Chart"
+      badge={<span className="hidden text-gray-500 text-xs sm:block">Interactive sky view</span>}
+      expanded={expanded}
+      onToggle={() => setExpanded(!expanded)}
+    >
+      {/* Time Slider */}
+      <div className="mb-4">
+        <div className="mb-2 flex items-center justify-between text-gray-400 text-xs">
+          <span>{nightInfo.sunsetOccurs ? formatTime(nightInfo.sunset) : 'No sunset'}</span>
+          <span className="font-medium text-indigo-400">{formatTime(currentTime)}</span>
+          <span>{nightInfo.sunriseOccurs ? formatTime(nightInfo.sunrise) : 'No sunrise'}</span>
         </div>
-        {expanded ? (
-          <ChevronDown className="h-5 w-5 text-gray-400" />
-        ) : (
-          <ChevronRight className="h-5 w-5 text-gray-400" />
+        <div className="flex items-center gap-2">
+          {/* Now button */}
+          <button
+            type="button"
+            onClick={handleNowClick}
+            disabled={!isNowInNightRange}
+            className={`flex items-center gap-1 rounded px-2 py-1 font-medium text-xs transition-colors ${
+              isNowInNightRange
+                ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
+                : 'cursor-not-allowed bg-night-800 text-gray-600'
+            }`}
+            title={
+              isNowInNightRange
+                ? 'Jump to current time'
+                : `Current time is outside ${getNightLabel(
+                    nightInfo.date,
+                    true,
+                    location.timezone
+                  )} range`
+            }
+          >
+            <Clock className="h-3 w-3" />
+            Now
+          </button>
+          {/* Slider */}
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={selectedTime}
+            onChange={e => setSelectedTime(Number(e.target.value))}
+            className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-indigo-500"
+          />
+          {/* Center button - disabled when compass is on */}
+          <button
+            type="button"
+            onClick={handleCenterView}
+            disabled={compassEnabled}
+            className={`rounded p-1.5 font-medium text-xs outline-none transition-colors focus:outline-none active:outline-none ${
+              compassEnabled
+                ? 'cursor-not-allowed bg-night-800/50 text-gray-600'
+                : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white active:bg-night-600'
+            }`}
+            title={
+              compassEnabled
+                ? 'Disable compass to center manually'
+                : 'Center view (zenith, north up)'
+            }
+          >
+            <Crosshair className="h-4 w-4" />
+          </button>
+          {/* Compass button - only shown when compass is available */}
+          {compassAvailable && (
+            <button
+              type="button"
+              onClick={toggleCompass}
+              className={`rounded p-1.5 font-medium text-xs outline-none transition-colors focus:outline-none active:outline-none ${
+                compassEnabled
+                  ? 'bg-indigo-500 text-white shadow-indigo-500/30 shadow-lg'
+                  : 'border border-night-700 bg-night-800/50 text-gray-500 hover:border-gray-500 active:bg-night-700'
+              }`}
+              title={
+                compassEnabled
+                  ? 'Disable compass mode'
+                  : 'Enable compass mode (rotate device to look around)'
+              }
+            >
+              <Compass className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <div className="mt-1 flex justify-between text-gray-500 text-xs">
+          <span>Sunset</span>
+          <span>Sunrise</span>
+        </div>
+      </div>
+
+      {/* Display Options - matching d3-celestial viewer demo */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <SkyLayerToggle
+          label="Stars"
+          active={showStars}
+          onToggle={() => setShowStars(value => !value)}
+        />
+        <SkyLayerToggle
+          label="DSOs"
+          active={showDSOs}
+          onToggle={() => setShowDSOs(value => !value)}
+        />
+        <SkyLayerToggle
+          label="Constellations"
+          active={showConstellations}
+          onToggle={() => setShowConstellations(value => !value)}
+        />
+        <SkyLayerToggle
+          label="Names"
+          active={showNames}
+          onToggle={() => setShowNames(value => !value)}
+        />
+        <SkyLayerToggle
+          label="Ecliptic"
+          active={showLines}
+          onToggle={() => setShowLines(value => !value)}
+        />
+        <SkyLayerToggle
+          label="Milky Way"
+          active={showMilkyWay}
+          onToggle={() => setShowMilkyWay(visible => !visible)}
+        />
+        <SkyLayerToggle
+          label="Planets"
+          active={showPlanets}
+          onToggle={() => setShowPlanets(value => !value)}
+        />
+      </div>
+
+      <SkyFocusStatus focus={getActiveSkyFocus(isTargetFocused, focus)} />
+
+      {/* Sky Chart */}
+      <div className="relative">
+        <div
+          ref={containerRef}
+          id="celestial-map"
+          className="min-h-[300px] w-full overflow-hidden rounded-lg bg-night-950"
+        />
+        {chartStatus === 'loading' && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-night-950">
+            <div className="flex flex-col items-center gap-2 text-gray-400">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span className="text-xs">Loading sky chart...</span>
+            </div>
+          </div>
         )}
-      </button>
-
-      {/* Content */}
-      {expanded && (
-        <div className="border-night-700 border-t p-4">
-          {/* Time Slider */}
-          <div className="mb-4">
-            <div className="mb-2 flex items-center justify-between text-gray-400 text-xs">
-              <span>{nightInfo.sunsetOccurs ? formatTime(nightInfo.sunset) : 'No sunset'}</span>
-              <span className="font-medium text-indigo-400">{formatTime(currentTime)}</span>
-              <span>{nightInfo.sunriseOccurs ? formatTime(nightInfo.sunrise) : 'No sunrise'}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Now button */}
+        {chartStatus === 'error' && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-night-950">
+            <div className="flex flex-col items-center gap-3 text-gray-400">
+              <AlertTriangle className="h-6 w-6 text-amber-500" />
+              <span className="text-xs">Failed to load sky chart</span>
               <button
                 type="button"
-                onClick={handleNowClick}
-                disabled={!isNowInNightRange}
-                className={`flex items-center gap-1 rounded px-2 py-1 font-medium text-xs transition-colors ${
-                  isNowInNightRange
-                    ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
-                    : 'cursor-not-allowed bg-night-800 text-gray-600'
-                }`}
-                title={
-                  isNowInNightRange
-                    ? 'Jump to current time'
-                    : `Current time is outside ${getNightLabel(
-                        nightInfo.date,
-                        true,
-                        location.timezone
-                      )} range`
-                }
-              >
-                <Clock className="h-3 w-3" />
-                Now
-              </button>
-              {/* Slider */}
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={selectedTime}
-                onChange={e => setSelectedTime(Number(e.target.value))}
-                className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-indigo-500"
-              />
-              {/* Center button - disabled when compass is on */}
-              <button
-                type="button"
-                onClick={handleCenterView}
-                disabled={compassEnabled}
-                className={`rounded p-1.5 font-medium text-xs outline-none transition-colors focus:outline-none active:outline-none ${
-                  compassEnabled
-                    ? 'cursor-not-allowed bg-night-800/50 text-gray-600'
-                    : 'bg-night-800 text-gray-400 hover:bg-night-700 hover:text-white active:bg-night-600'
-                }`}
-                title={
-                  compassEnabled
-                    ? 'Disable compass to center manually'
-                    : 'Center view (zenith, north up)'
-                }
-              >
-                <Crosshair className="h-4 w-4" />
-              </button>
-              {/* Compass button - only shown when compass is available */}
-              {compassAvailable && (
-                <button
-                  type="button"
-                  onClick={toggleCompass}
-                  className={`rounded p-1.5 font-medium text-xs outline-none transition-colors focus:outline-none active:outline-none ${
-                    compassEnabled
-                      ? 'bg-indigo-500 text-white shadow-indigo-500/30 shadow-lg'
-                      : 'border border-night-700 bg-night-800/50 text-gray-500 hover:border-gray-500 active:bg-night-700'
-                  }`}
-                  title={
-                    compassEnabled
-                      ? 'Disable compass mode'
-                      : 'Enable compass mode (rotate device to look around)'
+                onClick={async () => {
+                  // Clear the SW cache for CDN scripts so corrupted entries are refetched
+                  try {
+                    const cache = await caches.open('cdn-scripts');
+                    const keys = await cache.keys();
+                    await Promise.all(
+                      keys.filter(r => r.url.includes('unpkg.com')).map(r => cache.delete(r))
+                    );
+                  } catch {
+                    // Cache API not available — retry will still attempt reload
                   }
-                >
-                  <Compass className="h-4 w-4" />
-                </button>
-              )}
+                  celestialInitialized.current = false;
+                  setChartStatus('idle');
+                  // Clear and re-trigger by collapsing/expanding
+                  setExpanded(false);
+                  requestAnimationFrame(() => setExpanded(true));
+                }}
+                className="rounded bg-night-700 px-3 py-1 text-white text-xs hover:bg-night-600"
+              >
+                Retry
+              </button>
             </div>
-            <div className="mt-1 flex justify-between text-gray-500 text-xs">
-              <span>Sunset</span>
-              <span>Sunrise</span>
-            </div>
           </div>
-
-          {/* Display Options - matching d3-celestial viewer demo */}
-          <div className="mb-4 flex flex-wrap gap-2">
-            <SkyLayerToggle
-              label="Stars"
-              active={showStars}
-              onToggle={() => setShowStars(value => !value)}
-            />
-            <SkyLayerToggle
-              label="DSOs"
-              active={showDSOs}
-              onToggle={() => setShowDSOs(value => !value)}
-            />
-            <SkyLayerToggle
-              label="Constellations"
-              active={showConstellations}
-              onToggle={() => setShowConstellations(value => !value)}
-            />
-            <SkyLayerToggle
-              label="Names"
-              active={showNames}
-              onToggle={() => setShowNames(value => !value)}
-            />
-            <SkyLayerToggle
-              label="Ecliptic"
-              active={showLines}
-              onToggle={() => setShowLines(value => !value)}
-            />
-            <SkyLayerToggle
-              label="Milky Way"
-              active={showMilkyWay}
-              onToggle={() => setShowMilkyWay(visible => !visible)}
-            />
-            <SkyLayerToggle
-              label="Planets"
-              active={showPlanets}
-              onToggle={() => setShowPlanets(value => !value)}
-            />
-          </div>
-
-          <SkyFocusStatus focus={getActiveSkyFocus(isTargetFocused, focus)} />
-
-          {/* Sky Chart */}
-          <div className="relative">
-            <div
-              ref={containerRef}
-              id="celestial-map"
-              className="min-h-[300px] w-full overflow-hidden rounded-lg bg-night-950"
-            />
-            {chartStatus === 'loading' && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-night-950">
-                <div className="flex flex-col items-center gap-2 text-gray-400">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                  <span className="text-xs">Loading sky chart...</span>
-                </div>
-              </div>
-            )}
-            {chartStatus === 'error' && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-night-950">
-                <div className="flex flex-col items-center gap-3 text-gray-400">
-                  <AlertTriangle className="h-6 w-6 text-amber-500" />
-                  <span className="text-xs">Failed to load sky chart</span>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      // Clear the SW cache for CDN scripts so corrupted entries are refetched
-                      try {
-                        const cache = await caches.open('cdn-scripts');
-                        const keys = await cache.keys();
-                        await Promise.all(
-                          keys.filter(r => r.url.includes('unpkg.com')).map(r => cache.delete(r))
-                        );
-                      } catch {
-                        // Cache API not available — retry will still attempt reload
-                      }
-                      celestialInitialized.current = false;
-                      setChartStatus('idle');
-                      // Clear and re-trigger by collapsing/expanding
-                      setExpanded(false);
-                      requestAnimationFrame(() => setExpanded(true));
-                    }}
-                    className="rounded bg-night-700 px-3 py-1 text-white text-xs hover:bg-night-600"
-                  >
-                    Retry
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </SectionCard>
   );
 }

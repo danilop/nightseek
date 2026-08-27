@@ -1,6 +1,7 @@
 import { Moon, Star } from 'lucide-react';
 import { useState } from 'react';
-import { Card, CountBadge, ToggleChevron } from '@/components/ui/Card';
+import { CountBadge } from '@/components/ui/Card';
+import SectionCard from '@/components/ui/SectionCard';
 import { getGeometricHourlyRateCeiling, getIAUMeteorShowerInfo } from '@/lib/events/meteor-showers';
 import { getAltitudeTextColor, getMoonInterference } from '@/lib/utils/colors';
 import { getNightLabel } from '@/lib/utils/format';
@@ -26,46 +27,34 @@ export default function MeteorShowerCard({ showers, nightDate }: MeteorShowerCar
   const additionalShowers = showers.slice(1);
 
   return (
-    <Card>
-      {/* Header */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-night-800"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">☄️</span>
-          <h3 className="font-semibold text-white">Meteor Showers</h3>
-          <CountBadge count={showers.length} />
+    <SectionCard
+      icon="☄️"
+      title="Meteor Showers"
+      badge={<CountBadge count={showers.length} />}
+      expanded={expanded}
+      onToggle={() => setExpanded(!expanded)}
+      subheader={
+        <div className="px-4 pb-3">
+          <ShowerSummary shower={primaryShower} />
         </div>
-        <ToggleChevron expanded={expanded} />
-      </button>
+      }
+      bodyClassName="space-y-3 p-4"
+    >
+      {/* Primary shower details */}
+      <ShowerDetails shower={primaryShower} nightDate={nightDate} timezone={timezone} />
 
-      {/* Primary shower summary (always visible) */}
-      <div className="border-night-700 border-b px-4 pb-3">
-        <ShowerSummary shower={primaryShower} />
-      </div>
-
-      {/* Expanded content */}
-      {expanded && (
-        <div className="space-y-3 p-4">
-          {/* Primary shower details */}
-          <ShowerDetails shower={primaryShower} nightDate={nightDate} timezone={timezone} />
-
-          {/* Additional showers */}
-          {additionalShowers.length > 0 && (
-            <div className="mt-4 border-night-700 border-t pt-4">
-              <h4 className="mb-3 font-medium text-gray-400 text-sm">Other Active Showers</h4>
-              <div className="space-y-3">
-                {additionalShowers.map(shower => (
-                  <ShowerCompact key={shower.code} shower={shower} />
-                ))}
-              </div>
-            </div>
-          )}
+      {/* Additional showers */}
+      {additionalShowers.length > 0 && (
+        <div className="mt-4 border-night-700 border-t pt-4">
+          <h4 className="mb-3 font-medium text-gray-400 text-sm">Other Active Showers</h4>
+          <div className="space-y-3">
+            {additionalShowers.map(shower => (
+              <ShowerCompact key={shower.code} shower={shower} />
+            ))}
+          </div>
         </div>
       )}
-    </Card>
+    </SectionCard>
   );
 }
 

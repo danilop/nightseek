@@ -1,6 +1,7 @@
 import { Star } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Card, CountBadge, ToggleChevron } from '@/components/ui/Card';
+import { CountBadge } from '@/components/ui/Card';
+import SectionCard from '@/components/ui/SectionCard';
 import { predictVariableStars, type VariableStarPrediction } from '@/lib/aavso/vsx';
 import { formatDate } from '@/lib/utils/format';
 
@@ -25,36 +26,22 @@ export default function VariableStarsCard({ nightDate, timezone }: VariableStars
   if (notablePredictions.length === 0) return null;
 
   return (
-    <Card>
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-night-800"
-      >
-        <div className="flex items-center gap-3">
-          <Star className="h-5 w-5 text-yellow-400" />
-          <h3 className="font-semibold text-white">Variable Stars</h3>
-          <CountBadge count={notablePredictions.length} />
-        </div>
-        <ToggleChevron expanded={expanded} />
-      </button>
-
-      {expanded && (
-        <div className="space-y-2 border-night-700 border-t p-4">
-          {notablePredictions.map(prediction => (
-            <VariableStarItem
-              key={prediction.star.name}
-              prediction={prediction}
-              timezone={timezone}
-            />
-          ))}
-          <p className="mt-3 text-center text-gray-500 text-xs">
-            Cycle estimates use AAVSO VSX periods and epochs; irregular changes require current
-            observations.
-          </p>
-        </div>
-      )}
-    </Card>
+    <SectionCard
+      icon={<Star className="h-5 w-5 text-yellow-400" />}
+      title="Variable Stars"
+      badge={<CountBadge count={notablePredictions.length} />}
+      expanded={expanded}
+      onToggle={() => setExpanded(!expanded)}
+      bodyClassName="space-y-2 p-4"
+    >
+      {notablePredictions.map(prediction => (
+        <VariableStarItem key={prediction.star.name} prediction={prediction} timezone={timezone} />
+      ))}
+      <p className="mt-3 text-center text-gray-500 text-xs">
+        Cycle estimates use AAVSO VSX periods and epochs; irregular changes require current
+        observations.
+      </p>
+    </SectionCard>
   );
 }
 

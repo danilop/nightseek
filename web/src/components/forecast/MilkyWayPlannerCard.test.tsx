@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetUIState } from '@/hooks/useUIState';
 import { createDefaultHorizonProfile } from '@/lib/utils/horizon-profile';
 import {
   createMockMilkyWayPlan,
@@ -107,16 +108,40 @@ function renderPlanner(horizonProfile: HorizonProfile, onShowSky = vi.fn()) {
 }
 
 describe('MilkyWayPlannerCard', () => {
+  beforeEach(() => {
+    resetUIState();
+  });
+
   it('recommends an extended band even when the Galactic Core is unavailable', () => {
     renderPlanner(createDefaultHorizonProfile());
 
-    expect(screen.getByRole('heading', { name: 'Milky Way Planner' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Milky Way' })).toBeInTheDocument();
     expect(screen.getByText('Photo-ready')).toBeInTheDocument();
     expect(screen.getByText('Cygnus band')).toBeInTheDocument();
     expect(screen.getByText('Best photo window')).toBeInTheDocument();
+    expect(screen.queryByText('Galactic Core planner')).not.toBeInTheDocument();
+  });
+
+  it('keeps conditions and the Galactic Core behind the details toggle', () => {
+    renderPlanner(createDefaultHorizonProfile());
+
+    expect(screen.queryByText('Galactic Core')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show conditions and core' }));
+
     expect(screen.getByText('Galactic Core')).toBeInTheDocument();
     expect(screen.getByText('Not available tonight')).toBeInTheDocument();
-    expect(screen.queryByText('Galactic Core planner')).not.toBeInTheDocument();
+    expect(screen.getByText('Moonlight')).toBeInTheDocument();
+  });
+
+  it('collapses like every other target section', () => {
+    renderPlanner(createDefaultHorizonProfile());
+
+    fireEvent.click(screen.getByRole('button', { name: /Milky Way/ }));
+
+    expect(screen.queryByText('Best photo window')).not.toBeInTheDocument();
+    // The collapsed header still summarises the night.
+    expect(screen.getByText(/Cygnus band ·/)).toBeInTheDocument();
   });
 
   it('applies directional obstructions to the selected Milky Way section', () => {
@@ -138,7 +163,7 @@ describe('MilkyWayPlannerCard', () => {
     const onShowSky = vi.fn();
     renderPlanner(createDefaultHorizonProfile(), onShowSky);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show Milky Way on sky map' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show on sky map' }));
 
     expect(onShowSky).toHaveBeenCalledWith({
       time: new Date('2026-07-17T02:30:00Z'),

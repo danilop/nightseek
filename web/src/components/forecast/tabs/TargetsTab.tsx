@@ -11,10 +11,8 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
@@ -47,6 +45,7 @@ import AccessibleSkyControl from '../AccessibleSkyControl';
 import CategorySection from '../CategorySection';
 import JupiterMoonsCard from '../JupiterMoonsCard';
 import MilkyWayPlannerCard from '../MilkyWayPlannerCard';
+import SortableSection, { type SortableSectionRenderProps } from '../SortableSection';
 import type { SortMode } from '../SortModeControl';
 import TargetsToolbar from '../TargetsToolbar';
 import TonightPicksCard from '../TonightPicksCard';
@@ -95,6 +94,16 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     defaultShowCount: 0,
     filter: () => false, // No regular objects — uses JupiterMoonsCard
     sortOrder: 1.5,
+    isSpecial: true,
+  },
+  {
+    key: 'milky_way',
+    title: 'Milky Way',
+    icon: '🌌',
+    defaultExpanded: true,
+    defaultShowCount: 0,
+    filter: () => false, // Single extended target — uses MilkyWayPlannerCard
+    sortOrder: 1.8,
     isSpecial: true,
   },
   {
@@ -192,90 +201,6 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     showSubtypeInPreview: true,
   },
 ];
-
-function SortableCategorySection({
-  config,
-  categoryObjects,
-  nightInfo,
-  weather,
-  sortMode,
-  selectedTime,
-  onObjectClick,
-  accessibilityByObject,
-}: {
-  config: CategoryConfig;
-  categoryObjects: ScoredObject[];
-  nightInfo: NightInfo;
-  weather: NightWeather | null;
-  sortMode?: SortMode;
-  selectedTime?: Date;
-  onObjectClick: (object: ScoredObject, accessibility?: TargetAccessibility) => void;
-  accessibilityByObject: ReadonlyMap<ScoredObject, TargetAccessibility>;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: config.key,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style}>
-      <CategorySection
-        categoryKey={config.key}
-        title={config.title}
-        icon={config.icon}
-        objects={categoryObjects}
-        nightInfo={nightInfo}
-        weather={weather}
-        defaultExpanded={config.defaultExpanded}
-        defaultShowCount={config.defaultShowCount}
-        showSubtypeInPreview={config.showSubtypeInPreview}
-        isDragging={isDragging}
-        dragHandleProps={{ ...attributes, ...listeners }}
-        sortMode={sortMode}
-        selectedTime={selectedTime}
-        accessibilityByObject={accessibilityByObject}
-        onObjectClick={onObjectClick}
-      />
-    </div>
-  );
-}
-
-function SortableJupiterMoons({
-  id,
-  jupiterMoons,
-  latitude,
-  nightDate,
-}: {
-  id: string;
-  jupiterMoons: NonNullable<AstronomicalEvents['jupiterMoons']>;
-  latitude: number;
-  nightDate: Date;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className={`relative ${isDragging ? 'z-10' : ''}`}>
-      <JupiterMoonsCard
-        positions={jupiterMoons.positions}
-        events={jupiterMoons.events}
-        latitude={latitude}
-        nightDate={nightDate}
-        dragHandleProps={{ ...attributes, ...listeners }}
-      />
-    </div>
-  );
-}
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: targets tab composes filtering, ranking, grouping, and DnD state in one view model
 export default function TargetsTab({
@@ -505,8 +430,11 @@ export default function TargetsTab({
     groupedObjects.planets?.some(p => p.objectName.toLowerCase() === 'jupiter') &&
     !!astronomicalEvents?.jupiterMoons;
 
+  const showMilkyWay = !!milkyWayTarget && horizonProfileReady;
+
   const categoriesWithObjects = orderedConfigs.filter(config => {
     if (config.key === 'jupiter_moons') return showJupiterMoons;
+    if (config.key === 'milky_way') return showMilkyWay;
     return groupedObjects[config.key].length > 0;
   });
 
@@ -538,6 +466,63 @@ export default function TargetsTab({
   const activeDragConfig = activeDragId
     ? categoriesWithObjects.find(c => c.key === activeDragId)
     : null;
+
+  /** Renders one reorderable section — special cards and category grids alike. */
+  const renderSection = (
+    config: CategoryConfig,
+    { dragHandleProps, isDragging }: Partial<SortableSectionRenderProps> = {}
+  ) => {
+    if (config.key === 'jupiter_moons' && astronomicalEvents?.jupiterMoons) {
+      return (
+        <JupiterMoonsCard
+          positions={astronomicalEvents.jupiterMoons.positions}
+          events={astronomicalEvents.jupiterMoons.events}
+          latitude={latitude}
+          nightDate={nightInfo.date}
+          defaultExpanded={config.defaultExpanded}
+          dragHandleProps={dragHandleProps}
+          isDragging={isDragging}
+        />
+      );
+    }
+
+    if (config.key === 'milky_way' && milkyWayTarget) {
+      return (
+        <MilkyWayPlannerCard
+          target={milkyWayTarget}
+          forecast={forecast}
+          forecastRange={forecastRange}
+          horizonProfile={horizonProfile}
+          location={forecastLocation}
+          defaultExpanded={config.defaultExpanded}
+          dragHandleProps={dragHandleProps}
+          isDragging={isDragging}
+          onOpenDetails={onObjectSelect}
+          onShowSky={onShowSky}
+        />
+      );
+    }
+
+    return (
+      <CategorySection
+        categoryKey={config.key}
+        title={config.title}
+        icon={config.icon}
+        objects={groupedObjects[config.key] ?? []}
+        nightInfo={nightInfo}
+        weather={weather}
+        defaultExpanded={config.defaultExpanded}
+        defaultShowCount={config.defaultShowCount}
+        showSubtypeInPreview={config.showSubtypeInPreview}
+        dragHandleProps={dragHandleProps}
+        isDragging={isDragging}
+        sortMode={sortMode}
+        selectedTime={selectedTime}
+        accessibilityByObject={accessibilityByObject}
+        onObjectClick={onObjectSelect}
+      />
+    );
+  };
 
   if (catalogObjects.length === 0 && !milkyWayTarget) {
     return (
@@ -601,18 +586,6 @@ export default function TargetsTab({
         onSetSectorAltitude={handleSetHorizonSectorAltitude}
         onReset={handleResetHorizonProfile}
       />
-
-      {milkyWayTarget && horizonProfileReady ? (
-        <MilkyWayPlannerCard
-          target={milkyWayTarget}
-          forecast={forecast}
-          forecastRange={forecastRange}
-          horizonProfile={horizonProfile}
-          location={forecastLocation}
-          onOpenDetails={onObjectSelect}
-          onShowSky={onShowSky}
-        />
-      ) : null}
 
       {/* Tonight's Best Picks (only affected by magnitude slider) */}
       {tonightPicks.length > 0 && !tonightPicksDismissed && (
@@ -692,7 +665,7 @@ export default function TargetsTab({
       )}
 
       {/* Category Sections with Drag-and-Drop */}
-      {filteredObjects.length > 0 && (
+      {categoriesWithObjects.length > 0 && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -704,63 +677,17 @@ export default function TargetsTab({
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-4">
-              {categoriesWithObjects.map(config => {
-                if (config.key === 'jupiter_moons' && astronomicalEvents?.jupiterMoons) {
-                  return (
-                    <SortableJupiterMoons
-                      key={config.key}
-                      id={config.key}
-                      jupiterMoons={astronomicalEvents.jupiterMoons}
-                      latitude={latitude}
-                      nightDate={nightInfo.date}
-                    />
-                  );
-                }
-
-                return (
-                  <SortableCategorySection
-                    key={config.key}
-                    config={config}
-                    categoryObjects={groupedObjects[config.key]}
-                    nightInfo={nightInfo}
-                    weather={weather}
-                    sortMode={sortMode}
-                    selectedTime={selectedTime}
-                    accessibilityByObject={accessibilityByObject}
-                    onObjectClick={onObjectSelect}
-                  />
-                );
-              })}
+              {categoriesWithObjects.map(config => (
+                <SortableSection key={config.key} id={config.key}>
+                  {sortableProps => renderSection(config, sortableProps)}
+                </SortableSection>
+              ))}
             </div>
           </SortableContext>
 
           <DragOverlay>
             {activeDragConfig ? (
-              <div className="opacity-80">
-                {activeDragConfig.key === 'jupiter_moons' && astronomicalEvents?.jupiterMoons ? (
-                  <JupiterMoonsCard
-                    positions={astronomicalEvents.jupiterMoons.positions}
-                    events={astronomicalEvents.jupiterMoons.events}
-                    latitude={latitude}
-                    nightDate={nightInfo.date}
-                  />
-                ) : (
-                  <CategorySection
-                    categoryKey={activeDragConfig.key}
-                    title={activeDragConfig.title}
-                    icon={activeDragConfig.icon}
-                    objects={groupedObjects[activeDragConfig.key] ?? []}
-                    nightInfo={nightInfo}
-                    weather={weather}
-                    defaultExpanded={false}
-                    defaultShowCount={activeDragConfig.defaultShowCount}
-                    showSubtypeInPreview={activeDragConfig.showSubtypeInPreview}
-                    sortMode={sortMode}
-                    selectedTime={selectedTime}
-                    accessibilityByObject={accessibilityByObject}
-                  />
-                )}
-              </div>
+              <div className="opacity-80">{renderSection(activeDragConfig)}</div>
             ) : null}
           </DragOverlay>
         </DndContext>
