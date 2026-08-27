@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-08-26T06:47:18.184Z",
-  "startDate": "2026-08-26",
-  "endDate": "2026-09-01",
+  "fetchedAt": "2026-08-27T17:21:42.713Z",
+  "startDate": "2026-08-27",
+  "endDate": "2026-09-02",
   "data": {
     "2026-08-28": [
       {
@@ -48,6 +48,7 @@
         "absoluteMagnitude": 26.14
       }
     ],
+    "2026-09-02": [],
     "2026-09-01": [
       {
         "name": "2018 RD2",
@@ -63,7 +64,6 @@
         "absoluteMagnitude": 27.08
       }
     ],
-    "2026-08-26": [],
     "2026-08-27": [
       {
         "name": "523609 (2005 PJ2)",
@@ -74,8 +74,8 @@
           "max": 0.7379721607
         },
         "closeApproachDate": "2026-Aug-27 02:01",
-        "missDistanceLunarDistances": 18.4033396007,
-        "relativeVelocityKmh": 81898.500575916,
+        "missDistanceLunarDistances": 18.4033383559,
+        "relativeVelocityKmh": 81898.5035217373,
         "absoluteMagnitude": 19.53
       }
     ]
