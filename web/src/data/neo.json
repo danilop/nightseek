@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-08-27T17:21:42.713Z",
-  "startDate": "2026-08-27",
-  "endDate": "2026-09-02",
+  "fetchedAt": "2026-08-28T18:14:38.097Z",
+  "startDate": "2026-08-28",
+  "endDate": "2026-09-03",
   "data": {
     "2026-08-28": [
       {
@@ -64,20 +64,6 @@
         "absoluteMagnitude": 27.08
       }
     ],
-    "2026-08-27": [
-      {
-        "name": "523609 (2005 PJ2)",
-        "neoId": "2523609",
-        "isPotentiallyHazardous": true,
-        "estimatedDiameterKm": {
-          "min": 0.3300311834,
-          "max": 0.7379721607
-        },
-        "closeApproachDate": "2026-Aug-27 02:01",
-        "missDistanceLunarDistances": 18.4033383559,
-        "relativeVelocityKmh": 81898.5035217373,
-        "absoluteMagnitude": 19.53
-      }
-    ]
+    "2026-09-03": []
   }
 }
