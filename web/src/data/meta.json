@@ -1,10 +1,10 @@
 {
-  "fetchedAt": "2026-08-28T18:14:58.105Z",
+  "fetchedAt": "2026-08-29T12:21:59.458Z",
   "hashes": {
-    "neo.json": "c3bcda0b0653",
-    "comets.json": "1a3d92a87b89",
+    "neo.json": "5dc8d7732519",
+    "comets.json": "bc51e26dbfa7",
     "asteroids.json": "472d75092f66",
-    "ephemeris.json": "57eb02e7ed08"
+    "ephemeris.json": "675253d481a5"
   },
   "errors": [
     "donki: DONKI API failed: GST 503, FLR 503"

@@ -1,36 +1,8 @@
 {
-  "fetchedAt": "2026-08-28T18:14:38.097Z",
-  "startDate": "2026-08-28",
-  "endDate": "2026-09-03",
+  "fetchedAt": "2026-08-29T12:21:47.556Z",
+  "startDate": "2026-08-29",
+  "endDate": "2026-09-04",
   "data": {
-    "2026-08-28": [
-      {
-        "name": "221455 (2006 BC10)",
-        "neoId": "2221455",
-        "isPotentiallyHazardous": true,
-        "estimatedDiameterKm": {
-          "min": 0.3315545381,
-          "max": 0.7413784854
-        },
-        "closeApproachDate": "2026-Aug-28 15:47",
-        "missDistanceLunarDistances": 9.321656792,
-        "relativeVelocityKmh": 68411.534670059,
-        "absoluteMagnitude": 19.52
-      },
-      {
-        "name": "2017 BP31",
-        "neoId": "3767248",
-        "isPotentiallyHazardous": true,
-        "estimatedDiameterKm": {
-          "min": 0.2861244538,
-          "max": 0.6397937287
-        },
-        "closeApproachDate": "2026-Aug-28 23:43",
-        "missDistanceLunarDistances": 11.1266370978,
-        "relativeVelocityKmh": 73621.2201944612,
-        "absoluteMagnitude": 19.84
-      }
-    ],
     "2026-08-29": [],
     "2026-08-30": [],
     "2026-08-31": [
@@ -64,6 +36,7 @@
         "absoluteMagnitude": 27.08
       }
     ],
+    "2026-09-04": [],
     "2026-09-03": []
   }
 }
