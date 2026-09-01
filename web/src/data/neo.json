@@ -1,23 +1,9 @@
 {
-  "fetchedAt": "2026-08-31T12:49:36.871Z",
-  "startDate": "2026-08-31",
-  "endDate": "2026-09-06",
+  "fetchedAt": "2026-09-01T11:10:34.377Z",
+  "startDate": "2026-09-01",
+  "endDate": "2026-09-07",
   "data": {
-    "2026-08-31": [
-      {
-        "name": "2017 RH16",
-        "neoId": "3781574",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0157237082,
-          "max": 0.0351592805
-        },
-        "closeApproachDate": "2026-Aug-31 21:05",
-        "missDistanceLunarDistances": 8.6743547236,
-        "relativeVelocityKmh": 43688.1903452212,
-        "absoluteMagnitude": 26.14
-      }
-    ],
+    "2026-09-07": [],
     "2026-09-02": [],
     "2026-09-01": [
       {
