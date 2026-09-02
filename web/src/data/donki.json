@@ -2,36 +2,6 @@
   "geomagneticStorms": [],
   "solarFlares": [
     {
-      "flrID": "2026-08-24T18:51:00-FLR-001",
-      "classType": "M1.7",
-      "beginTime": "2026-08-24T18:51Z",
-      "peakTime": "2026-08-24T19:36Z"
-    },
-    {
-      "flrID": "2026-08-25T01:04:00-FLR-001",
-      "classType": "M1.9",
-      "beginTime": "2026-08-25T01:04Z",
-      "peakTime": "2026-08-25T01:26Z"
-    },
-    {
-      "flrID": "2026-08-25T03:55:00-FLR-001",
-      "classType": "M1.0",
-      "beginTime": "2026-08-25T03:55Z",
-      "peakTime": "2026-08-25T04:02Z"
-    },
-    {
-      "flrID": "2026-08-25T06:30:00-FLR-001",
-      "classType": "M1.8",
-      "beginTime": "2026-08-25T06:30Z",
-      "peakTime": "2026-08-25T06:40Z"
-    },
-    {
-      "flrID": "2026-08-25T09:32:00-FLR-001",
-      "classType": "M6.9",
-      "beginTime": "2026-08-25T09:32Z",
-      "peakTime": "2026-08-25T10:02Z"
-    },
-    {
       "flrID": "2026-08-26T06:29:00-FLR-001",
       "classType": "M2.2",
       "beginTime": "2026-08-26T06:29Z",
@@ -44,5 +14,5 @@
       "peakTime": "2026-08-26T12:14Z"
     }
   ],
-  "fetchedAt": "2026-08-31T12:49:37.853Z"
+  "fetchedAt": "2026-09-02T10:43:30.364Z"
 }
