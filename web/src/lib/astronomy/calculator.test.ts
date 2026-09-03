@@ -190,6 +190,37 @@ describe('SkyCalculator', () => {
       expect(visibility.altitudeSamples.length).toBeGreaterThan(20);
     });
 
+    it('keeps a shallow astronomical night from collapsing onto its own dusk', () => {
+      // At 63°N the Sun bottoms out at −18.1° on this date. Searching the
+      // ascending −18° crossing from the descending one returns that same
+      // instant, which used to leave a zero-length observing window and a
+      // twilight strip with no night band at all.
+      const calculator = new SkyCalculator(63, 0, 0);
+      const result = calculator.getNightInfo(new Date('2026-08-31T12:00:00Z'));
+
+      expect(result.astronomicalNightMode).toBe('normal');
+      expect(result.minimumSunAltitude).toBeLessThan(-18);
+      expect(result.astronomicalDawn.getTime()).toBeGreaterThan(result.astronomicalDusk.getTime());
+      expect(result.astronomicalDusk.getTime()).toBeLessThan(result.darkestTime.getTime());
+      expect(result.astronomicalDawn.getTime()).toBeGreaterThan(result.darkestTime.getTime());
+
+      const visibility = calculator.calculateVisibility(21, 45, result, 'Test', 'dso');
+      expect(visibility.altitudeSamples.length).toBeGreaterThan(5);
+    });
+
+    it('keeps a barely-setting Sun from collapsing sunset onto sunrise', () => {
+      // Midsummer on the Arctic Circle: the Sun grazes the horizon, so the
+      // sunrise search must not start at the sunset it is meant to follow.
+      const calculator = new SkyCalculator(66, 0, 0);
+      const result = calculator.getNightInfo(new Date('2026-07-01T12:00:00Z'));
+
+      expect(result.sunsetOccurs).toBe(true);
+      expect(result.sunriseOccurs).toBe(true);
+      expect(result.sunrise.getTime()).toBeGreaterThan(result.sunset.getTime());
+      expect(result.darkestTime.getTime()).toBeGreaterThan(result.sunset.getTime());
+      expect(result.darkestTime.getTime()).toBeLessThan(result.sunrise.getTime());
+    });
+
     it('represents continuous polar darkness as a 24-hour analysis interval', () => {
       const highArctic = new SkyCalculator(89, 0, 0);
       const result = highArctic.getNightInfo(new Date('2026-12-21T12:00:00Z'));

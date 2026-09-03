@@ -63,6 +63,11 @@ function createVisibility(overrides: Partial<ObjectVisibility> = {}): ObjectVisi
   });
 }
 
+/** Extends the track across the twilight wings with a flat, plottable curve. */
+const STUB_CALCULATOR = {
+  getAltAz: () => ({ altitude: 20, azimuth: 180 }),
+};
+
 function createProfile(overrides: Partial<HorizonProfile> = {}): HorizonProfile {
   return { ...createDefaultHorizonProfile(), ...overrides };
 }
@@ -94,8 +99,22 @@ describe('TargetAltitudeChart', () => {
     expect(chart).toHaveAccessibleName(/Above your horizon limits/);
   });
 
-  it('paints the seven twilight bands in order', () => {
-    const { container } = renderChart();
+  it('paints the seven twilight bands in order across the whole night', () => {
+    const { container } = render(
+      <TargetAltitudeChart
+        visibility={createVisibility()}
+        nightInfo={createNightInfo({
+          civilDusk: new Date('2025-01-15T17:30:00Z'),
+          nauticalDusk: new Date('2025-01-15T18:15:00Z'),
+          nauticalDawn: new Date('2025-01-16T05:45:00Z'),
+          civilDawn: new Date('2025-01-16T06:30:00Z'),
+        })}
+        horizonProfile={createProfile()}
+        accessibility={evaluateTargetAccessibility(createVisibility(), createProfile(), null)}
+        calculator={STUB_CALCULATOR}
+        timezone="UTC"
+      />
+    );
     const bands = [...container.querySelectorAll('[data-twilight-phase]')];
 
     expect(bands.map(band => band.getAttribute('data-twilight-phase'))).toEqual([
@@ -107,6 +126,18 @@ describe('TargetAltitudeChart', () => {
       'nautical',
       'civil',
     ]);
+  });
+
+  it('paints only the phases the plotted span actually covers', () => {
+    // Without a calculator the track cannot reach past the observing window, so
+    // the plot is astronomical night end to end and must be coloured as such.
+    const { container } = renderChart();
+    const bands = [...container.querySelectorAll('[data-twilight-phase]')];
+
+    expect(bands).toHaveLength(1);
+    expect(bands[0].getAttribute('data-twilight-phase')).toBe('night');
+    expect(bands[0].getAttribute('x')).toBe('26');
+    expect(bands[0].getAttribute('width')).toBe('304');
   });
 
   it('draws the altitude curve and the accessible-window shading', () => {

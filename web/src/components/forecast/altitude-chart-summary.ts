@@ -1,15 +1,18 @@
 import type { NightAltitudeTrack } from '@/lib/astronomy/night-altitude-track';
 import type { TwilightBoundaries } from '@/lib/astronomy/twilight';
-import { getTwilightPhaseAtFraction } from '@/lib/astronomy/twilight';
+import { getTwilightPhaseAtFraction, nightFraction } from '@/lib/astronomy/twilight';
 import { getAltitudeAtTime, getAzimuthAtTime } from '@/lib/utils/altitude-interpolation';
 import { azimuthToCardinal, formatDurationMinutes, formatTime } from '@/lib/utils/format';
 import type { HorizonThresholdSegment, TargetAccessibility } from '@/lib/utils/horizon-profile';
+import type { NightInfo } from '@/types';
 
 export interface AltitudeReadoutArgs {
+  /** Position along the plotted track, which may be wider than sunset→sunrise. */
   fraction: number;
   track: NightAltitudeTrack;
   segments: HorizonThresholdSegment[];
   boundaries: TwilightBoundaries;
+  nightInfo: NightInfo;
   minimumAltitude: number;
   timezone?: string;
 }
@@ -45,6 +48,7 @@ export function describeAltitudeAtFraction({
   track,
   segments,
   boundaries,
+  nightInfo,
   minimumAltitude,
   timezone,
 }: AltitudeReadoutArgs): string {
@@ -79,7 +83,12 @@ export function describeAltitudeAtFraction({
     );
   }
 
-  parts.push(getTwilightPhaseAtFraction(fraction, boundaries).phase.label);
+  // `boundaries` are fractions of sunset→sunrise, so the plot fraction has to
+  // be re-expressed against that span rather than reused directly.
+  parts.push(
+    getTwilightPhaseAtFraction(nightFraction(time, nightInfo.sunset, nightInfo.sunrise), boundaries)
+      .phase.label
+  );
 
   return parts.join(' · ');
 }

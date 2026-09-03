@@ -67,19 +67,41 @@ describe('getTwilightBoundaries', () => {
     expect(boundaries.civilDawnFraction).toBeCloseTo(13.6 / 14, 10);
   });
 
-  it('falls back to equal thirds when the real times are missing', () => {
+  it('collapses missing boundaries onto the next one deeper into the night', () => {
     const boundaries = getTwilightBoundaries(baseNight());
     const duskFraction = 1.5 / 14;
     const dawnFraction = 12.5 / 14;
 
+    // The Sun never reached −6° or −12°, so those phases get no width at all
+    // rather than an invented share of the twilight wings.
     expect(boundaries.isApproximate).toBe(true);
-    expect(boundaries.civilDuskFraction).toBeCloseTo(duskFraction / 3, 10);
-    expect(boundaries.nauticalDuskFraction).toBeCloseTo((duskFraction * 2) / 3, 10);
-    expect(boundaries.nauticalDawnFraction).toBeCloseTo(dawnFraction + (1 - dawnFraction) / 3, 10);
-    expect(boundaries.civilDawnFraction).toBeCloseTo(
-      dawnFraction + ((1 - dawnFraction) * 2) / 3,
-      10
+    expect(boundaries.civilDuskFraction).toBeCloseTo(duskFraction, 10);
+    expect(boundaries.nauticalDuskFraction).toBeCloseTo(duskFraction, 10);
+    expect(boundaries.nauticalDawnFraction).toBeCloseTo(dawnFraction, 10);
+    expect(boundaries.civilDawnFraction).toBeCloseTo(dawnFraction, 10);
+  });
+
+  it('keeps the deepest phase the Sun actually reached when only −6° was crossed', () => {
+    // A short high-latitude night: the Sun bottoms out at −6.5°, so nothing
+    // below civil twilight ever happens and the darkest instant is the pivot.
+    const darkest = hoursAfterSunset(7);
+    const boundaries = getTwilightBoundaries(
+      baseNight({
+        astronomicalNightMode: 'none',
+        observingWindowMode: 'civil',
+        astronomicalDusk: darkest,
+        astronomicalDawn: darkest,
+        civilDusk: hoursAfterSunset(6),
+        civilDawn: hoursAfterSunset(8),
+      })
     );
+    const bands = getTwilightBands(boundaries);
+
+    expect(bands.map(band => band.phase)).toEqual(['civil', 'nautical', 'nautical', 'civil']);
+    expect(boundaries.nauticalDuskFraction).toBeCloseTo(7 / 14, 10);
+    expect(boundaries.nauticalDawnFraction).toBeCloseTo(7 / 14, 10);
+    // Symmetric about the darkest instant, not pushed onto one side.
+    expect(boundaries.civilDuskFraction).toBeCloseTo(1 - boundaries.civilDawnFraction, 10);
   });
 
   it('flags approximation when only one boundary is missing', () => {
@@ -166,7 +188,16 @@ describe('getTwilightBands', () => {
   });
 
   it('emits seven bands on a normal night, ending brightest on both sides', () => {
-    const bands = getTwilightBands(getTwilightBoundaries(baseNight()));
+    const bands = getTwilightBands(
+      getTwilightBoundaries(
+        baseNight({
+          civilDusk: hoursAfterSunset(0.4),
+          nauticalDusk: hoursAfterSunset(0.9),
+          nauticalDawn: hoursAfterSunset(13.1),
+          civilDawn: hoursAfterSunset(13.6),
+        })
+      )
+    );
 
     expect(bands.map(band => band.phase)).toEqual([
       'civil',

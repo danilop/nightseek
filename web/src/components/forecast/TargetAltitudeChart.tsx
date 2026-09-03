@@ -7,11 +7,13 @@ import {
   type NightAltitudeTrack,
 } from '@/lib/astronomy/night-altitude-track';
 import {
+  fractionToTime,
   getTwilightBands,
   getTwilightBoundaries,
   TWILIGHT_GUIDE_ORDER,
   TWILIGHT_PHASES,
   type TwilightBand,
+  type TwilightPhaseId,
 } from '@/lib/astronomy/twilight';
 import { formatTime } from '@/lib/utils/format';
 import {
@@ -157,16 +159,56 @@ function pickCardinalLabels(segments: HorizonThresholdSegment[], scales: Scales)
     .slice(0, MAX_CARDINAL_LABELS);
 }
 
-function TwilightBands({ bands }: { bands: TwilightBand[] }) {
+interface TwilightBandRect {
+  phase: TwilightPhaseId;
+  key: string;
+  x: number;
+  width: number;
+}
+
+/**
+ * Bands are fractions of sunset→sunrise, but the plot spans the track, which
+ * `resolveDomain` may widen past either end. Each boundary is therefore mapped
+ * back to a time and through the chart's own x scale rather than laid straight
+ * onto the plot width, and the outermost bands are stretched to the edges so
+ * any extra wing keeps the colour of the sky it belongs to.
+ */
+function buildTwilightBandRects(
+  bands: TwilightBand[],
+  nightInfo: NightInfo,
+  scales: Scales
+): TwilightBandRect[] {
+  const { sunset, sunrise } = nightInfo;
+  const toX = (fraction: number) =>
+    Math.max(
+      PLOT_LEFT,
+      Math.min(PLOT_RIGHT, scales.x(fractionToTime(fraction, sunset, sunrise).getTime()))
+    );
+
+  return bands
+    .map((band, index) => {
+      const startX = index === 0 ? PLOT_LEFT : toX(band.startFraction);
+      const endX = index === bands.length - 1 ? PLOT_RIGHT : toX(band.endFraction);
+      return {
+        phase: band.phase,
+        key: `${band.phase}-${band.startFraction}`,
+        x: startX,
+        width: endX - startX,
+      };
+    })
+    .filter(rect => rect.width > 0);
+}
+
+function TwilightBands({ bands }: { bands: TwilightBandRect[] }) {
   return (
     <>
       {bands.map(band => (
         <rect
-          key={`${band.phase}-${band.startFraction}`}
+          key={band.key}
           data-twilight-phase={band.phase}
-          x={PLOT_LEFT + band.startFraction * PLOT_WIDTH}
+          x={band.x}
           y={PLOT_TOP}
-          width={(band.endFraction - band.startFraction) * PLOT_WIDTH}
+          width={band.width}
           height={PLOT_HEIGHT}
           fill={TWILIGHT_PHASES[band.phase].color}
           fillOpacity={BAND_OPACITY[band.phase]}
@@ -284,7 +326,7 @@ function findTrackPeak(track: NightAltitudeTrack): AltAzSample | null {
 interface ChartModel {
   track: NightAltitudeTrack;
   scales: Scales;
-  bands: TwilightBand[];
+  bands: TwilightBandRect[];
   segments: HorizonThresholdSegment[];
   curvePaths: string[];
   areaPaths: string[];
@@ -302,13 +344,15 @@ interface ChartModel {
 function buildChartModel(args: {
   track: NightAltitudeTrack;
   bands: TwilightBand[];
+  nightInfo: NightInfo;
   segments: HorizonThresholdSegment[];
   visibility: ObjectVisibility;
   minimumAltitude: number;
   nowMs: number;
   scrubFraction: number | null;
 }): ChartModel {
-  const { track, bands, segments, visibility, minimumAltitude, nowMs, scrubFraction } = args;
+  const { track, bands, nightInfo, segments, visibility, minimumAltitude, nowMs, scrubFraction } =
+    args;
   const scales = createScales(track);
   const curvePaths = buildCurvePaths(track, scales);
   const neverRises = visibility.maxAltitude <= 0;
@@ -318,7 +362,7 @@ function buildChartModel(args: {
   return {
     track,
     scales,
-    bands,
+    bands: buildTwilightBandRects(bands, nightInfo, scales),
     segments,
     curvePaths,
     areaPaths: neverRises ? [] : buildAreaPaths(curvePaths),
@@ -583,23 +627,42 @@ export default function TargetAltitudeChart({
       track,
       segments,
       boundaries,
+      nightInfo,
       minimumAltitude: horizonProfile.minimumAltitude,
       timezone,
     });
-  }, [scrubFraction, track, segments, boundaries, horizonProfile.minimumAltitude, timezone]);
+  }, [
+    scrubFraction,
+    track,
+    segments,
+    boundaries,
+    nightInfo,
+    horizonProfile.minimumAltitude,
+    timezone,
+  ]);
 
   const model = useMemo(
     () =>
       buildChartModel({
         track,
         bands,
+        nightInfo,
         segments,
         visibility,
         minimumAltitude: horizonProfile.minimumAltitude,
         nowMs: now.getTime(),
         scrubFraction,
       }),
-    [track, bands, segments, visibility, horizonProfile.minimumAltitude, now, scrubFraction]
+    [
+      track,
+      bands,
+      nightInfo,
+      segments,
+      visibility,
+      horizonProfile.minimumAltitude,
+      now,
+      scrubFraction,
+    ]
   );
 
   if (track.points.length < 2) {

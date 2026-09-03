@@ -102,7 +102,7 @@ export interface TwilightBoundaries {
   astronomicalDawnFraction: number;
   nauticalDawnFraction: number;
   civilDawnFraction: number;
-  /** True when at least one civil/nautical boundary fell back to interpolation. */
+  /** True when at least one civil/nautical boundary was never reached. */
   isApproximate: boolean;
 }
 
@@ -137,9 +137,11 @@ function optionalFraction(
 }
 
 /**
- * Real −6°/−12° times when the ephemeris found them, otherwise the sunset→dusk
- * span split into equal thirds. The fallback keeps high-latitude nights — where
- * the Sun never reaches those altitudes — rendering sensibly.
+ * Real −6°/−12° times when the ephemeris found them, otherwise the darkest
+ * moment of the night. A missing boundary means the Sun never reached that
+ * depth, so collapsing it onto the darkest instant gives the phases below it a
+ * zero-width band — the night is painted with the darkest phase it actually
+ * reached instead of a fabricated run of deeper ones.
  */
 export function getTwilightBoundaries(nightInfo: NightInfo): TwilightBoundaries {
   if (nightInfo.astronomicalNightMode === 'continuous') {
@@ -163,13 +165,15 @@ export function getTwilightBoundaries(nightInfo: NightInfo): TwilightBoundaries 
   const realNauticalDawn = optionalFraction(nightInfo.nauticalDawn, sunset, sunrise);
   const realCivilDawn = optionalFraction(nightInfo.civilDawn, sunset, sunrise);
 
+  // Each missing boundary falls back to the next one deeper into the night, so
+  // the bands stay nested: civil ⊇ nautical ⊇ astronomical ⊇ night.
   const raw = [
-    realCivilDusk ?? duskFraction / 3,
-    realNauticalDusk ?? (duskFraction * 2) / 3,
+    realCivilDusk ?? realNauticalDusk ?? duskFraction,
+    realNauticalDusk ?? duskFraction,
     duskFraction,
     dawnFraction,
-    realNauticalDawn ?? dawnFraction + (1 - dawnFraction) / 3,
-    realCivilDawn ?? dawnFraction + ((1 - dawnFraction) * 2) / 3,
+    realNauticalDawn ?? dawnFraction,
+    realCivilDawn ?? realNauticalDawn ?? dawnFraction,
   ];
 
   // Real boundaries can land outside the sunset→sunrise domain at high

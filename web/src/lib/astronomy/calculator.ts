@@ -123,9 +123,19 @@ interface SolarObservingWindow {
   end: Date;
 }
 
+/**
+ * Every ascending solar event is searched from the night's solar midnight, not
+ * from the descending event that opened it. Starting a search at the instant of
+ * the crossing it is meant to leave behind makes astronomy-engine return that
+ * same instant, which collapses the night to zero length on the nights where
+ * the Sun only just dips past the altitude. Solar midnight always lies strictly
+ * between the two crossings — the Sun falls until anti-transit and rises after
+ * it — so it is a safe anchor with no epsilon to tune.
+ */
 function searchTwilightWindow(
   observer: Astronomy.Observer,
   date: Date,
+  solarMidnight: Date,
   altitude: number
 ): [Date, Date] | null {
   const evening = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, -1, date, 1, altitude);
@@ -134,7 +144,7 @@ function searchTwilightWindow(
     Astronomy.Body.Sun,
     observer,
     +1,
-    evening.date,
+    solarMidnight,
     1,
     altitude
   );
@@ -230,16 +240,23 @@ export class SkyCalculator {
    * Get night information for a given date
    */
   getNightInfo(date: Date): NightInfo {
+    const nextDay = new Date(date.getTime() + 86_400_000);
+
+    // Solar midnight anchors every ascending search below — see
+    // searchTwilightWindow for why the descending event cannot be used.
+    const darkestEvent = Astronomy.SearchHourAngle(Astronomy.Body.Sun, this.observer, 12, date, +1);
+    const minimumSunAltitude = darkestEvent.hor.altitude;
+    const darkestTime = darkestEvent.time.date;
+
     // Get sunset for this evening
     const sunsetSearch = Astronomy.SearchRiseSet(Astronomy.Body.Sun, this.observer, -1, date, 1);
 
     // Get sunrise for next morning
-    const nextDay = new Date(date.getTime() + 86_400_000);
     const sunriseSearch = Astronomy.SearchRiseSet(
       Astronomy.Body.Sun,
       this.observer,
       +1,
-      sunsetSearch?.date ?? date,
+      darkestTime,
       1
     );
 
@@ -256,21 +273,17 @@ export class SkyCalculator {
       Astronomy.Body.Sun,
       this.observer,
       +1,
-      duskSearch?.date ?? date,
+      darkestTime,
       1,
       -18
     );
-
-    const darkestEvent = Astronomy.SearchHourAngle(Astronomy.Body.Sun, this.observer, 12, date, +1);
-    const minimumSunAltitude = darkestEvent.hor.altitude;
-    const darkestTime = darkestEvent.time.date;
 
     // Civil (-6°) and nautical (-12°) boundaries are searched unconditionally.
     // They drive the twilight bands the UI paints, and the polar fallback in
     // resolveSolarObservingWindow reuses the same results instead of repeating
     // the searches.
-    const nauticalWindow = searchTwilightWindow(this.observer, date, -12);
-    const civilWindow = searchTwilightWindow(this.observer, date, -6);
+    const nauticalWindow = searchTwilightWindow(this.observer, date, darkestTime, -12);
+    const civilWindow = searchTwilightWindow(this.observer, date, darkestTime, -6);
 
     const solarWindow = resolveSolarObservingWindow(
       this.observer,
