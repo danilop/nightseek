@@ -24,8 +24,12 @@ iOS/macOS wrapper. The terminal application now lives in the independent
 - Weather, seeing, transparency, dew risk, cloud, wind, precipitation, aurora,
   and light-pollution context
 - Telescope field of view, framing, mosaic guidance, sky maps, and target search
+- A session shortlist, a device-local target watchlist, and calendar export
+- Optional red night vision and screen wake lock on supported browsers
 
-NightSeek is installable as a PWA and keeps core planning available offline.
+NightSeek is installable as a PWA. Its cached app shell works offline; catalogue
+availability depends on previously cached or bundled data. Fresh weather requires
+a connection.
 Network-backed weather and frequently changing astronomical data use cached or
 pre-fetched fallbacks when a service is unavailable.
 
@@ -55,6 +59,31 @@ The overlay works through Vite path aliases and therefore only intercepts
 `mobile/vite.config.ts` must be imported as `@/...` everywhere in `web/src`; a
 relative import silently bypasses the override and loads the web version
 instead.
+
+## Forecast architecture
+
+`web/src/lib/forecast/client.ts` owns a cancellable module worker. The analyzer
+publishes each completed night, so the first forecast becomes usable while the
+remaining nights run in the background. Superseded requests terminate their
+worker. Date and Map values use structured cloning. The non-worker fallback
+uses the same analyzer; heavy sky-map libraries remain lazy loaded.
+
+`AppContext.shared.tsx` holds the common state and persistence logic. The mobile
+provider adds native notification and reset behavior around that same context.
+Historical daily cloud statistics load only when expanded. The independent NOAA
+Kp outlook loads after the overview renders and distinguishes predicted periods
+from past observations.
+
+Use Node 24 or newer for both projects. Dependency overrides are intentional:
+web esbuild excludes the vulnerable development-server release; mobile xcode uses
+uuid 11, a compatible CommonJS line for its `require('uuid').v4`
+call. Revisit these overrides when their parent packages update.
+
+Weather quality, seeing proxies, target scores, satellite brightness, mosaic
+conditions and aurora guidance are planning estimates. They are not measurements
+or guarantees. Open-Meteo's free hosted service is restricted to non-commercial
+use; see its [terms](https://open-meteo.com/en/terms). NOAA's public Kp feed needs
+no key, and does not establish whether an aurora is visible at a specific site.
 
 ## Web development
 
@@ -129,3 +158,16 @@ not versioned.
 ## License
 
 NightSeek is available under the [MIT License](LICENSE).
+
+## Credits and attribution
+
+Open **Settings → About & credits**, or select the NightSeek logo, for library
+and data-source acknowledgements, source links, license notices and the existing
+Buy Me a Coffee support link. The dialog is shared by web and native builds.
+
+Human-readable credits live in `web/src/lib/about/credits.ts`. Vite generates
+`THIRD_PARTY_LICENSES.md` for each production build; the web app precaches it
+for offline access. `additional-notices.txt` preserves the exact-version notices
+for Astronomy Engine and the separately loaded/bundled D3 sky chart. Update
+those notices when upgrading those libraries. Data credits distinguish original
+sources from NightSeek's derived estimates.

@@ -607,7 +607,7 @@ describe('scoring', () => {
     it('should calculate fractional mosaic for large square object', () => {
       // M42 at 90' on Seestar S50 (42x42) — 90/42=2.14 → 2
       const mosaic = calculateMosaicPanels(90, { width: 42, height: 42 });
-      expect(mosaic).toEqual({ cols: 2, rows: 2 });
+      expect(mosaic).toEqual({ cols: 2.5, rows: 2.5 });
     });
 
     it('should handle rectangular FOV with square object', () => {
@@ -628,7 +628,7 @@ describe('scoring', () => {
       // Normal: 100/42=2.5, 30/42=0.5→1 → 2.5×1=2.5 panels
       // Rotated: 30/42=0.5→1, 100/42=2.5 → 1×2.5=2.5 panels (same)
       const mosaic = calculateMosaicPanels(100, { width: 42, height: 42 }, 30);
-      expect(mosaic).toEqual({ cols: 2.5, rows: 1 });
+      expect(mosaic).toEqual({ cols: 3, rows: 1 });
     });
 
     it('should return null when elongated object fits rotated', () => {

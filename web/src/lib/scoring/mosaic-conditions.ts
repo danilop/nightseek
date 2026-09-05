@@ -40,7 +40,8 @@ function assessMoonIllumination(moonIllumination: number): MosaicTip | null {
       category: 'moon',
       severity: 'critical',
       title: 'Bright moon',
-      detail: 'Only Ha/SII narrowband will produce clean mosaic panels at this moon illumination.',
+      detail:
+        'Bright moonlight can reduce contrast and introduce gradients. Narrowband filters may help emission nebulae.',
     };
   }
   if (moonIllumination >= 40) {
@@ -49,7 +50,8 @@ function assessMoonIllumination(moonIllumination: number): MosaicTip | null {
       category: 'moon',
       severity: 'warning',
       title: 'Moderate moon',
-      detail: 'Use narrowband or dual-band filters; broadband will show gradients between panels.',
+      detail:
+        'Narrowband or dual-band filters may help emission nebulae; broadband mosaics can show stronger gradients.',
     };
   }
   return null;
@@ -95,7 +97,7 @@ function assessMoonGradient(
     category: 'gradient',
     severity,
     title: 'Moon gradient across mosaic',
-    detail: `~${warning.gradientDeltaPercent}% brightness variation across ${warning.mosaicAngularExtentDeg}° mosaic extent with moon ${warning.moonSeparationDeg}° away.`,
+    detail: `Potentially uneven moonlight across a ${warning.mosaicAngularExtentDeg}° mosaic, with the Moon ${warning.moonSeparationDeg}° away. This is a geometry-based risk estimate.`,
   };
 
   return { tip, warning };

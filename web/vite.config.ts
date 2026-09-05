@@ -12,10 +12,17 @@ export default defineConfig({
         name: 'NightSeek - Astronomy Planner',
         short_name: 'NightSeek',
         description: 'Plan your astronomy observations with weather-integrated forecasts',
+        id: '/',
         start_url: '.',
+        scope: '.',
+        categories: ['education', 'weather'],
+        shortcuts: [
+          { name: 'Plan tonight', short_name: 'Tonight', url: './?tab=overview' },
+          { name: 'Find a target', short_name: 'Targets', url: './?tab=targets' },
+        ],
         display: 'standalone',
-        background_color: '#0f172a',
-        theme_color: '#0ea5e9',
+        background_color: '#060b16',
+        theme_color: '#0b1222',
         orientation: 'any',
         icons: [
           {
@@ -45,7 +52,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,txt}', 'THIRD_PARTY_LICENSES.md'],
         globIgnores: ['**/aladin-*.js'],
         runtimeCaching: [
           {
@@ -126,6 +133,7 @@ export default defineConfig({
     entries: ['index.html'],
   },
   build: {
+    license: { fileName: 'THIRD_PARTY_LICENSES.md' },
     target: 'esnext',
     minify: 'oxc',
   },

@@ -76,6 +76,11 @@ const DEFAULT_UI_STATE: UIState = {
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: localStorage validation with type guards
 function loadUIState(): UIState {
+  const shortcut =
+    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('tab');
+  const shortcutTab = ['overview', 'targets', 'sky', 'events'].includes(shortcut ?? '')
+    ? (shortcut as ActiveTab)
+    : null;
   if (typeof window === 'undefined') return DEFAULT_UI_STATE;
 
   try {
@@ -119,7 +124,7 @@ function loadUIState(): UIState {
           typeof parsed.weatherDetailsExpanded === 'boolean'
             ? parsed.weatherDetailsExpanded
             : DEFAULT_UI_STATE.weatherDetailsExpanded,
-        activeTab,
+        activeTab: shortcutTab ?? activeTab,
         expandedCategories: {
           ...DEFAULT_UI_STATE.expandedCategories,
           ...expandedCategories,
@@ -133,7 +138,7 @@ function loadUIState(): UIState {
   } catch {
     // Ignore parse errors
   }
-  return DEFAULT_UI_STATE;
+  return shortcutTab ? { ...DEFAULT_UI_STATE, activeTab: shortcutTab } : DEFAULT_UI_STATE;
 }
 
 // Merge saved order with defaults, preserving user order but adding any new

@@ -49,6 +49,19 @@ describe('AppContext', () => {
     expect(state.settings.maxObjects).toBe(8);
   });
 
+  it('keeps a refresh loading when its previous error is cleared', async () => {
+    const { result } = await renderAppHook();
+    act(() => {
+      result.current.dispatch({ type: 'SET_ERROR', payload: 'Previous request failed' });
+      result.current.setProgress('Starting...', 0);
+      result.current.dispatch({ type: 'SET_ERROR', payload: null });
+    });
+    expect(result.current.state.error).toBeNull();
+    expect(result.current.state.isLoading).toBe(true);
+    act(() => result.current.dispatch({ type: 'SET_ERROR', payload: 'Refresh failed' }));
+    expect(result.current.state.isLoading).toBe(false);
+  });
+
   it('does not overwrite saved settings while asynchronous startup data is loading', async () => {
     let resolveLocation: ((value: null) => void) | undefined;
     vi.mocked(getCached).mockImplementationOnce(

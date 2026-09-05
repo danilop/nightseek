@@ -71,11 +71,11 @@ export function computeAuroraForecast(
   let description: string;
 
   if (diff >= 0) {
-    chance = 'certain';
-    description = `Kp ${currentMaxKp} exceeds your Kp ${requiredKp} threshold — aurora highly likely!`;
+    chance = 'possible';
+    description = `Kp ${currentMaxKp} exceeds your Kp ${requiredKp} threshold — recent activity warrants checking the current aurora outlook.`;
   } else if (diff === -1) {
-    chance = 'likely';
-    description = `Kp ${currentMaxKp} is close to your Kp ${requiredKp} threshold — aurora probable.`;
+    chance = 'possible';
+    description = `Kp ${currentMaxKp} is close to your Kp ${requiredKp} threshold — check the current aurora outlook.`;
   } else if (diff === -2) {
     chance = 'possible';
     description = `Kp ${currentMaxKp} approaching your Kp ${requiredKp} threshold — aurora possible if activity increases.`;
@@ -87,7 +87,7 @@ export function computeAuroraForecast(
     description =
       currentMaxKp > 0
         ? `Kp ${currentMaxKp} is well below your Kp ${requiredKp} threshold.`
-        : 'No significant geomagnetic activity detected.';
+        : 'No matching recent geomagnetic measurements in this snapshot.';
   }
 
   return { chance, currentMaxKp, requiredKp, description };

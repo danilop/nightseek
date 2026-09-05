@@ -7,7 +7,7 @@ import ErrorBoundary from './components/ui/ErrorBoundary';
 import ErrorMessage from './components/ui/ErrorMessage';
 import LoadingScreen from './components/ui/LoadingScreen';
 import OfflineBanner from './components/ui/OfflineBanner';
-import { generateForecast } from './lib/analyzer';
+import { generateForecastInBackground } from './lib/forecast/client';
 import { CACHE_KEYS, setCache } from './lib/utils/cache';
 import { logger } from './lib/utils/logger';
 
@@ -16,6 +16,7 @@ export default function App() {
   const { location, settings, forecasts, isLoading, error, isOffline, isSetupComplete } = state;
   const activeForecastKeyRef = useRef<string | null>(null);
   const forecastRequestIdRef = useRef(0);
+  const forecastAbortRef = useRef<AbortController | null>(null);
   const lastForecastLoadedAtRef = useRef<number | null>(null);
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: coordinates superseding async forecast requests and stale-result guards
@@ -25,6 +26,9 @@ export default function App() {
     const forecastKey = `${location.latitude},${location.longitude}|${JSON.stringify(settings)}`;
     if (activeForecastKeyRef.current === forecastKey) return;
 
+    forecastAbortRef.current?.abort();
+    const controller = new AbortController();
+    forecastAbortRef.current = controller;
     const requestId = ++forecastRequestIdRef.current;
     activeForecastKeyRef.current = forecastKey;
 
@@ -35,15 +39,25 @@ export default function App() {
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const result = await generateForecast(location, settings, (message, percent) => {
-        if (forecastRequestIdRef.current === requestId) setProgress(message, percent);
-      });
-
-      if (forecastRequestIdRef.current !== requestId) return;
-
-      // Show 100% complete briefly before hiding loading screen
-      setProgress('Complete!', 100);
-      await new Promise(resolve => setTimeout(resolve, 300));
+      const result = await generateForecastInBackground(
+        location,
+        settings,
+        (message, percent) => {
+          if (forecastRequestIdRef.current === requestId) setProgress(message, percent);
+        },
+        partial => {
+          if (forecastRequestIdRef.current !== requestId) return;
+          // Use the provider's timezone from the very first displayed night.
+          if (partial.timezone && location.timezone !== partial.timezone) {
+            dispatch({
+              type: 'SET_LOCATION',
+              payload: { ...location, timezone: partial.timezone },
+            });
+          }
+          dispatch({ type: 'SET_FORECAST', payload: partial });
+        },
+        controller.signal
+      );
       if (forecastRequestIdRef.current !== requestId) return;
 
       // Backfill location timezone from Open-Meteo response. Dispatch it in the
@@ -64,7 +78,7 @@ export default function App() {
       });
       lastForecastLoadedAtRef.current = Date.now();
     } catch (err) {
-      if (forecastRequestIdRef.current !== requestId) return;
+      if (forecastRequestIdRef.current !== requestId || controller.signal.aborted) return;
       logger.error('Forecast generation failed', err);
       dispatch({
         type: 'SET_ERROR',
@@ -77,6 +91,14 @@ export default function App() {
       }
     }
   }, [location, settings, dispatch, setProgress]);
+
+  useEffect(
+    () => () => {
+      forecastAbortRef.current?.abort();
+      activeForecastKeyRef.current = null;
+    },
+    []
+  );
 
   // A new location/settings key supersedes any in-flight calculation. Stale
   // requests are ignored, while the replacement starts immediately.
@@ -122,7 +144,9 @@ export default function App() {
       <Header />
       {isOffline && <OfflineBanner />}
 
-      {isLoading && <LoadingScreen message={state.loadingMessage} percent={state.loadingPercent} />}
+      {isLoading && !forecasts && (
+        <LoadingScreen message={state.loadingMessage} percent={state.loadingPercent} />
+      )}
 
       {error && (
         <div className="container mx-auto px-4 py-8">
@@ -130,7 +154,7 @@ export default function App() {
         </div>
       )}
 
-      {!isLoading && !error && forecasts && (
+      {forecasts && (
         <ErrorBoundary>
           <ForecastView
             key={`${location.latitude},${location.longitude}`}
@@ -139,6 +163,10 @@ export default function App() {
             bestNights={state.bestNights}
             location={location}
             onRefresh={loadForecast}
+            isRefreshing={isLoading}
+            loadingMessage={state.loadingMessage}
+            loadingPercent={state.loadingPercent}
+            requestedNights={settings.forecastDays}
           />
         </ErrorBoundary>
       )}

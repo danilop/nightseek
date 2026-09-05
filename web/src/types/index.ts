@@ -103,6 +103,8 @@ export interface NightInfo {
   moonSet: Date | null;
   /** Moonlight present during the observing window, distinct from lunar phase alone. */
   moonlight: MoonlightInfo;
+  /** Retained to evaluate moonlight over a shorter imaging/weather window. */
+  moonAltitudeSamples?: [Date, number][];
   // New fields
   moonPhaseExact: MoonPhaseEvent | null;
   localSiderealTimeAtMidnight: string | null;

@@ -18,6 +18,8 @@ export interface FOVCalculatorResult {
  * Calculate FOV from equipment specs using the astronomy.tools arctangent method.
  */
 export function calculateFOV(input: FOVCalculatorInput): FOVCalculatorResult {
+  const validation = validateFOVCalculatorInput(input);
+  if (!validation.valid) throw new RangeError(validation.error);
   const barlow = input.barlowFactor ?? 1.0;
   const effectiveFocalLength = input.focalLengthMm * barlow;
   const pixelSizeMm = input.pixelSizeUm / 1000;
@@ -47,19 +49,34 @@ export function validateFOVCalculatorInput(input: Partial<FOVCalculatorInput>): 
   valid: boolean;
   error?: string;
 } {
-  if (input.focalLengthMm !== undefined && input.focalLengthMm <= 0) {
+  if (
+    input.focalLengthMm !== undefined &&
+    (!Number.isFinite(input.focalLengthMm) || input.focalLengthMm <= 0)
+  ) {
     return { valid: false, error: 'Focal length must be greater than 0' };
   }
-  if (input.pixelSizeUm !== undefined && input.pixelSizeUm <= 0) {
+  if (
+    input.pixelSizeUm !== undefined &&
+    (!Number.isFinite(input.pixelSizeUm) || input.pixelSizeUm <= 0)
+  ) {
     return { valid: false, error: 'Pixel size must be greater than 0' };
   }
-  if (input.sensorResolutionWidth !== undefined && input.sensorResolutionWidth <= 0) {
+  if (
+    input.sensorResolutionWidth !== undefined &&
+    (!Number.isFinite(input.sensorResolutionWidth) || input.sensorResolutionWidth <= 0)
+  ) {
     return { valid: false, error: 'Sensor width must be greater than 0' };
   }
-  if (input.sensorResolutionHeight !== undefined && input.sensorResolutionHeight <= 0) {
+  if (
+    input.sensorResolutionHeight !== undefined &&
+    (!Number.isFinite(input.sensorResolutionHeight) || input.sensorResolutionHeight <= 0)
+  ) {
     return { valid: false, error: 'Sensor height must be greater than 0' };
   }
-  if (input.barlowFactor !== undefined && input.barlowFactor <= 0) {
+  if (
+    input.barlowFactor !== undefined &&
+    (!Number.isFinite(input.barlowFactor) || input.barlowFactor <= 0)
+  ) {
     return { valid: false, error: 'Barlow/reducer factor must be greater than 0' };
   }
   return { valid: true };

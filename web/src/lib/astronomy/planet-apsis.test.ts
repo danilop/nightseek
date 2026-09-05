@@ -56,7 +56,7 @@ describe('planet-apsis', () => {
         expect(result.planet).toBe('Mars');
         expect(['perihelion', 'aphelion']).toContain(result.type);
         expect(result.distanceAU).toBeGreaterThan(0);
-        expect(result.daysUntil).toBeGreaterThanOrEqual(0);
+        expect(Number.isFinite(result.daysUntil)).toBe(true);
       }
     });
 
@@ -164,6 +164,18 @@ describe('planet-apsis', () => {
       expect(result).toContain('15%');
     });
 
+    it('describes a past aphelion as past', () => {
+      expect(
+        getPlanetApsisDescription({
+          planet: 'Mars',
+          type: 'aphelion',
+          date: new Date(),
+          distanceAU: 1.6,
+          daysUntil: -5,
+          solarFluxBoostPercent: 0,
+        })
+      ).toContain('5 days ago');
+    });
     it('should describe aphelion event', () => {
       const apsis = {
         planet: 'Jupiter',

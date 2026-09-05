@@ -231,6 +231,10 @@ function resolveSolarObservingWindow(
 
 export class SkyCalculator {
   private observer: Astronomy.Observer;
+  private moonPositions = new Map<
+    number,
+    { ra: number; dec: number; altitude: number; azimuth: number }
+  >();
 
   constructor(latitude: number, longitude: number, elevation: number = 0) {
     this.observer = new Astronomy.Observer(latitude, longitude, elevation);
@@ -367,6 +371,7 @@ export class SkyCalculator {
       const position = this.getMoonPosition(time);
       return { altitude: position.altitude, azimuth: position.azimuth };
     }, nightInfo).altitudeSamples;
+    nightInfo.moonAltitudeSamples = moonSamples;
     nightInfo.moonlight = calculateMoonlightInfo(
       moonIlluminationPct,
       moonSamples,
@@ -410,6 +415,8 @@ export class SkyCalculator {
    * Get moon position at a given time
    */
   getMoonPosition(time: Date): { ra: number; dec: number; altitude: number; azimuth: number } {
+    const cached = this.moonPositions.get(time.getTime());
+    if (cached) return { ...cached };
     const moonEquator = Astronomy.Equator(Astronomy.Body.Moon, time, this.observer, false, true);
     const moonEquatorOfDate = Astronomy.Equator(
       Astronomy.Body.Moon,
@@ -424,12 +431,15 @@ export class SkyCalculator {
       time
     );
 
-    return {
+    const position = {
       ra: moonEquator.ra,
       dec: moonEquator.dec,
       altitude,
       azimuth,
     };
+    if (this.moonPositions.size >= 8192) this.moonPositions.clear();
+    this.moonPositions.set(time.getTime(), position);
+    return { ...position };
   }
 
   /**

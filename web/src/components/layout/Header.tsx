@@ -24,6 +24,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() => setShowAbout(true)}
+              aria-label="About NightSeek"
               className="flex items-center gap-2 transition-opacity hover:opacity-80"
             >
               <NightSeekIcon className="h-7 w-7" />
@@ -92,7 +93,15 @@ export default function Header() {
       </header>
 
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          onShowAbout={() => {
+            setShowSettings(false);
+            setShowAbout(true);
+          }}
+        />
+      )}
       {showSearch && location && (
         <ObjectSearchModal location={location} onClose={() => setShowSearch(false)} />
       )}

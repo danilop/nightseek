@@ -101,6 +101,17 @@ describe('imaging-windows', () => {
       expect(result.length).toBeGreaterThan(0);
     });
 
+    it('does not recommend opaque clouds even with excellent geometry', () => {
+      expect(
+        calculateImagingWindows(
+          createMockVisibility(85),
+          createMockNightInfo(),
+          createMockWeather(95),
+          calculator
+        )
+      ).toEqual([]);
+    });
+
     it('should include quality rating in windows', () => {
       const visibility = createMockVisibility(80);
       const nightInfo = createMockNightInfo();

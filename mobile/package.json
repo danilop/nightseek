@@ -14,11 +14,11 @@
     "sync-deps": "bash scripts/sync-deps.sh"
   },
   "dependencies": {
-    "@capacitor/core": "^8.5.0",
-    "@capacitor/geolocation": "^8.2.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/geolocation": "^8.2.2",
     "@capacitor/haptics": "^8.0.2",
-    "@capacitor/ios": "^8.5.0",
-    "@capacitor/local-notifications": "^8.2.1",
+    "@capacitor/ios": "^8.5.1",
+    "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",
@@ -31,22 +31,27 @@
     "date-fns": "^4.4.0",
     "date-fns-tz": "^3.2.0",
     "idb-keyval": "^6.3.0",
-    "lucide-react": "^1.29.0",
+    "lucide-react": "^1.41.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "satellite.js": "^7.1.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.5.0",
+    "@capacitor/cli": "^8.5.1",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
-    "postcss": "^8.5.26",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.2.1"
+    "vite": "^8.2.2"
   },
   "engines": {
     "node": ">=24"
+  },
+  "overrides": {
+    "xcode": {
+      "uuid": "^11.1.1"
+    }
   }
 }

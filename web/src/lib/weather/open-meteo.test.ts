@@ -70,3 +70,64 @@ describe('parseNightWeather practical best window selection', () => {
     expect(weather?.bestTime).toBeNull();
   });
 });
+
+describe('missing weather and forecast boundaries', () => {
+  const night = createMockNightInfo({
+    astronomicalDusk: new Date('2025-01-15T20:00:00Z'),
+    astronomicalDawn: new Date('2025-01-16T06:00:00Z'),
+  });
+  it('does not convert null clouds into a clear forecast', () => {
+    expect(
+      parseNightWeather(
+        { timezone: 'UTC', hourly: { time: ['2025-01-15T20:00'], cloud_cover: [null] } },
+        null,
+        night
+      )
+    ).toBeNull();
+  });
+  it('never extends truncated clear data to dawn', () => {
+    const result = parseNightWeather(
+      {
+        timezone: 'UTC',
+        hourly: { time: ['2025-01-15T20:00', '2025-01-15T21:00'], cloud_cover: [0, 0] },
+      },
+      null,
+      night
+    );
+    expect(result?.clearWindows[0].end.toISOString()).toBe('2025-01-15T21:00:00.000Z');
+    expect(result?.clearDurationHours).toBe(1);
+  });
+  it('does not bridge a missing hour in clear or best windows', () => {
+    const result = parseNightWeather(
+      {
+        timezone: 'UTC',
+        hourly: {
+          time: [
+            '2025-01-15T20:00',
+            '2025-01-15T21:00',
+            '2025-01-15T22:00',
+            '2025-01-15T23:00',
+            '2025-01-16T00:00',
+          ],
+          cloud_cover: [0, 0, null, 0, 0],
+        },
+      },
+      null,
+      night
+    );
+    expect(result?.clearWindows).toHaveLength(2);
+    expect(result?.bestTime).toBeNull();
+  });
+  it('joins air quality by instant across source timezones and retains hourly values', () => {
+    const result = parseNightWeather(
+      { timezone: 'UTC', hourly: { time: ['2025-01-15T20:00'], cloud_cover: [10] } },
+      {
+        timezone: 'America/New_York',
+        hourly: { time: ['2025-01-15T15:00'], aerosol_optical_depth: [0.1] },
+      },
+      night
+    );
+    expect(result?.hourlyData.get(Date.parse('2025-01-15T20:00Z'))?.aod).toBe(0.1);
+    expect(result?.transparencyScore).toBe(80);
+  });
+});

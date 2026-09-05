@@ -37,12 +37,12 @@ describe('venus-peak', () => {
       }
     });
 
-    it('should have non-negative daysUntil', () => {
+    it('should have a finite signed offset', () => {
       const testDate = new Date('2025-01-15T12:00:00Z');
       const result = getVenusPeakInfo(testDate);
 
       if (result) {
-        expect(result.daysUntil).toBeGreaterThanOrEqual(0);
+        expect(Number.isFinite(result.daysUntil)).toBe(true);
       }
     });
 
@@ -149,6 +149,16 @@ describe('venus-peak', () => {
       expect(result).toContain('approaching peak');
     });
 
+    it('describes a past peak as past', () => {
+      expect(
+        getVenusPeakDescription({
+          peakDate: new Date(),
+          peakMagnitude: -4.6,
+          daysUntil: -10,
+          isNearPeak: true,
+        })
+      ).toContain('10 days ago');
+    });
     it('should describe upcoming peak within 30 days', () => {
       const peakInfo: VenusPeakInfo = {
         peakDate: new Date(),

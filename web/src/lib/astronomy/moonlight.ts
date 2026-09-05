@@ -27,17 +27,23 @@ export function calculateMoonlightInfo(
   windowEnd: Date
 ): MoonlightInfo {
   const windowMs = Math.max(0, windowEnd.getTime() - windowStart.getTime());
-  const maxAltitude = altitudeSamples.reduce(
-    (maximum, [, altitude]) => Math.max(maximum, altitude),
-    -90
-  );
+  let maxAltitude = -90;
 
   let visibleMs = 0;
   for (let index = 1; index < altitudeSamples.length; index++) {
     const [startTime, startAltitude] = altitudeSamples[index - 1];
     const [endTime, endAltitude] = altitudeSamples[index];
-    const segmentMs = Math.max(0, endTime.getTime() - startTime.getTime());
-    visibleMs += segmentMs * visibleSegmentFraction(startAltitude, endAltitude);
+    const fullSegmentMs = endTime.getTime() - startTime.getTime();
+    const startMs = Math.max(startTime.getTime(), windowStart.getTime());
+    const endMs = Math.min(endTime.getTime(), windowEnd.getTime());
+    if (fullSegmentMs <= 0 || endMs <= startMs) continue;
+    const altitudeAt = (timeMs: number) =>
+      startAltitude +
+      ((endAltitude - startAltitude) * (timeMs - startTime.getTime())) / fullSegmentMs;
+    const clippedStart = altitudeAt(startMs);
+    const clippedEnd = altitudeAt(endMs);
+    maxAltitude = Math.max(maxAltitude, clippedStart, clippedEnd);
+    visibleMs += (endMs - startMs) * visibleSegmentFraction(clippedStart, clippedEnd);
   }
 
   const visibleFraction = windowMs > 0 ? Math.min(1, visibleMs / windowMs) : 0;

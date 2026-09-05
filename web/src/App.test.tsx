@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
   context: null as unknown as MockContext,
 }));
 
-vi.mock('./lib/analyzer', () => ({ generateForecast: mocks.generateForecast }));
+vi.mock('./lib/forecast/client', () => ({ generateForecastInBackground: mocks.generateForecast }));
 vi.mock('./lib/utils/cache', () => ({
   CACHE_KEYS: { LOCATION: 'nightseek:location' },
   setCache: mocks.setCache,

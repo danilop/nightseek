@@ -123,7 +123,7 @@ export const CACHE_KEYS = {
   TLE_BRIGHT: 'nightseek:tle:bright',
   HORIZON_PREFIX: 'nightseek:horizon:',
   // Open-Meteo historical weather
-  HISTORICAL_WEATHER_PREFIX: 'nightseek:hist-weather:',
+  HISTORICAL_WEATHER_PREFIX: 'nightseek:hist-weather:v2:',
 };
 
 // Cache TTLs (in milliseconds)

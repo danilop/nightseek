@@ -3,8 +3,9 @@ import { GAUSSIAN_GRAVITATIONAL_CONSTANT } from './constants';
 
 /**
  * Solve Kepler's equation for eccentric anomaly.
- * Supports both elliptical (e < 1) and hyperbolic (e >= 1) orbits.
- * Uses Newton-Raphson iteration.
+ * Supports elliptical (0 <= e < 1) and hyperbolic (e > 1) orbits.
+ * Safeguarded Newton steps stay inside a root bracket, including near-parabolic
+ * eccentricities where unrestricted Newton iteration can diverge.
  */
 export function solveKepler(
   meanAnomaly: number,
@@ -12,30 +13,43 @@ export function solveKepler(
   maxIterations = 50,
   tolerance = 1e-12
 ): number {
-  const M = meanAnomaly;
   const e = eccentricity;
-
-  if (e >= 1) {
-    // Hyperbolic orbit: M = e*sinh(H) - H
-    // This is close to the large-|M| solution and avoids overflowing
-    // sinh/cosh for fast interstellar trajectories.
-    let H = Math.asinh(M / e);
-    for (let i = 0; i < maxIterations; i++) {
-      const dH = (e * Math.sinh(H) - H - M) / (e * Math.cosh(H) - 1);
-      H -= dH;
-      if (Math.abs(dH) < tolerance) break;
-    }
-    return H;
+  if (!Number.isFinite(meanAnomaly) || !Number.isFinite(e) || e < 0 || e === 1) {
+    throw new RangeError('Kepler solver requires finite anomaly and non-parabolic eccentricity');
   }
+  if (
+    !Number.isInteger(maxIterations) ||
+    maxIterations < 1 ||
+    !Number.isFinite(tolerance) ||
+    tolerance <= 0
+  ) {
+    throw new RangeError('Kepler solver requires positive iteration limit and tolerance');
+  }
+  if (meanAnomaly === 0 || e === 0) return meanAnomaly;
 
-  // Elliptical orbit: M = E - e*sin(E)
-  let E = M;
+  const hyperbolic = e > 1;
+  const turns = hyperbolic ? 0 : Math.round(meanAnomaly / (2 * Math.PI)) * 2 * Math.PI;
+  const M = meanAnomaly - turns;
+  const sign = Math.sign(M);
+  const target = Math.abs(M);
+  const valueAt = (x: number) => (hyperbolic ? e * Math.sinh(x) - x : x - e * Math.sin(x));
+  let low = 0;
+  let high = hyperbolic ? Math.asinh(target / e) + 1 : Math.PI;
+  while (valueAt(high) < target) high *= 2;
+  let anomaly = hyperbolic ? Math.asinh(target / e) : e < 0.8 ? target : Math.PI;
   for (let i = 0; i < maxIterations; i++) {
-    const dE = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
-    E -= dE;
-    if (Math.abs(dE) < tolerance) break;
+    const residual = valueAt(anomaly) - target;
+    if (Math.abs(residual) <= tolerance) return sign * anomaly + turns;
+    if (residual > 0) high = anomaly;
+    else low = anomaly;
+    const derivative = hyperbolic ? e * Math.cosh(anomaly) - 1 : 1 - e * Math.cos(anomaly);
+    const candidate = anomaly - residual / derivative;
+    anomaly =
+      Number.isFinite(candidate) && candidate > low && candidate < high
+        ? candidate
+        : (low + high) / 2;
   }
-  return E;
+  throw new Error('Kepler solver did not converge');
 }
 
 /** Get Earth's VSOP heliocentric position in the J2000 ecliptic frame. */

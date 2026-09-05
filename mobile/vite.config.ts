@@ -25,6 +25,7 @@ export default defineConfig({
     },
   },
   build: {
+    license: { fileName: 'THIRD_PARTY_LICENSES.md' },
     target: 'esnext',
     minify: 'oxc',
   },

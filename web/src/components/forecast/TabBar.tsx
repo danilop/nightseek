@@ -14,62 +14,53 @@ interface TabBarProps {
 
 export default function TabBar({ variant }: TabBarProps) {
   const { activeTab, setActiveTab } = useUIState();
-
-  if (variant === 'bottom') {
-    return (
-      <nav
-        className="border-night-700 border-t bg-night-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm"
-        aria-label="Main navigation"
-      >
-        <div className="grid grid-cols-4" role="tablist">
-          {TABS.map(({ key, label, Icon }) => {
-            const isActive = activeTab === key;
-            return (
-              <button
-                key={key}
-                id={`tab-${key}`}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                aria-controls={`tabpanel-${key}`}
-                onClick={() => setActiveTab(key)}
-                className={`flex flex-col items-center gap-0.5 py-2 transition-colors ${
-                  isActive ? 'text-sky-400' : 'text-gray-500 hover:text-gray-300'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="font-medium text-[0.6rem]">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-    );
-  }
-
-  // Desktop top tab bar
+  const bottom = variant === 'bottom';
+  const navigate = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const nextIndex = {
+      ArrowRight: (index + 1) % TABS.length,
+      ArrowLeft: (index + TABS.length - 1) % TABS.length,
+      Home: 0,
+      End: TABS.length - 1,
+    }[event.key];
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    const next = TABS[nextIndex].key;
+    setActiveTab(next);
+    document.getElementById(`tab-${variant}-${next}`)?.focus();
+  };
   return (
-    <nav className="border-night-700 border-b" aria-label="Main navigation">
-      <div className="flex gap-1" role="tablist">
-        {TABS.map(({ key, label, Icon }) => {
+    <nav
+      className={
+        bottom
+          ? 'border-night-700 border-t bg-night-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm'
+          : 'border-night-700 border-b'
+      }
+      aria-label="Main navigation"
+    >
+      <div className={bottom ? 'grid grid-cols-4' : 'flex gap-1'} role="tablist">
+        {TABS.map(({ key, label, Icon }, index) => {
           const isActive = activeTab === key;
+          const layout = bottom
+            ? 'min-h-14 flex-col justify-center gap-1 py-2'
+            : 'gap-2 border-b-2 px-4 py-2.5';
+          const color = isActive
+            ? 'border-sky-500 text-sky-400'
+            : 'border-transparent text-gray-400 hover:text-gray-200';
           return (
             <button
               key={key}
-              id={`tab-${key}`}
+              id={`tab-${variant}-${key}`}
               type="button"
               role="tab"
               aria-selected={isActive}
               aria-controls={`tabpanel-${key}`}
+              tabIndex={isActive ? 0 : -1}
+              onKeyDown={event => navigate(event, index)}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 font-medium text-sm transition-colors ${
-                isActive
-                  ? 'border-sky-500 text-sky-400'
-                  : 'border-transparent text-gray-400 hover:border-night-600 hover:text-gray-200'
-              }`}
+              className={`flex items-center font-medium text-sm transition-colors ${layout} ${color}`}
             >
-              <Icon className="h-4 w-4" />
-              {label}
+              <Icon className={bottom ? 'h-5 w-5' : 'h-4 w-4'} />
+              <span className={bottom ? 'text-xs' : ''}>{label}</span>
             </button>
           );
         })}

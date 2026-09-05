@@ -4,6 +4,7 @@
  * based on weather conditions, actual observing-window moonlight, and other factors.
  */
 
+import { calculateMoonlightInfo } from '@/lib/astronomy/moonlight';
 import { estimateSeeing } from '@/lib/astronomy/seeing';
 import { getRatingFromPercentage, type RatingDisplay } from '@/lib/utils/rating';
 import type { HourlyWeather, NightInfo, NightWeather, SeeingForecast } from '@/types';
@@ -141,7 +142,7 @@ function averageMetric(
 
 function getHourlySlice(weather: NightWeather, start: Date, end: Date): HourlyWeather[] {
   return Array.from(weather.hourlyData.entries())
-    .filter(([time]) => time >= start.getTime() && time <= end.getTime())
+    .filter(([time]) => time >= start.getTime() && time < end.getTime())
     .sort((a, b) => a[0] - b[0])
     .map(([, hour]) => hour);
 }
@@ -191,7 +192,14 @@ function buildBestWindowMetrics(
     transparencyScore: weather.transparencyScore,
     seeingRating: estimateSeeing(avgWindSpeedKmh ?? 0, avgHumidity ?? 50, avgTempC, avgDewPointC)
       .rating,
-    moonlightExposure: nightInfo.moonlight.exposurePercent,
+    moonlightExposure: nightInfo.moonAltitudeSamples
+      ? calculateMoonlightInfo(
+          nightInfo.moonIllumination,
+          nightInfo.moonAltitudeSamples,
+          weather.bestTime.start,
+          weather.bestTime.end
+        ).exposurePercent
+      : nightInfo.moonlight.exposurePercent,
     dewRiskHours,
     totalHours: Math.max(
       (weather.bestTime.end.getTime() - weather.bestTime.start.getTime()) / (1000 * 60 * 60),

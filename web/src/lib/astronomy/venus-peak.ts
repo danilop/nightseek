@@ -78,7 +78,7 @@ export function getVenusPeakInfo(date: Date): VenusPeakInfo | null {
     return {
       peakDate: nearestPeak.time.date,
       peakMagnitude: nearestPeak.mag,
-      daysUntil: Math.abs(daysUntil),
+      daysUntil,
       isNearPeak: true,
     };
   }
@@ -120,6 +120,9 @@ export function getCurrentVenusMagnitude(date: Date): number {
  */
 export function getVenusPeakDescription(peakInfo: VenusPeakInfo): string {
   const magStr = peakInfo.peakMagnitude.toFixed(1);
+
+  if (peakInfo.daysUntil < 0)
+    return `Venus passed peak brightness (${magStr} mag) ${Math.abs(peakInfo.daysUntil)} days ago`;
 
   if (peakInfo.isNearPeak) {
     if (peakInfo.daysUntil === 0) {

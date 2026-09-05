@@ -5,8 +5,10 @@ import { useUIState } from '@/hooks/useUIState';
 import { formatDateKey, formatDateRange } from '@/lib/utils/format';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import type { Location, NightForecast, ScoredObject, SkyMapFocus } from '@/types';
+import FieldTools from './FieldTools';
 import NightStrip from './NightStrip';
 import ObjectDetailPanel from './ObjectDetailPanel';
+import SessionPlanCard from './SessionPlanCard';
 import TabBar from './TabBar';
 import OverviewTab from './tabs/OverviewTab';
 
@@ -22,6 +24,10 @@ interface ForecastViewProps {
   bestNights: string[];
   location: Location;
   onRefresh: () => void;
+  isRefreshing?: boolean;
+  loadingMessage?: string;
+  loadingPercent?: number;
+  requestedNights?: number;
 }
 
 export default function ForecastView({
@@ -30,6 +36,10 @@ export default function ForecastView({
   bestNights,
   location,
   onRefresh,
+  isRefreshing = false,
+  loadingMessage = '',
+  loadingPercent = 0,
+  requestedNights = forecasts.length,
 }: ForecastViewProps) {
   const [selectedNightIndex, setSelectedNightIndex] = useState(0);
   const [selectedTarget, setSelectedTarget] = useState<{
@@ -52,7 +62,7 @@ export default function ForecastView({
 
   const firstNight = forecasts[0];
   const lastNight = forecasts[forecasts.length - 1];
-  const selectedNight = forecasts[selectedNightIndex];
+  const selectedNight = forecasts[Math.min(selectedNightIndex, forecasts.length - 1)];
   const selectedDateKey = formatDateKey(selectedNight.nightInfo.date, location.timezone);
   const selectedObjects = scoredObjects?.get(selectedDateKey) ?? [];
 
@@ -66,7 +76,7 @@ export default function ForecastView({
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 font-bold text-lg text-white sm:text-2xl">
             <Sparkles className="h-5 w-5 flex-shrink-0 text-sky-400 sm:h-6 sm:w-6" />
-            <span className="truncate">Sky Observation Forecast</span>
+            <span className="truncate">Your sky, tonight and beyond</span>
           </h2>
           <p className="mt-0.5 text-gray-400 text-xs sm:text-sm">
             {formatDateRange(
@@ -79,12 +89,40 @@ export default function ForecastView({
         <button
           type="button"
           onClick={onRefresh}
+          disabled={isRefreshing}
+          aria-label={isRefreshing ? 'Updating forecast' : 'Refresh forecast'}
           className="inline-flex flex-shrink-0 items-center gap-2 rounded-lg bg-night-800 px-3 py-2 text-sm text-white transition-colors hover:bg-night-700"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           <span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
+
+      {isRefreshing && (
+        <div
+          role="status"
+          className="mb-4 rounded-xl border border-sky-400/15 bg-sky-400/5 px-4 py-3"
+        >
+          <p className="text-sky-200 text-xs">
+            {forecasts.length < requestedNights
+              ? `${forecasts.length} of ${requestedNights} nights ready. You can start exploring.`
+              : loadingMessage || 'Updating your forecast…'}
+          </p>
+          <div
+            role="progressbar"
+            aria-label="Forecast progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={loadingPercent}
+            className="mt-2 h-1 overflow-hidden rounded-full bg-night-800"
+          >
+            <div
+              className="h-full rounded-full bg-sky-400 transition-all"
+              style={{ width: `${loadingPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Night Strip */}
       <div className="mb-4">
@@ -97,6 +135,10 @@ export default function ForecastView({
         />
       </div>
 
+      <div className="mb-3 flex justify-end">
+        <FieldTools />
+      </div>
+
       {/* Desktop: tabs above content */}
       <div className="mb-4 hidden sm:block">
         <TabBar variant="top" />
@@ -106,10 +148,23 @@ export default function ForecastView({
       <div
         id={`tabpanel-${activeTab}`}
         role="tabpanel"
-        aria-labelledby={`tab-${activeTab}`}
+        aria-label={`${activeTab.charAt(0).toUpperCase()}${activeTab.slice(1)}`}
         className="pb-20 sm:pb-0"
       >
-        {activeTab === 'overview' && <OverviewTab forecast={selectedNight} location={location} />}
+        {activeTab === 'overview' && (
+          <div className="space-y-5">
+            <SessionPlanCard
+              objects={selectedObjects}
+              forecast={selectedNight}
+              location={location}
+              profile={horizon.horizonProfile}
+              isReady={horizon.isReady}
+              onSelect={(object, accessibility) => setSelectedTarget({ object, accessibility })}
+              onBrowse={() => setActiveTab('targets')}
+            />
+            <OverviewTab forecast={selectedNight} location={location} />
+          </div>
+        )}
         <Suspense fallback={<TabSkeleton />}>
           {activeTab === 'targets' && (
             <TargetsTab

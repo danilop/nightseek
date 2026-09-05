@@ -1,9 +1,21 @@
-import { Camera, Clock, Compass, Focus, Moon, Mountain, Ruler, Star, X } from 'lucide-react';
+import {
+  Bookmark,
+  Camera,
+  Clock,
+  Compass,
+  Focus,
+  Moon,
+  Mountain,
+  Ruler,
+  Star,
+  X,
+} from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
+import { useWatchlist } from '@/hooks/useWatchlist';
 import { SkyCalculator } from '@/lib/astronomy/calculator';
 import { formatDistance } from '@/lib/gaia';
 import { fetchEnhancedGaiaStarField } from '@/lib/gaia/enhanced-queries';
@@ -61,6 +73,8 @@ export default function ObjectDetailPanel({
   weather,
   onClose,
 }: ObjectDetailPanelProps) {
+  const { saved, toggle } = useWatchlist();
+  const isSaved = saved.includes(object.objectName);
   const [starField, setStarField] = useState<EnhancedGaiaStarField | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -249,6 +263,15 @@ export default function ObjectDetailPanel({
 
       {/* Content */}
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        <button
+          type="button"
+          onClick={() => toggle(object.objectName)}
+          aria-pressed={isSaved}
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-sky-400/10 px-3 text-sky-200 text-sm"
+        >
+          <Bookmark className={`h-4 w-4 ${isSaved ? 'fill-sky-300' : ''}`} />
+          {isSaved ? 'Saved to watchlist' : 'Save to watchlist'}
+        </button>
         {/* Rating and badges */}
         <div className="flex items-center justify-between">
           <RatingStars score={totalScore} maxScore={235} size="md" />

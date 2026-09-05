@@ -10,10 +10,10 @@
   --color-night-400: #818cf8;
   --color-night-500: #6366f1;
   --color-night-600: #4f46e5;
-  --color-night-700: #4338ca;
-  --color-night-800: #1e1b4b;
-  --color-night-900: #0f0d24;
-  --color-night-950: #070614;
+  --color-night-700: #29334b;
+  --color-night-800: #141e32;
+  --color-night-900: #0b1222;
+  --color-night-950: #060b16;
 
   /* Custom breakpoint */
   --breakpoint-xs: 375px;
@@ -115,4 +115,19 @@ html {
   display: block;
   margin-inline: auto;
   max-width: 100%;
+}
+
+/* Field mode is explicit and reversible; do not dim the user's device itself. */
+html[data-night-vision="true"] {
+  filter: grayscale(1) brightness(0.65) sepia(1) saturate(6) hue-rotate(315deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

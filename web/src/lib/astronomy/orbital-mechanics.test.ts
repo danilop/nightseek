@@ -164,3 +164,19 @@ describe('orbital-mechanics', () => {
     });
   });
 });
+
+describe('near-parabolic Kepler convergence', () => {
+  for (const e of [0.999, 0.999999, 1.000001, 1.001]) {
+    for (const m of [-0.1, -0.001, 0.001, 0.1]) {
+      it(`satisfies the orbital equation for e=${e}, M=${m}`, () => {
+        const anomaly = solveKepler(m, e);
+        const recovered =
+          e > 1 ? e * Math.sinh(anomaly) - anomaly : anomaly - e * Math.sin(anomaly);
+        expect(recovered).toBeCloseTo(m, 10);
+      });
+    }
+  }
+  it('rejects a parabolic orbit that requires Barker rather than Kepler', () => {
+    expect(() => solveKepler(0, 1)).toThrow(RangeError);
+  });
+});

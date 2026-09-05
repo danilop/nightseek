@@ -40,3 +40,19 @@ describe('calculateMoonlightInfo', () => {
     expect(result.level).toBe('strong');
   });
 });
+
+it('clips moonlight samples to the requested window, interpolating clipped endpoints', () => {
+  const result = calculateMoonlightInfo(
+    80,
+    [
+      [new Date('2026-07-16T20:00Z'), -20],
+      [new Date('2026-07-17T00:00Z'), 20],
+    ],
+    new Date('2026-07-16T21:00Z'),
+    new Date('2026-07-16T23:00Z')
+  );
+  expect(result.visibleHours).toBeCloseTo(1);
+  expect(result.visibleFraction).toBeCloseTo(0.5);
+  expect(result.exposurePercent).toBeCloseTo(40);
+  expect(result.maxAltitude).toBeCloseTo(10);
+});

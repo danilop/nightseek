@@ -1,4 +1,5 @@
 import type { NightWeather, SeeingForecast } from '@/types';
+import { calculateAirmass } from './airmass';
 
 /**
  * Base seeing in arcseconds under ideal conditions
@@ -48,11 +49,8 @@ function calculateAirmassMultiplier(altitudeDeg: number): number {
   if (altitudeDeg <= 0) return 3.0;
   if (altitudeDeg >= 90) return 1.0;
 
-  // Approximate airmass (Pickering 2002 simplified)
-  const secZ = 1 / Math.sin((altitudeDeg * Math.PI) / 180);
-
   // Seeing scales roughly with airmass^0.6
-  return secZ ** 0.6;
+  return calculateAirmass(altitudeDeg) ** 0.6;
 }
 
 /**
@@ -202,7 +200,7 @@ export function getSeeingFromWeather(weather: NightWeather | null): SeeingForeca
 
   // Estimate dew point using Magnus formula approximation
   let dewPointC: number | null = null;
-  if (tempC !== null && humidity !== null) {
+  if (tempC !== null && humidity > 0 && humidity <= 100) {
     const a = 17.27;
     const b = 237.7;
     const alpha = (a * tempC) / (b + tempC) + Math.log(humidity / 100);

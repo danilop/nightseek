@@ -11,7 +11,7 @@ export const TELESCOPE_PRESETS: TelescopePreset[] = [
   { id: 'dwarf_3', name: 'Dwarf 3', fovWidth: 174, fovHeight: 99 },
   { id: 'seestar_s30', name: 'Seestar S30', fovWidth: 72, fovHeight: 128 },
   { id: 'seestar_s30_pro', name: 'Seestar S30 Pro', fovWidth: 134, fovHeight: 240 },
-  { id: 'seestar_s50', name: 'Seestar S50', fovWidth: 42, fovHeight: 78 },
+  { id: 'seestar_s50', name: 'Seestar S50', fovWidth: 43.8, fovHeight: 77.4 },
   { id: 'unistellar_evscope', name: 'Unistellar eVscope/eQuinox', fovWidth: 27, fovHeight: 37 },
   {
     id: 'unistellar_evscope2',
@@ -87,13 +87,13 @@ export function validateCustomFOV(
   width: number,
   height: number
 ): { valid: boolean; error?: string } {
-  if (width < MIN_CUSTOM_FOV || width > MAX_CUSTOM_FOV) {
+  if (!Number.isFinite(width) || width < MIN_CUSTOM_FOV || width > MAX_CUSTOM_FOV) {
     return {
       valid: false,
       error: `Width must be between ${MIN_CUSTOM_FOV} and ${MAX_CUSTOM_FOV} arcminutes`,
     };
   }
-  if (height < MIN_CUSTOM_FOV || height > MAX_CUSTOM_FOV) {
+  if (!Number.isFinite(height) || height < MIN_CUSTOM_FOV || height > MAX_CUSTOM_FOV) {
     return {
       valid: false,
       error: `Height must be between ${MIN_CUSTOM_FOV} and ${MAX_CUSTOM_FOV} arcminutes`,

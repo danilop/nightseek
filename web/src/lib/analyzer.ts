@@ -1,5 +1,4 @@
 import * as Astronomy from 'astronomy-engine';
-import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 import type {
   AstronomicalEvents,
   DSOCatalogEntry,
@@ -51,6 +50,7 @@ import { detectEclipses } from './events/eclipses';
 import { detectMeteorShowers } from './events/meteor-showers';
 import { detectSeasonalMarkers } from './events/seasons';
 import { getTransitForDisplay } from './events/transits';
+import { firstNightDate, nightDateAtOffset } from './forecast/night-dates';
 import { fetchAsteroidPhysicalData } from './jpl/sbdb';
 import { computeAuroraForecast, fetchSpaceWeather } from './nasa/donki';
 import { fetchNeoCloseApproachesRange } from './nasa/neows';
@@ -414,7 +414,9 @@ function scoreNightObjects(
 export async function generateForecast(
   location: Location,
   settings: Settings,
-  onProgress?: (message: string, percent: number) => void
+  onProgress?: (message: string, percent: number) => void,
+  onPartial?: (result: ForecastResult) => void,
+  signal?: AbortSignal
 ): Promise<ForecastResult> {
   const { latitude, longitude } = location;
   const { forecastDays, dsoMagnitude } = settings;
@@ -462,9 +464,7 @@ export async function generateForecast(
   const scoredObjects = new Map<string, ScoredObject[]>();
 
   // Anchor "tonight" to noon in the selected location, not the device timezone.
-  const localNow = toZonedTime(new Date(), locationTimezone);
-  localNow.setHours(12, 0, 0, 0);
-  const today = fromZonedTime(localNow, locationTimezone);
+  const today = firstNightDate(new Date(), locationTimezone, calculator);
 
   // Start the location-dependent NEO request before synchronous event work so
   // its network latency overlaps those calculations.
@@ -485,10 +485,11 @@ export async function generateForecast(
   const fov = getEffectiveFOV(settings.telescope, settings.customFOV);
 
   for (let i = 0; i < forecastDays; i++) {
-    // Advance absolute days from the selected location's noon anchor. Using
+    signal?.throwIfAborted();
+    // Advance civil dates from the selected location's noon anchor. Using
     // setDate() here would apply the device's DST rules, which may be unrelated
     // to the observing location.
-    const nightDate = new Date(today.getTime() + i * 86_400_000);
+    const nightDate = nightDateAtOffset(today, locationTimezone, i);
 
     const progressPercent = 30 + Math.floor((i / forecastDays) * 60);
     progress(`Analyzing night ${i + 1} of ${forecastDays}...`, progressPercent);
@@ -608,6 +609,14 @@ export async function generateForecast(
     );
 
     scoredObjects.set(formatDateKey(nightDate, locationTimezone), scored);
+    // Publish completed nights immediately. New containers keep React snapshots
+    // immutable; the worker transport also preserves Date and Map values.
+    onPartial?.({
+      forecasts: [...forecasts],
+      scoredObjects: new Map(scoredObjects),
+      bestNights: determineBestNights(forecasts, locationTimezone),
+      timezone: locationTimezone,
+    });
   }
 
   // Determine best nights

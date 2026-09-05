@@ -175,9 +175,16 @@ function calculateQualityAtTime(
   // Weighted average of all factors
   const score =
     altitudeQuality * 0.25 + airmassQuality * 0.25 + moonQuality * 0.25 + cloudQuality * 0.25;
+  // Good geometry cannot compensate for opaque cloud or forecast rain.
+  // Missing hours within a partial weather forecast do not establish a window.
+  const weatherBlocksImaging =
+    weather !== null &&
+    ((weather.hourlyData.size > 0 && !hourlyWeather) ||
+      cloudCover >= 70 ||
+      (hourlyWeather?.precipitation ?? 0) >= 0.1);
 
   return {
-    score: Math.round(score),
+    score: weatherBlocksImaging ? 0 : Math.round(score),
     factors: {
       altitude: altitudeQuality,
       airmass: airmassQuality,

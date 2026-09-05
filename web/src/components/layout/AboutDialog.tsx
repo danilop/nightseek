@@ -4,6 +4,7 @@ import NightSeekIcon from '@/components/ui/NightSeekIcon';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { version as APP_VERSION } from '../../../package.json';
+import AboutCredits from './AboutCredits';
 
 interface AboutDialogProps {
   onClose: () => void;
@@ -33,39 +34,31 @@ export default function AboutDialog({ onClose }: AboutDialogProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-sm rounded-xl border border-night-700 bg-night-900 shadow-xl">
+      <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-night-700 bg-night-900 shadow-xl">
         {/* Close button */}
-        <div className="flex justify-end p-3 pb-0">
+        <div className="flex shrink-0 justify-end p-3 pb-0">
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-lg p-1 text-gray-400 transition-colors hover:text-white"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex flex-col items-center px-6 pb-6 text-center">
-          <NightSeekIcon className="mb-3 h-16 w-16" />
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-5 text-center sm:px-6">
+          <NightSeekIcon className="mx-auto mb-3 h-12 w-12" />
           <h2 id="about-dialog-title" className="font-bold text-2xl text-white">
-            NightSeek
+            About &amp; credits
           </h2>
-          <span className="mt-1 text-gray-500 text-sm">v{APP_VERSION}</span>
+          <span className="mt-1 text-gray-500 text-sm">NightSeek · v{APP_VERSION}</span>
 
           <p className="mt-4 text-gray-400">Plan your perfect night of astrophotography</p>
 
-          <div className="mt-3 flex flex-wrap justify-center gap-x-2 gap-y-1 text-gray-500 text-xs">
-            <span>Weather</span>
-            <span>·</span>
-            <span>Visibility</span>
-            <span>·</span>
-            <span>Timing</span>
-            <span>·</span>
-            <span>Star Fields</span>
-            <span>·</span>
-            <span>Mosaic Planning</span>
+          <div className="mt-6">
+            <AboutCredits />
           </div>
 
           <a
@@ -78,14 +71,14 @@ export default function AboutDialog({ onClose }: AboutDialogProps) {
             Buy Me a Coffee
           </a>
 
-          <p className="mt-5 inline-flex items-center gap-1 text-gray-500 text-sm">
+          <p className="mt-4 flex items-center justify-center gap-1 text-gray-500 text-sm">
             Built with <Heart className="h-3.5 w-3.5 fill-red-500 text-red-500" /> by Danilo Poccia
           </p>
 
           <button
             type="button"
             onClick={onClose}
-            className="mt-5 w-full rounded-lg bg-sky-600 py-2 font-medium text-white transition-colors hover:bg-sky-500"
+            className="mt-5 min-h-11 w-full rounded-lg bg-sky-600 py-2 font-medium text-white transition-colors hover:bg-sky-500"
           >
             Close
           </button>

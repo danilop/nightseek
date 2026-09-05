@@ -246,7 +246,7 @@ function AuroraChanceBadge({ chance }: { chance: string }) {
     string,
     { label: string; variant: 'success' | 'warning' | 'info' | 'default' }
   > = {
-    certain: { label: 'Aurora Certain', variant: 'success' },
+    certain: { label: 'Elevated activity', variant: 'success' },
     likely: { label: 'Aurora Likely', variant: 'success' },
     possible: { label: 'Aurora Possible', variant: 'warning' },
     unlikely: { label: 'Unlikely', variant: 'info' },

@@ -299,7 +299,7 @@ export async function fetchComets(maxMagnitude: number = 12.0): Promise<ParsedCo
 
   // Fallback: try fetching directly from MPC
   try {
-    const response = await fetch(MPC_COMET_URL);
+    const response = await fetch(MPC_COMET_URL, { signal: AbortSignal.timeout(8_000) });
     if (!response.ok) {
       throw new Error(`Failed to fetch comet data: ${response.status}`);
     }

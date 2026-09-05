@@ -1,7 +1,7 @@
 import * as Astronomy from 'astronomy-engine';
 
 /**
- * Get Greenwich Mean Sidereal Time (GMST) in hours
+ * Get Greenwich Apparent Sidereal Time (GAST) in hours
  *
  * Sidereal time is the hour angle of the vernal equinox,
  * representing the current orientation of Earth relative to the stars.
@@ -13,7 +13,7 @@ export function getGreenwichSiderealTime(date: Date): number {
 /**
  * Get Local Sidereal Time (LST) in hours
  *
- * LST = GMST + longitude/15 (converting degrees to hours)
+ * LST = GAST + longitude/15 (converting degrees to hours)
  * This tells you which RA is currently on your meridian.
  */
 export function getLocalSiderealTimeHours(date: Date, longitudeDeg: number): number {

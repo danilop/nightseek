@@ -63,7 +63,7 @@ function PickItem({
   accessibility?: TargetAccessibility;
 }) {
   const { state } = useApp();
-  const rating = getRatingFromScore(pick.object.totalScore, 200);
+  const rating = getRatingFromScore(pick.object.totalScore, 235);
   const displayName = pick.object.visibility.commonName || pick.object.objectName;
 
   return (

@@ -103,7 +103,7 @@ export async function loadOpenNGCCatalog(
   }
 
   // Fetch from URL
-  const response = await fetch(OPENGC_URL);
+  const response = await fetch(OPENGC_URL, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) {
     throw new Error(`Failed to fetch OpenNGC catalog: ${response.status}`);
   }

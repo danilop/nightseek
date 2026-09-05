@@ -15,6 +15,7 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
+    if (!expanded) return;
     let cancelled = false;
     setData(null);
     setLoading(true);
@@ -33,9 +34,7 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
     return () => {
       cancelled = true;
     };
-  }, [latitude, longitude]);
-
-  if (!data && !loading) return null;
+  }, [latitude, longitude, expanded]);
 
   const currentMonth = new Date().getMonth() + 1;
   const currentMonthStats = data?.monthlyStats.find(m => m.month === currentMonth);
@@ -43,13 +42,13 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
   return (
     <SectionCard
       icon={<BarChart3 className="h-5 w-5 shrink-0 text-indigo-400" />}
-      title="Location Quality"
+      title="Daily cloud history"
       headerAside={
         <>
           {loading && <span className="text-gray-500 text-xs">Loading...</span>}
           {data && currentMonthStats && (
             <span className="hidden truncate text-gray-400 text-xs sm:block">
-              ~{currentMonthStats.clearNights} clear nights in {currentMonthStats.monthName}
+              ~{currentMonthStats.clearDays} mostly clear days in {currentMonthStats.monthName}
             </span>
           )}
         </>
@@ -65,30 +64,34 @@ export default function LocationQualityCard({ latitude, longitude }: LocationQua
 
       {data && (
         <div className="space-y-4">
+          <p className="text-gray-400 text-xs">
+            Daily average cloud cover from the previous year. This is seasonal context, not a count
+            of clear observing nights.
+          </p>
           {/* Annual summary */}
           <div className="rounded-lg bg-night-800 p-3">
             <p className="mb-1 font-medium text-sm text-white">Annual Summary</p>
             <p className="text-gray-300 text-sm">
               This location averages{' '}
               <span className="font-medium text-indigo-400">
-                {Math.round(data.annualClearNights)} clear nights
+                {Math.round(data.annualClearDays)} mostly clear days
               </span>{' '}
-              per year ({data.annualClearNightPercentage.toFixed(0)}% of nights).
+              per year ({data.annualClearDayPercentage.toFixed(0)}% of days).
             </p>
           </div>
 
           {/* Best months */}
           {data.bestMonths.length > 0 && (
             <div>
-              <p className="mb-2 text-gray-500 text-xs">Best Months for Observing</p>
+              <p className="mb-2 text-gray-500 text-xs">Months with less cloud</p>
               <div className="space-y-2">
                 {data.bestMonths.map(month => (
                   <div key={month.month} className="flex items-center justify-between text-sm">
                     <span className="text-gray-300">{month.monthName}</span>
                     <div className="flex items-center gap-3">
-                      <span className="text-indigo-400">{month.clearNights} clear nights</span>
+                      <span className="text-indigo-400">{month.clearDays} mostly clear days</span>
                       <span className="text-gray-500 text-xs">
-                        {month.clearNightPercentage.toFixed(0)}%
+                        {month.clearDayPercentage.toFixed(0)}%
                       </span>
                     </div>
                   </div>
@@ -127,11 +130,11 @@ function MonthRow({
   month: LocationWeatherHistory['monthlyStats'][number];
   isCurrent: boolean;
 }) {
-  const barWidth = Math.max(2, month.clearNightPercentage);
+  const barWidth = Math.max(2, month.clearDayPercentage);
   const barColor =
-    month.clearNightPercentage >= 50
+    month.clearDayPercentage >= 50
       ? 'bg-green-500'
-      : month.clearNightPercentage >= 30
+      : month.clearDayPercentage >= 30
         ? 'bg-yellow-500'
         : 'bg-red-500';
 
@@ -149,7 +152,7 @@ function MonthRow({
       </div>
       <div className="flex w-24 items-center justify-end gap-1">
         <Sun className="h-3 w-3 text-gray-500" />
-        <span className="text-gray-400">{month.clearNights}</span>
+        <span className="text-gray-400">{month.clearDays}</span>
         <Cloud className="ml-1 h-3 w-3 text-gray-500" />
         <span className="text-gray-400">{month.avgCloudCover.toFixed(0)}%</span>
       </div>

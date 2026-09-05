@@ -631,17 +631,17 @@ export function calculateFOVSuitabilityScore(
 export const MOSAIC_OVERLAP = 0.2;
 
 /**
- * Round to the nearest 0.5 (e.g. 1.38 → 1.5, 0.97 → 1, 2.1 → 2)
+ * Round up to the next 0.5 so the planned field never under-covers a target.
  * Matches how smart telescopes (Dwarf Mini) accept mosaic multipliers.
  */
 function roundToHalf(n: number): number {
-  return Math.round(n * 2) / 2;
+  return Math.ceil(n * 2) / 2;
 }
 
 /**
  * Calculate mosaic panels needed for an object larger than the FOV.
  * Uses both major and minor axis to find the best orientation.
- * Panel counts are fractional (rounded to nearest 0.5) matching
+ * Panel counts are fractional (rounded up to 0.5) matching
  * how smart telescopes handle mosaic multipliers.
  * Returns null if the object fits in a single frame.
  */
@@ -650,7 +650,16 @@ export function calculateMosaicPanels(
   fov: { width: number; height: number } | null,
   minorAxisArcmin?: number
 ): { cols: number; rows: number } | null {
-  if (!fov || angularSizeArcmin <= 0) return null;
+  if (
+    !fov ||
+    !Number.isFinite(angularSizeArcmin) ||
+    angularSizeArcmin <= 0 ||
+    !Number.isFinite(fov.width) ||
+    !Number.isFinite(fov.height) ||
+    fov.width <= 0 ||
+    fov.height <= 0
+  )
+    return null;
 
   const major = angularSizeArcmin;
   const minor = minorAxisArcmin && minorAxisArcmin > 0 ? minorAxisArcmin : major;
@@ -661,10 +670,10 @@ export function calculateMosaicPanels(
   if (fitsNormal || fitsRotated) return null;
 
   // Try both orientations and pick the one with fewer total panels
-  const normalCols = Math.max(1, roundToHalf(major / fov.width));
-  const normalRows = Math.max(1, roundToHalf(minor / fov.height));
-  const rotatedCols = Math.max(1, roundToHalf(minor / fov.width));
-  const rotatedRows = Math.max(1, roundToHalf(major / fov.height));
+  const normalCols = Math.max(1, roundToHalf(1 + (major / fov.width - 1) / (1 - MOSAIC_OVERLAP)));
+  const normalRows = Math.max(1, roundToHalf(1 + (minor / fov.height - 1) / (1 - MOSAIC_OVERLAP)));
+  const rotatedCols = Math.max(1, roundToHalf(1 + (minor / fov.width - 1) / (1 - MOSAIC_OVERLAP)));
+  const rotatedRows = Math.max(1, roundToHalf(1 + (major / fov.height - 1) / (1 - MOSAIC_OVERLAP)));
 
   if (normalCols * normalRows <= rotatedCols * rotatedRows) {
     return { cols: normalCols, rows: normalRows };

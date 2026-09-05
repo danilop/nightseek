@@ -3,6 +3,7 @@ import {
   CircleDot,
   Download,
   Eye,
+  Info,
   MapPin,
   MessageCircle,
   Ruler,
@@ -24,9 +25,10 @@ import TelescopeSettings from './TelescopeSettings';
 
 interface SettingsModalProps {
   onClose: () => void;
+  onShowAbout: () => void;
 }
 
-export default function SettingsModal({ onClose }: SettingsModalProps) {
+export default function SettingsModal({ onClose, onShowAbout }: SettingsModalProps) {
   const { state, updateSettings, resetAllData, dispatch } = useApp();
   const { settings, location } = state;
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -374,6 +376,20 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               </p>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={onShowAbout}
+            className="flex min-h-12 w-full items-center gap-3 rounded-lg bg-night-800 p-3 text-left transition-colors hover:bg-night-700"
+          >
+            <Info className="h-4 w-4 shrink-0 text-sky-300" />
+            <span>
+              <span className="block font-medium text-gray-200 text-sm">About &amp; credits</span>
+              <span className="mt-0.5 block text-gray-400 text-xs">
+                Libraries, data sources &amp; support NightSeek
+              </span>
+            </span>
+          </button>
 
           {/* Feedback Section */}
           <div className="border-night-700 border-t pt-4">

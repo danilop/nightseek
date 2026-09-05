@@ -147,7 +147,7 @@ export function getPlanetApsisInfo(planetName: string, date: Date): PlanetApsis 
       type,
       date: nearestApsis.time.date,
       distanceAU: nearestApsis.dist_au,
-      daysUntil: Math.abs(daysUntil),
+      daysUntil,
       solarFluxBoostPercent: solarFluxBoost,
     };
   } catch (_error) {
@@ -253,7 +253,9 @@ export function getPlanetApsisDescription(apsis: PlanetApsis): string {
     return `${apsis.planet} at ${eventType} today`;
   }
 
-  const dayStr = apsis.daysUntil === 1 ? 'day' : 'days';
+  const dayStr = Math.abs(apsis.daysUntil) === 1 ? 'day' : 'days';
+  if (apsis.daysUntil < 0)
+    return `${apsis.planet} ${eventType} was ${Math.abs(apsis.daysUntil)} ${dayStr} ago`;
 
   if (apsis.type === 'perihelion' && apsis.solarFluxBoostPercent > 0) {
     return `${apsis.planet} near ${eventType} (${apsis.solarFluxBoostPercent}% more sunlight than at mean distance)`;
