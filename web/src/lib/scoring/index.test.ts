@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createMockNightInfo, createMockObjectVisibility } from '@/test/factories';
 import type {
   ImagingWindow,
   NightWeather,
@@ -21,6 +22,7 @@ import {
   calculatePeakTimingScore,
   calculateSeasonalWindowScore,
   calculateSeeingQualityScore,
+  calculateTotalScore,
   calculateTransientBonus,
   calculateTwilightPenalty,
   calculateVenusPeakBonus,
@@ -30,6 +32,72 @@ import {
 } from './index';
 
 describe('scoring', () => {
+  describe('Moon-dependent target preference', () => {
+    const visibility = createMockObjectVisibility({ moonAltitudeAtPeak: 30, moonSeparation: 65 });
+    const scoreAt = (illumination: number, target = visibility) =>
+      calculateTotalScore(
+        target,
+        createMockNightInfo({ moonIllumination: illumination }),
+        null,
+        12
+      );
+
+    it('does not abruptly demote a galaxy at 30% Moon illumination', () => {
+      const before = scoreAt(29.99);
+      const after = scoreAt(30.01);
+      expect(Math.abs(before.totalScore - after.totalScore)).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(before.scoreBreakdown.typeSuitability - after.scoreBreakdown.typeSuitability)
+      ).toBeLessThan(0.01);
+    });
+
+    it('does not abruptly promote a cluster across the same boundary', () => {
+      const cluster = createMockObjectVisibility({ ...visibility, subtype: 'open_cluster' });
+      expect(
+        Math.abs(scoreAt(29.99, cluster).totalScore - scoreAt(30.01, cluster).totalScore)
+      ).toBeLessThanOrEqual(1);
+    });
+
+    it('gradually reduces galaxy preference as the illuminated Moon grows', () => {
+      const dark = scoreAt(0).scoreBreakdown.typeSuitability;
+      const partial = scoreAt(31).scoreBreakdown.typeSuitability;
+      const full = scoreAt(100).scoreBreakdown.typeSuitability;
+      expect(dark).toBeGreaterThan(partial);
+      expect(partial).toBeGreaterThan(full);
+      // Preserve the existing end-member preferences while removing the cutoff.
+      expect(dark).toBe(14.25);
+      expect(full).toBe(4.5);
+    });
+
+    it('keeps the dark-sky preference when the Moon is below the horizon', () => {
+      const moonDown = createMockObjectVisibility({ ...visibility, moonAltitudeAtPeak: -5 });
+      expect(scoreAt(100, moonDown).scoreBreakdown.typeSuitability).toBe(
+        scoreAt(0, moonDown).scoreBreakdown.typeSuitability
+      );
+    });
+
+    it('credits M33 framing independently of Moon phase', () => {
+      const m33 = createMockObjectVisibility({
+        ...visibility,
+        angularSizeArcmin: 62.09,
+        minorAxisArcmin: 36.73,
+      });
+      const fov = { width: 43.8, height: 77.4 };
+      const score = calculateTotalScore(
+        m33,
+        createMockNightInfo({ moonIllumination: 31 }),
+        null,
+        12,
+        [],
+        null,
+        null,
+        fov
+      );
+      expect(score.scoreBreakdown.fovSuitability).toBe(15);
+      expect(calculateMosaicPanels(62.09, fov, 36.73)).toBeNull();
+    });
+  });
+
   describe('calculateAltitudeScore', () => {
     it('should give max score for low airmass', () => {
       const score = calculateAltitudeScore(1.05, 85);

@@ -273,42 +273,50 @@ export function calculateMagnitudeScore(
   return 3;
 }
 
+/** Heuristic suitability at new Moon and full Moon, respectively. */
+function getTypeSuitabilityEndpoints(
+  objectType: ObjectCategory,
+  subtype: DSOSubtype | null
+): readonly [number, number] {
+  if (objectType === 'milky_way') return [15, 1.5];
+  if (objectType === 'planet') return [9, 15];
+  if (objectType === 'comet') return [12, 7.5];
+
+  switch (subtype) {
+    case 'galaxy':
+    case 'emission_nebula':
+    case 'cluster_nebula':
+      return [14.25, 4.5];
+    case 'reflection_nebula':
+      return [14.25, 6];
+    case 'planetary_nebula':
+      return [12.75, 10.5];
+    case 'supernova_remnant':
+      return [12.75, 6];
+    case 'globular_cluster':
+    case 'open_cluster':
+      return [10.5, 13.5];
+    default:
+      return [7.5, 6];
+  }
+}
+
 /**
- * Type suitability score based on moon conditions (0-15 points)
+ * Relative target-type preference (0-15), not a physical sky-brightness model.
+ * Interpolate the existing dark/bright-Moon weights so nearly identical phases
+ * cannot abruptly demote galaxies or promote clusters at an arbitrary cutoff.
+ * The caller supplies zero illumination when the Moon is below the horizon.
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Suitability scoring varies by object type and moon conditions
 function calculateTypeSuitabilityScore(
   objectType: ObjectCategory,
   subtype: DSOSubtype | null,
   moonIllumination: number
 ): number {
-  const isDarkSky = moonIllumination < 30;
-
-  if (isDarkSky) {
-    if (objectType === 'milky_way') return 15;
-    if (
-      subtype === 'emission_nebula' ||
-      subtype === 'reflection_nebula' ||
-      subtype === 'galaxy' ||
-      subtype === 'cluster_nebula'
-    )
-      return 14.25;
-    if (subtype === 'planetary_nebula' || subtype === 'supernova_remnant') return 12.75;
-    if (objectType === 'comet') return 12;
-    if (subtype === 'globular_cluster' || subtype === 'open_cluster') return 10.5;
-    if (objectType === 'planet') return 9;
-    return 7.5;
-  } else {
-    // Bright moon - prioritize moon-resistant targets
-    if (objectType === 'planet') return 15;
-    if (subtype === 'globular_cluster' || subtype === 'open_cluster') return 13.5;
-    if (subtype === 'planetary_nebula') return 10.5;
-    if (objectType === 'comet') return 7.5;
-    if (subtype === 'galaxy' || subtype === 'emission_nebula' || subtype === 'cluster_nebula')
-      return 4.5;
-    if (objectType === 'milky_way') return 1.5;
-    return 6;
-  }
+  const [dark, bright] = getTypeSuitabilityEndpoints(objectType, subtype);
+  const fraction = Number.isFinite(moonIllumination)
+    ? Math.max(0, Math.min(100, moonIllumination)) / 100
+    : 0.5;
+  return dark + (bright - dark) * fraction;
 }
 
 /**
