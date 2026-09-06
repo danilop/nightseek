@@ -82,8 +82,8 @@ export default function Header() {
 
           {/* Location (mobile) */}
           {location && (
-            <div className="mt-2 flex items-center justify-between sm:hidden">
-              <div className="flex items-center gap-2 text-gray-400 text-xs">
+            <div className="mt-2 flex items-center justify-between gap-2 sm:hidden">
+              <div className="flex min-w-0 items-center gap-2 text-gray-400 text-xs">
                 <MapPin className="h-3 w-3" />
                 <span className="truncate">
                   {location.name || formatCoordinates(location.latitude, location.longitude)}

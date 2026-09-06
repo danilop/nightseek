@@ -9,6 +9,7 @@ import {
   type MilkyWayNightPlan,
   type MilkyWaySamplePlan,
 } from '@/lib/astronomy/milky-way-planning';
+import { estimateBortle } from '@/lib/lightpollution/bortle-estimate';
 import { isSkyglowFavourable } from '@/lib/lightpollution/sky-brightness';
 import { useSkyBrightness } from '@/lib/lightpollution/useSkyBrightness';
 import { getAltitudeAtTime, getAzimuthAtTime } from '@/lib/utils/altitude-interpolation';
@@ -406,6 +407,7 @@ function PlanningDetails({
   timezone?: string;
 }) {
   const bestForecastSample = bestForecastPlan?.bestSample;
+  const bortleEstimate = estimateBortle(skyBrightness);
 
   return (
     <div className="space-y-3 border-night-700 border-t pt-3">
@@ -428,7 +430,11 @@ function PlanningDetails({
         <Condition
           icon={<span className="text-xs">🌌</span>}
           label="Estimated sky brightness"
-          value={skyBrightness === null ? 'Unavailable' : `${skyBrightness.toFixed(1)} mag/arcsec²`}
+          value={
+            skyBrightness === null || bortleEstimate === null
+              ? 'Unavailable'
+              : `Bortle ${bortleEstimate.toFixed(1)} est. · ${skyBrightness.toFixed(1)} mag/arcsec²`
+          }
           valueClass="text-sky-300"
         />
       </div>

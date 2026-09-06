@@ -93,6 +93,12 @@ export const LIBRARY_CREDITS: Credit[] = [
 
 export const DATA_CREDITS: Credit[] = [
   {
+    name: 'LightPollutionMap.app · decimal Bortle convention',
+    url: 'https://lightpollutionmap.app/',
+    contribution:
+      'Reference convention for converting modeled sky brightness to a decimal Bortle estimate. NightSeek independently interpolates the reference points and makes the darkest endpoint continuous. This is not a measured Bortle class or an atlas-provided rating.',
+  },
+  {
     name: 'David Lorenz · Light Pollution Atlas',
     url: 'https://djlorenz.github.io/astronomy/lp/',
     contribution:

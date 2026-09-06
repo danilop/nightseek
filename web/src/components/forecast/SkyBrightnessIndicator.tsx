@@ -1,4 +1,5 @@
 import Tooltip from '@/components/ui/Tooltip';
+import { estimateBortle, explainBortleEstimate } from '@/lib/lightpollution/bortle-estimate';
 import { SKY_ATLAS_YEAR } from '@/lib/lightpollution/sky-brightness';
 import { useSkyBrightness } from '@/lib/lightpollution/useSkyBrightness';
 
@@ -10,13 +11,14 @@ export default function SkyBrightnessIndicator({
   longitude: number;
 }) {
   const { data, loading } = useSkyBrightness(latitude, longitude);
+  const bortle = estimateBortle(data?.magnitudes ?? null);
   const text = data
-    ? `Sky ${data.magnitudes.toFixed(1)}`
+    ? `${data.magnitudes.toFixed(1)} mag/arcsec²`
     : loading
       ? 'Sky loading…'
       : 'Sky unavailable';
   const tooltip = data
-    ? `Estimated zenith sky brightness: ${data.magnitudes.toFixed(1)} mag/arcsec². Higher means darker.\n\nDavid Lorenz ${SKY_ATLAS_YEAR} atlas · roughly 1 km resolution. A modeled moonless baseline, not a measurement or Bortle class. Local lights and tonight’s atmosphere can change actual conditions.`
+    ? `${explainBortleEstimate(data.magnitudes)}\n\nSky-brightness source: David Lorenz ${SKY_ATLAS_YEAR} atlas · roughly 1 km resolution. Moonless baseline; local lights and tonight’s atmosphere can change conditions. Bortle conversion is NightSeek’s interpretation, not an atlas-provided rating.`
     : loading
       ? 'Loading regional sky-brightness data.'
       : 'Sky-brightness data is unavailable for this location. No guessed rating is substituted. Connect to the internet to load a new region.';
@@ -28,7 +30,10 @@ export default function SkyBrightnessIndicator({
         aria-label={tooltip}
       >
         <SkyBrightnessIcon />
-        <span>{text}</span>
+        <span className="flex flex-col leading-tight sm:flex-row sm:items-center sm:gap-2">
+          {bortle !== null && <span>Bortle {bortle.toFixed(1)} est.</span>}
+          <span className={bortle === null ? undefined : 'text-sky-200/80'}>{text}</span>
+        </span>
       </span>
     </Tooltip>
   );
