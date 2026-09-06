@@ -600,35 +600,54 @@ export function calculateImagingWindowScore(
   return Math.round(qualityBase + durationBonus);
 }
 
+function getFrameGeometry(
+  majorAxis: number,
+  fov: { width: number; height: number } | null,
+  minorAxis?: number
+): { relativeArea: number; frameCoverage: number } | null {
+  if (
+    !fov ||
+    !Number.isFinite(majorAxis) ||
+    majorAxis <= 0 ||
+    !Number.isFinite(fov.width) ||
+    fov.width <= 0 ||
+    !Number.isFinite(fov.height) ||
+    fov.height <= 0
+  )
+    return null;
+
+  // Unknown minor axes use a circle, matching the mosaic estimate.
+  const minor =
+    minorAxis !== undefined && Number.isFinite(minorAxis) && minorAxis > 0 ? minorAxis : majorAxis;
+  const covered = (width: number, height: number) =>
+    Math.min(1, majorAxis / width) * Math.min(1, minor / height);
+  return {
+    relativeArea: (majorAxis / fov.width) * (minor / fov.height),
+    // Reward the span occupied along each frame axis, capped independently.
+    // Extending a thin target outside the frame cannot compensate for its width.
+    // The better of two orientations is an estimate, not a promise of rotation.
+    frameCoverage: Math.max(covered(fov.width, fov.height), covered(fov.height, fov.width)),
+  };
+}
+
 /**
- * Calculate FOV suitability score (0-15 points)
- * Rewards objects that fill a meaningful portion of the telescope's field of view.
- * Planets/Moon are exempt (viewed via digital zoom). Unknown sizes get neutral score.
+ * Apparent-size preference (0-15), not target detectability.
+ * Credit grows with the geometric mean of the two occupied axis fractions,
+ * reaching its maximum when both axes span the frame. Larger subjects retain
+ * full credit; cropping and mosaic needs are explained separately. Size beyond
+ * the frame cannot provide unlimited detail in a single view.
  */
 export function calculateFOVSuitabilityScore(
   angularSizeArcmin: number,
   objectType: ObjectCategory,
-  fov: { width: number; height: number } | null
+  fov: { width: number; height: number } | null,
+  minorAxisArcmin?: number
 ): number {
-  // Planets and Moon are always tiny but viewed via digital zoom — neutral
+  // Planetary/lunar capture has a different composition objective.
   if (objectType === 'planet' || objectType === 'moon') return 10;
-
-  // Unknown size — neutral
-  if (angularSizeArcmin <= 0) return 10;
-
-  // No FOV info — neutral
-  if (!fov) return 10;
-
-  const minFovDim = Math.min(fov.width, fov.height);
-  if (minFovDim <= 0) return 10;
-
-  const fillRatio = angularSizeArcmin / minFovDim;
-
-  if (fillRatio >= 0.1) return 15;
-  if (fillRatio >= 0.05) return 12;
-  if (fillRatio >= 0.02) return 8;
-  if (fillRatio >= 0.01) return 4;
-  return 0;
+  const geometry = getFrameGeometry(angularSizeArcmin, fov, minorAxisArcmin);
+  if (!geometry) return 10;
+  return Math.round(15 * Math.sqrt(geometry.frameCoverage));
 }
 
 /**
@@ -705,20 +724,19 @@ export function getMosaicFootprint(
 }
 
 /**
- * Calculate frame fill percentage — how much of the FOV the object's
- * major axis occupies relative to the FOV's shorter dimension.
+ * Estimated target ellipse area as a percentage of the rectangular frame.
+ * Values over 100% describe a target larger than the frame, not visible coverage.
  * Returns null for planets/moon or unknown sizes.
  */
 export function calculateFrameFillPercent(
   angularSizeArcmin: number,
   objectType: ObjectCategory,
-  fov: { width: number; height: number } | null
+  fov: { width: number; height: number } | null,
+  minorAxisArcmin?: number
 ): number | null {
   if (objectType === 'planet' || objectType === 'moon') return null;
-  if (angularSizeArcmin <= 0 || !fov) return null;
-  const minFovDim = Math.min(fov.width, fov.height);
-  if (minFovDim <= 0) return null;
-  return Math.round((angularSizeArcmin / minFovDim) * 100);
+  const geometry = getFrameGeometry(angularSizeArcmin, fov, minorAxisArcmin);
+  return geometry ? geometry.relativeArea * (Math.PI / 4) * 100 : null;
 }
 
 /**
@@ -812,7 +830,12 @@ export function calculateTotalScore(
   const seeingQuality = calculateSeeingQualityScore(nightInfo.seeingForecast, objectType);
   const dewRiskPenalty = calculateDewRiskPenalty(weather);
   const imagingWindowScore = calculateImagingWindowScore(visibility.imagingWindow, weather);
-  const fovSuitability = calculateFOVSuitabilityScore(angularSizeArcmin, objectType, fov);
+  const fovSuitability = calculateFOVSuitabilityScore(
+    angularSizeArcmin,
+    objectType,
+    fov,
+    visibility.minorAxisArcmin
+  );
 
   const totalScore =
     altitudeScore +

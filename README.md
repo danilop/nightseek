@@ -85,6 +85,14 @@ or guarantees. Open-Meteo's free hosted service is restricted to non-commercial
 use; see its [terms](https://open-meteo.com/en/terms). NOAA's public Kp feed needs
 no key, and does not establish whether an aurora is visible at a specific site.
 
+Target-size preference uses both catalogue axes relative to the selected field
+of view. Its bonus increases until the target spans both frame dimensions, then
+plateaus; larger targets retain the bonus and show crop/mosaic needs separately.
+This expresses a preference for substantial subjects, not a detection limit.
+Displayed frame area estimates the catalogue ellipse relative to the rectangular
+frame; it can exceed 100% and does not measure how much of a cropped target is
+visible. Brightness, altitude, Moon and imaging conditions still affect ranking.
+
 ## Web development
 
 Requirements:

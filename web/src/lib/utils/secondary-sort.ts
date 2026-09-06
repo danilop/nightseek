@@ -1,4 +1,5 @@
 import type { ScoredObject, SecondarySortField } from '@/types';
+import { calculateFrameFillPercent } from '../scoring';
 
 interface SortFieldConfig {
   field: SecondarySortField;
@@ -40,7 +41,7 @@ const SORT_FIELD_CONFIGS: SortFieldConfig[] = [
   },
   {
     field: 'frameFill',
-    label: 'Frame Fill',
+    label: 'Frame Area',
     getValue: (obj, fov) => calculateFrameFill(obj, fov),
     direction: 'desc',
   },
@@ -50,12 +51,12 @@ function calculateFrameFill(
   obj: ScoredObject,
   fov: { width: number; height: number } | null
 ): number | null {
-  if (obj.category === 'planet' || obj.category === 'moon') return null;
-  const size = obj.visibility.angularSizeArcmin;
-  if (size <= 0 || !fov) return null;
-  const minDim = Math.min(fov.width, fov.height);
-  if (minDim <= 0) return null;
-  return (size / minDim) * 100;
+  return calculateFrameFillPercent(
+    obj.visibility.angularSizeArcmin,
+    obj.category,
+    fov,
+    obj.visibility.minorAxisArcmin
+  );
 }
 
 export function getSortFieldConfigs(): { field: SecondarySortField; label: string }[] {

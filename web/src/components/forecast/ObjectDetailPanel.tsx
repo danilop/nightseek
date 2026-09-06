@@ -107,7 +107,12 @@ export default function ObjectDetailPanel({
       : visibility.imagingWindow;
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const icon = getCategoryIcon(category, subtype);
-  const frameFillPercent = calculateFrameFillPercent(visibility.angularSizeArcmin, category, fov);
+  const frameFillPercent = calculateFrameFillPercent(
+    visibility.angularSizeArcmin,
+    category,
+    fov,
+    visibility.minorAxisArcmin
+  );
   const mosaic = calculateMosaicPanels(
     visibility.angularSizeArcmin,
     fov,
@@ -324,10 +329,15 @@ export default function ObjectDetailPanel({
                 <Focus className="h-3 w-3" />
                 <span>
                   FOV: {formatFOV(fov.width, fov.height)}
-                  {frameFillPercent !== null && ` · ${frameFillPercent}% fill`}
+                  {frameFillPercent !== null && ` · ${frameFillPercent.toFixed(1)}% frame area`}
                   {mosaic && ` · ${mosaic.cols}\u00d7${mosaic.rows} mosaic`}
                 </span>
               </div>
+              <p className="mt-2 text-gray-500 text-xs">
+                Target area is approximate. Larger subjects earn more size credit up to a full
+                frame, then the bonus levels off. Oversized targets may need a crop or mosaic; small
+                targets can still be worth imaging.
+              </p>
             </div>
 
             {viewMode === 'starfield' && (

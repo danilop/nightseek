@@ -185,14 +185,15 @@ function buildBadgeConfigs(
     const frameFill = calculateFrameFillPercent(
       visibility.angularSizeArcmin,
       visibility.objectType,
-      fov
+      fov,
+      visibility.minorAxisArcmin
     );
     if (frameFill !== null) {
       badges.push({
         id: 'frame-fill',
         bgClass: 'bg-sky-500/20',
         textClass: 'text-sky-400',
-        text: `${frameFill}% fill`,
+        text: `${frameFill.toFixed(1)}% frame area`,
       });
     }
 
@@ -265,7 +266,12 @@ export default function ObjectCard({
     visibility.imagingWindow && targetAccessibility
       ? getBestPhotoReadyWindow([visibility.imagingWindow], targetAccessibility)
       : visibility.imagingWindow;
-  const frameFillPercent = calculateFrameFillPercent(visibility.angularSizeArcmin, category, fov);
+  const frameFillPercent = calculateFrameFillPercent(
+    visibility.angularSizeArcmin,
+    category,
+    fov,
+    visibility.minorAxisArcmin
+  );
 
   const isAltitudeMode = sortMode === 'altitude' && selectedTime;
   const currentAltitude = isAltitudeMode
@@ -342,7 +348,7 @@ export default function ObjectCard({
               {magnitude !== null && <span>mag {formatMagnitude(magnitude)}</span>}
               {subtype && <span className="text-gray-500">• {formatSubtype(subtype)}</span>}
               {frameFillPercent !== null && (
-                <span className="text-sky-400">{frameFillPercent}% fill</span>
+                <span className="text-sky-400">{frameFillPercent.toFixed(1)}% area</span>
               )}
             </div>
             {accessibleImagingWindow && (
@@ -623,7 +629,8 @@ function ScoreDetails({
       {breakdown.fovSuitability < 15 && (
         <div className="flex justify-between">
           <span className="text-sky-400">
-            FOV Fit{frameFillPercent == null ? '' : ` (${frameFillPercent}%)`}
+            Apparent size
+            {frameFillPercent == null ? '' : ` (${frameFillPercent.toFixed(1)}% area)`}
           </span>
           <span className="text-sky-400">{breakdown.fovSuitability}/15</span>
         </div>

@@ -13,6 +13,7 @@ import {
   calculateDewRiskPenalty,
   calculateElongationBonus,
   calculateFOVSuitabilityScore,
+  calculateFrameFillPercent,
   calculateImagingWindowScore,
   calculateMagnitudeScore,
   calculateMeridianBonus,
@@ -93,7 +94,7 @@ describe('scoring', () => {
         null,
         fov
       );
-      expect(score.scoreBreakdown.fovSuitability).toBe(15);
+      expect(score.scoreBreakdown.fovSuitability).toBe(12);
       expect(calculateMosaicPanels(62.09, fov, 36.73)).toBeNull();
     });
   });
@@ -626,44 +627,78 @@ describe('scoring', () => {
     });
   });
 
-  describe('calculateFOVSuitabilityScore', () => {
-    const seestarFOV = { width: 42, height: 42 };
-    const dwarfMiniFOV = { width: 144, height: 72 };
+  describe('apparent-size suitability', () => {
+    const s50 = { width: 43.8, height: 77.4 };
+    const score = (major: number, minor?: number) =>
+      calculateFOVSuitabilityScore(major, 'dso', s50, minor);
 
-    it('should give full score for objects filling the FOV well', () => {
-      // M42 at 90' on Seestar (90/42 = 2.14 fill ratio > 0.10)
-      expect(calculateFOVSuitabilityScore(90, 'dso', seestarFOV)).toBe(15);
+    it('distinguishes a well-framed galaxy from small isolated galaxies', () => {
+      const m33 = score(62.09, 36.73);
+      expect(m33).toBe(12);
+      for (const [major, minor] of [
+        [7.74, 4.86],
+        [11.4, 10.84],
+        [9.27, 3.76],
+        [16.22, 9.59],
+      ]) {
+        expect(score(major, minor)).toBeLessThan(m33);
+      }
     });
 
-    it('should give reduced score for small objects', () => {
-      // M57 Ring Nebula at 1.4' on Dwarf Mini (1.4/72 = 0.019)
-      expect(calculateFOVSuitabilityScore(1.4, 'dso', dwarfMiniFOV)).toBe(4);
+    it('retains the size advantage of a large galaxy while still identifying its mosaic needs', () => {
+      expect(score(177.83, 69.66)).toBe(15);
+      expect(score(177.83, 69.66)).toBeGreaterThan(score(62.09, 36.73));
+      expect(calculateMosaicPanels(177.83, s50, 69.66)).not.toBeNull();
     });
 
-    it('should give 0 for essentially point sources', () => {
-      // Very tiny object (0.5' on 72' FOV = 0.007)
-      expect(calculateFOVSuitabilityScore(0.5, 'dso', dwarfMiniFOV)).toBe(0);
+    it('uses the minor axis to distinguish a narrow galaxy from an extended target', () => {
+      expect(score(15, 1)).toBeLessThan(score(15, 15));
     });
 
-    it('should return neutral score for planets', () => {
-      expect(calculateFOVSuitabilityScore(0.5, 'planet', seestarFOV)).toBe(10);
+    it('is independent of portrait versus landscape frame orientation', () => {
+      expect(calculateFOVSuitabilityScore(62.09, 'dso', { width: 77.4, height: 43.8 }, 36.73)).toBe(
+        score(62.09, 36.73)
+      );
     });
 
-    it('should return neutral score for Moon', () => {
-      expect(calculateFOVSuitabilityScore(30, 'moon', seestarFOV)).toBe(10);
+    it('rewards increasing frame occupancy all the way to full size, then plateaus', () => {
+      const scores = [0.25, 0.5, 0.75, 1, 2, 4].map(scale => score(77.4 * scale, 43.8 * scale));
+      expect(scores[0]).toBeLessThan(scores[1]);
+      expect(scores[1]).toBeLessThan(scores[2]);
+      expect(scores[2]).toBeLessThan(scores[3]);
+      expect(scores.slice(3)).toEqual([15, 15, 15]);
     });
 
-    it('should return neutral score when FOV is null', () => {
-      expect(calculateFOVSuitabilityScore(90, 'dso', null)).toBe(10);
+    it('does not let an oversized long axis hide a very narrow target', () => {
+      expect(score(1000, 1)).toBeLessThan(score(15, 15));
     });
 
-    it('should return neutral score for unknown size (0)', () => {
-      expect(calculateFOVSuitabilityScore(0, 'dso', seestarFOV)).toBe(10);
+    it('adapts small-target framing to the selected telescope', () => {
+      expect(
+        calculateFOVSuitabilityScore(10, 'dso', { width: 20, height: 20 }, 10)
+      ).toBeGreaterThan(calculateFOVSuitabilityScore(10, 'dso', { width: 100, height: 100 }, 10));
     });
 
-    it('should give 12 for medium fill ratio', () => {
-      // M1 Crab at 6' on Dwarf Mini (6/72 = 0.083)
-      expect(calculateFOVSuitabilityScore(6, 'dso', dwarfMiniFOV)).toBe(12);
+    it('retains neutral treatment of unknown geometry and planetary capture', () => {
+      expect(score(0)).toBe(10);
+      expect(score(Number.NaN)).toBe(10);
+      expect(calculateFOVSuitabilityScore(20, 'dso', null)).toBe(10);
+      expect(calculateFOVSuitabilityScore(20, 'dso', { width: 0, height: 20 })).toBe(10);
+      expect(calculateFOVSuitabilityScore(1, 'planet', s50)).toBe(10);
+      expect(calculateFOVSuitabilityScore(30, 'moon', s50)).toBe(10);
+    });
+
+    it('uses a circular estimate when the minor axis is unknown', () => {
+      expect(score(10)).toBe(score(10, 10));
+      expect(score(10, Number.NaN)).toBe(score(10, 10));
+    });
+
+    it('reports ellipse area rather than comparing the major axis to the short frame edge', () => {
+      expect(calculateFrameFillPercent(62.09, 'dso', s50, 36.73)).toBeCloseTo(52.83, 1);
+      expect(calculateFrameFillPercent(7.74, 'dso', s50, 4.86)).toBeCloseTo(0.87, 1);
+      expect(calculateFrameFillPercent(177.83, 'dso', s50, 69.66)).toBeGreaterThan(100);
+      expect(calculateFrameFillPercent(0, 'dso', s50)).toBeNull();
+      expect(calculateFrameFillPercent(30, 'moon', s50)).toBeNull();
     });
   });
 

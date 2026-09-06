@@ -120,6 +120,13 @@ describe('getSecondarySortComparator', () => {
     // Both null → 0
     expect(cmp(a, b)).toBe(0);
   });
+
+  it('sorts frame area using both axes without rounding away small targets', () => {
+    const narrow = makeScoredObject({ visibility: { angularSizeArcmin: 2, minorAxisArcmin: 0.1 } });
+    const round = makeScoredObject({ visibility: { angularSizeArcmin: 1, minorAxisArcmin: 1 } });
+    const cmp = getSecondarySortComparator('frameFill', { width: 120, height: 80 });
+    expect(cmp(round, narrow)).toBeLessThan(0);
+  });
 });
 
 describe('getSortFieldConfigs', () => {
@@ -132,6 +139,6 @@ describe('getSortLabel', () => {
   it('returns correct labels', () => {
     expect(getSortLabel('score')).toBe('Score');
     expect(getSortLabel('magnitude')).toBe('Brightness');
-    expect(getSortLabel('frameFill')).toBe('Frame Fill');
+    expect(getSortLabel('frameFill')).toBe('Frame Area');
   });
 });
