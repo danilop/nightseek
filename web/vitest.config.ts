@@ -37,7 +37,8 @@ export default mergeConfig(
       testTimeout: 10000,
       hookTimeout: 10000,
       pool: 'forks',
-      isolate: false,
+      // Each file must get its own modules and browser globals; cached imports can bypass mocks.
+      isolate: true,
     },
   })
 );
