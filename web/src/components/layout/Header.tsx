@@ -1,6 +1,6 @@
 import { MapPin, RefreshCw, Search, Settings } from 'lucide-react';
 import { useState } from 'react';
-import BortleIndicator from '@/components/forecast/BortleIndicator';
+import SkyBrightnessIndicator from '@/components/forecast/SkyBrightnessIndicator';
 import SettingsModal from '@/components/layout/SettingsModal';
 import ObjectSearchModal from '@/components/search/ObjectSearchModal';
 import NightSeekIcon from '@/components/ui/NightSeekIcon';
@@ -48,7 +48,10 @@ export default function Header() {
                       ))}
                   </span>
                 </div>
-                <BortleIndicator latitude={location.latitude} longitude={location.longitude} />
+                <SkyBrightnessIndicator
+                  latitude={location.latitude}
+                  longitude={location.longitude}
+                />
               </div>
             )}
 
@@ -86,7 +89,7 @@ export default function Header() {
                   {location.name || formatCoordinates(location.latitude, location.longitude)}
                 </span>
               </div>
-              <BortleIndicator latitude={location.latitude} longitude={location.longitude} />
+              <SkyBrightnessIndicator latitude={location.latitude} longitude={location.longitude} />
             </div>
           )}
         </div>

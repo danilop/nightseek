@@ -2,7 +2,6 @@ import { registerSW } from 'virtual:pwa-register';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { preloadLightPollutionGrid } from './lib/lightpollution';
 import { cleanupOldCaches } from './lib/utils/cache';
 import { AppProvider } from './stores/AppContext';
 import './index.css';
@@ -29,9 +28,6 @@ window.addEventListener('vite:preloadError', event => {
 });
 // If we got here the app loaded successfully — reset the guard for next deploy
 sessionStorage.removeItem('vite_chunk_reloaded');
-
-// Preload the light pollution grid (async, non-blocking)
-preloadLightPollutionGrid();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Root element not found');

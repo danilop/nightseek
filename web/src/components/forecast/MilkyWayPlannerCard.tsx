@@ -9,7 +9,8 @@ import {
   type MilkyWayNightPlan,
   type MilkyWaySamplePlan,
 } from '@/lib/astronomy/milky-way-planning';
-import { calculateBortle, getBortleColorClass } from '@/lib/lightpollution/bortle';
+import { isSkyglowFavourable } from '@/lib/lightpollution/sky-brightness';
+import { useSkyBrightness } from '@/lib/lightpollution/useSkyBrightness';
 import { getAltitudeAtTime, getAzimuthAtTime } from '@/lib/utils/altitude-interpolation';
 import {
   azimuthToCardinal,
@@ -21,7 +22,6 @@ import {
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import type { PhotoReadyWindow } from '@/lib/utils/target-photo-windows';
 import type {
-  BortleScore,
   HorizonProfile,
   Location,
   NightForecast,
@@ -142,6 +142,13 @@ function getStatus(plan: MilkyWayNightPlan): {
       className: 'border-orange-500/30 bg-orange-500/15 text-orange-300',
     };
   }
+  if (!plan.skyglowKnown) {
+    return {
+      label: 'Skyglow not checked',
+      detail: 'Position and weather are available, but sky-brightness data is missing.',
+      className: 'border-amber-500/30 bg-amber-500/15 text-amber-300',
+    };
+  }
   if (!plan.skyglowReady) {
     return {
       label: 'Low contrast from skyglow',
@@ -199,8 +206,8 @@ function PositionPoint({
   );
 }
 
-function CitySkyglowWarning({ bortleClass }: { bortleClass: BortleScore['value'] }) {
-  if (bortleClass < 7) return null;
+function CitySkyglowWarning({ skyBrightness }: { skyBrightness: number | null }) {
+  if (skyBrightness === null || isSkyglowFavourable(skyBrightness)) return null;
   return (
     <p className="rounded-lg border border-orange-500/20 bg-orange-500/10 px-3 py-2 text-orange-200 text-xs">
       Strong city skyglow will reduce band contrast even when its position is favourable. A darker
@@ -389,13 +396,13 @@ function PlanningDetails({
   plan,
   forecast,
   bestForecastPlan,
-  bortleClass,
+  skyBrightness,
   timezone,
 }: {
   plan: MilkyWayNightPlan;
   forecast: NightForecast;
   bestForecastPlan: MilkyWayNightPlan | undefined;
-  bortleClass: BortleScore['value'];
+  skyBrightness: number | null;
   timezone?: string;
 }) {
   const bestForecastSample = bestForecastPlan?.bestSample;
@@ -420,13 +427,13 @@ function PlanningDetails({
         />
         <Condition
           icon={<span className="text-xs">🌌</span>}
-          label="Skyglow"
-          value={`Bortle ${bortleClass}`}
-          valueClass={getBortleColorClass(bortleClass)}
+          label="Estimated sky brightness"
+          value={skyBrightness === null ? 'Unavailable' : `${skyBrightness.toFixed(1)} mag/arcsec²`}
+          valueClass="text-sky-300"
         />
       </div>
 
-      <CitySkyglowWarning bortleClass={bortleClass} />
+      <CitySkyglowWarning skyBrightness={skyBrightness} />
       <GalacticCoreSummary plan={plan} timezone={timezone} />
 
       {bestForecastPlan && bestForecastSample?.photoWindow ? (
@@ -476,13 +483,14 @@ export default function MilkyWayPlannerCard({
   const { isCategoryExpanded, toggleCategoryExpanded } = useUIState();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const expanded = isCategoryExpanded(CATEGORY_KEY, defaultExpanded);
-  const bortle = calculateBortle(location.latitude, location.longitude);
+  const { data: sky } = useSkyBrightness(location.latitude, location.longitude);
+  const skyBrightness = sky?.magnitudes ?? null;
   const plans = useMemo(() => {
     const calculator = new SkyCalculator(location.latitude, location.longitude);
     return forecastRange.map(item =>
-      buildMilkyWayNightPlan(item, horizonProfile, calculator, bortle.value)
+      buildMilkyWayNightPlan(item, horizonProfile, calculator, skyBrightness)
     );
-  }, [forecastRange, horizonProfile, location.latitude, location.longitude, bortle.value]);
+  }, [forecastRange, horizonProfile, location.latitude, location.longitude, skyBrightness]);
   const plan =
     plans.find(
       item => item.forecast.nightInfo.date.getTime() === forecast.nightInfo.date.getTime()
@@ -491,7 +499,7 @@ export default function MilkyWayPlannerCard({
       forecast,
       horizonProfile,
       new SkyCalculator(location.latitude, location.longitude),
-      bortle.value
+      skyBrightness
     );
   const best = plan.bestSample;
   const status = getStatus(plan);
@@ -581,7 +589,7 @@ export default function MilkyWayPlannerCard({
           plan={plan}
           forecast={forecast}
           bestForecastPlan={getBestForecastPlan(plans)}
-          bortleClass={bortle.value}
+          skyBrightness={skyBrightness}
           timezone={timezone}
         />
       )}

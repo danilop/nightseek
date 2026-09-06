@@ -643,14 +643,6 @@ export interface AstronomicalEvents {
   auroraForecast: AuroraForecast | null;
 }
 
-// Bortle Scale for Light Pollution
-export interface BortleScore {
-  value: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-  label: string;
-  nakedEyeLimitingMag: number;
-  description: string;
-}
-
 // Satellite Pass Prediction
 export interface TLEData {
   name: string;

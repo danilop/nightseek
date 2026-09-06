@@ -93,6 +93,14 @@ export const LIBRARY_CREDITS: Credit[] = [
 
 export const DATA_CREDITS: Credit[] = [
   {
+    name: 'David Lorenz · Light Pollution Atlas',
+    url: 'https://djlorenz.github.io/astronomy/lp/',
+    contribution:
+      '2025 modeled zenith sky brightness, using NOAA VIIRS nighttime lights processed by the Earth Observation Group at Colorado School of Mines. Regional data is fetched on demand and cached locally.',
+    notice: 'Zenith brightness is not the observational Bortle scale.',
+    noticeUrl: 'https://djlorenz.github.io/astronomy/lp/bortle.html',
+  },
+  {
     name: 'Open-Meteo',
     url: 'https://open-meteo.com/',
     contribution:

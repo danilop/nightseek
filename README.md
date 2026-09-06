@@ -179,3 +179,25 @@ for offline access. `additional-notices.txt` preserves the exact-version notices
 for Astronomy Engine and the separately loaded/bundled D3 sky chart. Update
 those notices when upgrading those libraries. Data credits distinguish original
 sources from NightSeek's derived estimates.
+
+### Sky brightness data
+
+NightSeek fetches one compressed 5° regional tile on demand from [David Lorenz’s
+2025 Light Pollution Atlas](https://djlorenz.github.io/astronomy/lp/). No API key or
+worldwide download is required. A checked European tile was 80 KB; sizes vary by
+region. Resolution is 1/120° (roughly 1 km north–south). The last region is cached
+locally for offline use (360 KB decoded); memory holds at most four regions.
+Only the region identifier is sent to the provider, without credentials or a referrer.
+
+The displayed decimal value is modeled zenith brightness in mag/arcsec², assuming
+natural brightness of 22 mag/arcsec². Higher means darker. This is a moonless atlas
+baseline, not tonight’s measurement and **not a Bortle class**. The atlas combines
+NOAA VIIRS nighttime lights processed by EOG with atmospheric light propagation.
+See the author’s [explanation of the distinction](https://djlorenz.github.io/astronomy/lp/bortle.html).
+No dataset is redistributed with the app. Credits appear in About.
+
+Missing data, failed requests and positions outside 65°S–75°N show unavailable;
+they never receive a latitude-based guess. The Milky Way planner uses 20 mag/arcsec²
+as a pragmatic contrast threshold, not a physical detectability limit or Bortle
+conversion. Without data it retains candidate windows but does not claim skyglow
+has been checked. Data loads independently of the forecast and retries on reconnection.

@@ -106,7 +106,6 @@ export const CACHE_KEYS = {
   WEATHER_PREFIX: 'nightseek:weather:',
   TLE_ISS: 'nightseek:tle:iss',
   GAIA_PREFIX: 'nightseek:gaia:',
-  BORTLE_PREFIX: 'nightseek:bortle:',
   // New API cache keys
   NEOWS_PREFIX: 'nightseek:neows:',
   SBDB_PREFIX: 'nightseek:sbdb:',

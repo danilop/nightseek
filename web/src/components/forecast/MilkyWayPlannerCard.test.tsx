@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetUIState } from '@/hooks/useUIState';
+import { useSkyBrightness } from '@/lib/lightpollution/useSkyBrightness';
 import { createDefaultHorizonProfile } from '@/lib/utils/horizon-profile';
 import {
   createMockMilkyWayPlan,
@@ -12,6 +13,8 @@ import {
 } from '@/test/factories';
 import type { HorizonProfile, Location } from '@/types';
 import MilkyWayPlannerCard from './MilkyWayPlannerCard';
+
+vi.mock('@/lib/lightpollution/useSkyBrightness', () => ({ useSkyBrightness: vi.fn() }));
 
 const location: Location = {
   latitude: 40.7128,
@@ -109,6 +112,10 @@ function renderPlanner(horizonProfile: HorizonProfile, onShowSky = vi.fn()) {
 
 describe('MilkyWayPlannerCard', () => {
   beforeEach(() => {
+    vi.mocked(useSkyBrightness).mockReturnValue({
+      data: { magnitudes: 21, artificialToNaturalRatio: 1.5 },
+      loading: false,
+    });
     resetUIState();
   });
 
@@ -120,6 +127,23 @@ describe('MilkyWayPlannerCard', () => {
     expect(screen.getByText('Cygnus band')).toBeInTheDocument();
     expect(screen.getByText('Best photo window')).toBeInTheDocument();
     expect(screen.queryByText('Galactic Core planner')).not.toBeInTheDocument();
+  });
+
+  it('does not claim missing sky data is photo-ready', () => {
+    vi.mocked(useSkyBrightness).mockReturnValue({ data: null, loading: false });
+    renderPlanner(createDefaultHorizonProfile());
+    expect(screen.getByText('Skyglow not checked')).toBeInTheDocument();
+    expect(screen.queryByText('Best photo window')).not.toBeInTheDocument();
+  });
+
+  it('warns about modeled skyglow even when the geometric window is good', () => {
+    vi.mocked(useSkyBrightness).mockReturnValue({
+      data: { magnitudes: 18, artificialToNaturalRatio: 39 },
+      loading: false,
+    });
+    renderPlanner(createDefaultHorizonProfile());
+    expect(screen.getByText('Low contrast from skyglow')).toBeInTheDocument();
+    expect(screen.queryByText('Best photo window')).not.toBeInTheDocument();
   });
 
   it('keeps conditions and the Galactic Core behind the details toggle', () => {

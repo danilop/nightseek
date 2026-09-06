@@ -1,4 +1,5 @@
 import { calculateImagingWindows } from '@/lib/astronomy/imaging-windows';
+import { isSkyglowFavourable } from '@/lib/lightpollution/sky-brightness';
 import { evaluateTargetAccessibility, type TargetAccessibility } from '@/lib/utils/horizon-profile';
 import { getBestPhotoReadyWindow, type PhotoReadyWindow } from '@/lib/utils/target-photo-windows';
 import type {
@@ -35,6 +36,7 @@ export interface MilkyWayNightPlan {
   isAstronomicallyDark: boolean;
   transparencyReady: boolean;
   skyglowReady: boolean;
+  skyglowKnown: boolean;
 }
 
 function hasAstronomicalDarkness(forecast: NightForecast): boolean {
@@ -103,13 +105,13 @@ export function buildMilkyWayNightPlan(
   forecast: NightForecast,
   horizonProfile: HorizonProfile,
   calculator: SkyCalculator,
-  bortleClass: number
+  skyBrightness: number | null
 ): MilkyWayNightPlan {
   const isAstronomicallyDark = hasAstronomicalDarkness(forecast);
   const transparency = forecast.weather?.transparencyScore;
   const transparencyReady =
     transparency === null || transparency === undefined || transparency >= 30;
-  const skyglowReady = bortleClass < 7;
+  const skyglowReady = isSkyglowFavourable(skyBrightness);
 
   const samples = forecast.milkyWay.sections.flatMap(section =>
     section.samples.map(sample => {
@@ -157,5 +159,6 @@ export function buildMilkyWayNightPlan(
     isAstronomicallyDark,
     transparencyReady,
     skyglowReady,
+    skyglowKnown: skyBrightness !== null,
   };
 }

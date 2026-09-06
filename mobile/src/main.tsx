@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import App from '@/App';
-import { preloadLightPollutionGrid } from '@/lib/lightpollution';
 import { cleanupOldCaches } from '@/lib/utils/cache';
 import { AppProvider } from '@/stores/AppContext';
 import '@/index.css';
@@ -19,8 +18,6 @@ async function initNativePlugins() {
 // Clean up old versioned caches on app startup
 cleanupOldCaches();
 
-// Preload the light pollution grid (async, non-blocking)
-preloadLightPollutionGrid();
 
 // Initialize native plugins (async, non-blocking)
 initNativePlugins();
