@@ -64,7 +64,9 @@ describe('regional sky brightness atlas', () => {
     expect(values[0]?.magnitudes).toBeCloseTo(21.12385251212111, 5);
     expect(values[1]).toEqual(values[0]);
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(fetcher.mock.calls[0][0]).toContain('/2025/binary_tile_37_14.dat.gz');
+    expect(fetcher.mock.calls[0][0]).toBe(
+      'https://raw.githubusercontent.com/djlorenz/djlorenz.github.io/master/astronomy/binary_tiles/2025/binary_tile_37_14.dat.gz'
+    );
     expect(fetcher.mock.calls[0][1]).toMatchObject({
       credentials: 'omit',
       referrerPolicy: 'no-referrer',

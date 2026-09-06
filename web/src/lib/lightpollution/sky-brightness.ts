@@ -71,8 +71,9 @@ async function downloadTile(key: string): Promise<Int8Array> {
   ) {
     return cached.bytes;
   }
+  // Use the author’s original files on the host allowed by both document and CDN CSP.
   const response = await fetch(
-    `https://djlorenz.github.io/astronomy/binary_tiles/${SKY_ATLAS_YEAR}/binary_tile_${key}.dat.gz`,
+    `https://raw.githubusercontent.com/djlorenz/djlorenz.github.io/master/astronomy/binary_tiles/${SKY_ATLAS_YEAR}/binary_tile_${key}.dat.gz`,
     { signal: AbortSignal.timeout(12_000), credentials: 'omit', referrerPolicy: 'no-referrer' }
   );
   if (!response.ok) throw new Error('Sky atlas unavailable');

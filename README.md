@@ -183,7 +183,8 @@ sources from NightSeek's derived estimates.
 ### Sky brightness data
 
 NightSeek fetches one compressed 5° regional tile on demand from [David Lorenz’s
-2025 Light Pollution Atlas](https://djlorenz.github.io/astronomy/lp/). No API key or
+2025 Light Pollution Atlas](https://djlorenz.github.io/astronomy/lp/), using the author’s
+original files on raw.githubusercontent.com (allowed by the production CDN policy). No API key or
 worldwide download is required. A checked European tile was 80 KB; sizes vary by
 region. Resolution is 1/120° (roughly 1 km north–south). The last region is cached
 locally for offline use (360 KB decoded); memory holds at most four regions.
