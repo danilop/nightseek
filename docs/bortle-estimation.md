@@ -66,7 +66,7 @@ Use the full decoded atlas value; round only for display. Clamp at 1 and 9 outsi
 the reference range. Missing, nonfinite or negative inputs produce no estimate.
 
 At exactly 18.1, the calculation is `8 + (18.38-18.1)/(18.38-17.8) = 8.48276`,
-displayed as **Bortle 8.5 est.** A sky value rounded to 18.1 in the header can have
+displayed as **Bortle 8.5** (identified as an estimate in the tooltip) A sky value rounded to 18.1 in the header can have
 a slightly different Bortle result because the conversion uses unrounded data.
 The tooltip shows brightness to two decimals to help explain this.
 

@@ -39,8 +39,8 @@ it('stays bounded and increases monotonically as skies brighten', () => {
 });
 it('keeps precision until display and explains the estimate honestly', () => {
   expect(estimateBortle(18.14)).not.toBe(estimateBortle(18.1));
-  expect(explainBortleEstimate(18.1)).toContain('Estimated Bortle 8.5');
-  expect(explainBortleEstimate(18.1)).toContain('does not mean accuracy to 0.1 class');
+  expect(explainBortleEstimate(18.1)).toContain('Bortle 8.5');
+  expect(explainBortleEstimate(18.1)).toContain('not accuracy to 0.1 class');
   expect(explainBortleEstimate(18.1)).toContain('18.10 mag/arcsec²');
   expect(explainBortleEstimate(NaN)).toBe('No sky-brightness estimate available.');
 });

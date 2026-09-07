@@ -18,7 +18,7 @@ export default function SkyBrightnessIndicator({
       ? 'Sky loading…'
       : 'Sky unavailable';
   const tooltip = data
-    ? `${explainBortleEstimate(data.magnitudes)}\n\nSky-brightness source: David Lorenz ${SKY_ATLAS_YEAR} atlas · roughly 1 km resolution. Moonless baseline; local lights and tonight’s atmosphere can change conditions. Bortle conversion is NightSeek’s interpretation, not an atlas-provided rating.`
+    ? `${explainBortleEstimate(data.magnitudes)}\n\nDavid Lorenz ${SKY_ATLAS_YEAR} atlas · ~1 km · modeled moonless baseline, not tonight’s conditions.`
     : loading
       ? 'Loading regional sky-brightness data.'
       : 'Sky-brightness data is unavailable for this location. No guessed rating is substituted. Connect to the internet to load a new region.';
@@ -31,7 +31,7 @@ export default function SkyBrightnessIndicator({
       >
         <SkyBrightnessIcon />
         <span className="flex flex-col leading-tight sm:flex-row sm:items-center sm:gap-2">
-          {bortle !== null && <span>Bortle {bortle.toFixed(1)} est.</span>}
+          {bortle !== null && <span>Bortle {bortle.toFixed(1)}</span>}
           <span className={bortle === null ? undefined : 'text-sky-200/80'}>{text}</span>
         </span>
       </span>

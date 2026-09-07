@@ -203,7 +203,7 @@ as a pragmatic contrast threshold, not a physical detectability limit or Bortle
 conversion. Without data it retains candidate windows but does not claim skyglow
 has been checked. Data loads independently of the forecast and retries on reconnection.
 
-The header and Milky Way conditions also show **Bortle to one decimal, marked “est.”**
+The header and Milky Way conditions also show **Bortle to one decimal**, with its estimated nature explained in the tooltip
 It is a brightness-derived interpretation using a documented map convention, not an
 observed whole-sky Bortle class. For exactly 18.1 mag/arcsec² it gives 8.5. Decimals
 provide comparison resolution, not accuracy to 0.1 class. The physical brightness

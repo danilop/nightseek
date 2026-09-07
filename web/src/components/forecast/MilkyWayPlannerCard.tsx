@@ -433,7 +433,7 @@ function PlanningDetails({
           value={
             skyBrightness === null || bortleEstimate === null
               ? 'Unavailable'
-              : `Bortle ${bortleEstimate.toFixed(1)} est. · ${skyBrightness.toFixed(1)} mag/arcsec²`
+              : `Bortle ${bortleEstimate.toFixed(1)} · ${skyBrightness.toFixed(1)} mag/arcsec²`
           }
           valueClass="text-sky-300"
         />

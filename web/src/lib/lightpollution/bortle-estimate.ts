@@ -38,5 +38,5 @@ export function estimateBortle(magnitudes: number | null): number | null {
 export function explainBortleEstimate(magnitudes: number): string {
   const value = estimateBortle(magnitudes);
   if (value === null) return 'No sky-brightness estimate available.';
-  return `Estimated Bortle ${value.toFixed(1)} (1 = darkest, 9 = brightest). Calculated from sky brightness using a published map convention, not a visual observation. One decimal helps compare locations; it does not mean accuracy to 0.1 class.\n\nSky brightness: ${magnitudes.toFixed(2)} mag/arcsec² (magnitudes per square arcsecond). Higher means darker; about 22 is a pristine dark sky. Actual Bortle class also depends on horizon glow, transparency and what you can see.`;
+  return `Bortle ${value.toFixed(1)}: 1 darkest → 9 brightest. NightSeek’s estimate from a published brightness mapping, not an observed or atlas-provided class. Decimals aid comparison, not accuracy to 0.1 class.\n\nSky: ${magnitudes.toFixed(2)} mag/arcsec² (magnitudes per square arcsecond). Higher is darker; 22 is near-pristine. Horizon glow, local lights, transparency and visible objects affect actual Bortle class.`;
 }
