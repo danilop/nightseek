@@ -1,14 +1,28 @@
 {
-  "fetchedAt": "2026-09-07T11:41:26.351Z",
-  "startDate": "2026-09-07",
-  "endDate": "2026-09-13",
+  "fetchedAt": "2026-09-08T10:40:18.158Z",
+  "startDate": "2026-09-08",
+  "endDate": "2026-09-14",
   "data": {
     "2026-09-08": [],
-    "2026-09-07": [],
     "2026-09-09": [],
     "2026-09-11": [],
     "2026-09-10": [],
     "2026-09-13": [],
-    "2026-09-12": []
+    "2026-09-12": [],
+    "2026-09-14": [
+      {
+        "name": "2010 FX9",
+        "neoId": "3512704",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.040978398,
+          "max": 0.0916304836
+        },
+        "closeApproachDate": "2026-Sep-14 03:58",
+        "missDistanceLunarDistances": 9.3414104843,
+        "relativeVelocityKmh": 39846.4788555713,
+        "absoluteMagnitude": 24.06
+      }
+    ]
   }
 }
