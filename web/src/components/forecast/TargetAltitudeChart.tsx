@@ -40,6 +40,14 @@ const PLOT_BOTTOM = 176;
 const PLOT_WIDTH = PLOT_RIGHT - PLOT_LEFT;
 const PLOT_HEIGHT = PLOT_BOTTOM - PLOT_TOP;
 
+/**
+ * Blocked sectors and accessible windows sit in a strip under the axis. Drawn
+ * as full-height washes they tinted the twilight bands unevenly, which made the
+ * dark part of the night look short and lopsided.
+ */
+const STATUS_STRIP_Y = PLOT_BOTTOM + 3;
+const STATUS_STRIP_HEIGHT = 4;
+
 const GRID_DEGREES = [0, 15, 30, 45, 60, 75, 90];
 const LABELLED_DEGREES = new Set([0, 30, 60, 90]);
 /** Cardinal labels are only drawn on runs wide enough to hold them. */
@@ -234,11 +242,11 @@ function BlockedSectors({
             key={`blocked-${segment.startMs}`}
             data-testid="blocked-sector"
             x={scales.x(segment.startMs)}
-            y={PLOT_TOP}
+            y={STATUS_STRIP_Y}
             width={scales.x(segment.endMs) - scales.x(segment.startMs)}
-            height={PLOT_HEIGHT}
+            height={STATUS_STRIP_HEIGHT}
             fill={BLOCKED_COLOR}
-            fillOpacity={0.18}
+            fillOpacity={0.85}
           />
         ))}
     </>
@@ -263,11 +271,11 @@ function AccessibleWindows({
             key={`window-${window.start.toISOString()}`}
             data-testid="accessible-window"
             x={startX}
-            y={PLOT_TOP}
+            y={STATUS_STRIP_Y}
             width={endX - startX}
-            height={PLOT_HEIGHT}
+            height={STATUS_STRIP_HEIGHT}
             fill={WINDOW_COLOR}
-            fillOpacity={0.1}
+            fillOpacity={0.85}
           />
         );
       })}
@@ -564,6 +572,14 @@ function ChartLegend({ showMinimum }: { showMinimum: boolean }) {
           {TWILIGHT_PHASES[id].shortLabel}
         </span>
       ))}
+      <span className="flex items-center gap-1">
+        <span className="inline-block h-1 w-3" style={{ backgroundColor: WINDOW_COLOR }} />
+        Accessible
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="inline-block h-1 w-3" style={{ backgroundColor: BLOCKED_COLOR }} />
+        Blocked
+      </span>
       <span className="flex items-center gap-1">
         <span className="inline-block h-0.5 w-3" style={{ backgroundColor: THRESHOLD_COLOR }} />
         Obstructions
