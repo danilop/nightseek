@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import TargetAltitudeChart from '@/components/forecast/TargetAltitudeChart';
 import {
   createDefaultHorizonProfile,
@@ -147,6 +147,22 @@ describe('TargetAltitudeChart', () => {
     expect(container.querySelectorAll('[data-testid="accessible-window"]').length).toBeGreaterThan(
       0
     );
+  });
+
+  it('lists the now marker in the legend only while it is on the chart', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2025-01-15T22:00:00Z'));
+      const { unmount } = renderChart();
+      expect(screen.getByText('Now')).toBeInTheDocument();
+      unmount();
+
+      vi.setSystemTime(new Date('2025-01-14T22:00:00Z'));
+      renderChart();
+      expect(screen.queryByText('Now')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('draws the whole-sky minimum as a dotted line only when one is set', () => {

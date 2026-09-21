@@ -560,7 +560,7 @@ function ChartCanvas({
   );
 }
 
-function ChartLegend({ showMinimum }: { showMinimum: boolean }) {
+function ChartLegend({ showMinimum, showNow }: { showMinimum: boolean; showNow: boolean }) {
   return (
     <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
       {TWILIGHT_GUIDE_ORDER.map(id => (
@@ -593,6 +593,17 @@ function ChartLegend({ showMinimum }: { showMinimum: boolean }) {
             }}
           />
           Minimum
+        </span>
+      )}
+      {showNow && (
+        <span className="flex items-center gap-1">
+          <span
+            className="inline-block h-3 w-0.5"
+            style={{
+              backgroundImage: `repeating-linear-gradient(to bottom, ${MARKER_COLOR} 0 3px, transparent 3px 5px)`,
+            }}
+          />
+          Now
         </span>
       )}
     </div>
@@ -729,7 +740,7 @@ export default function TargetAltitudeChart({
             : 'Drag across the chart to read altitude and direction at any moment.')}
       </p>
 
-      <ChartLegend showMinimum={horizonProfile.minimumAltitude > 0} />
+      <ChartLegend showMinimum={horizonProfile.minimumAltitude > 0} showNow={model.nowX !== null} />
     </section>
   );
 }
