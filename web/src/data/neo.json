@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-10-03T11:10:34.395Z",
-  "startDate": "2026-10-03",
-  "endDate": "2026-10-09",
+  "fetchedAt": "2026-10-04T11:50:17.355Z",
+  "startDate": "2026-10-04",
+  "endDate": "2026-10-10",
   "data": {
     "2026-10-08": [
       {
@@ -22,7 +22,21 @@
     "2026-10-06": [],
     "2026-10-05": [],
     "2026-10-09": [],
-    "2026-10-04": [],
-    "2026-10-03": []
+    "2026-10-10": [
+      {
+        "name": "2019 SD8",
+        "neoId": "3872632",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0088014652,
+          "max": 0.0196806745
+        },
+        "closeApproachDate": "2026-Oct-10 04:18",
+        "missDistanceLunarDistances": 18.6251240607,
+        "relativeVelocityKmh": 34285.4002233621,
+        "absoluteMagnitude": 27.4
+      }
+    ],
+    "2026-10-04": []
   }
 }
