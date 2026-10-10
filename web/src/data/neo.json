@@ -1,9 +1,23 @@
 {
-  "fetchedAt": "2026-10-09T12:38:55.667Z",
-  "startDate": "2026-10-09",
-  "endDate": "2026-10-15",
+  "fetchedAt": "2026-10-10T11:58:50.114Z",
+  "startDate": "2026-10-10",
+  "endDate": "2026-10-16",
   "data": {
-    "2026-10-09": [],
+    "2026-10-16": [
+      {
+        "name": "2000 SZ162",
+        "neoId": "3054338",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0092162655,
+          "max": 0.0206081961
+        },
+        "closeApproachDate": "2026-Oct-16 03:23",
+        "missDistanceLunarDistances": 19.8195657156,
+        "relativeVelocityKmh": 20485.7191436227,
+        "absoluteMagnitude": 27.3
+      }
+    ],
     "2026-10-11": [],
     "2026-10-10": [
       {
