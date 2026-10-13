@@ -1,10 +1,10 @@
 {
-  "fetchedAt": "2026-10-12T14:32:49.487Z",
+  "fetchedAt": "2026-10-13T13:38:59.826Z",
   "hashes": {
-    "neo.json": "0ad7d22a23ce",
-    "comets.json": "3f083d7904b4",
+    "neo.json": "7b8a82e59abf",
+    "comets.json": "f0581255cde4",
     "asteroids.json": "472d75092f66",
-    "ephemeris.json": "5ae5417284d6"
+    "ephemeris.json": "20a818447257"
   },
   "errors": [
     "donki: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
