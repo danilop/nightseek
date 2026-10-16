@@ -1,12 +1,12 @@
 {
-  "fetchedAt": "2026-10-15T10:55:30.505Z",
+  "fetchedAt": "2026-10-16T10:47:48.936Z",
   "hashes": {
-    "neo.json": "e50e68dc4da0",
-    "comets.json": "b7e06c3a0515",
+    "neo.json": "bf9a192c299e",
+    "comets.json": "7f36fd75a031",
     "asteroids.json": "472d75092f66",
-    "ephemeris.json": "6c6378490505"
+    "ephemeris.json": "60827604de5c"
   },
   "errors": [
-    "donki: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
+    "donki: DONKI API failed: GST 503, FLR 503"
   ]
 }

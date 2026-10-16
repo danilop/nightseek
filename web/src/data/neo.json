@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-10-15T10:55:20.484Z",
-  "startDate": "2026-10-15",
-  "endDate": "2026-10-21",
+  "fetchedAt": "2026-10-16T10:47:39.282Z",
+  "startDate": "2026-10-16",
+  "endDate": "2026-10-22",
   "data": {
     "2026-10-19": [],
     "2026-10-18": [],
@@ -21,8 +21,22 @@
         "absoluteMagnitude": 27.3
       }
     ],
+    "2026-10-22": [
+      {
+        "name": "2017 UX7",
+        "neoId": "3788085",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0201629919,
+          "max": 0.0450858206
+        },
+        "closeApproachDate": "2026-Oct-22 17:08",
+        "missDistanceLunarDistances": 16.9036276284,
+        "relativeVelocityKmh": 37186.4314610608,
+        "absoluteMagnitude": 25.6
+      }
+    ],
     "2026-10-21": [],
-    "2026-10-20": [],
-    "2026-10-15": []
+    "2026-10-20": []
   }
 }
