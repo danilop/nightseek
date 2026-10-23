@@ -1,8 +1,9 @@
 {
-  "fetchedAt": "2026-10-22T11:13:33.929Z",
-  "startDate": "2026-10-22",
-  "endDate": "2026-10-28",
+  "fetchedAt": "2026-10-23T11:05:08.376Z",
+  "startDate": "2026-10-23",
+  "endDate": "2026-10-29",
   "data": {
+    "2026-10-29": [],
     "2026-10-28": [
       {
         "name": "2018 GS1",
@@ -19,21 +20,6 @@
       }
     ],
     "2026-10-27": [],
-    "2026-10-22": [
-      {
-        "name": "2017 UX7",
-        "neoId": "3788085",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0201629919,
-          "max": 0.0450858206
-        },
-        "closeApproachDate": "2026-Oct-22 17:08",
-        "missDistanceLunarDistances": 16.9036276284,
-        "relativeVelocityKmh": 37186.4314610608,
-        "absoluteMagnitude": 25.6
-      }
-    ],
     "2026-10-26": [],
     "2026-10-25": [],
     "2026-10-24": [],
