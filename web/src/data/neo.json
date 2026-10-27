@@ -1,7 +1,7 @@
 {
-  "fetchedAt": "2026-10-26T12:19:54.318Z",
-  "startDate": "2026-10-26",
-  "endDate": "2026-11-01",
+  "fetchedAt": "2026-10-27T11:39:49.193Z",
+  "startDate": "2026-10-27",
+  "endDate": "2026-11-02",
   "data": {
     "2026-10-29": [],
     "2026-10-28": [
@@ -23,6 +23,20 @@
     "2026-11-01": [],
     "2026-10-31": [],
     "2026-10-30": [],
-    "2026-10-26": []
+    "2026-11-02": [
+      {
+        "name": "524522 Zoozve (2002 VE68)",
+        "neoId": "2524522",
+        "isPotentiallyHazardous": true,
+        "estimatedDiameterKm": {
+          "min": 0.2072788434,
+          "max": 0.4634895841
+        },
+        "closeApproachDate": "2026-Nov-02 19:10",
+        "missDistanceLunarDistances": 15.6498710979,
+        "relativeVelocityKmh": 31382.3288508219,
+        "absoluteMagnitude": 20.54
+      }
+    ]
   }
 }
