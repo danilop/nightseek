@@ -1,12 +1,39 @@
 {
-  "fetchedAt": "2026-10-29T12:21:55.175Z",
-  "startDate": "2026-10-29",
-  "endDate": "2026-11-04",
+  "fetchedAt": "2026-10-30T12:12:37.879Z",
+  "startDate": "2026-10-30",
+  "endDate": "2026-11-05",
   "data": {
-    "2026-10-29": [],
     "2026-11-01": [],
     "2026-10-31": [],
     "2026-10-30": [],
+    "2026-11-05": [
+      {
+        "name": "2017 WJ2",
+        "neoId": "3789540",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0880146521,
+          "max": 0.1968067451
+        },
+        "closeApproachDate": "2026-Nov-05 04:22",
+        "missDistanceLunarDistances": 15.5597434545,
+        "relativeVelocityKmh": 42402.838899704,
+        "absoluteMagnitude": 22.4
+      },
+      {
+        "name": "2016 VZ1",
+        "neoId": "3763339",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0160160338,
+          "max": 0.0358129403
+        },
+        "closeApproachDate": "2026-Nov-05 19:58",
+        "missDistanceLunarDistances": 19.9107766462,
+        "relativeVelocityKmh": 48536.6580616846,
+        "absoluteMagnitude": 26.1
+      }
+    ],
     "2026-11-04": [],
     "2026-11-03": [],
     "2026-11-02": [
