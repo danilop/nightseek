@@ -6,7 +6,8 @@ export async function publicData<T>(
   key: string,
   ttl: number,
   url: string,
-  parse: (raw: unknown) => T
+  parse: (raw: unknown) => T,
+  options: { parseNoContent?: () => T } = {}
 ): Promise<T | null> {
   const fullKey = `nightseek:public:v1:${key}`;
   const cached = await getCached<T>(fullKey, ttl);
@@ -17,7 +18,10 @@ export async function publicData<T>(
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
       if (!response.ok) return null;
-      const result = parse(await response.json());
+      const result =
+        response.status === 204 && options.parseNoContent
+          ? options.parseNoContent()
+          : parse(await response.json());
       await setCache(fullKey, result);
       return result;
     } catch {

@@ -56,6 +56,8 @@ export function fetchSkybot(
     `skybot:${params}`,
     24 * 3_600_000,
     `https://ssp.imcce.fr/webservices/skybot/api/conesearch.php?${params}`,
-    parseSkybot
+    parseSkybot,
+    // SkyBoT documents HTTP 204 as a successful search with no matching objects.
+    { parseNoContent: () => [] }
   );
 }
