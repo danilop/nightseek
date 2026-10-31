@@ -100,11 +100,11 @@ const CACHE_VERSION = 4;
 export const CACHE_KEYS = {
   LOCATION: 'nightseek:location', // User data - no version needed
   SETTINGS: 'nightseek:settings', // User data - no version needed
-  FORECAST: 'nightseek:forecast:v3',
+  FORECAST: 'nightseek:forecast:v4',
   OPENGC: `nightseek:opengc:v${CACHE_VERSION}`, // Versioned - depends on common-names.ts
   COMETS: `nightseek:comets:v${CACHE_VERSION}`, // Versioned - catalog data
   WEATHER_PREFIX: 'nightseek:weather:',
-  TLE_ISS: 'nightseek:tle:iss',
+  TLE_ISS: 'nightseek:tle:iss:v2',
   GAIA_PREFIX: 'nightseek:gaia:',
   // New API cache keys
   NEOWS_PREFIX: 'nightseek:neows:',
@@ -113,13 +113,13 @@ export const CACHE_KEYS = {
   GAIA_ENHANCED_PREFIX: 'nightseek:gaia:enhanced:',
   DONKI: 'nightseek:donki',
   // NOAA SWPC real-time space weather
-  SWPC_KP: 'nightseek:swpc:kp',
-  SWPC_FLARE_PROB: 'nightseek:swpc:flare-prob',
-  SWPC_SUNSPOTS: 'nightseek:swpc:sunspots',
-  SWPC_FLUX: 'nightseek:swpc:flux',
-  SWPC_COMBINED: 'nightseek:swpc:combined',
+  SWPC_KP: 'nightseek:swpc:kp:v2',
+  SWPC_FLARE_PROB: 'nightseek:swpc:flare-prob:v2',
+  SWPC_SUNSPOTS: 'nightseek:swpc:sunspots:v2',
+  SWPC_FLUX: 'nightseek:swpc:flux:v2',
+  SWPC_COMBINED: 'nightseek:swpc:combined:v2',
   // Extended satellites (CelesTrak)
-  TLE_BRIGHT: 'nightseek:tle:bright',
+  TLE_BRIGHT: 'nightseek:tle:bright:v2',
   HORIZON_PREFIX: 'nightseek:horizon:',
   // Open-Meteo historical weather
   HISTORICAL_WEATHER_PREFIX: 'nightseek:hist-weather:v2:',

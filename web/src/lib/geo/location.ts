@@ -1,3 +1,4 @@
+import { numeric, publicData, record } from '@/lib/api/public-data';
 import type { Location } from '@/types';
 
 /**
@@ -94,65 +95,54 @@ export function detectLocationByBrowser(): Promise<Location | null> {
  * Geocode an address to coordinates
  */
 export async function geocodeAddress(address: string): Promise<Location | null> {
-  try {
-    const params = new URLSearchParams({
-      q: address,
-      format: 'json',
-      limit: '1',
-    });
-
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-      headers: {
-        'User-Agent': 'NightSeek-PWA/1.0.0',
-      },
-    });
-
-    const results = await response.json();
-    if (results.length === 0) return null;
-
-    return {
-      latitude: parseFloat(results[0].lat),
-      longitude: parseFloat(results[0].lon),
-      name: results[0].display_name,
-    };
-  } catch {
-    return null;
-  }
+  const query = address.trim();
+  if (query.length < 2) return null;
+  const params = new URLSearchParams({ name: query, count: '1', language: 'en', format: 'json' });
+  return publicData(
+    `geocode:${query.toLowerCase()}`,
+    30 * 86_400_000,
+    `https://geocoding-api.open-meteo.com/v1/search?${params}`,
+    raw => {
+      const results = record(raw).results;
+      if (!Array.isArray(results) || !results.length) throw new Error('No matching place');
+      const place = record(results[0]);
+      const latitude = numeric(place.latitude);
+      const longitude = numeric(place.longitude);
+      if (latitude === null || longitude === null || !validateCoordinates(latitude, longitude))
+        throw new Error('Invalid coordinates');
+      return {
+        latitude,
+        longitude,
+        name: [place.name, place.admin1, place.country].filter(Boolean).join(', '),
+        timezone: typeof place.timezone === 'string' ? place.timezone : undefined,
+      };
+    }
+  );
 }
 
 /**
  * Reverse geocode coordinates to a place name
  */
 export async function reverseGeocode(latitude: number, longitude: number): Promise<string | null> {
-  try {
-    const params = new URLSearchParams({
-      lat: latitude.toString(),
-      lon: longitude.toString(),
-      format: 'json',
-    });
-
-    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
-      headers: {
-        'User-Agent': 'NightSeek-PWA/1.0.0',
-      },
-    });
-
-    const result = await response.json();
-    if (result.error) return null;
-
-    // Extract city/town name
-    const address = result.address;
-    const name = address.city || address.town || address.village || address.county;
-    const country = address.country;
-
-    if (name && country) {
-      return `${name}, ${country}`;
+  if (!validateCoordinates(latitude, longitude)) return null;
+  const lat = latitude.toFixed(3);
+  const lon = longitude.toFixed(3);
+  const params = new URLSearchParams({ lat, lon, format: 'json' });
+  return publicData(
+    `reverse:${lat}:${lon}`,
+    30 * 86_400_000,
+    `https://nominatim.openstreetmap.org/reverse?${params}`,
+    raw => {
+      const result = record(raw);
+      if (result.error) throw new Error('Place unavailable');
+      const address = record(result.address);
+      const name = address.city || address.town || address.village || address.county;
+      if (name && address.country) return `${name}, ${address.country}`;
+      if (typeof result.display_name === 'string')
+        return result.display_name.split(',').slice(0, 2).join(',');
+      throw new Error('Place name unavailable');
     }
-
-    return result.display_name?.split(',').slice(0, 2).join(',') || null;
-  } catch {
-    return null;
-  }
+  );
 }
 
 /**

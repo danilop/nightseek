@@ -93,6 +93,23 @@ export const LIBRARY_CREDITS: Credit[] = [
 
 export const DATA_CREDITS: Credit[] = [
   {
+    name: 'MET Norway',
+    url: 'https://api.met.no/',
+    contribution: 'Optional independent cloud comparison and forecast issue time.',
+    notice: 'CC BY 4.0',
+  },
+  {
+    name: 'NASA/IPAC NED',
+    url: 'https://ned.ipac.caltech.edu/',
+    contribution:
+      'Galaxy reference metadata and redshift-independent distance summaries. Operated by Caltech and funded by NASA.',
+  },
+  {
+    name: 'IMCCE SkyBoT',
+    url: 'https://ssp.imcce.fr/webservices/skybot/',
+    contribution: 'On-demand known solar-system objects near a planned camera field.',
+  },
+  {
     name: 'LightPollutionMap.app · decimal Bortle convention',
     url: 'https://lightpollutionmap.app/',
     contribution:
@@ -111,7 +128,7 @@ export const DATA_CREDITS: Credit[] = [
     url: 'https://open-meteo.com/',
     contribution:
       'Weather, air quality and historical cloud data, with thanks to the contributing weather services. NightSeek aggregates these into observing windows and estimates.',
-    notice: 'CC BY 4.0 · provider attribution',
+    notice: 'CC BY 4.0; UK Met Office datasets CC BY-SA 4.0 · provider attribution',
     noticeUrl: 'https://open-meteo.com/en/licence',
   },
   {

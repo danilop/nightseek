@@ -189,7 +189,13 @@ export default function ForecastView({
           {activeTab === 'sky' && (
             <SkyTab nightInfo={selectedNight.nightInfo} location={location} focus={skyFocus} />
           )}
-          {activeTab === 'events' && <EventsTab forecast={selectedNight} location={location} />}
+          {activeTab === 'events' && (
+            <EventsTab
+              forecast={selectedNight}
+              location={location}
+              horizonProfile={horizon.horizonProfile}
+            />
+          )}
         </Suspense>
       </div>
 

@@ -1,5 +1,7 @@
 import * as Astronomy from 'astronomy-engine';
-import type { GalileanMoonEvent, GalileanMoonPosition, NightInfo } from '@/types';
+import { getMinVisibleAltitudeForAzimuth } from '@/lib/utils/horizon-profile';
+import type { GalileanMoonEvent, GalileanMoonPosition, HorizonProfile, NightInfo } from '@/types';
+import { SkyCalculator } from './calculator';
 import { AU_TO_KM } from './constants';
 
 type MoonName = 'Io' | 'Europa' | 'Ganymede' | 'Callisto';
@@ -282,4 +284,25 @@ export function describeGalileanMoonEvent(event: GalileanMoonEvent): string {
     default:
       return `${event.moon} event`;
   }
+}
+
+/** Annotate global phenomena with the observer's actual horizon at event time. */
+export function localGalileanEvents(
+  events: GalileanMoonEvent[],
+  latitude: number,
+  longitude: number,
+  horizon?: HorizonProfile
+) {
+  const calculator = new SkyCalculator(latitude, longitude);
+  return events.map(event => {
+    const pos = calculator.getBodyPositionJ2000(Astronomy.Body.Jupiter, event.time);
+    const altAz = calculator.getAltAz(pos.ra, pos.dec, event.time);
+    return {
+      ...event,
+      ...altAz,
+      observable:
+        altAz.altitude >=
+        Math.max(0, horizon ? getMinVisibleAltitudeForAzimuth(horizon, altAz.azimuth) : 0),
+    };
+  });
 }

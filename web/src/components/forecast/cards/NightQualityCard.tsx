@@ -1,7 +1,9 @@
+import { Body } from 'astronomy-engine';
 import { Clock, Info } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Tooltip from '@/components/ui/Tooltip';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
+import { SkyCalculator } from '@/lib/astronomy/calculator';
 import {
   fractionToTime,
   getTwilightBoundaries,
@@ -11,9 +13,9 @@ import {
   TWILIGHT_GUIDE_ORDER,
   TWILIGHT_PHASES,
 } from '@/lib/astronomy/twilight';
-import { formatTime, formatTimeRange, getNightLabel } from '@/lib/utils/format';
+import { clockChangeMinutes, formatTime, formatTimeRange, getNightLabel } from '@/lib/utils/format';
 import { calculateHeadlineNightQuality, calculateNightQuality } from '@/lib/weather/night-quality';
-import type { NightForecast, NightInfo } from '@/types';
+import type { Location, NightForecast, NightInfo } from '@/types';
 
 function formatDarkHours(dusk: Date, dawn: Date): string {
   const hours = (dawn.getTime() - dusk.getTime()) / 3_600_000;
@@ -37,10 +39,12 @@ function sliderToTime(pct: number, sunset: Date, sunrise: Date): Date {
 function NightTimelineScrubber({
   nightInfo,
   isTonight,
+  location,
   timezone,
 }: {
   nightInfo: NightInfo;
   isTonight: boolean;
+  location: Location;
   timezone?: string;
 }) {
   const now = useCurrentTime();
@@ -119,10 +123,17 @@ function NightTimelineScrubber({
     [pointerPct, nightInfo.sunset, nightInfo.sunrise]
   );
 
-  const { phase, sunAltitudeLabel } = useMemo(
+  const { phase } = useMemo(
     () => getTwilightPhaseAtFraction(pointerPct / 100, boundaries),
     [pointerPct, boundaries]
   );
+
+  const sunAltitudeLabel = useMemo(() => {
+    const calculator = new SkyCalculator(location.latitude, location.longitude);
+    const sun = calculator.getBodyPositionJ2000(Body.Sun, currentTime);
+    const altitude = calculator.getAltAz(sun.ra, sun.dec, currentTime).altitude;
+    return `${Math.round(Math.abs(altitude))}° ${altitude < 0 ? 'below' : 'above'} horizon`;
+  }, [location.latitude, location.longitude, currentTime]);
 
   const gradient = useMemo(() => getTwilightGradientCss(boundaries), [boundaries]);
 
@@ -153,12 +164,13 @@ function NightTimelineScrubber({
           onChange={handleSliderChange}
           className="absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent opacity-0"
           aria-label="Night timeline scrubber"
+          aria-valuetext={`${formatTime(currentTime, timezone)} · ${phase.label}`}
         />
       </div>
 
       {/* Phase info line */}
       <div className="mt-2 flex items-center justify-between text-xs">
-        <div className={`flex items-center gap-1.5 ${phase.textClass}`}>
+        <div className={`flex flex-wrap items-center gap-1.5 ${phase.textClass}`}>
           <span className="inline-block h-2 w-2 rounded-full bg-current" />
           <span className="text-gray-300">{formatTime(currentTime, timezone)}</span>
           <span className="text-gray-600">·</span>
@@ -202,6 +214,7 @@ function NightTimelineScrubber({
 
 interface NightQualityCardProps {
   forecast: NightForecast;
+  location: Location;
   timezone?: string;
 }
 
@@ -218,8 +231,13 @@ function formatAstronomicalBoundary(nightInfo: NightInfo, time: Date, timezone?:
   return nightInfo.astronomicalNightMode === 'continuous' ? '24h dark' : formatTime(time, timezone);
 }
 
-export default function NightQualityCard({ forecast, timezone }: NightQualityCardProps) {
+export default function NightQualityCard({
+  forecast,
+  location,
+  timezone = location.timezone,
+}: NightQualityCardProps) {
   const { nightInfo, weather } = forecast;
+  const clockShift = clockChangeMinutes(nightInfo.sunset, nightInfo.sunrise, timezone);
 
   const headlineQuality = useMemo(
     () => calculateHeadlineNightQuality(weather, nightInfo),
@@ -260,7 +278,7 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
             <Tooltip content="The headline rating is scored from this best practical observing window, not the whole-night average.">
               <span>
                 Best window:{' '}
-                <span className="whitespace-nowrap">
+                <span>
                   {formatTimeRange(weather.bestTime.start, weather.bestTime.end, timezone)}
                 </span>
               </span>
@@ -279,6 +297,14 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
             {nightlyAverageQuality.rating.starString} {nightlyAverageQuality.rating.label}
           </span>
         </p>
+
+        {clockShift !== 0 && (
+          <p className="text-amber-300 text-xs">
+            Clocks move {clockShift > 0 ? 'forward' : 'back'} {Math.abs(clockShift) / 60}{' '}
+            {Math.abs(clockShift) === 60 ? 'hour' : 'hours'} during this night. Local clock labels{' '}
+            {clockShift > 0 ? 'jump ahead' : 'repeat'}; durations use actual elapsed time.
+          </p>
+        )}
 
         {/* Night timeline */}
         {nightInfo.astronomicalNightMode === 'none' ? (
@@ -355,6 +381,7 @@ export default function NightQualityCard({ forecast, timezone }: NightQualityCar
             {/* Interactive timeline scrubber */}
             <NightTimelineScrubber
               nightInfo={nightInfo}
+              location={location}
               isTonight={isTonight}
               timezone={timezone}
             />

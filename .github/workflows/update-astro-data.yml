@@ -32,6 +32,13 @@ jobs:
           NASA_API_KEY: ${{ secrets.NASA_API_KEY }}
         run: node scripts/fetch-astro-data.mjs
 
+      - name: Refresh free NED galaxy reference (weekly cache)
+        run: python3 scripts/fetch-ned.py
+
+      - name: Check public source contracts and freshness
+        continue-on-error: true
+        run: node scripts/check-data-sources.mjs
+
       - name: Commit and push if changed
         id: push
         run: |

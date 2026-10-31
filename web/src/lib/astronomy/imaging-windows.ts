@@ -1,3 +1,4 @@
+import { observingBlockers } from '@/lib/weather/observing-conditions';
 import type {
   HourlyWeather,
   ImagingWindow,
@@ -181,7 +182,7 @@ function calculateQualityAtTime(
     weather !== null &&
     ((weather.hourlyData.size > 0 && !hourlyWeather) ||
       cloudCover >= 70 ||
-      (hourlyWeather?.precipitation ?? 0) >= 0.1);
+      (hourlyWeather !== null && observingBlockers(hourlyWeather).length > 0));
 
   return {
     score: weatherBlocksImaging ? 0 : Math.round(score),

@@ -238,10 +238,11 @@ export async function fetchNeoCloseApproachesRange(
 
   for (let offset = 0; offset < queryDays; offset += MAX_DAYS_PER_REQUEST) {
     const batchStart = new Date(queryStart);
-    batchStart.setDate(batchStart.getDate() + offset);
+    // NASA date buckets and cache keys use UTC, regardless of device DST.
+    batchStart.setUTCDate(batchStart.getUTCDate() + offset);
     const batchDays = Math.min(MAX_DAYS_PER_REQUEST, queryDays - offset);
     const batchEnd = new Date(batchStart);
-    batchEnd.setDate(batchEnd.getDate() + batchDays - 1);
+    batchEnd.setUTCDate(batchEnd.getUTCDate() + batchDays - 1);
 
     const batchStartStr = formatDateForApi(batchStart);
     const cacheKey = `${CACHE_KEYS.NEOWS_PREFIX}${batchStartStr}_${batchDays}d`;
@@ -266,7 +267,7 @@ export async function fetchNeoCloseApproachesRange(
     const batchResults: Record<string, NeoCloseApproach[]> = {};
     for (let d = 0; d < batchDays; d++) {
       const dayDate = new Date(batchStart);
-      dayDate.setDate(dayDate.getDate() + d);
+      dayDate.setUTCDate(dayDate.getUTCDate() + d);
       const approaches = transformNeoData(data, dayDate);
       const dayStr = formatDateForApi(dayDate);
       batchResults[dayStr] = approaches;

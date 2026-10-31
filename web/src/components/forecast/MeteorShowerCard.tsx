@@ -124,7 +124,7 @@ function ShowerDetails({ shower, nightDate, timezone }: ShowerDetailsProps) {
           <span className={getAltitudeTextColor(shower.radiantAltitude ?? -1)}>
             {shower.radiantAltitude === null
               ? 'Below horizon'
-              : `${shower.radiantAltitude.toFixed(0)}° at midnight`}
+              : `${shower.radiantAltitude.toFixed(0)}° at dark-window midpoint`}
           </span>
         </div>
       </div>
@@ -210,7 +210,7 @@ function PeakIndicator({ daysFromPeak }: PeakIndicatorProps) {
     );
   }
 
-  if (daysFromPeak < 0) {
+  if (daysFromPeak > 0) {
     return <span className="text-amber-400 text-xs">{absDays.toFixed(0)}d past peak</span>;
   }
 
@@ -247,7 +247,7 @@ function PeakProgressBar({ daysFromPeak }: PeakProgressBarProps) {
   if (daysFromPeak === null) return null;
 
   // Calculate progress (0 = 10 days before, 100 = peak, 200 = 10 days after)
-  const progress = Math.max(0, Math.min(100, 50 + (daysFromPeak / 10) * -50));
+  const progress = Math.max(0, Math.min(100, 50 + (daysFromPeak / 10) * 50));
   const isPastPeak = daysFromPeak > 0;
 
   return (

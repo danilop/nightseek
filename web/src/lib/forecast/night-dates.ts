@@ -12,7 +12,13 @@ export function nightDateAtOffset(date: Date, timezone: string, offset: number):
 export function firstNightDate(now: Date, timezone: string, calculator: SkyCalculator): Date {
   const previous = nightDateAtOffset(now, timezone, -1);
   const previousNight = calculator.getNightInfo(previous);
-  if (previousNight.sunriseOccurs && now >= previousNight.sunset && now < previousNight.sunrise)
-    return previous;
+  // Polar winter can have a valid twilight-bounded session without any sunrise.
+  const start = previousNight.sunsetOccurs
+    ? previousNight.sunset
+    : previousNight.observingWindowStart;
+  const end = previousNight.sunriseOccurs
+    ? previousNight.sunrise
+    : previousNight.observingWindowEnd;
+  if (now >= start && now < end) return previous;
   return nightDateAtOffset(now, timezone, 0);
 }

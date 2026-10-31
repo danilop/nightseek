@@ -4,57 +4,72 @@ import type { TLEData } from '@/types';
 const ISS_NORAD_ID = 25544;
 const CELESTRAK_BASE = 'https://celestrak.org/NORAD/elements/gp.php';
 
-/* v8 ignore start */
-/**
- * Fetch ISS TLE data from Celestrak
- * Uses 24-hour cache to minimize API calls
- */
-export async function fetchISSTLE(): Promise<TLEData | null> {
-  // Check cache first
-  const cached = await getCached<TLEData>(CACHE_KEYS.TLE_ISS, CACHE_TTLS.TLE);
-  if (cached) {
-    return cached;
-  }
-
+/** Fetch modern OMM JSON; NORAD IDs are not limited to five digits. */
+async function fetchElements(query: string, key: string): Promise<TLEData[]> {
+  const cached = await getCached<TLEData[]>(key, CACHE_TTLS.TLE);
+  if (cached) return cached;
   try {
-    const response = await fetch(`${CELESTRAK_BASE}?CATNR=${ISS_NORAD_ID}&FORMAT=TLE`, {
-      signal: AbortSignal.timeout(10000),
+    const response = await fetch(`${CELESTRAK_BASE}?${query}&FORMAT=JSON`, {
+      signal: AbortSignal.timeout(15000),
     });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const text = await response.text();
-    const lines = text.trim().split('\n');
-
-    if (lines.length < 3) {
-      return null;
-    }
-
-    // Parse TLE format: name, line1, line2
-    const tleData: TLEData = {
-      name: lines[0].trim(),
-      line1: lines[1].trim(),
-      line2: lines[2].trim(),
-      noradId: ISS_NORAD_ID,
-    };
-
-    // Validate TLE lines
-    if (!tleData.line1.startsWith('1 ') || !tleData.line2.startsWith('2 ')) {
-      return null;
-    }
-
-    // Cache the result
-    await setCache(CACHE_KEYS.TLE_ISS, tleData);
-
-    return tleData;
+    if (!response.ok) return [];
+    const elements = parseOMM(await response.json());
+    if (elements.length) await setCache(key, elements);
+    return elements;
   } catch {
-    return null;
+    return [];
   }
 }
 
-/* v8 ignore stop */
+export async function fetchISSTLE(): Promise<TLEData | null> {
+  return (await fetchElements(`CATNR=${ISS_NORAD_ID}`, CACHE_KEYS.TLE_ISS))[0] ?? null;
+}
+
+export function parseOMM(raw: unknown): TLEData[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap(row => {
+    if (!row || typeof row !== 'object') return [];
+    const required = [
+      'NORAD_CAT_ID',
+      'MEAN_MOTION',
+      'ECCENTRICITY',
+      'INCLINATION',
+      'RA_OF_ASC_NODE',
+      'ARG_OF_PERICENTER',
+      'MEAN_ANOMALY',
+      'BSTAR',
+      'MEAN_MOTION_DOT',
+      'MEAN_MOTION_DDOT',
+      'ELEMENT_SET_NO',
+    ];
+    const epochDate = new Date(
+      typeof row.EPOCH === 'string' ? `${row.EPOCH.replace(/Z$/, '')}Z` : ''
+    );
+    const epoch = Number.isFinite(epochDate.getTime()) ? epochDate.toISOString() : '';
+    if (
+      !epoch ||
+      typeof row.OBJECT_NAME !== 'string' ||
+      required.some(key => row[key] == null || !Number.isFinite(Number(row[key])))
+    )
+      return [];
+    if (
+      Number(row.MEAN_MOTION) <= 0 ||
+      Number(row.ECCENTRICITY) < 0 ||
+      Number(row.ECCENTRICITY) >= 1
+    )
+      return [];
+    return [
+      {
+        name: row.OBJECT_NAME,
+        noradId: Number(row.NORAD_CAT_ID),
+        line1: '',
+        line2: '',
+        omm: row,
+        epoch,
+      },
+    ];
+  });
+}
 
 /**
  * Parse raw TLE text into TLEData array.
@@ -81,32 +96,7 @@ export function parseTLEText(text: string): TLEData[] {
   return results;
 }
 
-/* v8 ignore start */
-/**
- * Fetch TLE data for the CelesTrak "visual" group (~150 brightest satellites).
- * Cached for 24 hours. Only ~20KB download.
- */
-export async function fetchBrightSatelliteTLEs(): Promise<TLEData[]> {
-  const cached = await getCached<TLEData[]>(CACHE_KEYS.TLE_BRIGHT, CACHE_TTLS.TLE_BRIGHT);
-  if (cached) return cached;
-
-  try {
-    const response = await fetch(`${CELESTRAK_BASE}?GROUP=visual&FORMAT=TLE`, {
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (!response.ok) return [];
-
-    const text = await response.text();
-    const tles = parseTLEText(text);
-
-    if (tles.length > 0) {
-      await setCache(CACHE_KEYS.TLE_BRIGHT, tles);
-    }
-
-    return tles;
-  } catch {
-    return [];
-  }
+/** Cached for a day, comfortably below CelesTrak's two-hour update cadence. */
+export function fetchBrightSatelliteTLEs(): Promise<TLEData[]> {
+  return fetchElements('GROUP=visual', CACHE_KEYS.TLE_BRIGHT);
 }
-/* v8 ignore stop */

@@ -5,6 +5,7 @@ import {
   type GeodeticLocation,
   gstime,
   jday,
+  json2satrec,
   type LookAngles,
   propagate,
   radiansToDegrees,
@@ -12,7 +13,8 @@ import {
   sunPos,
   twoline2satrec,
 } from 'satellite.js';
-import type { Location, NightInfo, SatellitePass, TLEData } from '@/types';
+import { getMinVisibleAltitudeForAzimuth } from '@/lib/utils/horizon-profile';
+import type { HorizonProfile, Location, NightInfo, SatellitePass, TLEData } from '@/types';
 
 // Minimum altitude to consider a pass visible (degrees)
 const MIN_ALTITUDE_DEG = 10;
@@ -43,18 +45,20 @@ const MAX_DISPLAY_MAGNITUDE = 3.0;
 export function calculateSatellitePasses(
   tle: TLEData,
   location: Location,
-  nights: NightInfo[]
+  nights: NightInfo[],
+  horizonProfile?: HorizonProfile
 ): SatellitePass[] {
   const passes: SatellitePass[] = [];
 
   // Initialize satellite record from TLE
-  const satrec = twoline2satrec(tle.line1, tle.line2);
+  const satrec = tle.omm ? json2satrec(tle.omm) : twoline2satrec(tle.line1, tle.line2);
 
   // Observer location
   const observerGd = {
+    horizonProfile,
     longitude: degreesToRadians(location.longitude),
     latitude: degreesToRadians(location.latitude),
-    height: 0, // meters above sea level (assume sea level)
+    height: 0, // kilometres above sea level (assume sea level)
   };
 
   const photometry = SATELLITE_MAGNITUDES[tle.noradId] ?? {
@@ -63,10 +67,9 @@ export function calculateSatellitePasses(
   };
 
   for (const night of nights) {
-    if (night.observingWindowMode === 'none') continue;
-    // Search from astronomical dusk to dawn
-    const startTime = night.observingWindowStart;
-    const endTime = night.observingWindowEnd;
+    // Bright satellites are useful in twilight too; per-sample darkness is checked below.
+    const startTime = night.sunsetOccurs ? night.sunset : night.observingWindowStart;
+    const endTime = night.sunriseOccurs ? night.sunrise : night.observingWindowEnd;
 
     const nightPasses = findPasses(
       satrec,
@@ -90,13 +93,14 @@ export function calculateSatellitePasses(
 export function calculateMultiSatellitePasses(
   tles: TLEData[],
   location: Location,
-  nights: NightInfo[]
+  nights: NightInfo[],
+  horizonProfile?: HorizonProfile
 ): SatellitePass[] {
   const allPasses: SatellitePass[] = [];
 
   for (const tle of tles) {
     try {
-      const passes = calculateSatellitePasses(tle, location, nights);
+      const passes = calculateSatellitePasses(tle, location, nights, horizonProfile);
       allPasses.push(...passes);
     } catch {
       // Skip satellites that fail propagation (stale TLE, etc.)
@@ -114,7 +118,7 @@ export function calculateMultiSatellitePasses(
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Pass tracking requires state machine logic
 function findPasses(
   satrec: SatRec,
-  observerGd: GeodeticLocation,
+  observerGd: GeodeticLocation & { horizonProfile?: HorizonProfile },
   startTime: Date,
   endTime: Date,
   tle: TLEData,
@@ -141,7 +145,11 @@ function findPasses(
       : Number.NEGATIVE_INFINITY;
     const azimuthDeg = observation ? radiansToDegrees(observation.lookAngles.azimuth) : 0;
     const isVisible = Boolean(
-      observation && altitudeDeg >= MIN_ALTITUDE_DEG && observation.isSunlit
+      observation &&
+        altitudeDeg >= MIN_ALTITUDE_DEG &&
+        observation.isSunlit &&
+        observation.observerDark &&
+        observation.clearHorizon
     );
 
     if (isVisible && observation) {
@@ -163,6 +171,7 @@ function findPasses(
         const riseObservation = getObservation(satrec, observerGd, riseTime) ?? observation;
         // Start of a new pass
         currentPass = {
+          elementEpoch: new Date((satrec.jdsatepoch - 2440587.5) * 86_400_000).toISOString(),
           satelliteName: tle.name,
           noradId: tle.noradId,
           riseTime,
@@ -223,7 +232,7 @@ function findPasses(
 
 function refineVisibilityTransition(
   satrec: SatRec,
-  observerGd: GeodeticLocation,
+  observerGd: GeodeticLocation & { horizonProfile?: HorizonProfile },
   firstTime: Date,
   secondTime: Date
 ): Date {
@@ -242,12 +251,18 @@ function refineVisibilityTransition(
   return new Date(Math.round((firstMs + secondMs) / 2));
 }
 
-function isVisibleAt(satrec: SatRec, observerGd: GeodeticLocation, time: Date): boolean {
+function isVisibleAt(
+  satrec: SatRec,
+  observerGd: GeodeticLocation & { horizonProfile?: HorizonProfile },
+  time: Date
+): boolean {
   const observation = getObservation(satrec, observerGd, time);
   return Boolean(
     observation &&
       radiansToDegrees(observation.lookAngles.elevation) >= MIN_ALTITUDE_DEG &&
-      observation.isSunlit
+      observation.isSunlit &&
+      observation.observerDark &&
+      observation.clearHorizon
   );
 }
 
@@ -256,9 +271,14 @@ function isVisibleAt(satrec: SatRec, observerGd: GeodeticLocation, time: Date): 
  */
 function getObservation(
   satrec: SatRec,
-  observerGd: GeodeticLocation,
+  observerGd: GeodeticLocation & { horizonProfile?: HorizonProfile },
   time: Date
-): { lookAngles: LookAngles; isSunlit: boolean } | null {
+): {
+  lookAngles: LookAngles;
+  isSunlit: boolean;
+  observerDark: boolean;
+  clearHorizon: boolean;
+} | null {
   const positionAndVelocity = propagate(satrec, time);
 
   if (
@@ -273,7 +293,24 @@ function getObservation(
   const positionEcf = eciToEcf(positionAndVelocity.position, gmst);
   const lookAngles = ecfToLookAngles(observerGd, positionEcf);
 
-  return { lookAngles, isSunlit: isSatelliteSunlit(positionAndVelocity.position, time) };
+  const sun = sunPos(jday(time)).rsun;
+  const sunEcf = eciToEcf(
+    { x: sun.x * 149597870.7, y: sun.y * 149597870.7, z: sun.z * 149597870.7 },
+    gmst
+  );
+  const sunAltitude = radiansToDegrees(ecfToLookAngles(observerGd, sunEcf).elevation);
+  const threshold = observerGd.horizonProfile
+    ? getMinVisibleAltitudeForAzimuth(
+        observerGd.horizonProfile,
+        radiansToDegrees(lookAngles.azimuth)
+      )
+    : 0;
+  return {
+    lookAngles,
+    isSunlit: isSatelliteSunlit(positionAndVelocity.position, time),
+    observerDark: sunAltitude <= -6,
+    clearHorizon: radiansToDegrees(lookAngles.elevation) >= threshold,
+  };
 }
 
 /** Determine whether an Earth satellite is outside the Earth's umbral cone. */

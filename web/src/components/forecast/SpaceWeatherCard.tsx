@@ -2,7 +2,7 @@ import { Activity, Sun, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import { getGeomagneticLabel, getKpColorClass } from '@/lib/nasa/donki';
+import { getGeomagneticLabel, getKpColorClass, isSpaceWeatherFresh } from '@/lib/nasa/donki';
 import {
   fetchSWPCData,
   getCurrentKp,
@@ -23,7 +23,9 @@ interface SpaceWeatherCardProps {
 export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: SpaceWeatherCardProps) {
   const { state } = useApp();
   const timezone = state.location?.timezone;
-  const { geomagneticStorms, solarFlares } = spaceWeather;
+  const fresh = isSpaceWeatherFresh(spaceWeather);
+  const geomagneticStorms = fresh ? spaceWeather.geomagneticStorms : [];
+  const solarFlares = fresh ? spaceWeather.solarFlares : [];
   const [swpcData, setSwpcData] = useState<SWPCData | null>(null);
 
   useEffect(() => {
@@ -34,15 +36,12 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
       });
   }, []);
 
-  // Use live Kp from SWPC if available, fall back to DONKI
+  // Missing current observations stay unknown; DONKI is an event catalogue.
   const liveKp = swpcData ? getCurrentKp(swpcData) : null;
   const recentMaxKp = swpcData ? getRecentMaxKp(swpcData) : null;
-  const overallMaxKp =
-    recentMaxKp ?? geomagneticStorms.reduce((max, storm) => Math.max(max, storm.maxKp), 0);
-
-  const displayKp = liveKp ?? overallMaxKp;
-  const geoLabel = getGeomagneticLabel(displayKp);
-  const kpColor = getKpColorClass(displayKp);
+  const displayKp = liveKp;
+  const geoLabel = displayKp === null ? 'unavailable' : getGeomagneticLabel(displayKp);
+  const kpColor = displayKp === null ? 'text-gray-400' : getKpColorClass(displayKp);
 
   // Solar flare probabilities from SWPC
   const flareForecast = swpcData ? getTodayFlareProbability(swpcData) : null;
@@ -55,19 +54,42 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
         <h3 className="flex items-center gap-2 font-semibold text-white">
           <Zap className="h-4 w-4 text-purple-400" />
           Space Weather
-          {swpcData && <span className="ml-auto font-normal text-green-500 text-xs">Live</span>}
+          {swpcData && (
+            <span className="ml-auto font-normal text-green-500 text-xs">NOAA reports</span>
+          )}
         </h3>
       </div>
       <div className="space-y-3 p-4">
-        <GeomagneticRow displayKp={displayKp} geoLabel={geoLabel} kpColor={kpColor} />
+        {displayKp === null ? (
+          <p className="text-gray-400 text-sm">Current Kp unavailable</p>
+        ) : (
+          <GeomagneticRow displayKp={displayKp} geoLabel={geoLabel} kpColor={kpColor} />
+        )}
+        <p className="text-gray-500 text-xs">
+          DONKI event snapshot: {formatDate(new Date(spaceWeather.fetchedAt), timezone)} ·{' '}
+          {fresh ? 'recent' : 'stale — unavailable'}. Events are not an aurora forecast.
+        </p>
+        {swpcData?.solarFlux && (
+          <p className="text-gray-500 text-xs">
+            Solar flux observed {formatDate(new Date(swpcData.solarFlux.timeTag), timezone)}{' '}
+            {formatTime(new Date(swpcData.solarFlux.timeTag), timezone)}
+          </p>
+        )}
 
         {liveKp !== null && recentMaxKp !== null && recentMaxKp > liveKp && (
           <div className="flex items-center justify-between text-gray-500 text-xs">
-            <span>24h max Kp</span>
+            <span>Maximum in available recent readings</span>
             <span className={getKpColorClass(recentMaxKp)}>Kp {recentMaxKp}</span>
           </div>
         )}
 
+        {swpcData?.kpIndex.length ? (
+          <p className="text-gray-500 text-xs">
+            Kp series {formatTime(new Date(swpcData.kpIndex[0].timeTag), timezone)}–
+            {formatTime(new Date(swpcData.kpIndex[swpcData.kpIndex.length - 1].timeTag), timezone)}{' '}
+            · {swpcData.kpIndex.length} readings
+          </p>
+        ) : null}
         <SolarActivityRow solarFluxValue={solarFluxValue} solarActivityLabel={solarActivityLabel} />
         <FlareForecastRow flareForecast={flareForecast} />
         <SunspotRegionsSection swpcData={swpcData} />
@@ -89,7 +111,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
         )}
 
         {geomagneticStorms.length === 0 && solarFlares.length === 0 && !swpcData && (
-          <p className="text-gray-500 text-sm">No significant space weather activity detected.</p>
+          <p className="text-gray-500 text-sm">Space-weather observations unavailable.</p>
         )}
       </div>
     </Card>
@@ -144,17 +166,15 @@ function FlareForecastRow({
   flareForecast: ReturnType<typeof getTodayFlareProbability>;
 }) {
   if (!flareForecast) return null;
-  if (flareForecast.mClassProbability <= 0 && flareForecast.xClassProbability <= 0) return null;
   return (
     <div>
-      <p className="mb-2 text-gray-500 text-xs">Flare Probability (today)</p>
-      <div className="flex items-center gap-3 text-sm">
-        {flareForecast.mClassProbability > 0 && (
-          <span className="text-yellow-400">M-class: {flareForecast.mClassProbability}%</span>
-        )}
-        {flareForecast.xClassProbability > 0 && (
-          <span className="text-red-400">X-class: {flareForecast.xClassProbability}%</span>
-        )}
+      <p className="mb-2 text-gray-500 text-xs">
+        Flare probability ({flareForecast.dateRange}, UTC)
+      </p>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <span className="text-gray-300">C-class: {flareForecast.cClassProbability}%</span>
+        <span className="text-yellow-400">M-class: {flareForecast.mClassProbability}%</span>
+        <span className="text-red-400">X-class: {flareForecast.xClassProbability}%</span>
       </div>
     </div>
   );
@@ -165,7 +185,8 @@ function SunspotRegionsSection({ swpcData }: { swpcData: SWPCData | null }) {
   return (
     <div>
       <p className="mb-2 text-gray-500 text-xs">
-        Active Regions ({swpcData.sunspotRegions.length})
+        Reported regions ({swpcData.sunspotRegions.length}) ·{' '}
+        {swpcData.sunspotRegions[0].observedAt?.slice(0, 10)} UTC
       </p>
       <div className="space-y-1">
         {swpcData.sunspotRegions.slice(0, 3).map(region => (
@@ -251,6 +272,7 @@ function AuroraChanceBadge({ chance }: { chance: string }) {
     possible: { label: 'Aurora Possible', variant: 'warning' },
     unlikely: { label: 'Unlikely', variant: 'info' },
     none: { label: 'None', variant: 'default' },
+    unknown: { label: 'Unknown', variant: 'default' },
   };
 
   const { label, variant } = config[chance] ?? config.none;

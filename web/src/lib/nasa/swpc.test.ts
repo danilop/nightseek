@@ -13,11 +13,21 @@ import {
 function makeSWPCData(overrides?: Partial<SWPCData>): SWPCData {
   return {
     kpIndex: [
-      { timeTag: new Date().toISOString(), kpIndex: 3, estimatedKp: 3, kpSource: 'SWPC' },
+      {
+        timeTag: new Date(Date.now() - 60_000).toISOString(),
+        kpIndex: 3,
+        estimatedKp: 3,
+        kpSource: 'SWPC',
+      },
       { timeTag: new Date().toISOString(), kpIndex: 5, estimatedKp: 5, kpSource: 'SWPC' },
     ],
     flareProbabilities: [
-      { dateRange: 'today', cClassProbability: 50, mClassProbability: 20, xClassProbability: 5 },
+      {
+        dateRange: new Date().toISOString().slice(0, 10),
+        cClassProbability: 50,
+        mClassProbability: 20,
+        xClassProbability: 5,
+      },
     ],
     sunspotRegions: [],
     solarFlux: { timeTag: new Date().toISOString(), flux: 130 },
@@ -28,14 +38,14 @@ function makeSWPCData(overrides?: Partial<SWPCData>): SWPCData {
 
 describe('SWPC utilities', () => {
   describe('getCurrentKp', () => {
-    it('returns the last Kp reading', () => {
+    it('returns the newest Kp reading', () => {
       const data = makeSWPCData();
       expect(getCurrentKp(data)).toBe(5);
     });
 
-    it('returns 0 for empty Kp array', () => {
+    it('returns null for empty Kp array', () => {
       const data = makeSWPCData({ kpIndex: [] });
-      expect(getCurrentKp(data)).toBe(0);
+      expect(getCurrentKp(data)).toBeNull();
     });
   });
 
@@ -45,23 +55,23 @@ describe('SWPC utilities', () => {
       expect(getRecentMaxKp(data)).toBe(5);
     });
 
-    it('returns 0 for empty array', () => {
+    it('returns null for empty array', () => {
       const data = makeSWPCData({ kpIndex: [] });
-      expect(getRecentMaxKp(data)).toBe(0);
+      expect(getRecentMaxKp(data)).toBeNull();
     });
 
-    it('falls back to last reading if all are outside 24h window', () => {
+    it('rejects readings outside the recent window', () => {
       const oldTime = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
       const data = makeSWPCData({
         kpIndex: [{ timeTag: oldTime, kpIndex: 7, estimatedKp: 7, kpSource: 'SWPC' }],
       });
-      expect(getRecentMaxKp(data)).toBe(7);
+      expect(getRecentMaxKp(data)).toBeNull();
     });
   });
 
   describe('getSolarActivityLabel', () => {
     it('returns correct labels for flux values', () => {
-      expect(getSolarActivityLabel(null)).toBe('low');
+      expect(getSolarActivityLabel(null)).toBe('unknown');
       expect(getSolarActivityLabel(80)).toBe('low');
       expect(getSolarActivityLabel(120)).toBe('moderate');
       expect(getSolarActivityLabel(160)).toBe('high');
@@ -70,7 +80,7 @@ describe('SWPC utilities', () => {
   });
 
   describe('getTodayFlareProbability', () => {
-    it('returns the first entry', () => {
+    it('returns the forecast for today', () => {
       const data = makeSWPCData();
       const result = getTodayFlareProbability(data);
       expect(result).not.toBeNull();
@@ -152,13 +162,8 @@ describe('SWPC utilities', () => {
       expect(parseFlareProbabilities(null as never)).toEqual([]);
     });
 
-    it('defaults missing fields to 0', () => {
-      const raw = [{}];
-      const result = parseFlareProbabilities(raw);
-      expect(result[0].cClassProbability).toBe(0);
-      expect(result[0].mClassProbability).toBe(0);
-      expect(result[0].xClassProbability).toBe(0);
-      expect(result[0].dateRange).toBe('');
+    it('rejects missing probabilities instead of claiming zero risk', () => {
+      expect(parseFlareProbabilities([{}])).toEqual([]);
     });
   });
 

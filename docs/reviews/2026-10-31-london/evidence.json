@@ -1,0 +1,2119 @@
+{
+  "scope": {
+    "location": {
+      "latitude": 51.5074,
+      "longitude": -0.1278,
+      "timezone": "Europe/London"
+    },
+    "firstNight": "2026-10-31",
+    "lastNight": "2026-11-06",
+    "head": "f4628cb975ec17209f159271c5a8c3c8cdf33a72",
+    "generatedAt": "2026-10-31T21:10:45.543Z",
+    "note": "Local checkout has September bundled snapshots; remote main was separately inspected. This is a forecast snapshot, not observed-weather validation."
+  },
+  "tests": {
+    "files": 64,
+    "passed": 835,
+    "command": "cd web && pnpm exec vitest run"
+  },
+  "requests": [
+    {
+      "url": "https://api.open-meteo.com/v1/forecast?latitude=51.5074&longitude=-0.1278&hourly=cloud_cover%2Ccloud_cover_low%2Ccloud_cover_mid%2Ccloud_cover_high%2Cvisibility%2Cwind_speed_10m%2Cwind_gusts_10m%2Crelative_humidity_2m%2Ctemperature_2m%2Cdew_point_2m%2Cprecipitation_probability%2Cprecipitation%2Cpressure_msl%2Ccape&forecast_days=8&timezone=auto&timeformat=unixtime&past_days=1",
+      "status": 200,
+      "ms": 241,
+      "bytes": 15697,
+      "date": "Sat, 31 Oct 2026 21:09:31 GMT",
+      "file": "response-2.txt"
+    },
+    {
+      "url": "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=51.5074&longitude=-0.1278&hourly=pm2_5%2Cpm10%2Caerosol_optical_depth%2Cdust&forecast_days=5&timezone=auto&timeformat=unixtime&past_days=1",
+      "status": 200,
+      "ms": 124,
+      "bytes": 4562,
+      "date": "Sat, 31 Oct 2026 21:09:31 GMT",
+      "file": "response-0.txt"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mattiaverga/OpenNGC/master/database_files/NGC.csv",
+      "status": 200,
+      "ms": 127,
+      "bytes": 3942936,
+      "date": "Sat, 31 Oct 2026 21:09:31 GMT",
+      "file": "response-1.txt"
+    },
+    {
+      "url": "https://api.nasa.gov/neo/rest/v1/feed?start_date=2026-10-30&end_date=2026-11-05&api_key=REDACTED",
+      "status": 200,
+      "ms": 1003,
+      "bytes": 45345,
+      "date": "Sat, 31 Oct 2026 21:09:32 GMT",
+      "file": "response-3.txt"
+    },
+    {
+      "url": "https://api.nasa.gov/neo/rest/v1/feed?start_date=2026-11-06&end_date=2026-11-07&api_key=REDACTED",
+      "status": 200,
+      "ms": 374,
+      "bytes": 16603,
+      "date": "Sat, 31 Oct 2026 21:09:33 GMT",
+      "file": "response-4.txt"
+    },
+    {
+      "url": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json",
+      "status": 200,
+      "ms": 158,
+      "bytes": 6904,
+      "date": "Sat, 31 Oct 2026 21:09:47 GMT",
+      "file": "response-5.txt"
+    },
+    {
+      "url": "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json",
+      "status": 200,
+      "ms": 145,
+      "bytes": 27847,
+      "date": "Sat, 31 Oct 2026 21:09:55 GMT",
+      "file": "response-6.txt"
+    },
+    {
+      "url": "https://services.swpc.noaa.gov/json/solar_probabilities.json",
+      "status": 200,
+      "ms": 150,
+      "bytes": 9368,
+      "date": "Sat, 31 Oct 2026 21:10:41 GMT",
+      "file": "response-7.txt"
+    },
+    {
+      "url": "https://services.swpc.noaa.gov/json/f107_cm_flux.json",
+      "status": 200,
+      "ms": 150,
+      "bytes": 23041,
+      "date": "Sat, 31 Oct 2026 21:10:32 GMT",
+      "file": "response-8.txt"
+    },
+    {
+      "url": "https://archive-api.open-meteo.com/v1/archive?latitude=51.5074&longitude=-0.1278&start_date=2025-10-30&end_date=2026-10-30&daily=cloud_cover_mean%2Ctemperature_2m_mean%2Crelative_humidity_2m_mean%2Cprecipitation_sum&timezone=auto",
+      "status": 200,
+      "ms": 389,
+      "bytes": 10950,
+      "date": "Sat, 31 Oct 2026 21:10:45 GMT",
+      "file": "response-9.txt"
+    },
+    {
+      "url": "https://services.swpc.noaa.gov/json/sunspot_report.json",
+      "status": 200,
+      "ms": 550,
+      "bytes": 128640,
+      "date": "Sat, 31 Oct 2026 21:10:45 GMT",
+      "file": "response-10.txt"
+    },
+    {
+      "url": "https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=TLE",
+      "status": 200,
+      "ms": 1169,
+      "bytes": 26208,
+      "date": "Sat, 31 Oct 2026 21:10:59 GMT",
+      "file": "response-11.txt"
+    }
+  ],
+  "positions": [
+    {
+      "body": "Moon",
+      "time": "2026-11-01T00:00:00Z",
+      "appRaDegrees": 120.3317461221514,
+      "appDecDegrees": 22.51010342202344,
+      "jplRaDegrees": 120.32974,
+      "jplDecDegrees": 22.51093,
+      "separationArcsec": 7.305282702958402
+    },
+    {
+      "body": "Jupiter",
+      "time": "2026-11-01T00:00:00Z",
+      "appRaDegrees": 146.4949980698546,
+      "appDecDegrees": 14.18795956982593,
+      "jplRaDegrees": 146.49716,
+      "jplDecDegrees": 14.18784,
+      "separationArcsec": 7.557816301549048
+    },
+    {
+      "body": "Saturn",
+      "time": "2026-11-01T00:00:00Z",
+      "appRaDegrees": 9.238552315309763,
+      "appDecDegrees": 1.0620819118874214,
+      "jplRaDegrees": 9.23693,
+      "jplDecDegrees": 1.06058,
+      "separationArcsec": 7.95815366580797
+    },
+    {
+      "body": "Pluto",
+      "time": "2026-11-01T00:00:00Z",
+      "appRaDegrees": 306.09792508399227,
+      "appDecDegrees": -23.698429118528033,
+      "jplRaDegrees": 306.09893,
+      "jplDecDegrees": -23.69795,
+      "separationArcsec": 3.7347860624872222
+    },
+    {
+      "body": "Ceres",
+      "time": "2026-11-01T00:00:00Z",
+      "appRaDegrees": 114.28875590569797,
+      "appDecDegrees": 24.002746718470714,
+      "jplRaDegrees": 114.29195,
+      "jplDecDegrees": 24.00183,
+      "separationArcsec": 11.010683883364418
+    },
+    {
+      "body": "Vesta",
+      "time": "2026-11-01T00:00:00Z",
+      "appRaDegrees": 18.27410593750861,
+      "appDecDegrees": -4.471033034612036,
+      "jplRaDegrees": 18.27265,
+      "jplDecDegrees": -4.47257,
+      "separationArcsec": 7.610510741578763
+    },
+    {
+      "body": "Pallas",
+      "time": "2026-11-01T00:00:00Z",
+      "appRaDegrees": 15.787006308153442,
+      "appDecDegrees": -19.50638033891953,
+      "jplRaDegrees": 15.78551,
+      "jplDecDegrees": -19.50784,
+      "separationArcsec": 7.307093319653463
+    }
+  ],
+  "moonIlluminationSameFrame": {
+    "time": "2026-11-01T00:00:00Z",
+    "frame": "geocentric",
+    "appPercent": 59.746239057501406,
+    "jplPercent": 59.74317,
+    "note": "Topocentric JPL value is 59.11915; do not compare different observer geometries as a calculation error."
+  },
+  "usnoOct31": {
+    "apiversion": "4.0.1",
+    "geometry": {
+      "coordinates": [
+        -0.1278,
+        51.5074
+      ],
+      "type": "Point"
+    },
+    "properties": {
+      "data": {
+        "closestphase": {
+          "day": 1,
+          "month": 11,
+          "phase": "Last Quarter",
+          "time": "20:28",
+          "year": 2026
+        },
+        "curphase": "Waning Gibbous",
+        "day": 31,
+        "day_of_week": "Saturday",
+        "fracillum": "65%",
+        "isdst": false,
+        "label": null,
+        "month": 10,
+        "moondata": [
+          {
+            "phen": "Upper Transit",
+            "time": "04:33"
+          },
+          {
+            "phen": "Set",
+            "time": "13:14"
+          },
+          {
+            "phen": "Rise",
+            "time": "21:01"
+          }
+        ],
+        "sundata": [
+          {
+            "phen": "Begin Civil Twilight",
+            "time": "06:17"
+          },
+          {
+            "phen": "Rise",
+            "time": "06:52"
+          },
+          {
+            "phen": "Upper Transit",
+            "time": "11:44"
+          },
+          {
+            "phen": "Set",
+            "time": "16:35"
+          },
+          {
+            "phen": "End Civil Twilight",
+            "time": "17:10"
+          }
+        ],
+        "tz": 0.0,
+        "year": 2026
+      }
+    },
+    "type": "Feature"
+  },
+  "usnoNov1": {
+    "apiversion": "4.0.1",
+    "geometry": {
+      "coordinates": [
+        -0.1278,
+        51.5074
+      ],
+      "type": "Point"
+    },
+    "properties": {
+      "data": {
+        "closestphase": {
+          "day": 1,
+          "month": 11,
+          "phase": "Last Quarter",
+          "time": "20:28",
+          "year": 2026
+        },
+        "curphase": "Waning Gibbous",
+        "day": 1,
+        "day_of_week": "Sunday",
+        "fracillum": "54%",
+        "isdst": false,
+        "label": null,
+        "month": 11,
+        "moondata": [
+          {
+            "phen": "Upper Transit",
+            "time": "05:32"
+          },
+          {
+            "phen": "Set",
+            "time": "13:43"
+          },
+          {
+            "phen": "Rise",
+            "time": "22:28"
+          }
+        ],
+        "sundata": [
+          {
+            "phen": "Begin Civil Twilight",
+            "time": "06:19"
+          },
+          {
+            "phen": "Rise",
+            "time": "06:54"
+          },
+          {
+            "phen": "Upper Transit",
+            "time": "11:44"
+          },
+          {
+            "phen": "Set",
+            "time": "16:34"
+          },
+          {
+            "phen": "End Civil Twilight",
+            "time": "17:09"
+          }
+        ],
+        "tz": 0.0,
+        "year": 2026
+      }
+    },
+    "type": "Feature"
+  },
+  "nights": [
+    {
+      "date": "2026-10-31T12:00:00.000Z",
+      "quality": {
+        "score": 65,
+        "rating": {
+          "tier": "very_good",
+          "stars": 4,
+          "label": "Very Good",
+          "color": "text-lime-400",
+          "starString": "\u2605\u2605\u2605\u2605\u2606"
+        },
+        "summary": "Clear skies, calm winds, dew risk",
+        "factors": {
+          "clouds": 90.66666666666667,
+          "transparency": 76.18181818181819,
+          "seeing": 50,
+          "moon": 40.13268171868813,
+          "dewRisk": 0,
+          "wind": 100
+        },
+        "penalties": [
+          {
+            "key": "dewRisk",
+            "detail": "3h dew risk",
+            "penalty": 100
+          },
+          {
+            "key": "moon",
+            "detail": "60% moonlight exposure",
+            "penalty": 59.86731828131187
+          },
+          {
+            "key": "seeing",
+            "detail": "fair seeing",
+            "penalty": 50
+          },
+          {
+            "key": "transparency",
+            "detail": "76% transparency",
+            "penalty": 23.818181818181813
+          },
+          {
+            "key": "clouds",
+            "detail": "9% clouds",
+            "penalty": 9.333333333333329
+          }
+        ],
+        "metrics": {
+          "source": "best_window",
+          "cloudCover": 9.333333333333334,
+          "transparencyScore": 76.18181818181819,
+          "seeingRating": "fair",
+          "moonlightExposure": 59.86731828131187,
+          "dewRiskHours": 3,
+          "totalHours": 3,
+          "windSpeedKmh": 5.533333333333334
+        }
+      },
+      "confidence": "high",
+      "weatherCheck": {
+        "date": "2026-10-31T12:00:00.000Z",
+        "records": 11,
+        "avgCloudCalculated": 43.18181818181818,
+        "avgCloudReported": 43.18181818181818,
+        "aodHours": 11,
+        "rainTotal": 0,
+        "maxRainProbability": 0
+      },
+      "night": {
+        "date": "2026-10-31T12:00:00.000Z",
+        "sunset": "2026-10-31T16:35:21.151Z",
+        "sunrise": "2026-11-01T06:53:55.299Z",
+        "astronomicalDusk": "2026-10-31T18:28:23.786Z",
+        "astronomicalDawn": "2026-11-01T05:00:30.044Z",
+        "sunsetOccurs": true,
+        "sunriseOccurs": true,
+        "astronomicalNightMode": "normal",
+        "observingWindowMode": "astronomical",
+        "observingWindowStart": "2026-10-31T18:28:23.786Z",
+        "observingWindowEnd": "2026-11-01T05:00:30.044Z",
+        "minimumSunAltitude": -52.581264069367165,
+        "darkestTime": "2026-10-31T23:44:06.080Z",
+        "civilDusk": "2026-10-31T17:10:23.496Z",
+        "civilDawn": "2026-11-01T06:18:43.983Z",
+        "nauticalDusk": "2026-10-31T17:49:44.908Z",
+        "nauticalDawn": "2026-11-01T05:39:14.828Z",
+        "moonPhase": 0.718742243148744,
+        "moonIllumination": 59.86731828131187,
+        "moonRise": "2026-10-31T21:00:47.322Z",
+        "moonSet": "2026-11-01T13:42:42.787Z",
+        "moonlight": {
+          "visibleHours": 7.956079500685488,
+          "visibleFraction": 0.7551993714346339,
+          "maxAltitude": 59.6842104375136,
+          "exposurePercent": 45.211761135523886,
+          "level": "moderate"
+        },
+        "moonPhaseExact": null,
+        "localSiderealTimeAtMidnight": "2h 25m",
+        "seeingForecast": {
+          "rating": "fair",
+          "estimatedArcsec": 2.8,
+          "confidence": 1,
+          "recommendation": "Acceptable for deep-sky imaging, limited planetary"
+        }
+      },
+      "counts": {
+        "planets": 5,
+        "dsos": 9099,
+        "comets": 9,
+        "dwarfPlanets": 1,
+        "asteroids": 4,
+        "conjunctions": 1,
+        "meteorShowers": 3
+      },
+      "meteorShowers": [
+        {
+          "iauNumber": 8,
+          "name": "Orionids",
+          "code": "ORI",
+          "peakMonth": 10,
+          "peakDay": 21,
+          "startMonth": 10,
+          "startDay": 2,
+          "endMonth": 11,
+          "endDay": 7,
+          "zhr": 20,
+          "radiantRaDeg": 102.34244028356481,
+          "radiantDecDeg": 17.04892004050926,
+          "velocityKms": 66,
+          "parentObject": "1P/Halley",
+          "solarLongitudePeak": 208,
+          "radiantRaDrift": 0.7,
+          "radiantDecDrift": 0.1,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": 10.489200405092593,
+          "radiantAltitude": 27.85701826499919,
+          "moonIllumination": 59.86731828131187,
+          "moonSeparationDeg": 17.640095839861853,
+          "moonAltitudeDeg": 20.906501452452915
+        },
+        {
+          "iauNumber": 2,
+          "name": "Southern Taurids",
+          "code": "STA",
+          "peakMonth": 11,
+          "peakDay": 5,
+          "startMonth": 9,
+          "startDay": 10,
+          "endMonth": 11,
+          "endDay": 20,
+          "zhr": 5,
+          "radiantRaDeg": 48.457200953703705,
+          "radiantDecDeg": 12.114300238425926,
+          "velocityKms": 27,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 223,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -4.42849880787037,
+          "radiantAltitude": 49.42431010101034,
+          "moonIllumination": 59.86731828131187,
+          "moonSeparationDeg": 68.67337319891942,
+          "moonAltitudeDeg": 20.906501452452915
+        },
+        {
+          "iauNumber": 17,
+          "name": "Northern Taurids",
+          "code": "NTA",
+          "peakMonth": 11,
+          "peakDay": 12,
+          "startMonth": 10,
+          "startDay": 20,
+          "endMonth": 12,
+          "endDay": 10,
+          "zhr": 5,
+          "radiantRaDeg": 48.881781518518515,
+          "radiantDecDeg": 19.72044537962963,
+          "velocityKms": 29,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 230,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -11.397773101851852,
+          "radiantAltitude": 56.72454837937851,
+          "moonIllumination": 59.86731828131187,
+          "moonSeparationDeg": 65.91142652324078,
+          "moonAltitudeDeg": 20.906501452452915
+        }
+      ]
+    },
+    {
+      "date": "2026-11-01T12:00:00.000Z",
+      "quality": {
+        "score": 49,
+        "rating": {
+          "tier": "good",
+          "stars": 3,
+          "label": "Good",
+          "color": "text-orange-400",
+          "starString": "\u2605\u2605\u2605\u2606\u2606"
+        },
+        "summary": "Overcast, calm winds",
+        "factors": {
+          "clouds": 27.727272727272734,
+          "transparency": 66.18181818181817,
+          "seeing": 50,
+          "moon": 70.01797387377107,
+          "dewRisk": 71.66479037729984,
+          "wind": 80
+        },
+        "penalties": [
+          {
+            "key": "clouds",
+            "detail": "72% clouds",
+            "penalty": 72.27272727272727
+          },
+          {
+            "key": "seeing",
+            "detail": "fair seeing",
+            "penalty": 50
+          },
+          {
+            "key": "transparency",
+            "detail": "66% transparency",
+            "penalty": 33.81818181818183
+          },
+          {
+            "key": "moon",
+            "detail": "30% moonlight exposure",
+            "penalty": 29.98202612622893
+          },
+          {
+            "key": "dewRisk",
+            "detail": "3h dew risk",
+            "penalty": 28.335209622700162
+          },
+          {
+            "key": "wind",
+            "detail": "12 km/h wind",
+            "penalty": 20
+          }
+        ],
+        "metrics": {
+          "source": "whole_night",
+          "cloudCover": 72.27272727272727,
+          "transparencyScore": 66.18181818181817,
+          "seeingRating": "fair",
+          "moonlightExposure": 29.982026126228938,
+          "dewRiskHours": 3,
+          "totalHours": 10.587534166666666,
+          "windSpeedKmh": 11.654545454545456
+        }
+      },
+      "confidence": "high",
+      "weatherCheck": {
+        "date": "2026-11-01T12:00:00.000Z",
+        "records": 11,
+        "avgCloudCalculated": 72.27272727272727,
+        "avgCloudReported": 72.27272727272727,
+        "aodHours": 11,
+        "rainTotal": 0.2,
+        "maxRainProbability": 8
+      },
+      "night": {
+        "date": "2026-11-01T12:00:00.000Z",
+        "sunset": "2026-11-01T16:33:32.060Z",
+        "sunrise": "2026-11-02T06:55:41.165Z",
+        "astronomicalDusk": "2026-11-01T18:26:47.656Z",
+        "astronomicalDawn": "2026-11-02T05:02:02.779Z",
+        "sunsetOccurs": true,
+        "sunriseOccurs": true,
+        "astronomicalNightMode": "normal",
+        "observingWindowMode": "astronomical",
+        "observingWindowStart": "2026-11-01T18:26:47.656Z",
+        "observingWindowEnd": "2026-11-02T05:02:02.779Z",
+        "minimumSunAltitude": -52.90266318559617,
+        "darkestTime": "2026-11-01T23:44:04.548Z",
+        "civilDusk": "2026-11-01T17:08:41.126Z",
+        "civilDawn": "2026-11-02T06:20:23.037Z",
+        "nauticalDusk": "2026-11-01T17:48:07.089Z",
+        "nauticalDawn": "2026-11-02T05:40:49.280Z",
+        "moonPhase": 0.7548593933670841,
+        "moonIllumination": 48.59957850664652,
+        "moonRise": "2026-11-01T22:28:08.935Z",
+        "moonSet": "2026-11-02T14:02:50.030Z",
+        "moonlight": {
+          "visibleHours": 6.5316559474672955,
+          "visibleFraction": 0.6169194681828067,
+          "maxAltitude": 51.86135890897902,
+          "exposurePercent": 29.982026126228938,
+          "level": "low"
+        },
+        "moonPhaseExact": {
+          "phase": "third_quarter",
+          "time": "2026-11-01T20:28:58.794Z",
+          "isTonight": true,
+          "daysUntil": 0
+        },
+        "localSiderealTimeAtMidnight": "2h 29m",
+        "seeingForecast": {
+          "rating": "fair",
+          "estimatedArcsec": 2.7,
+          "confidence": 1,
+          "recommendation": "Acceptable for deep-sky imaging, limited planetary"
+        }
+      },
+      "counts": {
+        "planets": 5,
+        "dsos": 9128,
+        "comets": 9,
+        "dwarfPlanets": 1,
+        "asteroids": 4,
+        "conjunctions": 3,
+        "meteorShowers": 3
+      },
+      "meteorShowers": [
+        {
+          "iauNumber": 8,
+          "name": "Orionids",
+          "code": "ORI",
+          "peakMonth": 10,
+          "peakDay": 21,
+          "startMonth": 10,
+          "startDay": 2,
+          "endMonth": 11,
+          "endDay": 7,
+          "zhr": 20,
+          "radiantRaDeg": 103.04242652662037,
+          "radiantDecDeg": 17.14891807523148,
+          "velocityKms": 66,
+          "parentObject": "1P/Halley",
+          "solarLongitudePeak": 208,
+          "radiantRaDrift": 0.7,
+          "radiantDecDrift": 0.1,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": 11.489180752314814,
+          "radiantAltitude": 28.103426028861385,
+          "moonIllumination": 48.59957850664652,
+          "moonSeparationDeg": 29.899315235380133,
+          "moonAltitudeDeg": 9.48694176472246
+        },
+        {
+          "iauNumber": 2,
+          "name": "Southern Taurids",
+          "code": "STA",
+          "peakMonth": 11,
+          "peakDay": 5,
+          "startMonth": 9,
+          "startDay": 10,
+          "endMonth": 11,
+          "endDay": 20,
+          "zhr": 5,
+          "radiantRaDeg": 49.25718523148148,
+          "radiantDecDeg": 12.31429630787037,
+          "velocityKms": 27,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 223,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -3.428518460648148,
+          "radiantAltitude": 49.65429849099278,
+          "moonIllumination": 48.59957850664652,
+          "moonSeparationDeg": 81.70945741318396,
+          "moonAltitudeDeg": 9.48694176472246
+        },
+        {
+          "iauNumber": 17,
+          "name": "Northern Taurids",
+          "code": "NTA",
+          "peakMonth": 11,
+          "peakDay": 12,
+          "startMonth": 10,
+          "startDay": 20,
+          "endMonth": 12,
+          "endDay": 10,
+          "zhr": 5,
+          "radiantRaDeg": 49.6817657962963,
+          "radiantDecDeg": 19.920441449074076,
+          "velocityKms": 29,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 230,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -10.397792754629629,
+          "radiantAltitude": 56.95879590231316,
+          "moonIllumination": 48.59957850664652,
+          "moonSeparationDeg": 79.20330670262564,
+          "moonAltitudeDeg": 9.48694176472246
+        }
+      ]
+    },
+    {
+      "date": "2026-11-02T12:00:00.000Z",
+      "quality": {
+        "score": 88,
+        "rating": {
+          "tier": "excellent",
+          "stars": 5,
+          "label": "Excellent",
+          "color": "text-green-400",
+          "starString": "\u2605\u2605\u2605\u2605\u2605"
+        },
+        "summary": "Clear skies, calm winds, little moonlight",
+        "factors": {
+          "clouds": 100,
+          "transparency": 80,
+          "seeing": 50,
+          "moon": 100,
+          "dewRisk": 100,
+          "wind": 80
+        },
+        "penalties": [
+          {
+            "key": "seeing",
+            "detail": "fair seeing",
+            "penalty": 50
+          },
+          {
+            "key": "transparency",
+            "detail": "80% transparency",
+            "penalty": 20
+          },
+          {
+            "key": "wind",
+            "detail": "13 km/h wind",
+            "penalty": 20
+          }
+        ],
+        "metrics": {
+          "source": "best_window",
+          "cloudCover": 0,
+          "transparencyScore": 80,
+          "seeingRating": "fair",
+          "moonlightExposure": 0,
+          "dewRiskHours": 0,
+          "totalHours": 3,
+          "windSpeedKmh": 13.1
+        }
+      },
+      "confidence": "high",
+      "weatherCheck": {
+        "date": "2026-11-02T12:00:00.000Z",
+        "records": 11,
+        "avgCloudCalculated": 0,
+        "avgCloudReported": 0,
+        "aodHours": 11,
+        "rainTotal": 0,
+        "maxRainProbability": 0
+      },
+      "night": {
+        "date": "2026-11-02T12:00:00.000Z",
+        "sunset": "2026-11-02T16:31:44.533Z",
+        "sunrise": "2026-11-03T06:57:27.087Z",
+        "astronomicalDusk": "2026-11-02T18:25:13.563Z",
+        "astronomicalDawn": "2026-11-03T05:03:35.104Z",
+        "sunsetOccurs": true,
+        "sunriseOccurs": true,
+        "astronomicalNightMode": "normal",
+        "observingWindowMode": "astronomical",
+        "observingWindowStart": "2026-11-02T18:25:13.563Z",
+        "observingWindowEnd": "2026-11-03T05:03:35.104Z",
+        "minimumSunAltitude": -53.220107953217564,
+        "darkestTime": "2026-11-02T23:44:03.839Z",
+        "civilDusk": "2026-11-02T17:07:00.469Z",
+        "civilDawn": "2026-11-03T06:22:01.998Z",
+        "nauticalDusk": "2026-11-02T17:46:31.140Z",
+        "nauticalDawn": "2026-11-03T05:42:23.489Z",
+        "moonPhase": 0.7902601062357565,
+        "moonIllumination": 37.605416127725235,
+        "moonRise": "2026-11-02T23:53:13.463Z",
+        "moonSet": "2026-11-03T14:18:17.655Z",
+        "moonlight": {
+          "visibleHours": 5.1411403344900855,
+          "visibleFraction": 0.4832209023695498,
+          "maxAltitude": 42.1259591657471,
+          "exposurePercent": 18.17172311522181,
+          "level": "low"
+        },
+        "moonPhaseExact": null,
+        "localSiderealTimeAtMidnight": "2h 33m",
+        "seeingForecast": {
+          "rating": "fair",
+          "estimatedArcsec": 2.7,
+          "confidence": 1,
+          "recommendation": "Acceptable for deep-sky imaging, limited planetary"
+        }
+      },
+      "counts": {
+        "planets": 5,
+        "dsos": 9138,
+        "comets": 9,
+        "dwarfPlanets": 1,
+        "asteroids": 4,
+        "conjunctions": 1,
+        "meteorShowers": 3
+      },
+      "meteorShowers": [
+        {
+          "iauNumber": 8,
+          "name": "Orionids",
+          "code": "ORI",
+          "peakMonth": 10,
+          "peakDay": 21,
+          "startMonth": 10,
+          "startDay": 2,
+          "endMonth": 11,
+          "endDay": 7,
+          "zhr": 20,
+          "radiantRaDeg": 103.74241936458333,
+          "radiantDecDeg": 17.248917052083332,
+          "velocityKms": 66,
+          "parentObject": "1P/Halley",
+          "solarLongitudePeak": 208,
+          "radiantRaDrift": 0.7,
+          "radiantDecDrift": 0.1,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": 12.489170520833333,
+          "radiantAltitude": 28.351867891494614,
+          "moonIllumination": 37.605416127725235,
+          "moonSeparationDeg": 42.555762275692594,
+          "moonAltitudeDeg": -1.3911755891470818
+        },
+        {
+          "iauNumber": 2,
+          "name": "Southern Taurids",
+          "code": "STA",
+          "peakMonth": 11,
+          "peakDay": 5,
+          "startMonth": 9,
+          "startDay": 10,
+          "endMonth": 11,
+          "endDay": 20,
+          "zhr": 5,
+          "radiantRaDeg": 50.057177046296296,
+          "radiantDecDeg": 12.514294261574074,
+          "velocityKms": 27,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 223,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -2.4285286921296296,
+          "radiantAltitude": 49.88465951130119,
+          "moonIllumination": 37.605416127725235,
+          "moonSeparationDeg": 94.46910038861287,
+          "moonAltitudeDeg": -1.3911755891470818
+        },
+        {
+          "iauNumber": 17,
+          "name": "Northern Taurids",
+          "code": "NTA",
+          "peakMonth": 11,
+          "peakDay": 12,
+          "startMonth": 10,
+          "startDay": 20,
+          "endMonth": 12,
+          "endDay": 10,
+          "zhr": 5,
+          "radiantRaDeg": 50.48175761111111,
+          "radiantDecDeg": 20.120439402777777,
+          "velocityKms": 29,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 230,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -9.397802986111111,
+          "radiantAltitude": 57.19355742370471,
+          "moonIllumination": 37.605416127725235,
+          "moonSeparationDeg": 92.2056687991033,
+          "moonAltitudeDeg": -1.3911755891470818
+        }
+      ]
+    },
+    {
+      "date": "2026-11-03T12:00:00.000Z",
+      "quality": {
+        "score": 46,
+        "rating": {
+          "tier": "good",
+          "stars": 3,
+          "label": "Good",
+          "color": "text-orange-400",
+          "starString": "\u2605\u2605\u2605\u2606\u2606"
+        },
+        "summary": "Partly cloudy, calm winds, dew risk",
+        "factors": {
+          "clouds": 65.5,
+          "transparency": 82.18181818181817,
+          "seeing": 50,
+          "moon": 76.34397571234783,
+          "dewRisk": 0,
+          "wind": 80
+        },
+        "penalties": [
+          {
+            "key": "dewRisk",
+            "detail": "2h dew risk",
+            "penalty": 100
+          },
+          {
+            "key": "seeing",
+            "detail": "fair seeing",
+            "penalty": 50
+          },
+          {
+            "key": "clouds",
+            "detail": "35% clouds",
+            "penalty": 34.5
+          },
+          {
+            "key": "moon",
+            "detail": "24% moonlight exposure",
+            "penalty": 23.656024287652173
+          },
+          {
+            "key": "wind",
+            "detail": "13 km/h wind",
+            "penalty": 20
+          },
+          {
+            "key": "transparency",
+            "detail": "82% transparency",
+            "penalty": 17.818181818181827
+          },
+          {
+            "key": "practicality",
+            "detail": "short 2h window, late window",
+            "penalty": 16
+          }
+        ],
+        "metrics": {
+          "source": "best_window",
+          "cloudCover": 34.5,
+          "transparencyScore": 82.18181818181817,
+          "seeingRating": "fair",
+          "moonlightExposure": 23.656024287652173,
+          "dewRiskHours": 2,
+          "totalHours": 2,
+          "windSpeedKmh": 12.8
+        }
+      },
+      "confidence": "high",
+      "weatherCheck": {
+        "date": "2026-11-03T12:00:00.000Z",
+        "records": 11,
+        "avgCloudCalculated": 48.90909090909091,
+        "avgCloudReported": 48.90909090909091,
+        "aodHours": 11,
+        "rainTotal": 0,
+        "maxRainProbability": 2
+      },
+      "night": {
+        "date": "2026-11-03T12:00:00.000Z",
+        "sunset": "2026-11-03T16:29:58.618Z",
+        "sunrise": "2026-11-04T06:59:13.029Z",
+        "astronomicalDusk": "2026-11-03T18:23:41.538Z",
+        "astronomicalDawn": "2026-11-04T05:05:07.007Z",
+        "sunsetOccurs": true,
+        "sunriseOccurs": true,
+        "astronomicalNightMode": "normal",
+        "observingWindowMode": "astronomical",
+        "observingWindowStart": "2026-11-03T18:23:41.538Z",
+        "observingWindowEnd": "2026-11-04T05:05:07.007Z",
+        "minimumSunAltitude": -53.53348218326889,
+        "darkestTime": "2026-11-03T23:44:03.963Z",
+        "civilDusk": "2026-11-03T17:05:21.570Z",
+        "civilDawn": "2026-11-04T06:23:40.839Z",
+        "nauticalDusk": "2026-11-03T17:44:57.098Z",
+        "nauticalDawn": "2026-11-04T05:43:57.434Z",
+        "moonPhase": 0.8249890521616259,
+        "moonIllumination": 27.408987321886535,
+        "moonRise": "2026-11-04T01:14:44.017Z",
+        "moonSet": "2026-11-04T14:31:16.869Z",
+        "moonlight": {
+          "visibleHours": 3.8114306383315846,
+          "visibleFraction": 0.35652807811680054,
+          "maxAltitude": 31.632183125809185,
+          "exposurePercent": 9.772073572999957,
+          "level": "minimal"
+        },
+        "moonPhaseExact": null,
+        "localSiderealTimeAtMidnight": "2h 37m",
+        "seeingForecast": {
+          "rating": "fair",
+          "estimatedArcsec": 2.8,
+          "confidence": 1,
+          "recommendation": "Acceptable for deep-sky imaging, limited planetary"
+        }
+      },
+      "counts": {
+        "planets": 5,
+        "dsos": 9145,
+        "comets": 9,
+        "dwarfPlanets": 1,
+        "asteroids": 4,
+        "conjunctions": 1,
+        "meteorShowers": 3
+      },
+      "meteorShowers": [
+        {
+          "iauNumber": 8,
+          "name": "Orionids",
+          "code": "ORI",
+          "peakMonth": 10,
+          "peakDay": 21,
+          "startMonth": 10,
+          "startDay": 2,
+          "endMonth": 11,
+          "endDay": 7,
+          "zhr": 20,
+          "radiantRaDeg": 104.44241887037037,
+          "radiantDecDeg": 17.34891698148148,
+          "velocityKms": 66,
+          "parentObject": "1P/Halley",
+          "solarLongitudePeak": 208,
+          "radiantRaDrift": 0.7,
+          "radiantDecDrift": 0.1,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": 13.489169814814815,
+          "radiantAltitude": 28.602362012431755,
+          "moonIllumination": 27.408987321886535,
+          "moonSeparationDeg": 55.14059717986793,
+          "moonAltitudeDeg": -12.684821494676825
+        },
+        {
+          "iauNumber": 2,
+          "name": "Southern Taurids",
+          "code": "STA",
+          "peakMonth": 11,
+          "peakDay": 5,
+          "startMonth": 9,
+          "startDay": 10,
+          "endMonth": 11,
+          "endDay": 20,
+          "zhr": 5,
+          "radiantRaDeg": 50.85717648148148,
+          "radiantDecDeg": 12.71429412037037,
+          "velocityKms": 27,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 223,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -1.4285293981481482,
+          "radiantAltitude": 50.1153742257455,
+          "moonIllumination": 27.408987321886535,
+          "moonSeparationDeg": 106.93712886138005,
+          "moonAltitudeDeg": -12.684821494676825
+        },
+        {
+          "iauNumber": 17,
+          "name": "Northern Taurids",
+          "code": "NTA",
+          "peakMonth": 11,
+          "peakDay": 12,
+          "startMonth": 10,
+          "startDay": 20,
+          "endMonth": 12,
+          "endDay": 10,
+          "zhr": 5,
+          "radiantRaDeg": 51.28175704629629,
+          "radiantDecDeg": 20.320439261574073,
+          "velocityKms": 29,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 230,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -8.39780369212963,
+          "radiantAltitude": 57.42881519115918,
+          "moonIllumination": 27.408987321886535,
+          "moonSeparationDeg": 104.92385977861358,
+          "moonAltitudeDeg": -12.684821494676825
+        }
+      ]
+    },
+    {
+      "date": "2026-11-04T12:00:00.000Z",
+      "quality": {
+        "score": 34,
+        "rating": {
+          "tier": "fair",
+          "stars": 2,
+          "label": "Fair",
+          "color": "text-red-400",
+          "starString": "\u2605\u2605\u2606\u2606\u2606"
+        },
+        "summary": "Overcast, calm winds, little moonlight",
+        "factors": {
+          "clouds": 14,
+          "transparency": 72.8,
+          "seeing": 50,
+          "moon": 95.65979410330146,
+          "dewRisk": 100,
+          "wind": 80
+        },
+        "penalties": [
+          {
+            "key": "clouds",
+            "detail": "86% clouds",
+            "penalty": 86
+          },
+          {
+            "key": "seeing",
+            "detail": "fair seeing",
+            "penalty": 50
+          },
+          {
+            "key": "transparency",
+            "detail": "73% transparency",
+            "penalty": 27.200000000000003
+          },
+          {
+            "key": "wind",
+            "detail": "12 km/h wind",
+            "penalty": 20
+          },
+          {
+            "key": "moon",
+            "detail": "4% moonlight exposure",
+            "penalty": 4.340205896698535
+          }
+        ],
+        "metrics": {
+          "source": "whole_night",
+          "cloudCover": 86,
+          "transparencyScore": 72.8,
+          "seeingRating": "fair",
+          "moonlightExposure": 4.34020589669854,
+          "dewRiskHours": 0,
+          "totalHours": 10.740794722222223,
+          "windSpeedKmh": 12.109090909090911
+        }
+      },
+      "confidence": "high",
+      "weatherCheck": {
+        "date": "2026-11-04T12:00:00.000Z",
+        "records": 11,
+        "avgCloudCalculated": 86,
+        "avgCloudReported": 86,
+        "aodHours": 5,
+        "rainTotal": 0,
+        "maxRainProbability": 2
+      },
+      "night": {
+        "date": "2026-11-04T12:00:00.000Z",
+        "sunset": "2026-11-04T16:28:14.254Z",
+        "sunrise": "2026-11-05T07:00:58.953Z",
+        "astronomicalDusk": "2026-11-04T18:22:11.611Z",
+        "astronomicalDawn": "2026-11-05T05:06:38.472Z",
+        "sunsetOccurs": true,
+        "sunriseOccurs": true,
+        "astronomicalNightMode": "normal",
+        "observingWindowMode": "astronomical",
+        "observingWindowStart": "2026-11-04T18:22:11.611Z",
+        "observingWindowEnd": "2026-11-05T05:06:38.472Z",
+        "minimumSunAltitude": -53.84266933140046,
+        "darkestTime": "2026-11-04T23:44:04.925Z",
+        "civilDusk": "2026-11-04T17:03:44.474Z",
+        "civilDawn": "2026-11-05T06:25:19.527Z",
+        "nauticalDusk": "2026-11-04T17:43:24.998Z",
+        "nauticalDawn": "2026-11-05T05:45:31.090Z",
+        "moonPhase": 0.8591084224381794,
+        "moonIllumination": 18.444716496058977,
+        "moonRise": "2026-11-05T02:33:20.808Z",
+        "moonSet": "2026-11-05T14:43:16.904Z",
+        "moonlight": {
+          "visibleHours": 2.5274045604646735,
+          "visibleFraction": 0.23530889713734002,
+          "maxAltitude": 20.9041757240024,
+          "exposurePercent": 4.34020589669854,
+          "level": "minimal"
+        },
+        "moonPhaseExact": null,
+        "localSiderealTimeAtMidnight": "2h 41m",
+        "seeingForecast": {
+          "rating": "fair",
+          "estimatedArcsec": 2.2,
+          "confidence": 1,
+          "recommendation": "Acceptable for deep-sky imaging, limited planetary"
+        }
+      },
+      "counts": {
+        "planets": 5,
+        "dsos": 9175,
+        "comets": 9,
+        "dwarfPlanets": 1,
+        "asteroids": 4,
+        "conjunctions": 1,
+        "meteorShowers": 3
+      },
+      "meteorShowers": [
+        {
+          "iauNumber": 8,
+          "name": "Orionids",
+          "code": "ORI",
+          "peakMonth": 10,
+          "peakDay": 21,
+          "startMonth": 10,
+          "startDay": 2,
+          "endMonth": 11,
+          "endDay": 7,
+          "zhr": 20,
+          "radiantRaDeg": 105.14242510069444,
+          "radiantDecDeg": 17.448917871527776,
+          "velocityKms": 66,
+          "parentObject": "1P/Halley",
+          "solarLongitudePeak": 208,
+          "radiantRaDrift": 0.7,
+          "radiantDecDrift": 0.1,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": 14.489178715277777,
+          "radiantAltitude": 28.854920993397577,
+          "moonIllumination": 18.444716496058977,
+          "moonSeparationDeg": 67.54990679645067,
+          "moonAltitudeDeg": -23.636233312969296
+        },
+        {
+          "iauNumber": 2,
+          "name": "Southern Taurids",
+          "code": "STA",
+          "peakMonth": 11,
+          "peakDay": 5,
+          "startMonth": 9,
+          "startDay": 10,
+          "endMonth": 11,
+          "endDay": 20,
+          "zhr": 5,
+          "radiantRaDeg": 51.657183601851855,
+          "radiantDecDeg": 12.914295900462964,
+          "velocityKms": 27,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 223,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -0.4285204976851852,
+          "radiantAltitude": 50.346421470192084,
+          "moonIllumination": 18.444716496058977,
+          "moonSeparationDeg": 119.10576143300578,
+          "moonAltitudeDeg": -23.636233312969296
+        },
+        {
+          "iauNumber": 17,
+          "name": "Northern Taurids",
+          "code": "NTA",
+          "peakMonth": 11,
+          "peakDay": 12,
+          "startMonth": 10,
+          "startDay": 20,
+          "endMonth": 12,
+          "endDay": 10,
+          "zhr": 5,
+          "radiantRaDeg": 52.081764166666666,
+          "radiantDecDeg": 20.520441041666665,
+          "velocityKms": 29,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 230,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -7.397794791666667,
+          "radiantAltitude": 57.66454872707772,
+          "moonIllumination": 18.444716496058977,
+          "moonSeparationDeg": 117.37196968107645,
+          "moonAltitudeDeg": -23.636233312969296
+        }
+      ]
+    },
+    {
+      "date": "2026-11-05T12:00:00.000Z",
+      "quality": {
+        "score": 63,
+        "rating": {
+          "tier": "very_good",
+          "stars": 4,
+          "label": "Very Good",
+          "color": "text-lime-400",
+          "starString": "\u2605\u2605\u2605\u2605\u2606"
+        },
+        "summary": "Partly cloudy, calm winds, little moonlight",
+        "factors": {
+          "clouds": 52.666666666666664,
+          "transparency": 50,
+          "seeing": 50,
+          "moon": 100,
+          "dewRisk": 66.66666666666667,
+          "wind": 100
+        },
+        "penalties": [
+          {
+            "key": "transparency",
+            "detail": "50% transparency",
+            "penalty": 50
+          },
+          {
+            "key": "seeing",
+            "detail": "fair seeing",
+            "penalty": 50
+          },
+          {
+            "key": "clouds",
+            "detail": "47% clouds",
+            "penalty": 47.333333333333336
+          },
+          {
+            "key": "dewRisk",
+            "detail": "1h dew risk",
+            "penalty": 33.33333333333333
+          }
+        ],
+        "metrics": {
+          "source": "best_window",
+          "cloudCover": 47.333333333333336,
+          "transparencyScore": null,
+          "seeingRating": "fair",
+          "moonlightExposure": 0,
+          "dewRiskHours": 1,
+          "totalHours": 3,
+          "windSpeedKmh": 6.6000000000000005
+        }
+      },
+      "confidence": "medium",
+      "weatherCheck": {
+        "date": "2026-11-05T12:00:00.000Z",
+        "records": 11,
+        "avgCloudCalculated": 48.54545454545455,
+        "avgCloudReported": 48.54545454545455,
+        "aodHours": 0,
+        "rainTotal": 0,
+        "maxRainProbability": 2
+      },
+      "night": {
+        "date": "2026-11-05T12:00:00.000Z",
+        "sunset": "2026-11-05T16:26:31.699Z",
+        "sunrise": "2026-11-06T07:02:44.818Z",
+        "astronomicalDusk": "2026-11-05T18:20:43.809Z",
+        "astronomicalDawn": "2026-11-06T05:08:09.480Z",
+        "sunsetOccurs": true,
+        "sunriseOccurs": true,
+        "astronomicalNightMode": "normal",
+        "observingWindowMode": "astronomical",
+        "observingWindowStart": "2026-11-05T18:20:43.809Z",
+        "observingWindowEnd": "2026-11-06T05:08:09.480Z",
+        "minimumSunAltitude": -54.14755283277867,
+        "darkestTime": "2026-11-05T23:44:06.732Z",
+        "civilDusk": "2026-11-05T17:02:09.222Z",
+        "civilDawn": "2026-11-06T06:26:58.031Z",
+        "nauticalDusk": "2026-11-05T17:41:54.787Z",
+        "nauticalDawn": "2026-11-06T05:47:04.433Z",
+        "moonPhase": 0.8926751026676429,
+        "moonIllumination": 11.052817816940092,
+        "moonRise": "2026-11-06T03:50:22.517Z",
+        "moonSet": "2026-11-06T14:55:28.558Z",
+        "moonlight": {
+          "visibleHours": 1.26840343696272,
+          "visibleFraction": 0.11754855188537719,
+          "maxAltitude": 10.21521070925445,
+          "exposurePercent": 1.2992427286342039,
+          "level": "minimal"
+        },
+        "moonPhaseExact": null,
+        "localSiderealTimeAtMidnight": "2h 45m",
+        "seeingForecast": {
+          "rating": "fair",
+          "estimatedArcsec": 2.7,
+          "confidence": 1,
+          "recommendation": "Acceptable for deep-sky imaging, limited planetary"
+        }
+      },
+      "counts": {
+        "planets": 5,
+        "dsos": 9194,
+        "comets": 9,
+        "dwarfPlanets": 1,
+        "asteroids": 4,
+        "conjunctions": 1,
+        "meteorShowers": 3
+      },
+      "meteorShowers": [
+        {
+          "iauNumber": 8,
+          "name": "Orionids",
+          "code": "ORI",
+          "peakMonth": 10,
+          "peakDay": 21,
+          "startMonth": 10,
+          "startDay": 2,
+          "endMonth": 11,
+          "endDay": 7,
+          "zhr": 20,
+          "radiantRaDeg": 105.84243808796296,
+          "radiantDecDeg": 17.548919726851853,
+          "velocityKms": 66,
+          "parentObject": "1P/Halley",
+          "solarLongitudePeak": 208,
+          "radiantRaDrift": 0.7,
+          "radiantDecDrift": 0.1,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": 15.489197268518518,
+          "radiantAltitude": 29.109549672160398,
+          "moonIllumination": 11.052817816940092,
+          "moonSeparationDeg": 79.75787927692015,
+          "moonAltitudeDeg": -34.090716140114864
+        },
+        {
+          "iauNumber": 2,
+          "name": "Southern Taurids",
+          "code": "STA",
+          "peakMonth": 11,
+          "peakDay": 5,
+          "startMonth": 9,
+          "startDay": 10,
+          "endMonth": 11,
+          "endDay": 20,
+          "zhr": 5,
+          "radiantRaDeg": 52.39135781481482,
+          "radiantDecDeg": 13.097839453703704,
+          "velocityKms": 27,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 223,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": 0.4891972685185185,
+          "radiantAltitude": 50.57441243953879,
+          "moonIllumination": 11.052817816940092,
+          "moonSeparationDeg": 131.0218893412452,
+          "moonAltitudeDeg": -34.090716140114864
+        },
+        {
+          "iauNumber": 17,
+          "name": "Northern Taurids",
+          "code": "NTA",
+          "peakMonth": 11,
+          "peakDay": 12,
+          "startMonth": 10,
+          "startDay": 20,
+          "endMonth": 12,
+          "endDay": 10,
+          "zhr": 5,
+          "radiantRaDeg": 52.88177900925926,
+          "radiantDecDeg": 20.720444752314815,
+          "velocityKms": 29,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 230,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -6.397776238425926,
+          "radiantAltitude": 57.90073416572755,
+          "moonIllumination": 11.052817816940092,
+          "moonSeparationDeg": 129.5649601385087,
+          "moonAltitudeDeg": -34.090716140114864
+        }
+      ]
+    },
+    {
+      "date": "2026-11-06T12:00:00.000Z",
+      "quality": {
+        "score": 77,
+        "rating": {
+          "tier": "excellent",
+          "stars": 5,
+          "label": "Excellent",
+          "color": "text-green-400",
+          "starString": "\u2605\u2605\u2605\u2605\u2605"
+        },
+        "summary": "Mostly clear, calm winds, little moonlight",
+        "factors": {
+          "clouds": 85.66666666666667,
+          "transparency": 50,
+          "seeing": 50,
+          "moon": 100,
+          "dewRisk": 100,
+          "wind": 100
+        },
+        "penalties": [
+          {
+            "key": "transparency",
+            "detail": "50% transparency",
+            "penalty": 50
+          },
+          {
+            "key": "seeing",
+            "detail": "fair seeing",
+            "penalty": 50
+          },
+          {
+            "key": "clouds",
+            "detail": "14% clouds",
+            "penalty": 14.333333333333329
+          }
+        ],
+        "metrics": {
+          "source": "best_window",
+          "cloudCover": 14.333333333333334,
+          "transparencyScore": null,
+          "seeingRating": "fair",
+          "moonlightExposure": 0,
+          "dewRiskHours": 0,
+          "totalHours": 3,
+          "windSpeedKmh": 7.466666666666666
+        }
+      },
+      "confidence": "medium",
+      "weatherCheck": {
+        "date": "2026-11-06T12:00:00.000Z",
+        "records": 11,
+        "avgCloudCalculated": 19.272727272727273,
+        "avgCloudReported": 19.272727272727273,
+        "aodHours": 0,
+        "rainTotal": 0,
+        "maxRainProbability": 4
+      },
+      "night": {
+        "date": "2026-11-06T12:00:00.000Z",
+        "sunset": "2026-11-06T16:24:50.907Z",
+        "sunrise": "2026-11-07T07:04:30.581Z",
+        "astronomicalDusk": "2026-11-06T18:19:18.161Z",
+        "astronomicalDawn": "2026-11-07T05:09:40.011Z",
+        "sunsetOccurs": true,
+        "sunriseOccurs": true,
+        "astronomicalNightMode": "normal",
+        "observingWindowMode": "astronomical",
+        "observingWindowStart": "2026-11-06T18:19:18.161Z",
+        "observingWindowEnd": "2026-11-07T05:09:40.011Z",
+        "minimumSunAltitude": -54.44801630200004,
+        "darkestTime": "2026-11-06T23:44:09.386Z",
+        "civilDusk": "2026-11-06T17:00:35.858Z",
+        "civilDawn": "2026-11-07T06:28:36.312Z",
+        "nauticalDusk": "2026-11-06T17:40:26.691Z",
+        "nauticalDawn": "2026-11-07T05:48:37.434Z",
+        "moonPhase": 0.9257275750507407,
+        "moonIllumination": 5.477517850862723,
+        "moonRise": "2026-11-07T05:07:01.927Z",
+        "moonSet": "2026-11-07T15:09:01.591Z",
+        "moonlight": {
+          "visibleHours": 0.013268361887055791,
+          "visibleFraction": 0.0012240860644331534,
+          "maxAltitude": 0.0991764049565802,
+          "exposurePercent": 0.006704953268924895,
+          "level": "minimal"
+        },
+        "moonPhaseExact": null,
+        "localSiderealTimeAtMidnight": "2h 49m",
+        "seeingForecast": {
+          "rating": "fair",
+          "estimatedArcsec": 2.8,
+          "confidence": 1,
+          "recommendation": "Acceptable for deep-sky imaging, limited planetary"
+        }
+      },
+      "counts": {
+        "planets": 5,
+        "dsos": 9205,
+        "comets": 9,
+        "dwarfPlanets": 1,
+        "asteroids": 4,
+        "conjunctions": 1,
+        "meteorShowers": 4
+      },
+      "meteorShowers": [
+        {
+          "iauNumber": 8,
+          "name": "Orionids",
+          "code": "ORI",
+          "peakMonth": 10,
+          "peakDay": 21,
+          "startMonth": 10,
+          "startDay": 2,
+          "endMonth": 11,
+          "endDay": 7,
+          "zhr": 20,
+          "radiantRaDeg": 106.54245787268519,
+          "radiantDecDeg": 17.64892255324074,
+          "velocityKms": 66,
+          "parentObject": "1P/Halley",
+          "solarLongitudePeak": 208,
+          "radiantRaDrift": 0.7,
+          "radiantDecDrift": 0.1,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": 16.489225532407406,
+          "radiantAltitude": 29.36625571963844,
+          "moonIllumination": 5.477517850862723,
+          "moonSeparationDeg": 91.76039862596224,
+          "moonAltitudeDeg": -43.80510817008911
+        },
+        {
+          "iauNumber": 13,
+          "name": "Leonids",
+          "code": "LEO",
+          "peakMonth": 11,
+          "peakDay": 17,
+          "startMonth": 11,
+          "startDay": 6,
+          "endMonth": 11,
+          "endDay": 30,
+          "zhr": 15,
+          "radiantRaDeg": 144.64245787268518,
+          "radiantDecDeg": 26.204309787037037,
+          "velocityKms": 71,
+          "parentObject": "55P/Tempel-Tuttle",
+          "solarLongitudePeak": 235.27,
+          "radiantRaDrift": 0.7,
+          "radiantDecDrift": -0.4,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -10.510774467592592,
+          "radiantAltitude": 12.777081400705526,
+          "moonIllumination": 5.477517850862723,
+          "moonSeparationDeg": 61.405235897894606,
+          "moonAltitudeDeg": -43.80510817008911
+        },
+        {
+          "iauNumber": 2,
+          "name": "Southern Taurids",
+          "code": "STA",
+          "peakMonth": 11,
+          "peakDay": 5,
+          "startMonth": 9,
+          "startDay": 10,
+          "endMonth": 11,
+          "endDay": 20,
+          "zhr": 5,
+          "radiantRaDeg": 53.19138042592593,
+          "radiantDecDeg": 13.297845106481482,
+          "velocityKms": 27,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 223,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": 1.4892255324074075,
+          "radiantAltitude": 50.80588927641031,
+          "moonIllumination": 5.477517850862723,
+          "moonSeparationDeg": 142.49695995839068,
+          "moonAltitudeDeg": -43.80510817008911
+        },
+        {
+          "iauNumber": 17,
+          "name": "Northern Taurids",
+          "code": "NTA",
+          "peakMonth": 11,
+          "peakDay": 12,
+          "startMonth": 10,
+          "startDay": 20,
+          "endMonth": 12,
+          "endDay": 10,
+          "zhr": 5,
+          "radiantRaDeg": 53.68180162037037,
+          "radiantDecDeg": 20.92045040509259,
+          "velocityKms": 29,
+          "parentObject": "2P/Encke",
+          "solarLongitudePeak": 230,
+          "radiantRaDrift": 0.8,
+          "radiantDecDrift": 0.2,
+          "status": "established",
+          "isActive": true,
+          "daysFromPeak": -5.397747974537037,
+          "radiantAltitude": 58.13734821206461,
+          "moonIllumination": 5.477517850862723,
+          "moonSeparationDeg": 141.51222422391427,
+          "moonAltitudeDeg": -43.80510817008911
+        }
+      ]
+    }
+  ],
+  "cloudModelComparison": [
+    {
+      "time": "2026-10-31T21:00:00Z",
+      "openMeteoDefault": 29,
+      "openMeteoUkmo": 29,
+      "metNorway": 76.6
+    },
+    {
+      "time": "2026-10-31T23:00:00Z",
+      "openMeteoDefault": 0,
+      "openMeteoUkmo": 0,
+      "metNorway": 57.0
+    },
+    {
+      "time": "2026-11-01T00:00:00Z",
+      "openMeteoDefault": 1,
+      "openMeteoUkmo": 1,
+      "metNorway": 97.7
+    },
+    {
+      "time": "2026-11-01T01:00:00Z",
+      "openMeteoDefault": 27,
+      "openMeteoUkmo": 27,
+      "metNorway": 100.0
+    },
+    {
+      "time": "2026-11-01T02:00:00Z",
+      "openMeteoDefault": 27,
+      "openMeteoUkmo": 27,
+      "metNorway": 100.0
+    }
+  ],
+  "swpc": {
+    "fluxLatest": {
+      "time_tag": "2026-10-31T20:00:00",
+      "frequency": 2800,
+      "flux": 92.0,
+      "reporting_schedule": "Noon",
+      "avg_begin_date": "2026-08-03T20:00:00",
+      "ninety_day_mean": 110.0,
+      "rec_count": 90
+    },
+    "fluxOldest": {
+      "time_tag": "2026-09-20T17:00:00",
+      "frequency": 2800,
+      "flux": 100.0,
+      "reporting_schedule": "Morning",
+      "avg_begin_date": null,
+      "ninety_day_mean": null,
+      "rec_count": null
+    },
+    "appFlux": {
+      "timeTag": "2026-09-20T17:00:00",
+      "flux": 100
+    },
+    "flareLatest": {
+      "date": "2026-10-31T00:00:00",
+      "c_class_1_day": 25,
+      "c_class_2_day": 25,
+      "c_class_3_day": 25,
+      "m_class_1_day": 1,
+      "m_class_2_day": 1,
+      "m_class_3_day": 1,
+      "x_class_1_day": 1,
+      "x_class_2_day": 1,
+      "x_class_3_day": 1,
+      "10mev_protons_1_day": 1,
+      "10mev_protons_2_day": 1,
+      "10mev_protons_3_day": 1,
+      "polar_cap_absorption": "green"
+    },
+    "appFlareFirst": {
+      "dateRange": "",
+      "cClassProbability": 0,
+      "mClassProbability": 0,
+      "xClassProbability": 0
+    },
+    "sunspotRawCount": 296,
+    "appSunspotCount": 270,
+    "latestSunspotDate": "2026-10-31T00:00:00",
+    "latestSunspotUniqueRegions": [
+      4564,
+      4565
+    ],
+    "latestSunspotSample": {
+      "time_tag": "2026-10-31T08:55:00",
+      "Obsdate": "2026-10-31T00:00:00",
+      "Obstime": "0855",
+      "Station": 94302,
+      "Observatory": "LEA",
+      "Type": "spt",
+      "Quality": 2,
+      "Region": 4564,
+      "Latitude": 8,
+      "Report_Longitude": 51,
+      "Longitude": 42,
+      "Report_Location": "N08E51",
+      "Location": "N08E42",
+      "Carlon": 203,
+      "Extent": 6,
+      "Area": 20,
+      "Numspot": 2,
+      "Zurich": 3,
+      "Penumbra": 1,
+      "Compact": 2,
+      "Spotclass": "Cro",
+      "Magcode": 2,
+      "Magclass": "B",
+      "Obsid": 243,
+      "Report_Status": 2,
+      "ValidSpotClass": 1
+    },
+    "kpFirst": {
+      "time_tag": "2026-10-31T15:08:00",
+      "kp_index": 1,
+      "estimated_kp": 0.67,
+      "kp": "1M"
+    },
+    "kpLast": {
+      "time_tag": "2026-10-31T21:04:00",
+      "kp_index": 1,
+      "estimated_kp": 0.67,
+      "kp": "1M"
+    },
+    "missingKp": {
+      "currentKp": 0,
+      "activity": "low"
+    }
+  },
+  "syntheticRain": {
+    "input": "11 hourly records, cloud 0%, rain 1 mm/hour, rain probability 100%, wind 5 km/h, gust 10 km/h, humidity 50%, temperature 10 C, dew point 0 C. Synthetic edge case, not observed London conditions.",
+    "bestTime": {
+      "start": "2025-01-15T18:30:00.000Z",
+      "end": "2025-01-15T21:30:00.000Z",
+      "score": 115,
+      "reason": "Clear skies"
+    },
+    "quality": {
+      "score": 79,
+      "rating": {
+        "tier": "excellent",
+        "stars": 5,
+        "label": "Excellent",
+        "color": "text-green-400",
+        "starString": "\u2605\u2605\u2605\u2605\u2605"
+      },
+      "summary": "Clear skies, steady conditions, calm winds",
+      "factors": {
+        "clouds": 100,
+        "transparency": 50,
+        "seeing": 75,
+        "moon": 50,
+        "dewRisk": 100,
+        "wind": 100
+      },
+      "penalties": [
+        {
+          "key": "transparency",
+          "detail": "50% transparency",
+          "penalty": 50
+        },
+        {
+          "key": "moon",
+          "detail": "50% moonlight exposure",
+          "penalty": 50
+        },
+        {
+          "key": "seeing",
+          "detail": "good seeing",
+          "penalty": 25
+        }
+      ],
+      "metrics": {
+        "source": "best_window",
+        "cloudCover": 0,
+        "transparencyScore": null,
+        "seeingRating": "good",
+        "moonlightExposure": 50,
+        "dewRiskHours": 0,
+        "totalHours": 3,
+        "windSpeedKmh": 5
+      }
+    }
+  },
+  "iss": {
+    "tle": {
+      "name": "ISS (ZARYA)",
+      "line1": "1 25544U 98067A   26304.43448470  .00006246  00000+0  12087-3 0  9997",
+      "line2": "2 25544  51.6334 345.8717 0007023 331.3934  28.6669 15.49127356592878",
+      "noradId": 25544
+    },
+    "nightPasses": [
+      {
+        "satelliteName": "ISS (ZARYA)",
+        "noradId": 25544,
+        "riseTime": "2026-11-01T03:57:39.255Z",
+        "riseAzimuth": 126.8,
+        "maxAltitude": 12.078696725764043,
+        "maxTime": "2026-11-01T03:57:53.786Z",
+        "maxAzimuth": 125.7,
+        "isVisible": true,
+        "setTime": "2026-11-01T03:58:12.067Z",
+        "setAzimuth": 124.5,
+        "duration": 33,
+        "magnitude": -0.8
+      }
+    ],
+    "twilightPasses": [
+      {
+        "satelliteName": "ISS (ZARYA)",
+        "noradId": 25544,
+        "riseTime": "2026-11-01T03:57:39.432Z",
+        "riseAzimuth": 126.8,
+        "maxAltitude": 12.39315524581777,
+        "maxTime": "2026-11-01T03:57:51.151Z",
+        "maxAzimuth": 125.8,
+        "isVisible": true,
+        "setTime": "2026-11-01T03:58:12.245Z",
+        "setAzimuth": 124.5,
+        "duration": 33,
+        "magnitude": -0.8
+      },
+      {
+        "satelliteName": "ISS (ZARYA)",
+        "noradId": 25544,
+        "riseTime": "2026-11-01T05:30:38.495Z",
+        "riseAzimuth": 230.6,
+        "maxAltitude": 14.665382625829457,
+        "maxTime": "2026-11-01T05:31:21.151Z",
+        "maxAzimuth": 215.9,
+        "isVisible": true,
+        "setTime": "2026-11-01T05:33:07.557Z",
+        "setAzimuth": 184.3,
+        "duration": 149,
+        "magnitude": -1
+      }
+    ]
+  },
+  "additional": {
+    "positions": {
+      "Moon": {
+        "ra": 8.022116408143427,
+        "dec": 22.51010342202344,
+        "altitude": 23.184737198839088,
+        "azimuth": 82.57157881504739,
+        "illumination": 59.746239057501406
+      },
+      "Jupiter": {
+        "ra": 9.766333204656974,
+        "dec": 14.18795956982593,
+        "altitude": 1.3284317944600872,
+        "azimuth": 68.32477958785677,
+        "illumination": 99.18610498469467
+      },
+      "Saturn": {
+        "ra": 0.6159034876873175,
+        "dec": 1.0620819118874214,
+        "altitude": 33.54532059018471,
+        "azimuth": 217.60511988671382,
+        "illumination": 99.93306801056536
+      },
+      "Pluto": {
+        "ra": 20.40652833893282,
+        "dec": -23.698429118528033,
+        "altitude": -19.984695342854323,
+        "azimuth": 257.4633388205702,
+        "illumination": 99.98076775318437
+      },
+      "Ceres": {
+        "x": -0.04559290336051136,
+        "y": 2.648065424062445,
+        "z": 0.09223906164935063,
+        "r": 2.650063630829609,
+        "earthDist": 2.197226385116522,
+        "ra": 7.619250393713198,
+        "dec": 24.002746718470714
+      },
+      "Vesta": {
+        "x": 2.2476240529580007,
+        "y": 1.01051329188285,
+        "z": -0.30368911671152626,
+        "r": 2.4829776632334593,
+        "earthDist": 1.5502370715406422,
+        "ra": 1.2182737291672407,
+        "dec": -4.471033034612036
+      },
+      "Pallas": {
+        "x": 2.5070960518007555,
+        "y": 0.8090479279603037,
+        "z": -0.7775842858852176,
+        "r": 2.7467665507551637,
+        "earthDist": 1.9040280458323855,
+        "ra": 1.0524670872102295,
+        "dec": -19.50638033891953
+      }
+    },
+    "midnightLST": "2h 41m",
+    "jupiterEvents": [
+      {
+        "moon": "Io",
+        "type": "shadow_start",
+        "time": "2026-11-01T04:35:41.188Z",
+        "altitude": 41.966141917008,
+        "azimuth": 127.26580391431672
+      },
+      {
+        "moon": "Europa",
+        "type": "transit_start",
+        "time": "2026-11-02T19:44:00.613Z",
+        "altitude": -23.331367130525877,
+        "azimuth": 11.564120254986804
+      },
+      {
+        "moon": "Europa",
+        "type": "shadow_end",
+        "time": "2026-11-02T20:10:18.543Z",
+        "altitude": -22.26263403220456,
+        "azimuth": 18.429980140339243
+      },
+      {
+        "moon": "Europa",
+        "type": "transit_end",
+        "time": "2026-11-02T22:42:14.559Z",
+        "altitude": -8.17010650596167,
+        "azimuth": 54.06674625260357
+      },
+      {
+        "moon": "Io",
+        "type": "shadow_start",
+        "time": "2026-11-02T23:03:58.270Z",
+        "altitude": -5.330160489354995,
+        "azimuth": 58.57268802898502
+      },
+      {
+        "moon": "Io",
+        "type": "transit_start",
+        "time": "2026-11-03T00:14:23.465Z",
+        "altitude": 4.224949997457259,
+        "azimuth": 72.50418726406333
+      },
+      {
+        "moon": "Io",
+        "type": "shadow_end",
+        "time": "2026-11-03T01:20:32.605Z",
+        "altitude": 14.20349442702728,
+        "azimuth": 85.19646382372767
+      },
+      {
+        "moon": "Io",
+        "type": "transit_end",
+        "time": "2026-11-03T02:35:37.293Z",
+        "altitude": 25.837432061773583,
+        "azimuth": 100.17483166855129
+      },
+      {
+        "moon": "Ganymede",
+        "type": "shadow_start",
+        "time": "2026-11-04T01:28:30.698Z",
+        "altitude": 15.951099168071977,
+        "azimuth": 87.4350664748
+      },
+      {
+        "moon": "Io",
+        "type": "transit_start",
+        "time": "2026-11-04T18:43:05.224Z",
+        "altitude": -24.048929612910527,
+        "azimuth": 357.1974461515365
+      },
+      {
+        "moon": "Io",
+        "type": "shadow_end",
+        "time": "2026-11-04T19:48:47.997Z",
+        "altitude": -22.98242014439299,
+        "azimuth": 14.663122387167558
+      },
+      {
+        "moon": "Io",
+        "type": "transit_end",
+        "time": "2026-11-04T21:04:18.466Z",
+        "altitude": -18.123960878710022,
+        "azimuth": 33.666836778146354
+      }
+    ],
+    "sunAtMissedIss": {
+      "altitude": -12.659325253304885,
+      "azimuth": 96.66690939063605
+    }
+  },
+  "gaia": {
+    "liveResult": null,
+    "reason": "TAP request timed out; semantic distance finding comes from source review."
+  },
+  "remoteMainData": {
+    "metaFetchedAt": "2026-10-31T11:45:03.501Z",
+    "errors": [
+      "donki: DONKI API failed: GST 503, FLR 503"
+    ],
+    "donkiFetchedAt": "2026-09-29T12:12:52.438Z",
+    "run": "https://github.com/danilop/nightseek/actions/runs/41198118754",
+    "runConclusion": "success"
+  }
+}

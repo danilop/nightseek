@@ -23,6 +23,29 @@ describe('night-quality', () => {
         dewRiskHours: 0,
       });
 
+      for (
+        let t = Math.ceil(nightInfo.observingWindowStart.getTime() / 3_600_000) * 3_600_000;
+        t <= nightInfo.observingWindowEnd.getTime();
+        t += 3_600_000
+      ) {
+        weather.hourlyData.set(t, {
+          cloudCover: 5,
+          visibility: 10000,
+          windSpeed: 5,
+          windGust: 8,
+          humidity: 50,
+          temperature: 5,
+          dewPoint: 0,
+          precipProbability: 0,
+          precipitation: 0,
+          pressure: 1013,
+          cape: 0,
+          aod: 0.05,
+          pm25: 5,
+          pm10: 10,
+          dust: 0,
+        });
+      }
       const quality = calculateNightQuality(weather, nightInfo);
 
       expect(quality.rating.tier).toBe('excellent');

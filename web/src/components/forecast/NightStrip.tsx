@@ -1,5 +1,4 @@
 import { formatInTimeZone } from 'date-fns-tz';
-import { Star } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { formatDateKey, getMoonPhaseEmoji } from '@/lib/utils/format';
 import { calculateHeadlineNightQuality } from '@/lib/weather/night-quality';
@@ -103,11 +102,15 @@ export default function NightStrip({
                 <span className="text-xs leading-none">
                   {getMoonPhaseEmoji(nightInfo.moonPhase)}
                 </span>
-                <span className={`text-[0.6rem] leading-none ${nightQuality.rating.color}`}>
+                <span
+                  className={`whitespace-nowrap text-[0.6rem] leading-none ${nightQuality.rating.color}`}
+                >
                   {nightQuality.rating.starString}
                 </span>
               </div>
-              {isBestNight && <Star className="mt-0.5 h-2.5 w-2.5 text-green-400" />}
+              <span className="mt-0.5 h-2.5 text-[0.6rem] text-green-400 leading-none">
+                {isBestNight ? 'Best' : null}
+              </span>
             </button>
           );
         })}

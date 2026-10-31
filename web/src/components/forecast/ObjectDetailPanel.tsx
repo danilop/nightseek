@@ -1,15 +1,4 @@
-import {
-  Bookmark,
-  Camera,
-  Clock,
-  Compass,
-  Focus,
-  Moon,
-  Mountain,
-  Ruler,
-  Star,
-  X,
-} from 'lucide-react';
+import { Bookmark, Camera, Clock, Compass, Focus, Moon, Mountain, Star, X } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
@@ -17,7 +6,6 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { SkyCalculator } from '@/lib/astronomy/calculator';
-import { formatDistance } from '@/lib/gaia';
 import { fetchEnhancedGaiaStarField } from '@/lib/gaia/enhanced-queries';
 import { formatAsteroidDiameter, formatRotationPeriod } from '@/lib/jpl/sbdb';
 import {
@@ -53,6 +41,7 @@ import EnhancedStarFieldCanvas from './EnhancedStarFieldCanvas';
 import MosaicTipsPanel from './MosaicTipsPanel';
 import TargetAltitudeChart from './TargetAltitudeChart';
 
+const TargetReferencePanel = lazy(() => import('./TargetReferencePanel'));
 const AladinSurveyView = lazy(() => import('./AladinSurveyView'));
 
 interface ObjectDetailPanelProps {
@@ -81,6 +70,7 @@ export default function ObjectDetailPanel({
   const [isOpen, setIsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'starfield' | 'survey'>('starfield');
   const [surveyMounted, setSurveyMounted] = useState(false);
+  const [referenceOpen, setReferenceOpen] = useState(false);
 
   const focusTrapRef = useFocusTrap<HTMLDivElement>();
   const { state } = useApp();
@@ -415,17 +405,26 @@ export default function ObjectDetailPanel({
           />
         )}
 
-        {/* Distance */}
-        {!loading && starField && (
-          <div className="flex items-center gap-2 text-sm">
-            <Ruler className="h-4 w-4 text-purple-400" />
-            <span className="text-gray-400">Estimated distance:</span>
-            <span className="font-medium text-purple-400">
-              {formatDistance(starField.distanceLy)}
-            </span>
-          </div>
+        <button
+          type="button"
+          className="min-h-11 text-sky-300 text-sm"
+          aria-expanded={referenceOpen}
+          onClick={() => setReferenceOpen(!referenceOpen)}
+        >
+          {referenceOpen ? 'Hide object reference' : 'Object reference & moving objects'}
+        </button>
+        {referenceOpen && (
+          <Suspense fallback={<p className="text-gray-400">Loading reference tools…</p>}>
+            <TargetReferencePanel
+              key={object.objectName}
+              object={object}
+              width={fov?.width ?? 60}
+              height={fov?.height ?? 60}
+              time={visibility.maxAltitudeTime ?? nightInfo.darkestTime}
+              timezone={timezone}
+            />
+          </Suspense>
         )}
-
         {/* Object details grid */}
         <div className="grid grid-cols-2 gap-3">
           <DetailItem

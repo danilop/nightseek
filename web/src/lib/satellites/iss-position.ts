@@ -55,57 +55,10 @@ export async function fetchISSPosition(): Promise<ISSPosition | null> {
 
 /**
  * Get a human-readable location description for the ISS position
- * Uses reverse geocoding to find the country/ocean
+ * Return coordinates without guessing a country or ocean
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: geographic region detection requires many conditions
 export async function getISSLocationName(latitude: number, longitude: number): Promise<string> {
-  // For over ocean areas, provide descriptive names
-  if (longitude >= -180 && longitude <= -30 && latitude >= -60 && latitude <= 60) {
-    // Atlantic Ocean region
-    if (latitude > 30) return 'North Atlantic Ocean';
-    if (latitude < -30) return 'South Atlantic Ocean';
-    return 'Atlantic Ocean';
-  }
-
-  if (longitude >= 20 && longitude <= 145 && latitude >= -60 && latitude <= 60) {
-    // Indian Ocean region
-    if (longitude < 100 && latitude > -20 && latitude < 20) return 'Indian Ocean';
-  }
-
-  if ((longitude >= 100 || longitude <= -100) && latitude >= -60 && latitude <= 60) {
-    // Pacific Ocean region
-    if (latitude > 30) return 'North Pacific Ocean';
-    if (latitude < -30) return 'South Pacific Ocean';
-    return 'Pacific Ocean';
-  }
-
-  // For land areas, try to use a free reverse geocoding service
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=3`,
-      {
-        headers: {
-          'User-Agent': 'NightSeek/1.0 (astronomical app)',
-        },
-      }
-    );
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.address?.country) {
-        return data.address.country;
-      }
-      if (data.display_name) {
-        // Extract just the main location
-        const parts = data.display_name.split(',');
-        return parts[parts.length - 1]?.trim() || 'Unknown location';
-      }
-    }
-  } catch {
-    // Geocoding failed, use fallback
-  }
-
-  // Fallback: return coordinates
+  // Coordinates are honest and avoid repeated third-party reverse geocoding.
   const latDir = latitude >= 0 ? 'N' : 'S';
   const lonDir = longitude >= 0 ? 'E' : 'W';
   return `${Math.abs(latitude).toFixed(1)}°${latDir}, ${Math.abs(longitude).toFixed(1)}°${lonDir}`;

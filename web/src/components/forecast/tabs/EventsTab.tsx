@@ -1,4 +1,4 @@
-import type { Location, NightForecast } from '@/types';
+import type { HorizonProfile, Location, NightForecast } from '@/types';
 import VariableStarsCard from '../cards/VariableStarsCard';
 import EventsSection from '../EventsSection';
 import SatellitePassesCard from '../SatellitePassesCard';
@@ -6,9 +6,10 @@ import SatellitePassesCard from '../SatellitePassesCard';
 interface EventsTabProps {
   forecast: NightForecast;
   location: Location;
+  horizonProfile: HorizonProfile;
 }
 
-export default function EventsTab({ forecast, location }: EventsTabProps) {
+export default function EventsTab({ forecast, location, horizonProfile }: EventsTabProps) {
   return (
     <div className="space-y-4">
       <EventsSection
@@ -19,7 +20,11 @@ export default function EventsTab({ forecast, location }: EventsTabProps) {
         nightDate={forecast.nightInfo.date}
       />
       <VariableStarsCard nightDate={forecast.nightInfo.date} timezone={location.timezone} />
-      <SatellitePassesCard nightInfo={forecast.nightInfo} location={location} />
+      <SatellitePassesCard
+        nightInfo={forecast.nightInfo}
+        location={location}
+        horizonProfile={horizonProfile}
+      />
     </div>
   );
 }

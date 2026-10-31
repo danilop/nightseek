@@ -1,1 +1,0 @@
-export { formatDistance } from './api';

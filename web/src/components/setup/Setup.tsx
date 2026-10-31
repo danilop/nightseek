@@ -199,7 +199,7 @@ export default function Setup({ onLocationSet }: SetupProps) {
             <Search className="h-5 w-5 text-sky-400" />
             <div className="text-left">
               <div className="font-medium">Search for Location</div>
-              <div className="text-gray-400 text-sm">Enter city, address, or place name</div>
+              <div className="text-gray-400 text-sm">Enter city, postcode, or place name</div>
             </div>
           </button>
 
@@ -232,7 +232,7 @@ export default function Setup({ onLocationSet }: SetupProps) {
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Enter city, address, or place..."
+              placeholder="Enter city, postcode, or place..."
               className="w-full rounded-xl border border-night-600 bg-night-800 px-4 py-3 text-white placeholder-gray-500 transition-colors focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             />
           </div>

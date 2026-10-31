@@ -46,10 +46,8 @@ export async function fetchGaiaStarField(
   radiusDeg: number = 0.5,
   objectName?: string
 ): Promise<GaiaStarField | null> {
-  // Check cache first (use object name as key if provided)
-  const cacheKey = objectName
-    ? `${CACHE_KEYS.GAIA_PREFIX}${objectName.toLowerCase().replace(/\s+/g, '_')}`
-    : `${CACHE_KEYS.GAIA_PREFIX}${raHours.toFixed(4)}_${decDeg.toFixed(4)}`;
+  // Cache the actual cone geometry, including moving targets and field size.
+  const cacheKey = `${CACHE_KEYS.GAIA_PREFIX}v2:${objectName ?? ''}:${raHours.toFixed(6)}:${decDeg.toFixed(6)}:${radiusDeg.toFixed(6)}`;
 
   const cached = await getCached<GaiaStarField>(cacheKey, CACHE_TTLS.GAIA);
   if (cached) {
@@ -182,21 +180,4 @@ function calculateDistanceFromParallax(stars: GaiaStar[]): number | null {
   const distanceLy = distancePc * 3.26156;
 
   return Math.round(distanceLy);
-}
-
-/**
- * Format distance for display
- */
-export function formatDistance(distanceLy: number | null): string {
-  if (distanceLy === null) {
-    return 'Unknown';
-  }
-
-  if (distanceLy >= 1000000) {
-    return `${(distanceLy / 1000000).toFixed(1)} million ly`;
-  }
-  if (distanceLy >= 1000) {
-    return `${(distanceLy / 1000).toFixed(1)}k ly`;
-  }
-  return `${distanceLy.toLocaleString()} ly`;
 }

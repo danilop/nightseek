@@ -54,10 +54,7 @@ export default function AstronomicalEventsSection({
   nightDate,
 }: AstronomicalEventsSectionProps) {
   const hasNeoApproaches = events.neoCloseApproaches && events.neoCloseApproaches.length > 0;
-  const hasSpaceWeather =
-    events.spaceWeather &&
-    (events.spaceWeather.geomagneticStorms.length > 0 ||
-      events.spaceWeather.solarFlares.length > 0);
+  const hasSpaceWeather = Boolean(events.spaceWeather);
 
   if (!hasAnyEvent(events, !!hasNeoApproaches, !!hasSpaceWeather)) {
     return null;

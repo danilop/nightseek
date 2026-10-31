@@ -2,10 +2,10 @@ import { Badge } from '@/components/ui/Badge';
 import SectionCard from '@/components/ui/SectionCard';
 import Tooltip from '@/components/ui/Tooltip';
 import { useUIState } from '@/hooks/useUIState';
-import { describeGalileanMoonEvent } from '@/lib/astronomy/galilean-moons';
+import { describeGalileanMoonEvent, localGalileanEvents } from '@/lib/astronomy/galilean-moons';
 import { formatTime, getNightLabel } from '@/lib/utils/format';
 import { useApp } from '@/stores/AppContext';
-import type { GalileanMoonEvent, GalileanMoonPosition } from '@/types';
+import type { GalileanMoonEvent, GalileanMoonPosition, HorizonProfile } from '@/types';
 
 const CATEGORY_KEY = 'jupiter_moons';
 
@@ -13,6 +13,9 @@ interface JupiterMoonsCardProps {
   positions: GalileanMoonPosition[];
   events: GalileanMoonEvent[];
   latitude: number;
+  longitude: number;
+  horizonProfile: HorizonProfile;
+  referenceTime: Date;
   nightDate: Date;
   defaultExpanded?: boolean;
   isDragging?: boolean;
@@ -48,8 +51,11 @@ function getCollapsedPreview(
 
 export default function JupiterMoonsCard({
   positions,
-  events,
+  events: globalEvents,
   latitude,
+  longitude,
+  horizonProfile,
+  referenceTime,
   nightDate,
   defaultExpanded = false,
   isDragging,
@@ -58,6 +64,8 @@ export default function JupiterMoonsCard({
   const { isCategoryExpanded, toggleCategoryExpanded } = useUIState();
   const { state } = useApp();
   const timezone = state.location?.timezone;
+  const localEvents = localGalileanEvents(globalEvents, latitude, longitude, horizonProfile);
+  const events = localEvents.filter(e => e.observable);
   const expanded = isCategoryExpanded(CATEGORY_KEY, defaultExpanded);
   const nightLabel = getNightLabel(nightDate, false, timezone);
 
@@ -85,6 +93,15 @@ export default function JupiterMoonsCard({
       {/* Visual diagram of moon positions */}
       <MoonPositionDiagram positions={positions} isNorthernHemisphere={latitude >= 0} />
 
+      <p className="text-gray-400 text-xs">
+        Diagram at {formatTime(referenceTime, timezone)} · event times below use your local horizon.
+        Approximate predictions.
+      </p>
+      {localEvents.length > events.length && (
+        <p className="text-gray-400 text-xs">
+          {localEvents.length - events.length} event(s) below your horizon are omitted.
+        </p>
+      )}
       {/* Moon details */}
       <div className="grid grid-cols-2 gap-2">
         {positions.map(moon => (
@@ -103,6 +120,7 @@ export default function JupiterMoonsCard({
               <EventItem
                 key={`${event.type}-${event.moon}-${event.time.getTime()}`}
                 event={event}
+                altitude={event.altitude}
               />
             ))}
           </div>
@@ -315,7 +333,7 @@ function MoonStatus({ moon }: { moon: GalileanMoonPosition }) {
   );
 }
 
-function EventItem({ event }: { event: GalileanMoonEvent }) {
+function EventItem({ event, altitude }: { event: GalileanMoonEvent; altitude: number }) {
   const { state } = useApp();
   const timezone = state.location?.timezone;
   const typeColors: Record<string, string> = {
@@ -330,7 +348,9 @@ function EventItem({ event }: { event: GalileanMoonEvent }) {
       <span className={`text-sm ${typeColors[event.type]}`}>
         {describeGalileanMoonEvent(event)}
       </span>
-      <span className="text-gray-500 text-xs">{formatTime(event.time, timezone)}</span>
+      <span className="text-gray-500 text-xs">
+        {formatTime(event.time, timezone)} · {altitude.toFixed(0)}°
+      </span>
     </div>
   );
 }

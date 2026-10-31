@@ -1,4 +1,5 @@
 import { fromZonedTime } from 'date-fns-tz';
+import { publicData, record } from '@/lib/api/public-data';
 import type {
   BestObservingTime,
   ClearWindow,
@@ -9,6 +10,7 @@ import type {
 import { avg, maxVal, minVal, sum } from '../utils/array-math';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
 import { getOrDefault } from '../utils/map-helpers';
+import { observingBlockers } from './observing-conditions';
 
 const BROWSER_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -21,7 +23,9 @@ const WEATHER_API_URL = 'https://api.open-meteo.com/v1/forecast';
 const AIR_QUALITY_API_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 const HISTORICAL_API_URL = 'https://archive-api.open-meteo.com/v1/archive';
 
-interface WeatherAPIResponse {
+export interface WeatherAPIResponse {
+  fetchedAt?: string;
+  source?: string;
   timezone?: string;
   hourly: {
     time: (string | number)[];
@@ -39,6 +43,9 @@ interface WeatherAPIResponse {
     precipitation?: number[];
     pressure_msl?: number[];
     cape?: number[];
+    wind_direction_10m?: number[];
+    wind_speed_250hPa?: number[];
+    cloud_cover_2m?: number[];
   };
 }
 
@@ -76,6 +83,8 @@ export async function fetchWeather(
       'precipitation',
       'pressure_msl',
       'cape',
+      'wind_direction_10m',
+      'wind_speed_250hPa',
     ].join(','),
     // A night includes the following morning. The provider counts calendar days.
     forecast_days: Math.min(forecastDays + 1, 16).toString(),
@@ -92,7 +101,35 @@ export async function fetchWeather(
   }
 
   try {
-    return (await response.json()) as WeatherAPIResponse;
+    const data = (await response.json()) as WeatherAPIResponse;
+    // UK near-surface fog is optional; a failed regional feed must not hide the base forecast.
+    if (latitude >= 49 && latitude <= 61 && longitude >= -9 && longitude <= 3) {
+      const fogParams = new URLSearchParams({
+        latitude: String(latitude),
+        longitude: String(longitude),
+        hourly: 'cloud_cover_2m',
+        models: 'ukmo_seamless',
+        forecast_days: String(Math.min(forecastDays + 1, 8)),
+        timeformat: 'unixtime',
+        past_days: '1',
+      });
+      const fog = await publicData(
+        `uk-fog:${latitude.toFixed(3)}:${longitude.toFixed(3)}:${forecastDays}`,
+        3_600_000,
+        `${WEATHER_API_URL}?${fogParams}`,
+        raw => {
+          const h = record(record(raw).hourly);
+          if (!Array.isArray(h.time) || !Array.isArray(h.cloud_cover_2m))
+            throw new Error('Invalid fog forecast');
+          return { time: h.time, values: h.cloud_cover_2m };
+        }
+      );
+      if (fog) {
+        const values = new Map(fog.time.map((t, i) => [t, fog.values[i]]));
+        data.hourly.cloud_cover_2m = data.hourly.time.map(t => values.get(t) as number);
+      }
+    }
+    return { ...data, fetchedAt: new Date().toISOString(), source: 'Open-Meteo best match' };
   } catch {
     throw new Error('Weather API returned invalid data. Try refreshing.');
   }
@@ -107,7 +144,7 @@ export async function fetchAirQuality(
     latitude: latitude.toString(),
     longitude: longitude.toString(),
     hourly: 'pm2_5,pm10,aerosol_optical_depth,dust',
-    forecast_days: Math.min(forecastDays + 1, 5).toString(),
+    forecast_days: Math.min(forecastDays + 1, 7).toString(),
     timezone: 'auto',
     timeformat: 'unixtime',
     past_days: '1',
@@ -230,6 +267,9 @@ function collectAirQualityData(
  */
 function buildHourlyWeather(hourly: WeatherAPIResponse['hourly'], i: number): HourlyWeather {
   return {
+    windDirection: hourly.wind_direction_10m?.[i] ?? null,
+    jetStreamSpeed: hourly.wind_speed_250hPa?.[i] ?? null,
+    fogCover: hourly.cloud_cover_2m?.[i] ?? null,
     cloudCover: hourly.cloud_cover[i] ?? 100,
     visibility: hourly.visibility?.[i] ?? null,
     windSpeed: hourly.wind_speed_10m?.[i] ?? null,
@@ -297,6 +337,11 @@ export function parseNightWeather(
   airQualityData: AirQualityAPIResponse | null,
   nightInfo: NightInfo
 ): NightWeather | null {
+  if (
+    nightInfo.observingWindowMode === 'none' ||
+    nightInfo.observingWindowEnd <= nightInfo.observingWindowStart
+  )
+    return null;
   const { hourly } = weatherData;
   const airHourly = airQualityData?.hourly;
   const timezone = weatherData.timezone ?? BROWSER_TZ;
@@ -349,6 +394,8 @@ export function parseNightWeather(
   const bestTime = findBestObservingTime(hourlyMap, duskTime, dawnTime);
 
   return {
+    fetchedAt: weatherData.fetchedAt,
+    source: weatherData.source,
     date: nightInfo.date,
     avgCloudCover: avg(arrays.cloudCover),
     minCloudCover: minVal(arrays.cloudCover),
@@ -421,7 +468,7 @@ function findClearWindows(
     }
     const data = getOrDefault(hourlyData, time, { cloudCover: 100 } as HourlyWeather);
 
-    if (data.cloudCover < 30) {
+    if (data.cloudCover < 30 && observingBlockers(data).length === 0) {
       if (!windowStart) {
         windowStart = new Date(time);
         windowCloudCover = [];
@@ -521,6 +568,7 @@ function scorePracticalWindowCandidate(
   for (let index = startIndex; index <= endIndex; index++) {
     if (index > startIndex && times[index] - times[index - 1] > HOUR_MS) return null;
     const data = getOrDefault(hourlyData, times[index], { cloudCover: 100 } as HourlyWeather);
+    if (observingBlockers(data).length > 0) return null;
     windowHours.push(scoreObservingHour(data));
     cloudCoverValues.push(data.cloudCover);
   }

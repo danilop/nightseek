@@ -8,6 +8,7 @@ import { calculateMoonlightInfo } from '@/lib/astronomy/moonlight';
 import { estimateSeeing } from '@/lib/astronomy/seeing';
 import { getRatingFromPercentage, type RatingDisplay } from '@/lib/utils/rating';
 import type { HourlyWeather, NightInfo, NightWeather, SeeingForecast } from '@/types';
+import { observingBlockers, weatherCoverage } from './observing-conditions';
 
 export interface NightQualityFactors {
   clouds: number; // 0-100 contribution
@@ -222,7 +223,10 @@ function buildPenaltyBreakdown(
     },
     {
       key: 'transparency',
-      detail: `${Math.round(metrics.transparencyScore ?? 50)}% transparency`,
+      detail:
+        metrics.transparencyScore === null
+          ? 'unknown transparency'
+          : `${Math.round(metrics.transparencyScore)}% transparency`,
       penalty: 100 - factors.transparency,
     },
     {
@@ -484,7 +488,34 @@ function calculateFromMetrics(
 
   score = applyPracticalWindowScoreCaps(score, metrics, practicalWindowPenalty);
 
-  const conditionsSummary = generateSummary(factors, metrics);
+  let conditionsSummary = generateSummary(factors, metrics);
+  const selectedHours = weather
+    ? metrics.source === 'best_window' && weather.bestTime
+      ? getHourlySlice(weather, weather.bestTime.start, weather.bestTime.end)
+      : [...weather.hourlyData.values()]
+    : [];
+  const blocked = selectedHours.filter(hour => observingBlockers(hour).length > 0);
+  if (blocked.length) {
+    score = Math.min(score, Math.round(34 * (1 - blocked.length / selectedHours.length)));
+    const reasons = [...new Set(blocked.flatMap(observingBlockers))].join(', ');
+    conditionsSummary = `Limited by ${reasons} — ${blocked.length}/${selectedHours.length} sampled hours unsuitable`;
+  }
+  if (!weather) score = Math.min(score, 49);
+  if (weather && nightInfo) {
+    const coverage = weatherCoverage(weather, nightInfo);
+    if (
+      Math.min(
+        coverage.weather,
+        coverage.precipitation,
+        coverage.wind,
+        coverage.visibility,
+        coverage.aerosol
+      ) < coverage.expected
+    ) {
+      score = Math.min(score, 69);
+      conditionsSummary += ' · incomplete weather evidence';
+    }
+  }
   const penalties = buildPenaltyBreakdown(metrics, factors, practicalWindowPenalty);
   const windowLimited = applyObservingWindowLimit(score, penalties, conditionsSummary, nightInfo);
 

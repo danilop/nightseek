@@ -475,6 +475,14 @@ export default function TargetsTab({
     if (config.key === 'jupiter_moons' && astronomicalEvents?.jupiterMoons) {
       return (
         <JupiterMoonsCard
+          longitude={forecastLocation.longitude}
+          horizonProfile={horizonProfile}
+          referenceTime={
+            new Date(
+              (nightInfo.observingWindowStart.getTime() + nightInfo.observingWindowEnd.getTime()) /
+                2
+            )
+          }
           positions={astronomicalEvents.jupiterMoons.positions}
           events={astronomicalEvents.jupiterMoons.events}
           latitude={latitude}

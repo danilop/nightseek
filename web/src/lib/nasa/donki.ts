@@ -22,6 +22,12 @@ export async function fetchSpaceWeather(): Promise<SpaceWeather | null> {
   return data ?? null;
 }
 
+/** An event catalogue is not a current observation or a forecast. */
+export function isSpaceWeatherFresh(data: SpaceWeather, now = Date.now()): boolean {
+  const age = now - new Date(data.fetchedAt).getTime();
+  return Number.isFinite(age) && age >= -300_000 && age <= 48 * 3_600_000;
+}
+
 /**
  * Returns the minimum Kp index required for aurora visibility at a given latitude.
  */
@@ -44,6 +50,18 @@ export function computeAuroraForecast(
 ): AuroraForecast {
   const requiredKp = getAuroraThreshold(latitude);
 
+  if (
+    !isSpaceWeatherFresh(spaceWeather) ||
+    Math.abs(nightDate.getTime() - Date.now()) > 36 * 3_600_000
+  ) {
+    return {
+      chance: 'unknown',
+      currentMaxKp: null,
+      requiredKp,
+      description:
+        'DONKI event snapshot is stale or outside this night. Use the current NOAA outlook.',
+    };
+  }
   // Find max Kp from storms on or near the night date (within ~36 hours)
   const nightMs = nightDate.getTime();
   let currentMaxKp = 0;
@@ -66,6 +84,13 @@ export function computeAuroraForecast(
     }
   }
 
+  if (currentMaxKp === 0)
+    return {
+      chance: 'unknown',
+      currentMaxKp: null,
+      requiredKp,
+      description: 'No matching measurements; this does not establish absence of aurora.',
+    };
   const diff = currentMaxKp - requiredKp;
   let chance: AuroraChance;
   let description: string;

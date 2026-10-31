@@ -4,9 +4,10 @@
 export type {
   GeodeticLocation,
   LookAngles,
+  OMMJsonObject,
 } from '../../../node_modules/satellite.js/dist/common-types.js';
 export { jday } from '../../../node_modules/satellite.js/dist/ext.js';
-export { twoline2satrec } from '../../../node_modules/satellite.js/dist/io.js';
+export { json2satrec, twoline2satrec } from '../../../node_modules/satellite.js/dist/io.js';
 export type { SatRec } from '../../../node_modules/satellite.js/dist/propagation/SatRec.js';
 export { gstime, propagate } from '../../../node_modules/satellite.js/dist/propagation.js';
 export { sunPos } from '../../../node_modules/satellite.js/dist/sun.js';

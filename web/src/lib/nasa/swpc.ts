@@ -1,34 +1,18 @@
-/**
- * NOAA Space Weather Prediction Center (SWPC) — Real-time space weather data.
- * https://services.swpc.noaa.gov/json/
- *
- * All endpoints are public US government data — no API key required.
- * Data is fetched client-side and cached aggressively in IndexedDB
- * to scale across many concurrent users without overloading SWPC servers.
- */
-
+/** Public NOAA observations. Observation time, not download order, determines freshness. */
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
-import { logger } from '../utils/logger';
-
-const SWPC_BASE = 'https://services.swpc.noaa.gov/json';
-const FETCH_TIMEOUT_MS = 10_000;
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface KpIndexReading {
-  timeTag: string; // ISO-like timestamp
+  timeTag: string;
   kpIndex: number;
   estimatedKp: number;
   kpSource: string;
 }
-
 export interface SolarFlareProbability {
   dateRange: string;
   cClassProbability: number;
   mClassProbability: number;
   xClassProbability: number;
 }
-
 export interface SunspotRegion {
   region: number;
   spotCount: number;
@@ -36,13 +20,12 @@ export interface SunspotRegion {
   magClass: string;
   location: string;
   area: number;
+  observedAt?: string;
 }
-
 export interface SolarFluxReading {
   timeTag: string;
   flux: number;
 }
-
 export interface SWPCData {
   kpIndex: KpIndexReading[];
   flareProbabilities: SolarFlareProbability[];
@@ -50,267 +33,174 @@ export interface SWPCData {
   solarFlux: SolarFluxReading | null;
   fetchedAt: string;
 }
+type Row = Record<string, unknown>;
+const BASE = 'https://services.swpc.noaa.gov/json';
+const HOUR = 3_600_000;
 
-// ─── Fetch helpers ───────────────────────────────────────────────────────────
-
-/* v8 ignore start */
-async function fetchJSON<T>(url: string): Promise<T | null> {
-  try {
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+export function utcTime(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const input = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value.replace(' ', 'T')}Z`;
+  const time = new Date(input);
+  return Number.isFinite(time.getTime()) ? time.toISOString() : '';
+}
+function number(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+function recent(time: string, hours: number, now = Date.now()): boolean {
+  const age = now - new Date(time).getTime();
+  return Number.isFinite(age) && age >= -5 * 60_000 && age <= hours * HOUR;
+}
+export function parseKpIndex(raw: Row[]): KpIndexReading[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .flatMap(row => {
+      const kp = number(row.kp_index ?? row.kp);
+      const time = utcTime(row.time_tag);
+      return kp !== null && kp >= 0 && kp <= 9 && time
+        ? [
+            {
+              timeTag: time,
+              kpIndex: kp,
+              estimatedKp: number(row.estimated_kp) ?? kp,
+              kpSource: String(row.source ?? 'SWPC'),
+            },
+          ]
+        : [];
+    })
+    .sort((a, b) => a.timeTag.localeCompare(b.timeTag));
+}
+export function parseFlareProbabilities(raw: Row[]): SolarFlareProbability[] {
+  if (!Array.isArray(raw)) return [];
+  const rows = [...raw].sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')));
+  if (rows[0]?.date && 'c_class_1_day' in rows[0]) {
+    const row = rows[0];
+    const base = new Date(utcTime(row.date)).getTime();
+    if (!Number.isFinite(base)) return [];
+    return [1, 2, 3].flatMap(day => {
+      const c = number(row[`c_class_${day}_day`]);
+      const m = number(row[`m_class_${day}_day`]);
+      const x = number(row[`x_class_${day}_day`]);
+      return c !== null && m !== null && x !== null && [c, m, x].every(v => v >= 0 && v <= 100)
+        ? [
+            {
+              dateRange: new Date(base + (day - 1) * 24 * HOUR).toISOString().slice(0, 10),
+              cClassProbability: c,
+              mClassProbability: m,
+              xClassProbability: x,
+            },
+          ]
+        : [];
     });
-    if (!response.ok) return null;
-    return (await response.json()) as T;
+  }
+  return rows.flatMap(row => {
+    const c = number(row.C ?? row.c_class);
+    const m = number(row.M ?? row.m_class);
+    const x = number(row.X ?? row.x_class);
+    const date = String(row.DateRange ?? row['date-range'] ?? '');
+    return date && c !== null && m !== null && x !== null
+      ? [{ dateRange: date, cClassProbability: c, mClassProbability: m, xClassProbability: x }]
+      : [];
+  });
+}
+export function parseSunspotReport(raw: Row[]): SunspotRegion[] {
+  if (!Array.isArray(raw)) return [];
+  const rows = [...raw].sort((a, b) =>
+    utcTime(b.time_tag ?? b.Obsdate).localeCompare(utcTime(a.time_tag ?? a.Obsdate))
+  );
+  const latestDay = utcTime(rows[0]?.Obsdate ?? rows[0]?.time_tag).slice(0, 10);
+  const regions = new Map<number, SunspotRegion>();
+  for (const row of rows) {
+    const id = number(row.Region ?? row.region);
+    const observedAt = utcTime(row.time_tag ?? row.Obsdate);
+    if (
+      id === null ||
+      regions.has(id) ||
+      (latestDay && utcTime(row.Obsdate ?? row.time_tag).slice(0, 10) !== latestDay)
+    )
+      continue;
+    regions.set(id, {
+      region: id,
+      spotCount: number(row.Numspot ?? row.numspot) ?? 0,
+      spotClass: String(row.Spotclass ?? row.Zurich ?? row.zurich ?? ''),
+      magClass: String(row.Magclass ?? row.Magtype ?? row.magtype ?? ''),
+      location: String(row.Location ?? row.location ?? ''),
+      area: number(row.Area ?? row.area) ?? 0,
+      ...(observedAt ? { observedAt } : {}),
+    });
+  }
+  return [...regions.values()];
+}
+export function parseSolarFlux(raw: Row[]): SolarFluxReading | null {
+  if (!Array.isArray(raw)) return null;
+  return (
+    raw
+      .flatMap(row => {
+        const flux = number(row.flux);
+        const timeTag = utcTime(row.time_tag);
+        return flux !== null && flux > 0 && timeTag ? [{ flux, timeTag }] : [];
+      })
+      .sort((a, b) => b.timeTag.localeCompare(a.timeTag))[0] ?? null
+  );
+}
+async function fetchRows(file: string): Promise<Row[]> {
+  try {
+    const response = await fetch(`${BASE}/${file}`, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) return [];
+    const rows: unknown = await response.json();
+    return Array.isArray(rows)
+      ? rows.filter((r): r is Row => r !== null && typeof r === 'object')
+      : [];
   } catch {
-    return null;
+    return [];
   }
 }
-/* v8 ignore stop */
-
-// ─── Kp Index (1-minute cadence) ─────────────────────────────────────────────
-
-interface RawKpEntry {
-  time_tag: string;
-  kp_index: number;
-  estimated_kp: number;
-  kp: number;
-  source?: string;
-}
-
-export function parseKpIndex(raw: RawKpEntry[]): KpIndexReading[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter(entry => entry.kp_index != null || entry.kp != null)
-    .map(entry => ({
-      timeTag: entry.time_tag,
-      kpIndex: entry.kp_index ?? entry.kp,
-      estimatedKp: entry.estimated_kp ?? entry.kp_index ?? entry.kp,
-      kpSource: entry.source ?? 'SWPC',
-    }));
-}
-
-/* v8 ignore start */
-async function fetchKpIndex(): Promise<KpIndexReading[]> {
-  const cached = await getCached<KpIndexReading[]>(CACHE_KEYS.SWPC_KP, CACHE_TTLS.SWPC_KP);
-  if (cached) return cached;
-
-  const raw = await fetchJSON<RawKpEntry[]>(`${SWPC_BASE}/planetary_k_index_1m.json`);
-  if (!raw) return [];
-
-  const parsed = parseKpIndex(raw);
-  if (parsed.length > 0) {
-    await setCache(CACHE_KEYS.SWPC_KP, parsed);
-  }
-  return parsed;
-}
-/* v8 ignore stop */
-
-// ─── Solar Flare Probabilities ───────────────────────────────────────────────
-
-interface RawFlareProbEntry {
-  DateRange?: string;
-  'date-range'?: string;
-  C?: number;
-  M?: number;
-  X?: number;
-  c_class?: number;
-  m_class?: number;
-  x_class?: number;
-}
-
-export function parseFlareProbabilities(raw: RawFlareProbEntry[]): SolarFlareProbability[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map(entry => ({
-    dateRange: entry.DateRange ?? entry['date-range'] ?? '',
-    cClassProbability: entry.C ?? entry.c_class ?? 0,
-    mClassProbability: entry.M ?? entry.m_class ?? 0,
-    xClassProbability: entry.X ?? entry.x_class ?? 0,
-  }));
-}
-
-/* v8 ignore start */
-async function fetchFlareProbabilities(): Promise<SolarFlareProbability[]> {
-  const cached = await getCached<SolarFlareProbability[]>(
-    CACHE_KEYS.SWPC_FLARE_PROB,
-    CACHE_TTLS.SWPC_GENERAL
-  );
-  if (cached) return cached;
-
-  const raw = await fetchJSON<RawFlareProbEntry[]>(`${SWPC_BASE}/solar_probabilities.json`);
-  if (!raw) return [];
-
-  const parsed = parseFlareProbabilities(raw);
-  if (parsed.length > 0) {
-    await setCache(CACHE_KEYS.SWPC_FLARE_PROB, parsed);
-  }
-  return parsed;
-}
-/* v8 ignore stop */
-
-// ─── Sunspot Report ──────────────────────────────────────────────────────────
-
-interface RawSunspotEntry {
-  Region?: number;
-  region?: number;
-  Numspot?: number;
-  numspot?: number;
-  Zurich?: string;
-  zurich?: string;
-  Magtype?: string;
-  magtype?: string;
-  Location?: string;
-  location?: string;
-  Area?: number;
-  area?: number;
-}
-
-export function parseSunspotReport(raw: RawSunspotEntry[]): SunspotRegion[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter(entry => (entry.Region ?? entry.region) != null)
-    .map(entry => ({
-      region: entry.Region ?? entry.region ?? 0,
-      spotCount: entry.Numspot ?? entry.numspot ?? 0,
-      spotClass: entry.Zurich ?? entry.zurich ?? '',
-      magClass: entry.Magtype ?? entry.magtype ?? '',
-      location: entry.Location ?? entry.location ?? '',
-      area: entry.Area ?? entry.area ?? 0,
-    }));
-}
-
-/* v8 ignore start */
-async function fetchSunspotReport(): Promise<SunspotRegion[]> {
-  const cached = await getCached<SunspotRegion[]>(
-    CACHE_KEYS.SWPC_SUNSPOTS,
-    CACHE_TTLS.SWPC_GENERAL
-  );
-  if (cached) return cached;
-
-  const raw = await fetchJSON<RawSunspotEntry[]>(`${SWPC_BASE}/sunspot_report.json`);
-  if (!raw) return [];
-
-  const parsed = parseSunspotReport(raw);
-  if (parsed.length > 0) {
-    await setCache(CACHE_KEYS.SWPC_SUNSPOTS, parsed);
-  }
-  return parsed;
-}
-/* v8 ignore stop */
-
-// ─── Solar Radio Flux (10.7 cm / F10.7) ─────────────────────────────────────
-
-interface RawFluxEntry {
-  time_tag: string;
-  flux: number;
-}
-
-/* v8 ignore start */
-async function fetchSolarFlux(): Promise<SolarFluxReading | null> {
-  const cached = await getCached<SolarFluxReading>(CACHE_KEYS.SWPC_FLUX, CACHE_TTLS.SWPC_GENERAL);
-  if (cached) return cached;
-
-  const raw = await fetchJSON<RawFluxEntry[]>(`${SWPC_BASE}/f107_cm_flux.json`);
-  if (!raw || raw.length === 0) return null;
-
-  // Take the most recent reading
-  const latest = raw[raw.length - 1];
-  const reading: SolarFluxReading = {
-    timeTag: latest.time_tag,
-    flux: latest.flux,
-  };
-
-  await setCache(CACHE_KEYS.SWPC_FLUX, reading);
-  return reading;
-}
-/* v8 ignore stop */
-
-// ─── Public API ──────────────────────────────────────────────────────────────
-
-/**
- * Fetch all SWPC data sources in parallel.
- * Each source fails independently — partial data is returned rather than nothing.
- * Caching ensures minimal API load even with many concurrent users.
- */
-/* v8 ignore start */
 export async function fetchSWPCData(): Promise<SWPCData | null> {
-  // Check for a combined cache hit first (saves 4 IndexedDB reads)
   const cached = await getCached<SWPCData>(CACHE_KEYS.SWPC_COMBINED, CACHE_TTLS.SWPC_KP);
   if (cached) return cached;
-
-  try {
-    const [kpIndex, flareProbabilities, sunspotRegions, solarFlux] = await Promise.all([
-      fetchKpIndex(),
-      fetchFlareProbabilities(),
-      fetchSunspotReport(),
-      fetchSolarFlux(),
-    ]);
-
-    // Return null only if we got absolutely nothing
-    if (kpIndex.length === 0 && flareProbabilities.length === 0 && sunspotRegions.length === 0) {
-      return null;
-    }
-
-    const data: SWPCData = {
-      kpIndex,
-      flareProbabilities,
-      sunspotRegions,
-      solarFlux,
-      fetchedAt: new Date().toISOString(),
-    };
-
-    await setCache(CACHE_KEYS.SWPC_COMBINED, data);
-    return data;
-  } catch (e) {
-    logger.warn('SWPC data fetch failed', e);
+  const [kp, flare, spots, flux] = await Promise.all(
+    [
+      'planetary_k_index_1m.json',
+      'solar_probabilities.json',
+      'sunspot_report.json',
+      'f107_cm_flux.json',
+    ].map(fetchRows)
+  );
+  const solarFlux = parseSolarFlux(flux);
+  const data: SWPCData = {
+    kpIndex: parseKpIndex(kp).filter(r => recent(r.timeTag, 24)),
+    flareProbabilities: parseFlareProbabilities(flare),
+    sunspotRegions: parseSunspotReport(spots).filter(r => r.observedAt && recent(r.observedAt, 48)),
+    solarFlux: solarFlux && recent(solarFlux.timeTag, 48) ? solarFlux : null,
+    fetchedAt: new Date().toISOString(),
+  };
+  if (
+    !data.kpIndex.length &&
+    !data.flareProbabilities.length &&
+    !data.sunspotRegions.length &&
+    !data.solarFlux
+  )
     return null;
-  }
+  await setCache(CACHE_KEYS.SWPC_COMBINED, data);
+  return data;
 }
-/* v8 ignore stop */
-
-/**
- * Get the current (most recent) Kp index from SWPC real-time data.
- */
-export function getCurrentKp(data: SWPCData): number {
-  if (data.kpIndex.length === 0) return 0;
-  // Last entry is most recent
-  return data.kpIndex[data.kpIndex.length - 1].kpIndex;
+export function getCurrentKp(data: SWPCData, now = Date.now()): number | null {
+  const latest = [...data.kpIndex].sort((a, b) => b.timeTag.localeCompare(a.timeTag))[0];
+  return latest && recent(latest.timeTag, 1, now) ? latest.estimatedKp : null;
 }
-
-/**
- * Get the maximum Kp index from the last 24 hours of SWPC data.
- */
-export function getRecentMaxKp(data: SWPCData): number {
-  if (data.kpIndex.length === 0) return 0;
-
-  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-  let max = 0;
-
-  for (const reading of data.kpIndex) {
-    const readingTime = new Date(reading.timeTag).getTime();
-    if (readingTime >= cutoff && reading.kpIndex > max) {
-      max = reading.kpIndex;
-    }
-  }
-
-  return max || data.kpIndex[data.kpIndex.length - 1].kpIndex;
+/** Maximum within the available recent series, not a claim of 24-hour coverage. */
+export function getRecentMaxKp(data: SWPCData, now = Date.now()): number | null {
+  const readings = data.kpIndex.filter(r => recent(r.timeTag, 24, now));
+  return readings.length ? Math.max(...readings.map(r => r.estimatedKp)) : null;
 }
-
-/**
- * Get the solar activity summary label based on F10.7 flux.
- */
 export function getSolarActivityLabel(
   flux: number | null
-): 'low' | 'moderate' | 'high' | 'very high' {
-  if (flux === null) return 'low';
-  if (flux < 100) return 'low';
-  if (flux < 150) return 'moderate';
-  if (flux < 200) return 'high';
-  return 'very high';
+): 'unknown' | 'low' | 'moderate' | 'high' | 'very high' {
+  if (flux === null) return 'unknown';
+  return flux < 100 ? 'low' : flux < 150 ? 'moderate' : flux < 200 ? 'high' : 'very high';
 }
-
-/**
- * Get today's flare probability (first entry = today or next period).
- */
-export function getTodayFlareProbability(data: SWPCData): SolarFlareProbability | null {
-  return data.flareProbabilities[0] ?? null;
+export function getTodayFlareProbability(
+  data: SWPCData,
+  now = new Date()
+): SolarFlareProbability | null {
+  return data.flareProbabilities.find(r => r.dateRange === now.toISOString().slice(0, 10)) ?? null;
 }

@@ -317,9 +317,7 @@ export async function fetchEnhancedGaiaStarField(
   objectName?: string
 ): Promise<EnhancedGaiaStarField | null> {
   // Check cache first
-  const cacheKey = objectName
-    ? `${CACHE_KEYS.GAIA_ENHANCED_PREFIX}${objectName.toLowerCase().replace(/\s+/g, '_')}`
-    : `${CACHE_KEYS.GAIA_ENHANCED_PREFIX}${raHours.toFixed(4)}_${decDeg.toFixed(4)}`;
+  const cacheKey = `${CACHE_KEYS.GAIA_ENHANCED_PREFIX}v2:${objectName ?? ''}:${raHours.toFixed(6)}:${decDeg.toFixed(6)}:${radiusDeg.toFixed(6)}`;
 
   // Check cache — reuse if the cached search radius covers the requested area
   const cached = await getCached<EnhancedGaiaStarField & { _searchRadius?: number }>(

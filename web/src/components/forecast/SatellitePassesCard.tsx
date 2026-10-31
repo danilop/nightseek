@@ -20,14 +20,19 @@ import {
 import { getAltitudeTextColor } from '@/lib/utils/colors';
 import { formatTime, getNightLabel } from '@/lib/utils/format';
 import { useApp } from '@/stores/AppContext';
-import type { ISSPosition, Location, NightInfo, SatellitePass } from '@/types';
+import type { HorizonProfile, ISSPosition, Location, NightInfo, SatellitePass } from '@/types';
 
 interface SatellitePassesCardProps {
   nightInfo: NightInfo;
   location: Location;
+  horizonProfile?: HorizonProfile;
 }
 
-export default function SatellitePassesCard({ nightInfo, location }: SatellitePassesCardProps) {
+export default function SatellitePassesCard({
+  nightInfo,
+  location,
+  horizonProfile,
+}: SatellitePassesCardProps) {
   const { state } = useApp();
   const { settings } = state;
   const [expanded, setExpanded] = useState(false);
@@ -71,7 +76,12 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
             return;
           }
 
-          const calculatedPasses = calculateMultiSatellitePasses(tles, location, [nightInfo]);
+          const calculatedPasses = calculateMultiSatellitePasses(
+            tles,
+            location,
+            [nightInfo],
+            horizonProfile
+          );
           setPasses(calculatedPasses);
         } else {
           // ISS-only mode
@@ -84,7 +94,12 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
 
           if (cancelled) return;
 
-          const calculatedPasses = calculateSatellitePasses(tle, location, [nightInfo]);
+          const calculatedPasses = calculateSatellitePasses(
+            tle,
+            location,
+            [nightInfo],
+            horizonProfile
+          );
           setPasses(calculatedPasses);
         }
       } catch {
@@ -110,6 +125,7 @@ export default function SatellitePassesCard({ nightInfo, location }: SatellitePa
     location.longitude,
     showSatellitePasses,
     showAllSatellites,
+    horizonProfile,
   ]);
 
   // Fetch ISS position when card is expanded
@@ -234,6 +250,7 @@ function SatellitePassesContent({
   passes: SatellitePass[];
   nightInfo: NightInfo;
   location: Location;
+  horizonProfile?: HorizonProfile;
   issPosition: ISSPosition | null;
   issLocationName: string | null;
   issPositionLoading: boolean;
@@ -356,6 +373,13 @@ function PassItem({ pass, timezone }: { pass: SatellitePass; timezone?: string }
         </div>
       </div>
 
+      {pass.elementEpoch && (
+        <p className="mt-2 text-gray-500 text-xs">
+          Orbit epoch{' '}
+          {new Date(pass.elementEpoch).toLocaleString(undefined, { timeZone: timezone })} ·
+          estimated pass, including twilight
+        </p>
+      )}
       <div className="mt-2 flex items-center justify-between border-night-700 border-t pt-2 text-gray-500 text-xs">
         <span>Duration: {formatPassDuration(pass.duration)}</span>
         <span className={getAltitudeTextColor(pass.maxAltitude)}>

@@ -1,3 +1,4 @@
+import type { OMMJsonObject } from 'satellite.js';
 // Mosaic Condition Assessment
 export type MosaicTipSeverity = 'info' | 'warning' | 'critical';
 export type MosaicTipCategory = 'moon' | 'weather' | 'technique' | 'gradient';
@@ -207,6 +208,8 @@ export interface SkyMapFocus {
 }
 
 export interface NightWeather {
+  fetchedAt?: string;
+  source?: string;
   date: Date;
   avgCloudCover: number;
   minCloudCover: number;
@@ -240,6 +243,9 @@ export interface NightWeather {
 }
 
 export interface HourlyWeather {
+  windDirection?: number | null;
+  jetStreamSpeed?: number | null;
+  fogCover?: number | null;
   cloudCover: number;
   visibility: number | null;
   windSpeed: number | null;
@@ -611,11 +617,11 @@ export interface SpaceWeather {
   fetchedAt: string;
 }
 
-export type AuroraChance = 'none' | 'unlikely' | 'possible' | 'likely' | 'certain';
+export type AuroraChance = 'unknown' | 'none' | 'unlikely' | 'possible' | 'likely' | 'certain';
 
 export interface AuroraForecast {
   chance: AuroraChance;
-  currentMaxKp: number;
+  currentMaxKp: number | null;
   requiredKp: number;
   description: string;
 }
@@ -645,6 +651,8 @@ export interface AstronomicalEvents {
 
 // Satellite Pass Prediction
 export interface TLEData {
+  omm?: OMMJsonObject;
+  epoch?: string;
   name: string;
   line1: string;
   line2: string;
@@ -652,6 +660,7 @@ export interface TLEData {
 }
 
 export interface SatellitePass {
+  elementEpoch?: string;
   satelliteName: string;
   noradId: number;
   riseTime: Date;

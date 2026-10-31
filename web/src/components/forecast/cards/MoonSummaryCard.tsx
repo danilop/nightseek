@@ -5,6 +5,7 @@ import {
   getMoonPhaseName as getExactMoonPhaseName,
 } from '@/lib/astronomy/moon-phases';
 import {
+  formatDate,
   formatDurationMinutes,
   formatTime,
   getMoonPhaseEmoji,
@@ -106,8 +107,10 @@ export default function MoonSummaryCard({
           {(nightInfo.moonSet || nightInfo.moonRise) && (
             <p className="mt-1 text-gray-500 text-xs">
               {[
-                nightInfo.moonSet && `Moonset ${formatTime(nightInfo.moonSet, timezone)}`,
-                nightInfo.moonRise && `Next moonrise ${formatTime(nightInfo.moonRise, timezone)}`,
+                nightInfo.moonSet &&
+                  `Moonset ${formatDate(nightInfo.moonSet, timezone)} ${formatTime(nightInfo.moonSet, timezone)}`,
+                nightInfo.moonRise &&
+                  `Moonrise ${formatDate(nightInfo.moonRise, timezone)} ${formatTime(nightInfo.moonRise, timezone)}`,
               ]
                 .filter(Boolean)
                 .join(' · ')}

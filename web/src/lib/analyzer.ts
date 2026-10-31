@@ -1,4 +1,5 @@
 import * as Astronomy from 'astronomy-engine';
+import { forecastConfidence as getForecastConfidence } from '@/lib/weather/observing-conditions';
 import type {
   AstronomicalEvents,
   DSOCatalogEntry,
@@ -410,7 +411,6 @@ function scoreNightObjects(
 /**
  * Generate a complete forecast for the given location and settings
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Forecast generation orchestrates many calculations
 export async function generateForecast(
   location: Location,
   settings: Settings,
@@ -541,12 +541,7 @@ export async function generateForecast(
       }
     }
 
-    const forecastConfidence: 'high' | 'medium' | 'low' =
-      weather !== null && weather.avgAerosolOpticalDepth !== null
-        ? 'high'
-        : weather === null
-          ? 'low'
-          : 'medium';
+    const forecastConfidence = getForecastConfidence(weather, nightInfo);
 
     nightInfo.seeingForecast = getSeeingFromWeather(weather);
 

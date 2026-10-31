@@ -14,7 +14,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -329,8 +329,8 @@ const HORIZONS_TARGETS = [
   { id: '799', name: 'Uranus' },
   { id: '899', name: 'Neptune' },
   { id: '999', name: 'Pluto' },
-  { id: '4', name: 'Vesta' },       // asteroid
-  { id: '2', name: 'Pallas' },      // asteroid
+  { id: '4;', name: 'Vesta' },       // asteroid
+  { id: '2;', name: 'Pallas' },      // asteroid
 ];
 
 /**
@@ -359,6 +359,11 @@ async function fetchHorizonsBody(bodyId, bodyName, startDate, stopDate) {
   const result = json.result;
   if (!result) {
     throw new Error(`No result field for ${bodyName}`);
+  }
+
+  const identity = result.match(/Target body name:\s*([^\n]+)/)?.[1] ?? '';
+  if (!identity.toLowerCase().includes(bodyName.toLowerCase())) {
+    throw new Error(`Horizons target mismatch for ${bodyName}: ${identity}`);
   }
 
   // Parse the ephemeris table from the text result
@@ -511,12 +516,23 @@ async function main() {
   const meta = {
     fetchedAt: new Date().toISOString(),
     hashes,
+    sources: Object.fromEntries(['neo.json','comets.json','donki.json','ephemeris.json'].map(filename => {
+      const value = JSON.parse(readFileSync(join(DATA_DIR, filename), 'utf8'));
+      const previous = JSON.parse(readFileSync(join(DATA_DIR, 'meta.json'), 'utf8'));
+      return [filename, value.fetchedAt ?? (hashes[filename] ? new Date().toISOString() : previous.sources?.[filename] ?? null)];
+    })),
     errors: errors.length > 0 ? errors : undefined,
   };
   safeWrite('meta.json', meta);
 
   console.log(`\nDone. ${errors.length > 0 ? `${errors.length} error(s).` : 'All sources succeeded.'}`);
 
+  if (errors.length) {
+    for (const error of errors) console.log(`::warning::Astronomy source unavailable: ${error}`);
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### Astronomy source health\n${errors.map(error => `- ${error}`).join('\n')}\nFresh sources are retained; older source timestamps remain visible in the app.\n`);
+    }
+  }
   // Exit with error if most sources failed (partial success is OK)
   if (errors.length >= 4) {
     process.exit(1);

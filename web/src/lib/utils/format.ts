@@ -3,11 +3,38 @@ import { format, formatInTimeZone } from 'date-fns-tz';
 /**
  * Format time in local timezone
  */
+function offsetMinutes(date: Date, timezone: string): number {
+  const offset = formatInTimeZone(date, timezone, 'xxx');
+  return (
+    (offset[0] === '-' ? -1 : 1) * (Number(offset.slice(1, 3)) * 60 + Number(offset.slice(4, 6)))
+  );
+}
+
+/** Offset changes affect wall-clock labels, never elapsed durations. */
+export function clockChangeMinutes(start: Date, end: Date, timezone?: string): number {
+  const zone = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return offsetMinutes(end, zone) - offsetMinutes(start, zone);
+}
+
+function isRepeatedLocalTime(date: Date, timezone: string): boolean {
+  const offset = offsetMinutes(date, timezone);
+  const wallTime = formatInTimeZone(date, timezone, 'yyyy-MM-dd HH:mm:ss');
+  return [-86_400_000, 86_400_000].some(distance => {
+    const otherOffset = offsetMinutes(new Date(date.getTime() + distance), timezone);
+    if (otherOffset === offset) return false;
+    const alternative = new Date(date.getTime() + (offset - otherOffset) * 60_000);
+    return formatInTimeZone(alternative, timezone, 'yyyy-MM-dd HH:mm:ss') === wallTime;
+  });
+}
+
+function timeLabel(date: Date, timezone: string, withOffset: boolean): string {
+  const time = formatInTimeZone(date, timezone, 'h:mm a');
+  return withOffset ? `${time} (UTC${formatInTimeZone(date, timezone, 'xxx')})` : time;
+}
+
 export function formatTime(date: Date, timezone?: string): string {
-  if (timezone) {
-    return formatInTimeZone(date, timezone, 'h:mm a');
-  }
-  return format(date, 'h:mm a');
+  const zone = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return timeLabel(date, zone, isRepeatedLocalTime(date, zone));
 }
 
 /** Stable civil-date key in the observation location. */
@@ -19,7 +46,12 @@ export function formatDateKey(date: Date, timezone?: string): string {
  * Format time range with en-dash separator (e.g., "10:30 PM – 2:45 AM")
  */
 export function formatTimeRange(start: Date, end: Date, timezone?: string): string {
-  return `${formatTime(start, timezone)} – ${formatTime(end, timezone)}`;
+  const zone = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const withOffset =
+    clockChangeMinutes(start, end, zone) !== 0 ||
+    isRepeatedLocalTime(start, zone) ||
+    isRepeatedLocalTime(end, zone);
+  return `${timeLabel(start, zone, withOffset)} – ${timeLabel(end, zone, withOffset)}`;
 }
 
 /**
@@ -68,12 +100,11 @@ export function formatDateRange(start: Date, end: Date, timezone?: string): stri
  */
 export function getNightLabel(date: Date, possessive = false, timezone?: string): string {
   const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
   const dateStr = formatDateKey(date, timezone);
   const todayStr = formatDateKey(today, timezone);
-  const tomorrowStr = formatDateKey(tomorrow, timezone);
+  const tomorrow = new Date(`${todayStr}T12:00:00Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
 
   // Always include short date for clarity (e.g., "Mon 15")
   const shortDate = timezone ? formatInTimeZone(date, timezone, 'EEE d') : format(date, 'EEE d');
@@ -112,7 +143,9 @@ export function getMoonPhaseEmoji(phase: number): string {
  * Get moon phase name
  */
 export function getMoonPhaseName(phase: number): string {
-  const phaseIndex = Math.round(phase * 8) % 8;
+  const p = ((phase % 1) + 1) % 1;
+  // Named quarter/full/new phases apply only at the event, not a wide rounded bin.
+  const phaseIndex = Number.isInteger(p * 4) ? p * 8 : Math.floor(p * 4) * 2 + 1;
   const names = [
     'New Moon',
     'Waxing Crescent',

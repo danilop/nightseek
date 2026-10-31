@@ -1,4 +1,4 @@
-import { toZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 import { Cloud, Droplets } from 'lucide-react';
 import { useMemo } from 'react';
 import { getQualityBgColor, type QualityLevel } from '@/lib/utils/colors';
@@ -12,10 +12,11 @@ interface HourlyConditionsTimelineProps {
 }
 
 interface HourlyData {
-  hour: number;
+  timestamp: number;
   label: string;
+  timeDescription: string;
   clouds: { level: QualityLevel; value: number };
-  dew: { level: QualityLevel; margin: number; temp: number; dewPoint: number };
+  dew: { level: QualityLevel; margin: number; temp: number; dewPoint: number } | null;
 }
 
 function getCloudLevel(cloudCover: number): QualityLevel {
@@ -75,15 +76,25 @@ export default function HourlyConditionsTimeline({
       const hour = timezone ? toZonedTime(date, timezone).getHours() : date.getHours();
 
       const cloudCover = hourData.cloudCover ?? 50;
-      const temp = hourData.temperature ?? 10;
-      const dewPoint = hourData.dewPoint ?? 5;
-      const margin = temp - dewPoint;
+      const temp = hourData.temperature;
+      const dewPoint = hourData.dewPoint;
+      const hasDewInputs =
+        temp != null && dewPoint != null && Number.isFinite(temp) && Number.isFinite(dewPoint);
+      const margin = hasDewInputs ? temp - dewPoint : null;
 
       data.push({
-        hour,
+        timestamp,
         label: formatHour(hour),
+        timeDescription: formatInTimeZone(
+          date,
+          timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+          "MMM d, h:mm a 'UTC'xxx"
+        ),
         clouds: { level: getCloudLevel(cloudCover), value: cloudCover },
-        dew: { level: getDewLevel(margin), margin, temp, dewPoint },
+        dew:
+          margin !== null && temp != null && dewPoint != null
+            ? { level: getDewLevel(margin), margin, temp, dewPoint }
+            : null,
       });
     }
 
@@ -110,9 +121,15 @@ export default function HourlyConditionsTimeline({
         {/* Header row - hours */}
         <div /> {/* Empty cell for label column */}
         {displayData.map(d => (
-          <div key={`h-${d.hour}`} className="pb-1 text-center text-gray-500">
-            {d.label}
-          </div>
+          <time
+            key={`h-${d.timestamp}`}
+            className="pb-1 text-center text-gray-500"
+            title={d.timeDescription}
+            dateTime={new Date(d.timestamp).toISOString()}
+          >
+            <span aria-hidden="true">{d.label}</span>
+            <span className="sr-only">{d.timeDescription}</span>
+          </time>
         ))}
         {/* Clouds row */}
         <div className="flex items-center pr-2 text-gray-400">
@@ -120,9 +137,9 @@ export default function HourlyConditionsTimeline({
         </div>
         {displayData.map(d => (
           <div
-            key={`c-${d.hour}`}
+            key={`c-${d.timestamp}`}
             className={`h-5 rounded-sm ${getQualityBgColor(d.clouds.level)} flex cursor-help items-center justify-center`}
-            title={`${formatHour(d.hour)}: ${Math.round(d.clouds.value)}% clouds`}
+            title={`${d.timeDescription}: ${Math.round(d.clouds.value)}% clouds`}
           >
             {/* Mobile: abbreviated, Desktop: with % */}
             <span className="font-medium text-[9px] text-white/90 sm:hidden">
@@ -139,16 +156,20 @@ export default function HourlyConditionsTimeline({
         </div>
         {displayData.map(d => (
           <div
-            key={`d-${d.hour}`}
-            className={`h-5 rounded-sm ${getQualityBgColor(d.dew.level)} flex cursor-help items-center justify-center`}
-            title={`${formatHour(d.hour)}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${d.dew.margin.toFixed(1)}° margin)`}
+            key={`d-${d.timestamp}`}
+            className={`h-5 rounded-sm ${d.dew ? getQualityBgColor(d.dew.level) : 'bg-gray-700'} flex cursor-help items-center justify-center`}
+            title={
+              d.dew
+                ? `${d.timeDescription}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${d.dew.margin.toFixed(1)}° margin)`
+                : `${d.timeDescription}: Dew risk unavailable — temperature or dew point missing`
+            }
           >
             {/* Mobile: rounded margin, Desktop: with degree */}
             <span className="font-medium text-[9px] text-white/90 sm:hidden">
-              {Math.round(d.dew.margin)}
+              {d.dew ? Math.round(d.dew.margin) : '—'}
             </span>
             <span className="hidden font-medium text-[10px] text-white/90 sm:inline">
-              {d.dew.margin.toFixed(1)}°
+              {d.dew ? `${d.dew.margin.toFixed(1)}°` : '—'}
             </span>
           </div>
         ))}

@@ -176,10 +176,10 @@ export default function WeatherSummaryCard({ forecast, timezone }: WeatherSummar
             {nightInfo.localSiderealTimeAtMidnight && (
               <DetailRow
                 icon={<span className="text-sm">🌟</span>}
-                label="LST at Midnight"
+                label="LST at Dark-window Midpoint"
                 value={nightInfo.localSiderealTimeAtMidnight}
                 subtext="Local Sidereal Time"
-                tooltip="Local Sidereal Time at midnight. Objects with this Right Ascension will be at their highest point (transit) at midnight."
+                tooltip="Local Sidereal Time at the midpoint of the observing window. Objects with this Right Ascension will be at their highest point (transit) at the midpoint of the observing window."
               />
             )}
 
