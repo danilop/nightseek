@@ -1,11 +1,25 @@
 {
-  "fetchedAt": "2026-10-30T12:12:37.879Z",
-  "startDate": "2026-10-30",
-  "endDate": "2026-11-05",
+  "fetchedAt": "2026-10-31T11:44:51.129Z",
+  "startDate": "2026-10-31",
+  "endDate": "2026-11-06",
   "data": {
+    "2026-11-06": [
+      {
+        "name": "2001 KF54",
+        "neoId": "3076814",
+        "isPotentiallyHazardous": true,
+        "estimatedDiameterKm": {
+          "min": 0.2901048414,
+          "max": 0.648694146
+        },
+        "closeApproachDate": "2026-Nov-06 03:38",
+        "missDistanceLunarDistances": 18.8360429338,
+        "relativeVelocityKmh": 59129.6818513432,
+        "absoluteMagnitude": 19.81
+      }
+    ],
     "2026-11-01": [],
     "2026-10-31": [],
-    "2026-10-30": [],
     "2026-11-05": [
       {
         "name": "2017 WJ2",
@@ -46,8 +60,8 @@
           "max": 0.4634895841
         },
         "closeApproachDate": "2026-Nov-02 19:10",
-        "missDistanceLunarDistances": 15.649871837,
-        "relativeVelocityKmh": 31382.329238999,
+        "missDistanceLunarDistances": 15.6498723038,
+        "relativeVelocityKmh": 31382.3294286571,
         "absoluteMagnitude": 20.54
       }
     ]
