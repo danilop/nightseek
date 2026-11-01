@@ -2,7 +2,13 @@
 
 The app shows a compact visual summary first, with explanations under `ExplainSection`.
 Warnings about missing data, short imaging windows, Moon interference and camera framing
-remain visible. Eclipse viewing guidance also stays visible.
+remain visible. Eclipse viewing guidance also stays visible. Target magnitude labels and the
+Targets magnitude-limit slider are primary information/controls and must stay visible by default.
+`Magnitude` shares compact formatting across cards, recommendations, search, watchlists, detail,
+variable stars, satellite passes and moving-object results. Unknown values show `mag —`; estimates
+are marked `est.`. Negative and zero magnitudes are valid. Absolute magnitude (H) remains distinct.
+Detailed positions, angular size, 45°/60° altitude intervals and lunar libration remain available
+inside target details; reducing default text must not remove these facts.
 
 ## Sources of truth
 

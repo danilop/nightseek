@@ -2,6 +2,7 @@ import { forwardRef, useState } from 'react';
 import { CountBadge } from '@/components/ui/Card';
 import SectionCard from '@/components/ui/SectionCard';
 import { useUIState } from '@/hooks/useUIState';
+import { formatMagnitude } from '@/lib/utils/format';
 import { formatSubtype } from '@/lib/utils/format-subtype';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import type { NightInfo, NightWeather, ScoredObject } from '@/types';
@@ -30,7 +31,7 @@ function getTopObjectsPreview(objects: ScoredObject[], showSubtype: boolean): st
   return objects
     .slice(0, 3)
     .map(obj => {
-      const name = obj.visibility.commonName || obj.objectName;
+      const name = `${obj.visibility.commonName || obj.objectName} · mag ${formatMagnitude(obj.magnitude)}`;
       return showSubtype && obj.subtype ? `${name} (${formatSubtype(obj.subtype)})` : name;
     })
     .join(', ');

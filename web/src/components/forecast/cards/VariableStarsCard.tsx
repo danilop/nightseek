@@ -1,6 +1,7 @@
 import { Star } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { CountBadge } from '@/components/ui/Card';
+import Magnitude from '@/components/ui/Magnitude';
 import SectionCard from '@/components/ui/SectionCard';
 import { predictVariableStars, type VariableStarPrediction } from '@/lib/aavso/vsx';
 import { formatDate } from '@/lib/utils/format';
@@ -67,11 +68,7 @@ function VariableStarItem({
           <span className="font-medium text-white">{star.name}</span>
           <span className="ml-2 text-gray-500 text-xs">{star.constellation}</span>
         </div>
-        {predictedMagnitude !== null && (
-          <span className="rounded bg-night-700 px-2 py-0.5 text-gray-400 text-xs">
-            mag ~{predictedMagnitude.toFixed(1)}
-          </span>
-        )}
+        <Magnitude value={predictedMagnitude} estimated />
       </div>
       <div className="mt-1 flex items-center justify-between">
         <span className={`text-xs ${statusColor}`}>{phaseDescription}</span>

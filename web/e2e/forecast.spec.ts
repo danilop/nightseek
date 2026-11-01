@@ -188,8 +188,33 @@ test.describe('Visual summaries and progressive disclosure', () => {
     ).toBeVisible();
   });
 
+  test('keeps the magnitude filter visible and filters target cards', async ({ page }) => {
+    await page.locator('button[role="tab"]:visible', { hasText: 'Targets' }).click();
+    const slider = page.getByRole('slider', { name: 'Magnitude limit', exact: true });
+    await expect(slider).toBeVisible();
+    await slider.press('Home');
+    const min = Number(await slider.getAttribute('min'));
+    for (let value = min; value < 6; value += 0.5) await slider.press('ArrowRight');
+    await expect(slider).toHaveValue('6');
+    const cards = page.getByTestId('object-card');
+    await expect(cards.first()).toBeVisible();
+    for (const card of await cards.all()) {
+      const label = await card.getByTestId('target-magnitude').innerText();
+      const value = Number(label.match(/mag (-?\d+(?:\.\d+)?)/)?.[1]);
+      expect(Number.isFinite(value)).toBe(true);
+      expect(value).toBeLessThanOrEqual(6);
+    }
+    await page.reload();
+    await expect(page.getByTestId('forecast-view')).toBeVisible({ timeout: 60000 });
+    await page.locator('button[role="tab"]:visible', { hasText: 'Targets' }).click();
+    await expect(page.getByRole('slider', { name: 'Magnitude limit', exact: true })).toHaveValue(
+      '6'
+    );
+  });
+
   test('shares framing and imaging windows between compact cards and detail', async ({ page }) => {
     await page.locator('button[role="tab"]:visible', { hasText: 'Targets' }).click();
+    await expect(page.getByRole('slider', { name: 'Magnitude limit', exact: true })).toBeVisible();
     const setup = page.getByRole('button', { name: /^Equipment & sky access/ });
     await expect(setup).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByRole('slider', { name: 'Minimum target altitude' })).toHaveCount(0);
@@ -201,6 +226,8 @@ test.describe('Visual summaries and progressive disclosure', () => {
       .filter({ has: page.getByTestId('target-frame') })
       .first();
     await expect(card).toBeVisible({ timeout: 30000 });
+    const magnitude = await card.getByTestId('target-magnitude').innerText();
+    await expect(card.getByTestId('target-magnitude')).toBeVisible();
     const name = await card.getByRole('heading').innerText();
     const window = await card.getByTestId('imaging-window-summary').innerText();
     const ratingColor = await card
@@ -209,6 +236,9 @@ test.describe('Visual summaries and progressive disclosure', () => {
     await card.click();
     const detail = page.getByRole('dialog', { name });
     await expect(detail).toBeVisible();
+    await expect(detail.getByTestId('target-magnitude').first()).toHaveText(magnitude, {
+      useInnerText: true,
+    });
     await expect(detail.getByTestId('imaging-window-summary')).toHaveText(window, {
       useInnerText: true,
     });

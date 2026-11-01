@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import TargetSummary from '@/components/forecast/TargetSummary';
+import Magnitude from '@/components/ui/Magnitude';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useHorizonProfile } from '@/hooks/useHorizonProfile';
@@ -28,7 +29,6 @@ import {
   azimuthToCardinal,
   formatAngularSize,
   formatDate,
-  formatMagnitude,
   formatMoonSeparation,
   formatTime,
 } from '@/lib/utils/format';
@@ -119,6 +119,7 @@ function SearchResultCard({
         {result.visibility ? (
           <TargetSummary
             name={result.displayName}
+            magnitude={result.magnitude}
             visibility={result.visibility}
             category={result.objectType}
             subtype={result.subtype}
@@ -127,7 +128,10 @@ function SearchResultCard({
             weatherAvailable={result.totalScore !== undefined}
           />
         ) : (
-          <h3 className="font-semibold text-white">{result.displayName}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold text-white">{result.displayName}</h3>
+            <Magnitude value={result.magnitude} />
+          </div>
         )}
         {result.neverVisibleReason && (
           <p className="text-amber-300 text-xs">{result.neverVisibleReason}</p>
@@ -139,8 +143,7 @@ function SearchResultCard({
       {isExpanded && (
         <div className="space-y-2 border-night-700 border-t p-3 text-gray-300 text-xs">
           <p>
-            {result.subtype ? formatSubtype(result.subtype) : formatSubtype(result.objectType)} ·
-            magnitude {formatMagnitude(result.magnitude)}
+            {result.subtype ? formatSubtype(result.subtype) : formatSubtype(result.objectType)}
             {result.angularSizeArcmin ? ` · ${formatAngularSize(result.angularSizeArcmin)}` : ''}
           </p>
           {result.visibility?.maxAltitudeTime && (

@@ -490,42 +490,40 @@ export default function TargetsTab({
         </span>
       </div>
 
+      {/* Magnitude Filter Slider */}
+      {maxMag > minMag && (
+        <div className="rounded-lg border border-night-700 bg-night-900 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <label htmlFor="magnitude-limit" className="text-gray-400 text-sm">
+              Magnitude limit
+            </label>
+            <span className="font-medium text-sm text-white">≤ {effectiveMagLimit.toFixed(1)}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="w-8 text-gray-500 text-xs">{minMag}</span>
+            <input
+              id="magnitude-limit"
+              type="range"
+              min={minMag}
+              max={maxMag}
+              step={0.5}
+              value={effectiveMagLimit}
+              onChange={e => setMagLimit(parseFloat(e.target.value))}
+              className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-sky-500 [&::-webkit-slider-thumb]:hover:bg-sky-400"
+            />
+            <span className="w-8 text-right text-gray-500 text-xs">{maxMag}</span>
+          </div>
+          <div className="mt-1 flex justify-between text-gray-600 text-xs">
+            <span>brighter</span>
+            <span>fainter</span>
+          </div>
+        </div>
+      )}
+
       <ExplainSection
         title="Equipment & sky access"
-        summary={`${state.settings.telescope === 'custom' ? 'Custom telescope' : (TELESCOPE_PRESETS.find(t => t.id === state.settings.telescope)?.name ?? 'No telescope')}${fov ? ` · FoV ${formatFOV(fov.width, fov.height)}` : ''} · minimum ${horizonProfile.minimumAltitude}°${effectiveMagLimit < maxMag ? ` · magnitude ≤ ${effectiveMagLimit.toFixed(1)}` : ''}`}
+        summary={`${state.settings.telescope === 'custom' ? 'Custom telescope' : (TELESCOPE_PRESETS.find(t => t.id === state.settings.telescope)?.name ?? 'No telescope')}${fov ? ` · FoV ${formatFOV(fov.width, fov.height)}` : ''} · minimum ${horizonProfile.minimumAltitude}°`}
       >
-        {/* Magnitude Filter Slider */}
-        {maxMag > minMag && (
-          <div className="rounded-lg border border-night-700 bg-night-900 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <label htmlFor="magnitude-limit" className="text-gray-400 text-sm">
-                Magnitude limit
-              </label>
-              <span className="font-medium text-sm text-white">
-                ≤ {effectiveMagLimit.toFixed(1)}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="w-8 text-gray-500 text-xs">{minMag}</span>
-              <input
-                id="magnitude-limit"
-                type="range"
-                min={minMag}
-                max={maxMag}
-                step={0.5}
-                value={effectiveMagLimit}
-                onChange={e => setMagLimit(parseFloat(e.target.value))}
-                className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-sky-500 [&::-webkit-slider-thumb]:hover:bg-sky-400"
-              />
-              <span className="w-8 text-right text-gray-500 text-xs">{maxMag}</span>
-            </div>
-            <div className="mt-1 flex justify-between text-gray-600 text-xs">
-              <span>brighter</span>
-              <span>fainter</span>
-            </div>
-          </div>
-        )}
-
         <AccessibleSkyControl
           horizonProfile={horizonProfile}
           onSetMinimumAltitude={handleSetMinimumAltitude}

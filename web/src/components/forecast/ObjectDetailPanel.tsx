@@ -1,6 +1,7 @@
 import { Bookmark, Clock, Compass, Moon, Mountain, Star, X } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ExplainSection from '@/components/ui/ExplainSection';
+import Magnitude from '@/components/ui/Magnitude';
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -19,9 +20,9 @@ import { getEffectiveFOV } from '@/lib/telescopes';
 import {
   azimuthToCardinal,
   formatAltitude,
+  formatAngularSize,
   formatDurationMinutes,
   formatFrameFillPercent,
-  formatMagnitude,
   formatMoonSeparation,
   formatTime,
   formatTimeRange,
@@ -247,6 +248,7 @@ export default function ObjectDetailPanel({
             <h2 id="object-detail-title" className="truncate font-semibold text-lg text-white">
               {visibility.commonName || visibility.objectName}
             </h2>
+            <Magnitude value={magnitude} />
             {visibility.commonName && visibility.commonName !== visibility.objectName && (
               <p className="truncate text-gray-500 text-sm">{visibility.objectName}</p>
             )}
@@ -280,9 +282,6 @@ export default function ObjectDetailPanel({
             <p className="mt-1 text-gray-400 text-xs">Target suitability</p>
           </div>
           <div className="flex items-center gap-2 text-sm">
-            {magnitude !== null && (
-              <span className="text-gray-400">mag {formatMagnitude(magnitude)}</span>
-            )}
             {subtype && (
               <span className="rounded bg-night-700 px-2 py-0.5 text-gray-300 text-xs">
                 {formatSubtype(subtype)}
@@ -400,6 +399,28 @@ export default function ObjectDetailPanel({
               }
               tooltip="Meridian transit is when the object crosses the north-south line and reaches its highest point. Best time to observe as it passes through the least atmosphere."
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {visibility.angularSizeArcmin > 0 && (
+              <DetailItem
+                icon={<Star className="h-4 w-4" />}
+                label="Angular size"
+                value={formatAngularSize(visibility.angularSizeArcmin)}
+              />
+            )}
+            {([45, 60] as const).map(altitude => {
+              const start = altitude === 45 ? visibility.above45Start : visibility.above60Start;
+              const end = altitude === 45 ? visibility.above45End : visibility.above60End;
+              return start && end ? (
+                <DetailItem
+                  key={altitude}
+                  icon={<Mountain className="h-4 w-4" />}
+                  label={`Above ${altitude}°`}
+                  value={formatTimeRange(start, end, timezone)}
+                />
+              ) : null;
+            })}
           </div>
 
           {/* Exact intervals allowed by the user's minimum altitude and horizon profile. */}
@@ -720,6 +741,14 @@ function ObjectSpecificBadges({ visibility }: { visibility: ScoredObject['visibi
       key: 'heliocentric',
       text: `${visibility.heliocentricDistanceAU.toFixed(2)} AU from Sun`,
       colorClass: 'bg-orange-500/20 text-orange-400',
+    });
+  }
+  if (visibility.libration && visibility.objectType === 'moon') {
+    const longitude = visibility.libration.longitudeDeg;
+    badges.push({
+      key: 'libration',
+      text: `Libration: ${Math.abs(longitude).toFixed(1)}° ${longitude >= 0 ? 'E' : 'W'}`,
+      colorClass: 'bg-blue-500/20 text-blue-400',
     });
   }
   if (visibility.physicalData) {

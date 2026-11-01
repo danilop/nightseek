@@ -75,6 +75,7 @@ function PickItem({
       <p className="mb-2 text-amber-300 text-xs">{pick.categoryLabel}</p>
       <TargetSummary
         name={pick.object.visibility.commonName || pick.object.objectName}
+        magnitude={pick.object.magnitude}
         visibility={pick.object.visibility}
         category={pick.object.category}
         subtype={pick.object.subtype}

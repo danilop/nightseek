@@ -1,5 +1,6 @@
 import { formatInTimeZone } from 'date-fns-tz';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Magnitude from '@/components/ui/Magnitude';
 import { type FieldBody, fetchSkybot } from '@/lib/catalogs/skybot';
 import { resolveLocalMinute } from '@/lib/utils/local-time';
 import type { ScoredObject } from '@/types';
@@ -158,10 +159,7 @@ export default function TargetReferencePanel({
           <ul className="space-y-2 text-sm">
             {bodies.slice(0, 10).map(b => (
               <li key={b.name} className="text-gray-300">
-                {b.name} ·{' '}
-                {b.magnitude === null
-                  ? 'magnitude unknown'
-                  : `estimated mag ${b.magnitude.toFixed(1)}`}
+                {b.name} · <Magnitude value={b.magnitude} estimated />
                 <span className="block text-gray-500 text-xs">
                   {b.ra} / {b.dec} · {b.kind} · motion RA/Dec {b.motionRa?.toFixed(1) ?? '?'} /{' '}
                   {b.motionDec?.toFixed(1) ?? '?'} arcsec/h

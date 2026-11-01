@@ -34,6 +34,7 @@ const window: ImagingWindow = {
 };
 const target = createMockScoredObject({
   objectName: 'M31',
+  magnitude: 3.4,
   category: 'dso',
   visibility: createMockObjectVisibility({
     commonName: 'M31 Andromeda Galaxy',
@@ -78,6 +79,7 @@ describe('visual disclosure and consistent summaries', () => {
       </>
     );
     const summaries = screen.getAllByTestId('target-summary');
+    expect(within(summaries[0]).getByText('mag 3.4')).toBeVisible();
     expect(summaries[0].textContent).toBe(summaries[1].textContent);
     expect(within(summaries[0]).getByText('Extends beyond frame', { selector: 'p' })).toBeVisible();
     expect(within(summaries[0]).getByText('1h · short window')).toBeVisible();

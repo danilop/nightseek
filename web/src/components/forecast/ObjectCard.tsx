@@ -34,6 +34,7 @@ export default function ObjectCard({
     >
       <TargetSummary
         name={object.visibility.commonName || object.objectName}
+        magnitude={object.magnitude}
         visibility={object.visibility}
         category={object.category}
         subtype={object.subtype}

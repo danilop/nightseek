@@ -1,3 +1,4 @@
+import Magnitude from '@/components/ui/Magnitude';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { getEffectiveFOV } from '@/lib/telescopes';
 import { formatAltitude, getCategoryIcon } from '@/lib/utils/format';
@@ -12,6 +13,7 @@ import TargetFrameDiagram from './TargetFrameDiagram';
 /** Shared, non-interactive content for cards, picks, session plans and search. */
 export default function TargetSummary({
   name,
+  magnitude,
   visibility,
   category,
   subtype,
@@ -22,6 +24,7 @@ export default function TargetSummary({
   weatherAvailable = true,
 }: {
   name: string;
+  magnitude: number | null;
   visibility: ObjectVisibility;
   category: ObjectCategory;
   subtype?: string | null;
@@ -53,7 +56,10 @@ export default function TargetSummary({
         </span>
       )}
       <div className="min-w-0 flex-1 space-y-1.5">
-        <h4 className="break-words font-semibold text-white">{name}</h4>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <h4 className="break-words font-semibold text-white">{name}</h4>
+          <Magnitude value={magnitude} />
+        </div>
         {rating && (
           <p className="flex flex-wrap items-center gap-x-2 text-xs">
             <span

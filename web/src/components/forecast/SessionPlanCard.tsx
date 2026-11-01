@@ -1,6 +1,7 @@
 import { ArrowUpRight, Bookmark, CalendarPlus, Telescope } from 'lucide-react';
 import { useMemo } from 'react';
 import ExplainSection from '@/components/ui/ExplainSection';
+import Magnitude from '@/components/ui/Magnitude';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { createSessionCalendar, downloadSessionCalendar } from '@/lib/planning/calendar';
@@ -96,6 +97,7 @@ export default function SessionPlanCard({
               >
                 <TargetSummary
                   name={name}
+                  magnitude={object.magnitude}
                   visibility={object.visibility}
                   category={object.category}
                   subtype={object.subtype}
@@ -147,7 +149,8 @@ export default function SessionPlanCard({
                 onClick={() => onSelect(object, access)}
                 className="min-h-11 rounded-lg bg-sky-400/10 px-3 py-2 text-left text-sky-200 text-xs"
               >
-                {object.visibility.commonName || object.objectName} ·{' '}
+                {object.visibility.commonName || object.objectName}{' '}
+                <Magnitude value={object.magnitude} /> ·{' '}
                 {formatDurationMinutes(window.durationMinutes)} available
               </button>
             ))}
@@ -159,7 +162,9 @@ export default function SessionPlanCard({
                 aria-label={`Remove ${id} from watchlist`}
                 className="min-h-11 rounded-lg bg-white/5 px-3 py-2 text-gray-400 text-xs"
               >
-                {id} · no window · remove
+                {id}{' '}
+                <Magnitude value={objects.find(object => object.objectName === id)?.magnitude} /> ·
+                no window · remove
               </button>
             ))}
           </div>

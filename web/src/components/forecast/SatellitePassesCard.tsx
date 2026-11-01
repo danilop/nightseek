@@ -1,6 +1,7 @@
 import { Globe, MapPin, Rocket, Satellite, Zap } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CountBadge } from '@/components/ui/Card';
+import Magnitude from '@/components/ui/Magnitude';
 import SectionCard from '@/components/ui/SectionCard';
 import {
   azimuthToCompass,
@@ -342,11 +343,7 @@ function PassItem({ pass, timezone }: { pass: SatellitePass; timezone?: string }
           <Satellite className="h-4 w-4 text-sky-400" />
           <span className="font-medium text-white">{pass.satelliteName}</span>
         </div>
-        {pass.magnitude !== null && (
-          <span className="rounded bg-night-700 px-2 py-0.5 text-gray-400 text-xs">
-            est. mag {pass.magnitude.toFixed(1)}
-          </span>
-        )}
+        <Magnitude value={pass.magnitude} estimated />
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-sm">
