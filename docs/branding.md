@@ -10,7 +10,8 @@ in React or edit the generated exports by hand.
 
 From `web/`, run `pnpm icons:generate` after changing the SVG, and `pnpm icons:check`
 to verify exports. CI runs the same check. The script generates the favicon,
-192/512 px PWA icons, maskable icons, 180 px Apple touch icon and 1024 px iOS icon.
+192/512 px PWA icons, maskable icons, 180 px Apple touch icon, 1024 px iOS icon
+and centred iOS launch-screen images. Social previews use the 512 px PWA export.
 Maskable exports include additional padding for circular launcher masks. PNGs
 have opaque navy backgrounds and no alpha channel, including the iOS asset.
 

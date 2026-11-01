@@ -54,6 +54,18 @@ for (const [path, size, svg] of [
     .toBuffer();
   await output(path, png);
 }
+// The launch storyboard uses aspect-fill; keep the mark centred and compact.
+const splashSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732"><rect width="2732" height="2732" fill="${background}"/><g transform="translate(1186 1186) scale(3.6)">${inner}</g></svg>`;
+const splash = await sharp(Buffer.from(splashSvg))
+  .removeAlpha()
+  .png({ compressionLevel: 9 })
+  .toBuffer();
+for (const suffix of ['', '-1', '-2']) {
+  await output(
+    `../../mobile/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732${suffix}.png`,
+    splash
+  );
+}
 if (stale) process.exitCode = 1;
 else
   process.stdout.write(
