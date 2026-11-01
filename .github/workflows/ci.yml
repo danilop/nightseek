@@ -31,6 +31,10 @@ jobs:
         working-directory: ./web
         run: pnpm install --frozen-lockfile
 
+      - name: Check generated brand icons
+        working-directory: ./web
+        run: pnpm run icons:check
+
       - name: Type-check
         working-directory: ./web
         run: pnpm run type-check

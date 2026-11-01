@@ -11,8 +11,19 @@ test.describe('NightSeek App', () => {
     const header = page.locator('header');
     await expect(header).toBeVisible();
 
-    // Check for app title or logo
-    await expect(page.getByRole('button', { name: 'NightSeek' })).toBeVisible();
+    const brand = page.getByRole('button', { name: 'About NightSeek', exact: true });
+    await expect(brand).toBeVisible();
+    const logo = brand.locator('img');
+    await expect
+      .poll(() => logo.evaluate(image => image.complete && image.naturalWidth > 0))
+      .toBe(true);
+    const source = await logo.getAttribute('src');
+    await brand.click();
+    const about = page.getByRole('dialog', { name: 'About & credits' });
+    await expect(about).toBeVisible();
+    await expect(about.locator('img')).toHaveAttribute('src', source!);
+    await about.getByRole('button', { name: 'Close', exact: true }).first().click();
+    await expect(about).not.toBeVisible();
   });
 
   test('should show setup screen on first visit', async ({ page }) => {

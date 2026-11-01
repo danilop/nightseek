@@ -24,7 +24,9 @@
     "type-check": "tsc --noEmit",
     "dead-code": "knip --include files,exports",
     "validate": "npm run type-check && npm run check && npm run test:run",
-    "validate:full": "npm run validate && npm run dead-code"
+    "validate:full": "npm run validate && npm run dead-code",
+    "icons:generate": "node scripts/generate-icons.mjs",
+    "icons:check": "node scripts/generate-icons.mjs --check"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -64,6 +66,7 @@
     "knip": "^6.34.0",
     "lint-staged": "^17.5.0",
     "postcss": "^8.5.28",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
