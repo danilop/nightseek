@@ -1,5 +1,6 @@
 import { ExternalLink, Orbit } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import ExplainSection from '@/components/ui/ExplainSection';
 import { fetchKpForecast, type KpForecastPeriod, kpOutlookForWindow } from '@/lib/nasa/kp-forecast';
 import { formatTimeRange } from '@/lib/utils/format';
 import type { NightInfo } from '@/types';
@@ -39,23 +40,25 @@ export default function SpaceWeatherOutlookCard({
         <>
           <p className="mt-3 font-semibold text-teal-200 text-xl">
             Kp {outlook.maxKp.toFixed(1)}{' '}
-            <span className="font-normal text-gray-400 text-xs">maximum in covered hours</span>
+            <span className="font-normal text-gray-400 text-xs">maximum · covered hours only</span>
           </p>
-          <p className="mt-2 text-gray-400 text-xs">
-            NOAA estimates and predictions overlapping this night. Kp describes global geomagnetic
-            activity; it does not guarantee local aurora visibility.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {outlook.periods.map(period => (
-              <span
-                key={period.start.toISOString()}
-                className="rounded-lg bg-white/5 px-2 py-1 text-gray-300 text-xs"
-              >
-                {formatTimeRange(period.start, period.end, timezone)} · {period.kp.toFixed(1)} (
-                {period.kind})
-              </span>
-            ))}
-          </div>
+          <ExplainSection title="Kp intervals & interpretation" className="mt-3">
+            <p className="mt-2 text-gray-400 text-xs">
+              NOAA estimates and predictions overlapping this night. Kp describes global geomagnetic
+              activity; it does not guarantee local aurora visibility.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {outlook.periods.map(period => (
+                <span
+                  key={period.start.toISOString()}
+                  className="rounded-lg bg-white/5 px-2 py-1 text-gray-300 text-xs"
+                >
+                  {formatTimeRange(period.start, period.end, timezone)} · {period.kp.toFixed(1)} (
+                  {period.kind})
+                </span>
+              ))}
+            </div>
+          </ExplainSection>
         </>
       ) : (
         <p className="mt-3 text-gray-400 text-sm">

@@ -1,24 +1,11 @@
 import { Clock } from 'lucide-react';
 import { useCallback, useRef } from 'react';
+import { fractionToTime } from '@/lib/astronomy/twilight';
 import { formatTime } from '@/lib/utils/format';
+import { timelinePosition } from '@/lib/utils/night-timeline';
 import type { NightInfo } from '@/types';
 
 export type SortMode = 'score' | 'altitude';
-
-function getSliderPosition(time: Date, dusk: Date, dawn: Date): number {
-  const start = dusk.getTime();
-  const end = dawn.getTime();
-  const t = time.getTime();
-  if (t <= start) return 0;
-  if (t >= end) return 100;
-  return ((t - start) / (end - start)) * 100;
-}
-
-function getTimeFromSlider(position: number, dusk: Date, dawn: Date): Date {
-  const start = dusk.getTime();
-  const end = dawn.getTime();
-  return new Date(start + (position / 100) * (end - start));
-}
 
 interface TimeSliderProps {
   nightInfo: NightInfo;
@@ -35,14 +22,14 @@ export function TimeSlider({
 }: TimeSliderProps) {
   const animationRef = useRef<number | null>(null);
   const sliderPositionRef = useRef(
-    getSliderPosition(selectedTime, nightInfo.observingWindowStart, nightInfo.observingWindowEnd)
+    timelinePosition(selectedTime, nightInfo.observingWindowStart, nightInfo.observingWindowEnd)
   );
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const position = Number(e.target.value);
     sliderPositionRef.current = position;
-    const time = getTimeFromSlider(
-      position,
+    const time = fractionToTime(
+      position / 100,
       nightInfo.observingWindowStart,
       nightInfo.observingWindowEnd
     );
@@ -50,7 +37,7 @@ export function TimeSlider({
   };
 
   const handleNowClick = useCallback(() => {
-    const nowPosition = getSliderPosition(
+    const nowPosition = timelinePosition(
       new Date(),
       nightInfo.observingWindowStart,
       nightInfo.observingWindowEnd
@@ -72,8 +59,8 @@ export function TimeSlider({
       const newPosition = startPosition + distance * eased;
 
       sliderPositionRef.current = newPosition;
-      const time = getTimeFromSlider(
-        newPosition,
+      const time = fractionToTime(
+        newPosition / 100,
         nightInfo.observingWindowStart,
         nightInfo.observingWindowEnd
       );
@@ -89,7 +76,7 @@ export function TimeSlider({
     animationRef.current = requestAnimationFrame(animate);
   }, [nightInfo.observingWindowStart, nightInfo.observingWindowEnd, onSelectedTimeChange]);
 
-  const sliderPosition = getSliderPosition(
+  const sliderPosition = timelinePosition(
     selectedTime,
     nightInfo.observingWindowStart,
     nightInfo.observingWindowEnd

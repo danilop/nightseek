@@ -236,11 +236,11 @@ describe('format utils', () => {
     });
 
     it('should format arcminutes for medium sizes', () => {
-      expect(formatAngularSize(30)).toBe("30.0'");
+      expect(formatAngularSize(30)).toBe('30.0′');
     });
 
     it('should format arcseconds for small sizes', () => {
-      expect(formatAngularSize(0.5)).toBe('30"');
+      expect(formatAngularSize(0.5)).toBe('30″');
     });
   });
 

@@ -13,7 +13,7 @@ describe('shared target categories', () => {
     expect(getTargetCategory(target)).toBe('nebulae');
     const picks = selectTonightPicks([target]);
     expect(picks).toHaveLength(1);
-    expect(picks[0].categoryLabel).toBe('Top Nebula');
+    expect(picks[0].categoryLabel).toBe('Top nebula');
   });
   it.each([
     ['galaxy_pair', 'galaxies'],

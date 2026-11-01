@@ -3,9 +3,9 @@
  * Single source of truth for the 5-tier rating scale used across the app
  *
  * Color Scale (Worst → Best):
- * - Poor (1 star): blue-400 #60A5FA
- * - Fair (2 stars): red-400 #F87171
- * - Good (3 stars): orange-400 #FB923C
+ * - Poor (1 star): red-400 #F87171
+ * - Fair (2 stars): orange-400 #FB923C
+ * - Good (3 stars): yellow-400 #FACC15
  * - Very Good (4 stars): lime-400 #A3E635
  * - Excellent (5 stars): green-400 #4ADE80
  */
@@ -35,10 +35,10 @@ const THRESHOLDS = {
  */
 const TIER_CONFIG: Record<RatingTier, { stars: number; label: string; color: string }> = {
   excellent: { stars: 5, label: 'Excellent', color: 'text-green-400' },
-  very_good: { stars: 4, label: 'Very Good', color: 'text-lime-400' },
-  good: { stars: 3, label: 'Good', color: 'text-orange-400' },
-  fair: { stars: 2, label: 'Fair', color: 'text-red-400' },
-  poor: { stars: 1, label: 'Poor', color: 'text-blue-400' },
+  very_good: { stars: 4, label: 'Very good', color: 'text-lime-400' },
+  good: { stars: 3, label: 'Good', color: 'text-yellow-400' },
+  fair: { stars: 2, label: 'Fair', color: 'text-orange-400' },
+  poor: { stars: 1, label: 'Poor', color: 'text-red-400' },
 };
 
 /**

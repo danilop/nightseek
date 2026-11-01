@@ -1,438 +1,121 @@
-import { Body } from 'astronomy-engine';
-import { Clock, Info } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Tooltip from '@/components/ui/Tooltip';
-import { useCurrentTime } from '@/hooks/useCurrentTime';
-import { SkyCalculator } from '@/lib/astronomy/calculator';
+import { useMemo } from 'react';
+import ExplainSection from '@/components/ui/ExplainSection';
 import {
-  fractionToTime,
-  getTwilightBoundaries,
-  getTwilightGradientCss,
-  getTwilightPhaseAtFraction,
   getTwilightWindowLabel,
   TWILIGHT_GUIDE_ORDER,
   TWILIGHT_PHASES,
 } from '@/lib/astronomy/twilight';
-import { clockChangeMinutes, formatTime, formatTimeRange, getNightLabel } from '@/lib/utils/format';
+import { clockChangeMinutes, formatTimeRange, getNightLabel } from '@/lib/utils/format';
+import type { UnitPreferences } from '@/lib/utils/units';
 import { calculateHeadlineNightQuality, calculateNightQuality } from '@/lib/weather/night-quality';
-import type { Location, NightForecast, NightInfo } from '@/types';
-
-function formatDarkHours(dusk: Date, dawn: Date): string {
-  const hours = (dawn.getTime() - dusk.getTime()) / 3_600_000;
-  return `${hours.toFixed(1)}h`;
-}
-
-/** Convert a Date to slider percentage (0–100), or null if outside range. */
-function timeToSlider(time: Date, sunset: Date, sunrise: Date): number | null {
-  const startMs = sunset.getTime();
-  const endMs = sunrise.getTime();
-  const currentMs = time.getTime();
-  if (currentMs < startMs || currentMs > endMs) return null;
-  return ((currentMs - startMs) / (endMs - startMs)) * 100;
-}
-
-/** Convert slider percentage (0–100) to a Date within the night range. */
-function sliderToTime(pct: number, sunset: Date, sunrise: Date): Date {
-  return fractionToTime(pct / 100, sunset, sunrise);
-}
-
-function NightTimelineScrubber({
-  nightInfo,
-  isTonight,
-  location,
-  timezone,
-}: {
-  nightInfo: NightInfo;
-  isTonight: boolean;
-  location: Location;
-  timezone?: string;
-}) {
-  const now = useCurrentTime();
-  const animationRef = useRef<number | null>(null);
-
-  const boundaries = useMemo(() => getTwilightBoundaries(nightInfo), [nightInfo]);
-
-  const nowPosition = useMemo(
-    () => timeToSlider(now, nightInfo.sunset, nightInfo.sunrise),
-    [now, nightInfo.sunset, nightInfo.sunrise]
-  );
-
-  const isNowInRange = isTonight && nowPosition !== null;
-
-  const [pointerPct, setPointerPct] = useState(
-    isTonight && nowPosition !== null ? nowPosition : boundaries.astronomicalDuskFraction * 100
-  );
-  const [isTracking, setIsTracking] = useState(isTonight && nowPosition !== null);
-
-  // Auto-track "now" while tracking is enabled
-  useEffect(() => {
-    if (isTracking && nowPosition !== null) {
-      setPointerPct(nowPosition);
-    }
-  }, [isTracking, nowPosition]);
-
-  // Cleanup animation on unmount
-  useEffect(() => {
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    };
-  }, []);
-
-  const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setIsTracking(false);
-    setPointerPct(Number(e.target.value));
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
-    }
-  }, []);
-
-  const handleNowClick = useCallback(() => {
-    const target = timeToSlider(new Date(), nightInfo.sunset, nightInfo.sunrise);
-    if (target === null) return;
-
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-    }
-
-    const startPosition = pointerPct;
-    const distance = target - startPosition;
-    const duration = 400;
-    const startTimestamp = performance.now();
-
-    const animate = (currentTimestamp: number) => {
-      const elapsed = currentTimestamp - startTimestamp;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - (1 - progress) ** 3;
-
-      setPointerPct(startPosition + distance * eased);
-
-      if (progress < 1) {
-        animationRef.current = requestAnimationFrame(animate);
-      } else {
-        animationRef.current = null;
-        setIsTracking(true);
-      }
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
-  }, [nightInfo.sunset, nightInfo.sunrise, pointerPct]);
-
-  const currentTime = useMemo(
-    () => sliderToTime(pointerPct, nightInfo.sunset, nightInfo.sunrise),
-    [pointerPct, nightInfo.sunset, nightInfo.sunrise]
-  );
-
-  const { phase } = useMemo(
-    () => getTwilightPhaseAtFraction(pointerPct / 100, boundaries),
-    [pointerPct, boundaries]
-  );
-
-  const sunAltitudeLabel = useMemo(() => {
-    const calculator = new SkyCalculator(location.latitude, location.longitude);
-    const sun = calculator.getBodyPositionJ2000(Body.Sun, currentTime);
-    const altitude = calculator.getAltAz(sun.ra, sun.dec, currentTime).altitude;
-    return `${Math.round(Math.abs(altitude))}° ${altitude < 0 ? 'below' : 'above'} horizon`;
-  }, [location.latitude, location.longitude, currentTime]);
-
-  const gradient = useMemo(() => getTwilightGradientCss(boundaries), [boundaries]);
-
-  return (
-    <div>
-      {/* Gradient bar with pointer and invisible slider */}
-      <div className="relative h-5 w-full">
-        <div
-          className="absolute inset-0 overflow-hidden rounded-full ring-1 ring-white/10"
-          style={{ background: gradient }}
-        />
-
-        {/* Pointer thumb */}
-        <div
-          className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
-          style={{ left: `${pointerPct}%` }}
-        >
-          <div className="h-4 w-4 rounded-full border-2 border-white bg-white/90 shadow-black/30 shadow-lg" />
-        </div>
-
-        {/* Invisible range input */}
-        <input
-          type="range"
-          min="0"
-          max="100"
-          step="0.5"
-          value={pointerPct}
-          onChange={handleSliderChange}
-          className="absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent opacity-0"
-          aria-label="Night timeline scrubber"
-          aria-valuetext={`${formatTime(currentTime, timezone)} · ${phase.label}`}
-        />
-      </div>
-
-      {/* Phase info line */}
-      <div className="mt-2 flex items-center justify-between text-xs">
-        <div className={`flex flex-wrap items-center gap-1.5 ${phase.textClass}`}>
-          <span className="inline-block h-2 w-2 rounded-full bg-current" />
-          <span className="text-gray-300">{formatTime(currentTime, timezone)}</span>
-          <span className="text-gray-600">·</span>
-          <span className="font-medium">{phase.label}</span>
-          <span className="hidden text-gray-500 sm:inline">— Sun {sunAltitudeLabel}</span>
-        </div>
-
-        {isNowInRange && (
-          <button
-            type="button"
-            onClick={handleNowClick}
-            disabled={isTracking}
-            className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-xs transition-colors ${
-              isTracking
-                ? 'cursor-default bg-night-700 text-gray-500'
-                : 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
-            }`}
-            title="Jump to current time"
-          >
-            <Clock className="h-3 w-3" />
-            Now
-          </button>
-        )}
-      </div>
-
-      {/* 4-zone legend */}
-      <div className="mt-1.5 flex items-center justify-center gap-3 text-[11px] text-gray-500">
-        {TWILIGHT_GUIDE_ORDER.map(id => (
-          <span key={id} className="flex items-center gap-1">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: TWILIGHT_PHASES[id].color }}
-            />{' '}
-            {TWILIGHT_PHASES[id].shortLabel}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-interface NightQualityCardProps {
-  forecast: NightForecast;
-  location: Location;
-  timezone?: string;
-}
-
-function formatSunEvent(
-  occurs: boolean,
-  time: Date,
-  missingLabel: string,
-  timezone?: string
-): string {
-  return occurs ? formatTime(time, timezone) : missingLabel;
-}
-
-function formatAstronomicalBoundary(nightInfo: NightInfo, time: Date, timezone?: string): string {
-  return nightInfo.astronomicalNightMode === 'continuous' ? '24h dark' : formatTime(time, timezone);
-}
+import type { Location, NightForecast } from '@/types';
+import NightConditionsTimeline from '../NightConditionsTimeline';
 
 export default function NightQualityCard({
   forecast,
   location,
   timezone = location.timezone,
-}: NightQualityCardProps) {
+  units,
+}: {
+  forecast: NightForecast;
+  location: Location;
+  timezone?: string;
+  units?: UnitPreferences;
+}) {
   const { nightInfo, weather } = forecast;
-  const clockShift = clockChangeMinutes(nightInfo.sunset, nightInfo.sunrise, timezone);
-
-  const headlineQuality = useMemo(
+  const headline = useMemo(
     () => calculateHeadlineNightQuality(weather, nightInfo),
     [weather, nightInfo]
   );
-  const nightlyAverageQuality = useMemo(
-    () => calculateNightQuality(weather, nightInfo),
-    [weather, nightInfo]
-  );
-  const topPenalties = useMemo(
-    () => headlineQuality.penalties.slice(0, 2).map(penalty => penalty.detail),
-    [headlineQuality.penalties]
-  );
-
-  const isTonight = useMemo(() => {
-    const now = new Date();
-    return now >= nightInfo.sunset && now <= nightInfo.sunrise;
-  }, [nightInfo.sunset, nightInfo.sunrise]);
-
+  const average = useMemo(() => calculateNightQuality(weather, nightInfo), [weather, nightInfo]);
+  const clockShift = clockChangeMinutes(nightInfo.sunset, nightInfo.sunrise, timezone);
   return (
-    <div className="rounded-xl border border-night-700 bg-night-900 p-4">
-      <div className="space-y-2">
-        <h3 className="font-semibold text-white">
-          <Tooltip content="Headline rating is based on the best practical observing window in the night. If no practical window exists, it falls back to the whole-night average.">
-            <span>{getNightLabel(nightInfo.date, true, timezone)} Rating</span>
-          </Tooltip>
-        </h3>
-        <div
-          className={`flex items-center gap-2 font-bold text-xl ${headlineQuality.rating.color}`}
-        >
-          <Tooltip content="5 stars = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor. Headline score uses the best practical observing window when one exists.">
-            <span>{headlineQuality.rating.starString}</span>
-          </Tooltip>
-          <span>{headlineQuality.rating.label}</span>
+    <section
+      className="space-y-3 rounded-xl border border-night-700 bg-night-900 p-4"
+      aria-label="Night conditions"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-gray-400 text-xs">{getNightLabel(nightInfo.date, false, timezone)}</p>
+          <h3 className="font-semibold text-white">Night conditions</h3>
         </div>
-        {weather?.bestTime ? (
-          <p className="text-green-400 text-sm">
-            <Tooltip content="The headline rating is scored from this best practical observing window, not the whole-night average.">
-              <span>
-                Best window:{' '}
-                <span>
-                  {formatTimeRange(weather.bestTime.start, weather.bestTime.end, timezone)}
-                </span>
-              </span>
-            </Tooltip>
-          </p>
-        ) : weather ? (
-          <p className="text-amber-300 text-sm">No practical multi-hour imaging window found.</p>
-        ) : null}
-        <p className="text-gray-400 text-sm">{headlineQuality.summary}</p>
-        {topPenalties.length > 0 && (
-          <p className="text-amber-300 text-sm">Held back by: {topPenalties.join(', ')}</p>
-        )}
-        <p className="text-gray-500 text-xs">
-          Whole observing-window average:{' '}
-          <span className={nightlyAverageQuality.rating.color}>
-            {nightlyAverageQuality.rating.starString} {nightlyAverageQuality.rating.label}
+        <p className={`font-semibold ${headline.rating.color}`}>
+          <span role="img" aria-label={`Night conditions: ${headline.rating.stars} out of 5`}>
+            {headline.rating.starString}
+          </span>{' '}
+          {headline.rating.label}
+        </p>
+      </div>
+      <p className={weather?.bestTime ? 'text-green-300 text-sm' : 'text-amber-300 text-sm'}>
+        {weather?.bestTime
+          ? `Best window · ${formatTimeRange(weather.bestTime.start, weather.bestTime.end, timezone)}`
+          : weather
+            ? 'No practical multi-hour imaging window'
+            : 'Weather unavailable · astronomy only'}
+      </p>
+      {headline.penalties.length > 0 && (
+        <p className="text-amber-300 text-xs">
+          {headline.penalties
+            .slice(0, 2)
+            .map(p => p.detail)
+            .join(' · ')}
+        </p>
+      )}
+      {nightInfo.astronomicalNightMode === 'none' && (
+        <p className="text-amber-300 text-xs">
+          No astronomical night ·{' '}
+          {nightInfo.observingWindowMode === 'none'
+            ? 'Sun too high for night imaging'
+            : getTwilightWindowLabel(nightInfo.observingWindowMode)}
+        </p>
+      )}
+      {clockShift !== 0 && (
+        <p className="text-amber-300 text-xs">
+          Clocks move {clockShift > 0 ? 'forward' : 'back'} {Math.abs(clockShift) / 60}h. Durations
+          use elapsed time; repeated times show their UTC offset.
+        </p>
+      )}
+      <NightConditionsTimeline
+        key={nightInfo.date.toISOString()}
+        location={location}
+        units={units}
+        nightInfo={nightInfo}
+        weather={weather}
+        timezone={timezone}
+      />
+      <ExplainSection title="Why this night rating?">
+        <p>{headline.summary}</p>
+        <p>
+          Darkness duration:{' '}
+          <span>
+            {(
+              (Number(nightInfo.astronomicalDawn) - Number(nightInfo.astronomicalDusk)) /
+              3600000
+            ).toFixed(1)}
+            h
           </span>
         </p>
-
-        {clockShift !== 0 && (
-          <p className="text-amber-300 text-xs">
-            Clocks move {clockShift > 0 ? 'forward' : 'back'} {Math.abs(clockShift) / 60}{' '}
-            {Math.abs(clockShift) === 60 ? 'hour' : 'hours'} during this night. Local clock labels{' '}
-            {clockShift > 0 ? 'jump ahead' : 'repeat'}; durations use actual elapsed time.
-          </p>
-        )}
-
-        {/* Night timeline */}
-        {nightInfo.astronomicalNightMode === 'none' ? (
-          <div className="rounded-lg bg-night-800 p-3 text-sm">
-            <p className="font-medium text-amber-300">
-              No astronomical night — the Sun never reaches 18° below the horizon.
-            </p>
-            {nightInfo.observingWindowMode === 'none' ? (
-              <p className="mt-2 text-gray-400">The Sun remains too high for night imaging.</p>
-            ) : (
-              <>
-                <div
-                  role="img"
-                  aria-label={`${getTwilightWindowLabel(nightInfo.observingWindowMode)}, ${formatTimeRange(nightInfo.observingWindowStart, nightInfo.observingWindowEnd, timezone)}`}
-                  className="mt-3 h-2 rounded-full bg-gradient-to-r from-amber-500 via-indigo-700 to-amber-500"
-                />
-                <div className="mt-1 grid grid-cols-3 gap-2 text-xs">
-                  <span className="text-left text-amber-300">
-                    {formatTime(nightInfo.observingWindowStart, timezone)}
-                  </span>
-                  <span className="text-center text-indigo-300">
-                    Darkest {formatTime(nightInfo.darkestTime, timezone)}
-                  </span>
-                  <span className="text-right text-amber-300">
-                    {formatTime(nightInfo.observingWindowEnd, timezone)}
-                  </span>
-                </div>
-                <p className="mt-2 text-gray-300">
-                  {getTwilightWindowLabel(nightInfo.observingWindowMode)} · Sun{' '}
-                  {nightInfo.minimumSunAltitude.toFixed(1)}° at its lowest. Targets and weather are
-                  evaluated during this interval.
-                </p>
-                <p className="mt-1 text-gray-500 text-xs">
-                  Prefer narrowband, planets and bright targets; faint broadband detail remains
-                  limited by twilight.
-                </p>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="rounded-lg bg-night-800 p-3">
-            {/* Time labels row */}
-            <div className="mb-2 flex items-baseline justify-between text-xs">
-              <Tooltip content="Sunset — start of the night period.">
-                <span className="text-orange-400">
-                  {formatSunEvent(nightInfo.sunsetOccurs, nightInfo.sunset, 'No sunset', timezone)}
-                </span>
-              </Tooltip>
-              <Tooltip content="Astronomical dusk — sun 18° below horizon, true darkness begins.">
-                <span className="text-indigo-400">
-                  {formatAstronomicalBoundary(nightInfo, nightInfo.astronomicalDusk, timezone)}
-                </span>
-              </Tooltip>
-              <span className="font-medium text-indigo-300">
-                {formatDarkHours(nightInfo.astronomicalDusk, nightInfo.astronomicalDawn)}
-              </span>
-              <Tooltip content="Astronomical dawn — sun rises to 18° below horizon, sky begins brightening.">
-                <span className="text-indigo-400">
-                  {formatAstronomicalBoundary(nightInfo, nightInfo.astronomicalDawn, timezone)}
-                </span>
-              </Tooltip>
-              <Tooltip content="Sunrise — end of the night period.">
-                <span className="text-orange-400">
-                  {formatSunEvent(
-                    nightInfo.sunriseOccurs,
-                    nightInfo.sunrise,
-                    'No sunrise',
-                    timezone
-                  )}
-                </span>
-              </Tooltip>
+        <p>
+          Night conditions use the best practical observing window when available. Target
+          suitability is a separate rating for each object and your telescope.
+        </p>
+        <p>
+          Whole-night average:{' '}
+          <span className={average.rating.color}>
+            {average.rating.starString} {average.rating.label}
+          </span>
+        </p>
+        <dl className="space-y-2">
+          {TWILIGHT_GUIDE_ORDER.map(id => (
+            <div key={id}>
+              <dt className="font-medium">
+                {TWILIGHT_PHASES[id].guideLabel} · {TWILIGHT_PHASES[id].guideRange}
+              </dt>
+              <dd className="text-gray-400 text-xs">{TWILIGHT_PHASES[id].guideDescription}</dd>
             </div>
-
-            {/* Interactive timeline scrubber */}
-            <NightTimelineScrubber
-              nightInfo={nightInfo}
-              location={location}
-              isTonight={isTonight}
-              timezone={timezone}
-            />
-          </div>
-        )}
-
-        <details className="group rounded-lg border border-night-700 bg-night-800/50 text-sm">
-          <summary className="cursor-pointer select-none px-3 py-2 font-medium text-gray-300 transition-colors hover:text-white">
-            Twilight guide <span className="font-normal text-gray-500">(Sun below horizon)</span>
-          </summary>
-          <div className="border-night-700 border-t px-3 py-3">
-            <div
-              className="mb-3 grid h-2 grid-cols-4 overflow-hidden rounded-full"
-              role="img"
-              aria-label="Civil, nautical and astronomical twilight followed by astronomical night as the Sun moves from the horizon to more than 18 degrees below it"
-            >
-              {TWILIGHT_GUIDE_ORDER.map(id => (
-                <span key={id} className={TWILIGHT_PHASES[id].guideBgClass} />
-              ))}
-            </div>
-            <dl className="space-y-2">
-              {TWILIGHT_GUIDE_ORDER.map(id => (
-                <div key={id} className="grid grid-cols-[8rem_6rem_1fr] gap-2 text-xs">
-                  <dt className="font-medium text-gray-200">{TWILIGHT_PHASES[id].guideLabel}</dt>
-                  <dd className="text-indigo-300 tabular-nums">{TWILIGHT_PHASES[id].guideRange}</dd>
-                  <dd className="text-gray-500">{TWILIGHT_PHASES[id].guideDescription}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </details>
-
-        {forecast.forecastConfidence === 'low' && (
-          <div className="flex items-start gap-2 text-amber-400 text-sm">
-            <Info className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              Based on celestial conditions only. Weather data is not available beyond 16 days.
-            </span>
-          </div>
-        )}
-        {forecast.forecastConfidence === 'medium' && (
-          <p className="text-gray-500 text-xs">Air quality data unavailable beyond 5 days</p>
-        )}
-        {!weather?.bestTime && (
-          <p className="text-gray-500 text-sm">
-            <Tooltip content="No window with acceptable conditions (low clouds, good transparency, minimal dew risk) found.">
-              <span>No good observation window</span>
-            </Tooltip>
-          </p>
-        )}
-      </div>
-    </div>
+          ))}
+        </dl>
+      </ExplainSection>
+    </section>
   );
 }

@@ -1,0 +1,32 @@
+# Shared visual presentation
+
+The app shows a compact visual summary first, with explanations under `ExplainSection`.
+Warnings about missing data, short imaging windows, Moon interference and camera framing
+remain visible. Eclipse viewing guidance also stays visible.
+
+## Sources of truth
+
+- `TargetSummary` renders targets in Overview, category leaders, category cards and Search.
+  It uses the existing target score, `getTargetRating` and `getTargetPhotoWindow`.
+- `ImagingWindowSummary` formats that same window in cards and target detail. Visibility
+  without weather is explicitly labelled. The altitude chart shades the same interval.
+- `TargetFrameDiagram` uses `getFramePresentation`, which delegates to the scoring
+  geometry and mosaic helpers. Its ellipse is an angular-size schematic with long axes
+  aligned, not a photograph or camera-orientation prediction. Unknown minor axes are marked.
+- `NightConditionsTimeline` uses existing twilight boundaries, Moon altitude samples,
+  weather best time and observing blockers. Missing samples are grey, never clear/down.
+  `timelinePosition` uses elapsed UTC time, including across daylight-saving transitions.
+- `lib/utils/format.ts`, `lib/utils/units.ts` and telescope `formatFOV` own display formats.
+  Temperature differences use `formatTemperatureDifference`, without the Fahrenheit offset.
+- `lib/utils/rating.ts` owns quality colours. Stars inherit that colour; CSS must not override it.
+
+Use sentence case for UI labels and preserve astronomical/catalogue names. Keep night
+conditions and target suitability labelled separately: they measure different things.
+Search explicitly describes tonight; the forecast tabs describe the selected night.
+
+## Validation
+
+Run web type checking, Biome, Knip, Vitest coverage, web and mobile-wrapper builds, and
+Playwright desktop/mobile flows. Regression coverage includes DST, absent weather and
+angular dimensions, framing, disclosure keyboard controls, and equal card/detail window
+text and star colours. Check narrow and desktop layouts in the browser as well.

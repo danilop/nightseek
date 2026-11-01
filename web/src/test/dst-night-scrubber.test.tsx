@@ -132,6 +132,7 @@ describe.each(scenarios)('$name: the exact clock-change observing night', scenar
     vi.useFakeTimers();
     vi.setSystemTime(new Date(transition - hour));
     renderNight();
+    fireEvent.click(screen.getByRole('button', { name: 'Why this night rating?' }));
     const elapsed = (night.astronomicalDawn.getTime() - night.astronomicalDusk.getTime()) / hour;
     const clockHours =
       (localClockTimestamp(night.astronomicalDawn, location.timezone) -
@@ -142,7 +143,7 @@ describe.each(scenarios)('$name: the exact clock-change observing night', scenar
     expect(screen.queryByText(`${clockHours.toFixed(1)}h`)).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        `Clocks move ${scenario.shift > 0 ? 'forward' : 'back'} 1 hour during this night. Local clock labels ${scenario.shift > 0 ? 'jump ahead' : 'repeat'}; durations use actual elapsed time.`
+        `Clocks move ${scenario.shift > 0 ? 'forward' : 'back'} 1h. Durations use elapsed time; repeated times show their UTC offset.`
       )
     ).toBeInTheDocument();
   });

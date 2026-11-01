@@ -599,11 +599,17 @@ export function calculateImagingWindowScore(
   return Math.round(qualityBase + durationBonus);
 }
 
-function getFrameGeometry(
+export function getFrameGeometry(
   majorAxis: number,
   fov: { width: number; height: number } | null,
   minorAxis?: number
-): { relativeArea: number; frameCoverage: number } | null {
+): {
+  major: number;
+  minor: number;
+  minorEstimated: boolean;
+  relativeArea: number;
+  frameCoverage: number;
+} | null {
   if (
     !fov ||
     !Number.isFinite(majorAxis) ||
@@ -621,6 +627,9 @@ function getFrameGeometry(
   const covered = (width: number, height: number) =>
     Math.min(1, majorAxis / width) * Math.min(1, minor / height);
   return {
+    major: majorAxis,
+    minor,
+    minorEstimated: !(minorAxis !== undefined && Number.isFinite(minorAxis) && minorAxis > 0),
     relativeArea: (majorAxis / fov.width) * (minor / fov.height),
     // Reward the span occupied along each frame axis, capped independently.
     // Extending a thin target outside the frame cannot compensate for its width.
@@ -676,19 +685,9 @@ export function calculateMosaicPanels(
   fov: { width: number; height: number } | null,
   minorAxisArcmin?: number
 ): { cols: number; rows: number } | null {
-  if (
-    !fov ||
-    !Number.isFinite(angularSizeArcmin) ||
-    angularSizeArcmin <= 0 ||
-    !Number.isFinite(fov.width) ||
-    !Number.isFinite(fov.height) ||
-    fov.width <= 0 ||
-    fov.height <= 0
-  )
-    return null;
-
-  const major = angularSizeArcmin;
-  const minor = minorAxisArcmin && minorAxisArcmin > 0 ? minorAxisArcmin : major;
+  const geometry = getFrameGeometry(angularSizeArcmin, fov, minorAxisArcmin);
+  if (!geometry || !fov) return null;
+  const { major, minor } = geometry;
 
   // Object fits in a single frame (try both orientations)
   const fitsNormal = major <= fov.width && minor <= fov.height;

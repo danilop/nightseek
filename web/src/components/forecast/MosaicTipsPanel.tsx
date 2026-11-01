@@ -101,7 +101,7 @@ export default function MosaicTipsPanel({
         className="flex w-full items-center gap-2 text-left"
       >
         <Grid3X3 className="h-4 w-4 flex-shrink-0 text-sky-400" />
-        <span className="font-medium text-gray-300 text-sm">Mosaic Tips</span>
+        <span className="font-medium text-gray-300 text-sm">Mosaic tips</span>
         <span className={`rounded px-1.5 py-0.5 font-medium text-xs ${badge.className}`}>
           {badge.label}
         </span>

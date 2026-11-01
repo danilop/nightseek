@@ -90,7 +90,7 @@ export default function TelescopeSettings({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-400 text-xs">
               <ScanLine className="h-3 w-3" />
-              <span>Custom Field of View (arcminutes)</span>
+              <span>Custom field of view (arcminutes)</span>
             </div>
             <button
               type="button"
@@ -141,7 +141,7 @@ export default function TelescopeSettings({
 
       {/* Current FOV Display */}
       <div className="mt-3 flex items-center justify-between text-xs">
-        <span className="text-gray-500">Current FOV:</span>
+        <span className="text-gray-500">FoV:</span>
         <span className="font-medium text-sky-400">
           {effectiveFOV ? formatFOV(effectiveFOV.width, effectiveFOV.height) : 'Not configured'}
         </span>

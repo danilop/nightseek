@@ -108,6 +108,11 @@ function renderPlanner(horizonProfile: HorizonProfile, onShowSky = vi.fn()) {
       onShowSky={onShowSky}
     />
   );
+  expect(screen.getByRole('button', { name: /Milky Way/ })).toHaveAttribute(
+    'aria-expanded',
+    'false'
+  );
+  fireEvent.click(screen.getByRole('button', { name: /Milky Way/ }));
 }
 
 describe('MilkyWayPlannerCard', () => {
@@ -219,6 +224,7 @@ describe('MilkyWayPlannerCard', () => {
       />
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /Milky Way/ }));
     expect(screen.getByText('No astronomical darkness')).toBeInTheDocument();
     expect(screen.queryByText('Best photo window')).not.toBeInTheDocument();
     expect(screen.getByText(/Sun never reaches 18° below/)).toBeInTheDocument();

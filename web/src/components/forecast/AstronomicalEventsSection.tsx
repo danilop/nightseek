@@ -8,6 +8,8 @@ import {
   Sun,
   Target,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
+import ExplainSection from '@/components/ui/ExplainSection';
 import { describeLunarApsis } from '@/lib/astronomy/lunar-apsis';
 import { getEclipseSeasonDescription } from '@/lib/astronomy/lunar-nodes';
 import { getMoonPhaseEmoji, getMoonPhaseName } from '@/lib/astronomy/moon-phases';
@@ -16,213 +18,156 @@ import { getVenusPeakDescription } from '@/lib/astronomy/venus-peak';
 import { describeLunarEclipse, describeSolarEclipse } from '@/lib/events/eclipses';
 import { describeSeasonalMarker, getSeasonalMarkerName } from '@/lib/events/seasons';
 import { getTransitAlertSummary } from '@/lib/events/transits';
-import { formatDate, formatTime, formatTimeRange, getNightLabel } from '@/lib/utils/format';
+import { formatDate, formatTime, formatTimeRange } from '@/lib/utils/format';
 import { useApp } from '@/stores/AppContext';
-import type { AstronomicalEvents, LunarEclipse, SolarEclipse } from '@/types';
+import type { AstronomicalEvents, Conjunction, LunarEclipse, SolarEclipse } from '@/types';
+import AngularSeparationDiagram from './AngularSeparationDiagram';
 import CloseApproachCard from './CloseApproachCard';
 import SpaceWeatherCard from './SpaceWeatherCard';
 
 interface AstronomicalEventsSectionProps {
-  events: AstronomicalEvents;
+  events?: AstronomicalEvents;
+  conjunctions?: Conjunction[];
   nightDate: Date;
-}
-
-function hasAnyEvent(
-  events: AstronomicalEvents,
-  hasNeoApproaches: boolean,
-  hasSpaceWeather: boolean
-): boolean {
-  return !!(
-    events.lunarEclipse ||
-    events.solarEclipse ||
-    events.lunarApsis?.isSupermoon ||
-    events.seasonalMarker ||
-    events.oppositions.some(o => o.isActive) ||
-    events.maxElongations.some(e => Math.abs(e.daysUntil) <= 3) ||
-    events.moonPhaseEvent ||
-    events.eclipseSeason?.isActive ||
-    events.venusPeak?.isNearPeak ||
-    events.planetPerihelia?.length ||
-    (events.planetaryTransit && events.planetaryTransit.yearsUntil <= 2) ||
-    hasNeoApproaches ||
-    hasSpaceWeather
-  );
 }
 
 export default function AstronomicalEventsSection({
   events,
+  conjunctions = [],
   nightDate,
 }: AstronomicalEventsSectionProps) {
-  const hasNeoApproaches = events.neoCloseApproaches && events.neoCloseApproaches.length > 0;
-  const hasSpaceWeather = Boolean(events.spaceWeather);
-
-  if (!hasAnyEvent(events, !!hasNeoApproaches, !!hasSpaceWeather)) {
-    return null;
-  }
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-night-700 bg-night-900">
-      <div className="border-night-700 border-b px-4 py-3">
-        <h3 className="flex items-center gap-2 font-semibold text-white">
-          <Calendar className="h-4 w-4 text-indigo-400" />
-          Astronomical Events
-        </h3>
-      </div>
-      <div className="space-y-3 p-4">
-        <CelestialEventCards events={events} nightDate={nightDate} />
-      </div>
-
-      {hasNeoApproaches && (
-        <div className="mt-4">
-          <CloseApproachCard approaches={events.neoCloseApproaches} nightDate={nightDate} />
-        </div>
-      )}
-
-      {hasSpaceWeather && events.spaceWeather && (
-        <div className="mt-4">
-          <SpaceWeatherCard
-            spaceWeather={events.spaceWeather}
-            auroraForecast={events.auroraForecast}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CelestialEventCards({
-  events,
-  nightDate,
-}: {
-  events: AstronomicalEvents;
-  nightDate: Date;
-}) {
   const { state } = useApp();
   const timezone = state.location?.timezone;
-
+  const entries: Array<{ id: string; time: Date; content: ReactNode }> = [];
+  const add = (id: string, props: EventCardProps) =>
+    entries.push({ id, time: props.time, content: <EventCard {...props} /> });
+  if (events?.lunarEclipse)
+    entries.push({
+      id: 'lunar-eclipse',
+      time: events.lunarEclipse.peakTime,
+      content: <LunarEclipseCard eclipse={events.lunarEclipse} />,
+    });
+  if (events?.solarEclipse)
+    entries.push({
+      id: 'solar-eclipse',
+      time: events.solarEclipse.peakTime,
+      content: <SolarEclipseCard eclipse={events.solarEclipse} />,
+    });
+  if (events?.lunarApsis?.isSupermoon)
+    add('supermoon', {
+      icon: <Moon className="h-4 w-4" />,
+      title: 'Supermoon',
+      description: describeLunarApsis(events.lunarApsis),
+      time: events.lunarApsis.date,
+    });
+  for (const opposition of events?.oppositions.filter(o => o.isActive) ?? [])
+    add(`opposition-${opposition.planet}`, {
+      icon: <Target className="h-4 w-4" />,
+      title: `${opposition.planet} at opposition`,
+      description:
+        'The planet is opposite the Sun in the sky. Check its local altitude before observing.',
+      time: opposition.date,
+      isHighlight: Math.abs(opposition.daysUntil) <= 3,
+    });
+  for (const elongation of events?.maxElongations.filter(e => Math.abs(e.daysUntil) <= 3) ?? [])
+    add(`elongation-${elongation.planet}`, {
+      icon: <CircleDot className="h-4 w-4" />,
+      title: `${elongation.planet} maximum elongation`,
+      description: `${elongation.elongationDeg.toFixed(1)}° ${elongation.isEastern ? 'east' : 'west'} of the Sun`,
+      time: elongation.date,
+      details: elongation.isEastern ? 'Evening sky' : 'Morning sky',
+    });
+  if (events?.seasonalMarker && events.seasonalMarker.daysUntil <= 1)
+    add('season', {
+      icon: <Sun className="h-4 w-4" />,
+      title: getSeasonalMarkerName(events.seasonalMarker.type),
+      description: describeSeasonalMarker(events.seasonalMarker),
+      time: events.seasonalMarker.time,
+    });
+  if (events?.moonPhaseEvent)
+    add('moon-phase', {
+      icon: <span>{getMoonPhaseEmoji(events.moonPhaseEvent.phase)}</span>,
+      title: getMoonPhaseName(events.moonPhaseEvent.phase),
+      description: 'Exact lunar phase. The time is shown in your observing location’s timezone.',
+      time: events.moonPhaseEvent.time,
+    });
+  if (events?.eclipseSeason?.isActive)
+    add('eclipse-season', {
+      icon: <AlertTriangle className="h-4 w-4" />,
+      title: 'Eclipse season',
+      description: getEclipseSeasonDescription(events.eclipseSeason, nightDate, timezone),
+      time: events.eclipseSeason.nodeCrossingTime,
+    });
+  if (events?.venusPeak?.isNearPeak)
+    add('venus', {
+      icon: <Star className="h-4 w-4" />,
+      title: 'Venus at peak brightness',
+      description: getVenusPeakDescription(events.venusPeak),
+      time: events.venusPeak.peakDate,
+    });
+  for (const apsis of events?.planetPerihelia ?? [])
+    add(`perihelion-${apsis.planet}`, {
+      icon: <Sparkles className="h-4 w-4" />,
+      title: `${apsis.planet} near perihelion`,
+      description: getPlanetApsisDescription(apsis),
+      time: apsis.date,
+    });
+  if (events?.planetaryTransit && events.planetaryTransit.yearsUntil <= 2)
+    add('transit', {
+      icon: <Sun className="h-4 w-4" />,
+      title: `${events.planetaryTransit.planet} transit`,
+      description: getTransitAlertSummary(events.planetaryTransit),
+      time: events.planetaryTransit.peak,
+    });
+  for (const conjunction of conjunctions)
+    add(
+      `conjunction-${conjunction.object1Name}-${conjunction.object2Name}-${Number(conjunction.time)}`,
+      {
+        icon: <CircleDot className="h-4 w-4" />,
+        title: `${conjunction.object1Name} – ${conjunction.object2Name}`,
+        description: conjunction.description,
+        time: conjunction.time,
+        details: `${conjunction.separationDegrees.toFixed(1)}° separation · local visibility not assessed`,
+        visual: (
+          <AngularSeparationDiagram
+            degrees={conjunction.separationDegrees}
+            first={conjunction.object1Name}
+            second={conjunction.object2Name}
+          />
+        ),
+      }
+    );
+  entries.sort((a, b) => Number(a.time) - Number(b.time));
   return (
-    <>
-      {events.lunarEclipse && <LunarEclipseCard eclipse={events.lunarEclipse} />}
-
-      {events.solarEclipse && <SolarEclipseCard eclipse={events.solarEclipse} />}
-
-      {events.lunarApsis?.isSupermoon && (
-        <EventCard
-          icon={<Moon className="h-4 w-4 text-yellow-300" />}
-          title="Supermoon"
-          description={describeLunarApsis(events.lunarApsis)}
-          time={events.lunarApsis.date}
-          isHighlight
-          details={`Distance: ${events.lunarApsis.distanceKm.toLocaleString()} km`}
+    <div className="space-y-4">
+      {entries.length > 0 && (
+        <section
+          className="rounded-xl border border-night-700 bg-night-900 p-4"
+          aria-label="Event agenda"
+        >
+          <h3 className="mb-3 flex items-center gap-2 font-semibold text-white">
+            <Calendar className="h-4 w-4 text-sky-300" />
+            Event agenda
+          </h3>
+          <ol className="space-y-3">
+            {entries.map(entry => (
+              <li key={entry.id} data-event-time={entry.time.toISOString()}>
+                {entry.content}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {!!events?.neoCloseApproaches?.length && (
+        <CloseApproachCard approaches={events.neoCloseApproaches} nightDate={nightDate} />
+      )}
+      {events?.spaceWeather && (
+        <SpaceWeatherCard
+          spaceWeather={events.spaceWeather}
+          auroraForecast={events.auroraForecast}
         />
       )}
-
-      {events.oppositions
-        .filter(o => o.isActive)
-        .map(opposition => (
-          <EventCard
-            key={opposition.planet}
-            icon={<Target className="h-4 w-4 text-red-400" />}
-            title={`${opposition.planet} at Opposition`}
-            description={
-              opposition.daysUntil === 0
-                ? `Opposition ${getNightLabel(nightDate, false, timezone)}!`
-                : opposition.daysUntil < 0
-                  ? `${Math.abs(opposition.daysUntil)} days ago`
-                  : `In ${opposition.daysUntil} days`
-            }
-            time={opposition.date}
-            isHighlight={Math.abs(opposition.daysUntil) <= 3}
-            details="Best time to observe - planet is closest and brightest"
-          />
-        ))}
-
-      {events.maxElongations
-        .filter(e => Math.abs(e.daysUntil) <= 3)
-        .map(elongation => (
-          <EventCard
-            key={elongation.planet}
-            icon={<CircleDot className="h-4 w-4 text-purple-400" />}
-            title={`${elongation.planet} Maximum Elongation`}
-            description={`${elongation.elongationDeg.toFixed(1)}° ${elongation.isEastern ? 'east' : 'west'} of Sun`}
-            time={elongation.date}
-            isHighlight={elongation.daysUntil === 0}
-            details={elongation.isEastern ? 'Best evening visibility' : 'Best morning visibility'}
-          />
-        ))}
-
-      {events.seasonalMarker && events.seasonalMarker.daysUntil <= 1 && (
-        <EventCard
-          icon={<Sun className="h-4 w-4 text-amber-400" />}
-          title={getSeasonalMarkerName(events.seasonalMarker.type)}
-          description={describeSeasonalMarker(events.seasonalMarker)}
-          time={events.seasonalMarker.time}
-          isHighlight
-        />
-      )}
-
-      {events.moonPhaseEvent && (
-        <EventCard
-          icon={<span className="text-lg">{getMoonPhaseEmoji(events.moonPhaseEvent.phase)}</span>}
-          title={getMoonPhaseName(events.moonPhaseEvent.phase)}
-          description={`Exact ${getMoonPhaseName(events.moonPhaseEvent.phase).toLowerCase()} ${getNightLabel(nightDate, false, timezone)}`}
-          time={events.moonPhaseEvent.time}
-          isHighlight={
-            events.moonPhaseEvent.phase === 'full' || events.moonPhaseEvent.phase === 'new'
-          }
-          details={`at ${formatTime(events.moonPhaseEvent.time, timezone)}`}
-        />
-      )}
-
-      {events.eclipseSeason?.isActive && (
-        <EventCard
-          icon={<AlertTriangle className="h-4 w-4 text-orange-400" />}
-          title="Eclipse Season Active"
-          description={getEclipseSeasonDescription(events.eclipseSeason, nightDate, timezone)}
-          time={events.eclipseSeason.nodeCrossingTime}
-          isHighlight
-          details="Watch for potential eclipses"
-        />
-      )}
-
-      {events.venusPeak?.isNearPeak && (
-        <EventCard
-          icon={<Star className="h-4 w-4 text-yellow-200" />}
-          title="Venus at Peak Brightness"
-          description={getVenusPeakDescription(events.venusPeak)}
-          time={events.venusPeak.peakDate}
-          isHighlight={events.venusPeak.daysUntil <= 7}
-          details={`Magnitude: ${events.venusPeak.peakMagnitude.toFixed(1)}`}
-        />
-      )}
-
-      {events.planetPerihelia?.map(apsis => (
-        <EventCard
-          key={`${apsis.planet}-perihelion`}
-          icon={<Sparkles className="h-4 w-4 text-green-400" />}
-          title={`${apsis.planet} Near Perihelion`}
-          description={getPlanetApsisDescription(apsis)}
-          time={apsis.date}
-          isHighlight={false}
-          details={
-            apsis.solarFluxBoostPercent > 0
-              ? `${apsis.solarFluxBoostPercent}% more sunlight than at mean distance`
-              : undefined
-          }
-        />
-      ))}
-
-      {events.planetaryTransit && events.planetaryTransit.yearsUntil <= 2 && (
-        <EventCard
-          icon={<Sun className="h-4 w-4 text-red-400" />}
-          title={`${events.planetaryTransit.planet} Transit Coming!`}
-          description={getTransitAlertSummary(events.planetaryTransit)}
-          time={events.planetaryTransit.peak}
-          isHighlight
-          details="Rare event - mark your calendar!"
-        />
-      )}
-    </>
+    </div>
   );
 }
 
@@ -418,6 +363,7 @@ interface EventCardProps {
   time: Date;
   isHighlight?: boolean;
   details?: string;
+  visual?: ReactNode;
 }
 
 function EventCard({
@@ -427,6 +373,7 @@ function EventCard({
   time,
   isHighlight = false,
   details,
+  visual,
 }: EventCardProps) {
   const { state } = useApp();
   const timezone = state.location?.timezone;
@@ -440,13 +387,14 @@ function EventCard({
         {icon}
         <span className="font-medium text-white">{title}</span>
       </div>
-      <p className="text-gray-400 text-sm">{description}</p>
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-gray-500 text-xs">
-          {formatDate(time, timezone)} at {formatTime(time, timezone)}
-        </span>
-        {details && <span className="text-gray-500 text-xs">{details}</span>}
-      </div>
+      <time dateTime={time.toISOString()} className="block text-sky-200 text-sm">
+        {formatDate(time, timezone)} · {formatTime(time, timezone)}
+      </time>
+      {details && <p className="mt-1 text-gray-400 text-xs">{details}</p>}
+      <ExplainSection title={`About ${title}`} className="mt-2">
+        {visual}
+        <p>{description}</p>
+      </ExplainSection>
     </div>
   );
 }

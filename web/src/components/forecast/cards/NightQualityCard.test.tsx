@@ -7,25 +7,19 @@ import { createMockNightForecast, createMockNightInfo } from '@/test/factories';
 const london = { latitude: 51.5074, longitude: -0.1278, timezone: 'Europe/London' };
 
 describe('NightQualityCard', () => {
-  it('renders the four twilight legend entries', () => {
+  it('keeps the explanation collapsed and reveals all twilight definitions on demand', () => {
     render(<NightQualityCard location={london} forecast={createMockNightForecast()} />);
-
-    for (const label of ['Civil', 'Nautical', 'Astro', 'Night']) {
+    const explain = screen.getByRole('button', { name: 'Why this night rating?' });
+    expect(explain).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(/Civil twilight ·/)).not.toBeInTheDocument();
+    fireEvent.click(explain);
+    for (const label of [
+      'Civil twilight · 0° to −6°',
+      'Nautical twilight · −6° to −12°',
+      'Astronomical twilight · −12° to −18°',
+      'Astronomical night · Below −18°',
+    ])
       expect(screen.getByText(label)).toBeInTheDocument();
-    }
-  });
-
-  it('lists every twilight phase with its Sun-altitude range in the guide', () => {
-    render(<NightQualityCard location={london} forecast={createMockNightForecast()} />);
-
-    expect(screen.getByText('Civil twilight')).toBeInTheDocument();
-    expect(screen.getByText('0° to −6°')).toBeInTheDocument();
-    expect(screen.getByText('Nautical twilight')).toBeInTheDocument();
-    expect(screen.getByText('−6° to −12°')).toBeInTheDocument();
-    expect(screen.getByText('Astronomical twilight')).toBeInTheDocument();
-    expect(screen.getByText('−12° to −18°')).toBeInTheDocument();
-    expect(screen.getByText('Astronomical night')).toBeInTheDocument();
-    expect(screen.getByText('Below −18°')).toBeInTheDocument();
   });
 
   it('reports astronomical night when the scrubber sits mid-night', () => {
@@ -62,7 +56,7 @@ describe('NightQualityCard', () => {
     expect(screen.getByText(/Sun 5\d° below horizon/)).toBeInTheDocument();
   });
 
-  it('replaces the scrubber with an explanation when there is no astronomical night', () => {
+  it('keeps twilight limits explicit when there is no astronomical night', () => {
     const forecast = createMockNightForecast({
       nightInfo: createMockNightInfo({
         astronomicalNightMode: 'none',
@@ -74,8 +68,6 @@ describe('NightQualityCard', () => {
 
     expect(screen.getByText(/No astronomical night/)).toBeInTheDocument();
     expect(screen.getByText(/Astronomical twilight window/)).toBeInTheDocument();
-    expect(
-      screen.queryByRole('slider', { name: /night timeline scrubber/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('slider', { name: /night timeline scrubber/i })).toBeInTheDocument();
   });
 });

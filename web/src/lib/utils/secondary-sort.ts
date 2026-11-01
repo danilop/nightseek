@@ -18,7 +18,7 @@ interface SortFieldConfig {
 const SORT_FIELD_CONFIGS: SortFieldConfig[] = [
   {
     field: 'score',
-    label: 'Score',
+    label: 'Target suitability',
     getValue: obj => obj.totalScore,
     direction: 'desc',
   },
@@ -30,26 +30,26 @@ const SORT_FIELD_CONFIGS: SortFieldConfig[] = [
   },
   {
     field: 'altitude',
-    label: 'Peak Altitude',
+    label: 'Peak altitude',
     getValue: obj => obj.visibility.maxAltitude,
     direction: 'desc',
   },
   {
     field: 'moonSep',
-    label: 'Moon Distance',
+    label: 'Moon separation',
     getValue: obj => obj.visibility.moonSeparation,
     direction: 'desc',
   },
   {
     field: 'imaging',
-    label: 'Imaging Quality',
+    label: 'Imaging quality',
     getValue: (obj, _fov, access, now) =>
       getTargetPhotoWindow(obj.visibility, access, now)?.qualityScore ?? null,
     direction: 'desc',
   },
   {
     field: 'frameFill',
-    label: 'Frame Area',
+    label: 'Frame area',
     getValue: (obj, fov) => calculateFrameFill(obj, fov),
     direction: 'desc',
   },
@@ -94,5 +94,5 @@ export function getSecondarySortComparator(
 }
 
 export function getSortLabel(field: SecondarySortField): string {
-  return SORT_FIELD_CONFIGS.find(c => c.field === field)?.label ?? 'Score';
+  return SORT_FIELD_CONFIGS.find(c => c.field === field)?.label ?? 'Target suitability';
 }

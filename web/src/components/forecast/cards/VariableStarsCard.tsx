@@ -28,7 +28,7 @@ export default function VariableStarsCard({ nightDate, timezone }: VariableStars
   return (
     <SectionCard
       icon={<Star className="h-5 w-5 text-yellow-400" />}
-      title="Variable Stars"
+      title="Variable stars"
       badge={<CountBadge count={notablePredictions.length} />}
       expanded={expanded}
       onToggle={() => setExpanded(!expanded)}

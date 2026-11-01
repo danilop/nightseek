@@ -151,7 +151,7 @@ export default function SkyChart({
   focus,
   bundledAssets = false,
 }: SkyChartProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [isTargetFocused, setIsTargetFocused] = useState(false);
   const focusRef = useRef<SkyMapFocus | null>(focus ?? null);
   focusRef.current = focus ?? null;
@@ -687,7 +687,7 @@ export default function SkyChart({
   return (
     <SectionCard
       icon={<MapIcon className="h-5 w-5 shrink-0 text-indigo-400" />}
-      title="Sky Chart"
+      title="Sky chart"
       badge={<span className="hidden text-gray-500 text-xs sm:block">Interactive sky view</span>}
       expanded={expanded}
       onToggle={() => setExpanded(!expanded)}

@@ -1,5 +1,6 @@
-import { Bookmark, Camera, Clock, Compass, Focus, Moon, Mountain, Star, X } from 'lucide-react';
+import { Bookmark, Clock, Compass, Moon, Mountain, Star, X } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import ExplainSection from '@/components/ui/ExplainSection';
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -14,7 +15,7 @@ import {
   calculateMosaicPanels,
   getMosaicFootprint,
 } from '@/lib/scoring';
-import { formatFOV, getEffectiveFOV } from '@/lib/telescopes';
+import { getEffectiveFOV } from '@/lib/telescopes';
 import {
   azimuthToCardinal,
   formatAltitude,
@@ -29,7 +30,6 @@ import {
 } from '@/lib/utils/format';
 import { formatSubtype } from '@/lib/utils/format-subtype';
 import { evaluateTargetAccessibility, type TargetAccessibility } from '@/lib/utils/horizon-profile';
-import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
 import { TARGET_MAX_SCORE } from '@/lib/utils/rating';
 import { getTargetPhotoWindow } from '@/lib/utils/target-photo-windows';
 import { useApp } from '@/stores/AppContext';
@@ -41,8 +41,10 @@ import type {
   ScoredObject,
 } from '@/types';
 import EnhancedStarFieldCanvas from './EnhancedStarFieldCanvas';
+import ImagingWindowSummary from './ImagingWindowSummary';
 import MosaicTipsPanel from './MosaicTipsPanel';
 import TargetAltitudeChart from './TargetAltitudeChart';
+import TargetFrameDiagram from './TargetFrameDiagram';
 
 const TargetReferencePanel = lazy(() => import('./TargetReferencePanel'));
 const AladinSurveyView = lazy(() => import('./AladinSurveyView'));
@@ -74,6 +76,7 @@ export default function ObjectDetailPanel({
   const [viewMode, setViewMode] = useState<'starfield' | 'survey'>('starfield');
   const [surveyMounted, setSurveyMounted] = useState(false);
   const [referenceOpen, setReferenceOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const focusTrapRef = useFocusTrap<HTMLDivElement>();
   const { state } = useApp();
@@ -172,7 +175,7 @@ export default function ObjectDetailPanel({
 
   // Fetch Gaia star field on mount (only for DSOs with angular size)
   useEffect(() => {
-    if (!showStarField) {
+    if (!showStarField || !previewOpen) {
       setLoading(false);
       return;
     }
@@ -217,6 +220,7 @@ export default function ObjectDetailPanel({
     };
   }, [
     showStarField,
+    previewOpen,
     visibility.raHours,
     visibility.decDegrees,
     object.objectName,
@@ -270,7 +274,10 @@ export default function ObjectDetailPanel({
         </button>
         {/* Rating and badges */}
         <div className="flex items-center justify-between">
-          <RatingStars score={totalScore} maxScore={TARGET_MAX_SCORE} size="md" />
+          <div>
+            <RatingStars score={totalScore} maxScore={TARGET_MAX_SCORE} size="md" />
+            <p className="mt-1 text-gray-400 text-xs">Target suitability</p>
+          </div>
           <div className="flex items-center gap-2 text-sm">
             {magnitude !== null && (
               <span className="text-gray-400">mag {formatMagnitude(magnitude)}</span>
@@ -283,119 +290,144 @@ export default function ObjectDetailPanel({
           </div>
         </div>
 
-        {/* Star Field / Survey View — only for DSOs with angular size */}
-        {showStarField && fov && (
-          <div className="rounded-lg bg-night-800 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 rounded-full bg-night-900 p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('starfield')}
-                    className={`rounded-full px-3 py-1 font-medium text-xs transition-colors ${
-                      viewMode === 'starfield'
-                        ? 'bg-night-700 text-white'
-                        : 'text-gray-500 hover:text-gray-300'
-                    }`}
-                  >
-                    Star Field
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setViewMode('survey');
-                      if (!surveyMounted) setSurveyMounted(true);
-                    }}
-                    className={`rounded-full px-3 py-1 font-medium text-xs transition-colors ${
-                      viewMode === 'survey'
-                        ? 'bg-night-700 text-white'
-                        : 'text-gray-500 hover:text-gray-300'
-                    }`}
-                  >
-                    Survey
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-gray-500 text-xs">
-                <Focus className="h-3 w-3" />
-                <span>
-                  FOV: {formatFOV(fov.width, fov.height)}
-                  {frameFillPercent !== null &&
-                    ` · ${formatFrameFillPercent(frameFillPercent)} frame area`}
-                  {mosaic && ` · ${mosaic.cols}\u00d7${mosaic.rows} mosaic`}
+        <TargetFrameDiagram
+          major={visibility.angularSizeArcmin}
+          minor={visibility.minorAxisArcmin}
+          category={category}
+          fov={fov}
+        />
+        <section aria-label="Imaging window" className="rounded-xl bg-night-800 p-3">
+          <ImagingWindowSummary
+            window={accessibleImagingWindow}
+            weatherAvailable={weather !== null}
+            timezone={timezone}
+          />
+          {visibility.moonWarning && (
+            <p className="text-amber-300 text-xs">Moon interference near this target</p>
+          )}
+        </section>
+        {/* Altitude through the night, against the same horizon limits. */}
+        <TargetAltitudeChart
+          imagingWindow={accessibleImagingWindow}
+          visibility={visibility}
+          nightInfo={nightInfo}
+          horizonProfile={horizonProfile}
+          accessibility={resolvedAccessibility}
+          calculator={calculator}
+          timezone={timezone}
+        />
+
+        <ExplainSection title="Why this target rating?">
+          <p>
+            Target suitability uses the same ranking as Overview, Targets and Search. Night
+            conditions are rated separately.
+          </p>
+          <ul className="list-inside list-disc">
+            {object.reason.split(', ').map(reason => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+          {frameFillPercent !== null && (
+            <p className="text-xs">
+              Estimated target/frame area: {formatFrameFillPercent(frameFillPercent)}. This compares
+              the catalogue ellipse with the camera rectangle; it is not the visible fraction of the
+              frame. The schematic aligns the long axes; actual camera orientation and catalogue
+              uncertainty affect cropping.
+            </p>
+          )}
+          {accessibleImagingWindow && (
+            <div className="space-y-2">
+              <p className="text-gray-400 text-xs">
+                Imaging conditions · {accessibleImagingWindow.quality}
+              </p>
+              <FactorBar label="Altitude" value={accessibleImagingWindow.factors.altitude} />
+              <FactorBar label="Airmass" value={accessibleImagingWindow.factors.airmass} />
+              <FactorBar label="Moon" value={accessibleImagingWindow.factors.moonInterference} />
+              <FactorBar label="Clouds" value={accessibleImagingWindow.factors.cloudCover} />
+            </div>
+          )}
+        </ExplainSection>
+        <ExplainSection title="Position & visibility details">
+          {/* Object details grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <DetailItem
+              icon={<Mountain className="h-4 w-4 text-yellow-400" />}
+              label="Peak altitude"
+              value={`${formatAltitude(visibility.maxAltitude)} ${azimuthToCardinal(visibility.azimuthAtPeak)}`}
+              valueClass={getAltitudeQualityClass(visibility.maxAltitude)}
+            />
+            <DetailItem
+              icon={<Clock className="h-4 w-4 text-blue-400" />}
+              label="Peak time"
+              value={
+                visibility.maxAltitudeTime ? formatTime(visibility.maxAltitudeTime, timezone) : '—'
+              }
+            />
+            <DetailItem
+              icon={<Moon className="h-4 w-4 text-amber-400" />}
+              label="Moon separation"
+              value={
+                visibility.moonAltitudeAtPeak !== null && visibility.moonAltitudeAtPeak <= 0
+                  ? 'Below horizon at peak'
+                  : visibility.moonSeparation === null
+                    ? '—'
+                    : formatMoonSeparation(visibility.moonSeparation)
+              }
+              valueClass={visibility.moonWarning ? 'text-amber-400' : ''}
+            />
+            <DetailItem
+              icon={<Compass className="h-4 w-4 text-indigo-400" />}
+              label="Meridian"
+              value={
+                visibility.meridianTransitTime
+                  ? formatTime(visibility.meridianTransitTime, timezone)
+                  : '—'
+              }
+              tooltip="Meridian transit is when the object crosses the north-south line and reaches its highest point. Best time to observe as it passes through the least atmosphere."
+            />
+          </div>
+
+          {/* Exact intervals allowed by the user's minimum altitude and horizon profile. */}
+          {resolvedAccessibility.windows.length ? (
+            <div className="rounded-lg bg-night-800 p-3">
+              <div className="mb-2 flex items-center gap-2 text-sm">
+                <Clock className="h-4 w-4 text-sky-400" />
+                <span className="text-gray-300">Above your horizon</span>
+                <span className="ml-auto text-gray-500 text-xs">
+                  {formatDurationMinutes(resolvedAccessibility.accessibleMinutes)} total
                 </span>
               </div>
+              <div className="space-y-2">
+                {resolvedAccessibility.windows.map((window, index) => (
+                  <div
+                    key={`${window.start.toISOString()}-${window.end.toISOString()}`}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="text-gray-500">
+                      {window === resolvedAccessibility.bestWindow ? 'Best' : `Window ${index + 1}`}
+                    </span>
+                    <span className="text-right text-gray-200">
+                      {formatTimeRange(window.start, window.end, timezone)}
+                      <span className="ml-2 text-gray-500">
+                        {formatDurationMinutes(window.durationMinutes)}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
               <p className="mt-2 text-gray-500 text-xs">
-                Target area is approximate. Larger subjects earn more size credit up to a full
-                frame, then the bonus levels off. Oversized targets may need a crop or mosaic; small
-                targets can still be worth imaging.
+                Above both your whole-sky minimum and the obstruction height for each true-north
+                direction.
               </p>
             </div>
+          ) : null}
 
-            {viewMode === 'starfield' && (
-              <>
-                {loading && (
-                  <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
-                    <div className="text-center">
-                      <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-sky-500 border-b-2" />
-                      <p className="text-gray-500 text-sm">Loading star field...</p>
-                    </div>
-                  </div>
-                )}
-
-                {error && !loading && (
-                  <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
-                    <div className="text-center">
-                      <Star className="mx-auto mb-2 h-8 w-8 text-gray-600" />
-                      <p className="text-gray-400 text-sm">{error}</p>
-                      <p className="mt-1 text-gray-500 text-xs">
-                        Star field preview requires internet connection
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {!loading && !error && starField && (
-                  <EnhancedStarFieldCanvas
-                    starField={starField}
-                    fovWidth={fov.width}
-                    fovHeight={fov.height}
-                    objectSizeArcmin={visibility.angularSizeArcmin}
-                    mosaic={mosaic}
-                  />
-                )}
-              </>
-            )}
-
-            {viewMode === 'survey' && surveyMounted && (
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
-                    <div className="text-center">
-                      <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-sky-500 border-b-2" />
-                      <p className="text-gray-500 text-sm">Loading survey viewer...</p>
-                    </div>
-                  </div>
-                }
-              >
-                <AladinSurveyView
-                  ra={visibility.raHours}
-                  dec={visibility.decDegrees}
-                  fovWidth={fov.width}
-                  fovHeight={fov.height}
-                  objectName={object.objectName}
-                />
-              </Suspense>
-            )}
-
-            {viewMode === 'survey' && (
-              <p className="mt-2 text-center text-gray-600 text-xs">
-                DSS2 Color · Digitized Sky Survey
-              </p>
-            )}
-          </div>
-        )}
-
+          <ObjectSpecificBadges visibility={visibility} />
+          <p className="text-gray-400 text-xs">
+            RA {visibility.raHours.toFixed(4)}h · Dec {visibility.decDegrees.toFixed(2)}° ·{' '}
+            {visibility.constellation}
+          </p>
+        </ExplainSection>
         {/* Mosaic Tips — condition-aware guidance for mosaic imaging */}
         {mosaic && showStarField && fov && (
           <MosaicTipsPanel
@@ -405,6 +437,111 @@ export default function ObjectDetailPanel({
             weather={weather}
             visibility={visibility}
           />
+        )}
+
+        {/* Star field / Survey View — only for DSOs with angular size */}
+        {showStarField && fov && (
+          <ExplainSection
+            title="Star field & survey imagery"
+            summary="Reference imagery · requires internet"
+            onOpenChange={setPreviewOpen}
+          >
+            <div className="rounded-lg bg-night-800 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 rounded-full bg-night-900 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('starfield')}
+                      className={`rounded-full px-3 py-1 font-medium text-xs transition-colors ${
+                        viewMode === 'starfield'
+                          ? 'bg-night-700 text-white'
+                          : 'text-gray-500 hover:text-gray-300'
+                      }`}
+                    >
+                      Star field
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setViewMode('survey');
+                        if (!surveyMounted) setSurveyMounted(true);
+                      }}
+                      className={`rounded-full px-3 py-1 font-medium text-xs transition-colors ${
+                        viewMode === 'survey'
+                          ? 'bg-night-700 text-white'
+                          : 'text-gray-500 hover:text-gray-300'
+                      }`}
+                    >
+                      Survey
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {viewMode === 'starfield' && (
+                <>
+                  {loading && (
+                    <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
+                      <div className="text-center">
+                        <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-sky-500 border-b-2" />
+                        <p className="text-gray-500 text-sm">Loading star field...</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {error && !loading && (
+                    <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
+                      <div className="text-center">
+                        <Star className="mx-auto mb-2 h-8 w-8 text-gray-600" />
+                        <p className="text-gray-400 text-sm">{error}</p>
+                        <p className="mt-1 text-gray-500 text-xs">
+                          Star field preview requires internet connection
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {!loading && !error && starField && (
+                    <EnhancedStarFieldCanvas
+                      starField={starField}
+                      fovWidth={fov.width}
+                      fovHeight={fov.height}
+                      objectSizeArcmin={visibility.angularSizeArcmin}
+                      mosaic={mosaic}
+                    />
+                  )}
+                </>
+              )}
+
+              {viewMode === 'survey' && surveyMounted && (
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center rounded-lg bg-night-900 py-16">
+                      <div className="text-center">
+                        <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-sky-500 border-b-2" />
+                        <p className="text-gray-500 text-sm">Loading survey viewer...</p>
+                      </div>
+                    </div>
+                  }
+                >
+                  <AladinSurveyView
+                    ra={visibility.raHours}
+                    dec={visibility.decDegrees}
+                    fovWidth={fov.width}
+                    fovHeight={fov.height}
+                    objectName={object.objectName}
+                  />
+                </Suspense>
+              )}
+
+              {viewMode === 'survey' && (
+                <p className="mt-2 text-center text-gray-600 text-xs">
+                  DSS2 Color · Digitized Sky Survey
+                </p>
+              )}
+            </div>
+          </ExplainSection>
         )}
 
         <button
@@ -427,159 +564,6 @@ export default function ObjectDetailPanel({
             />
           </Suspense>
         )}
-        {/* Object details grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <DetailItem
-            icon={<Mountain className="h-4 w-4 text-yellow-400" />}
-            label="Peak Altitude"
-            value={`${formatAltitude(visibility.maxAltitude)} ${azimuthToCardinal(visibility.azimuthAtPeak)}`}
-            valueClass={getAltitudeQualityClass(visibility.maxAltitude)}
-          />
-          <DetailItem
-            icon={<Clock className="h-4 w-4 text-blue-400" />}
-            label="Peak Time"
-            value={
-              visibility.maxAltitudeTime ? formatTime(visibility.maxAltitudeTime, timezone) : '—'
-            }
-          />
-          <DetailItem
-            icon={<Moon className="h-4 w-4 text-amber-400" />}
-            label="Moon Separation"
-            value={
-              visibility.moonAltitudeAtPeak !== null && visibility.moonAltitudeAtPeak <= 0
-                ? 'Below horizon at peak'
-                : visibility.moonSeparation === null
-                  ? '—'
-                  : formatMoonSeparation(visibility.moonSeparation)
-            }
-            valueClass={visibility.moonWarning ? 'text-amber-400' : ''}
-          />
-          <DetailItem
-            icon={<Compass className="h-4 w-4 text-indigo-400" />}
-            label="Meridian"
-            value={
-              visibility.meridianTransitTime
-                ? formatTime(visibility.meridianTransitTime, timezone)
-                : '—'
-            }
-            tooltip="Meridian transit is when the object crosses the north-south line and reaches its highest point. Best time to observe as it passes through the least atmosphere."
-          />
-        </div>
-
-        {/* Altitude through the night, against the same horizon limits. */}
-        <TargetAltitudeChart
-          visibility={visibility}
-          nightInfo={nightInfo}
-          horizonProfile={horizonProfile}
-          accessibility={resolvedAccessibility}
-          calculator={calculator}
-          timezone={timezone}
-        />
-
-        {/* Exact intervals allowed by the user's minimum altitude and horizon profile. */}
-        {resolvedAccessibility.windows.length ? (
-          <div className="rounded-lg bg-night-800 p-3">
-            <div className="mb-2 flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4 text-sky-400" />
-              <span className="text-gray-300">Your accessible windows</span>
-              <span className="ml-auto text-gray-500 text-xs">
-                {formatDurationMinutes(resolvedAccessibility.accessibleMinutes)} total
-              </span>
-            </div>
-            <div className="space-y-2">
-              {resolvedAccessibility.windows.map((window, index) => (
-                <div
-                  key={`${window.start.toISOString()}-${window.end.toISOString()}`}
-                  className="flex items-center justify-between gap-3 text-sm"
-                >
-                  <span className="text-gray-500">
-                    {window === resolvedAccessibility.bestWindow ? 'Best' : `Window ${index + 1}`}
-                  </span>
-                  <span className="text-right text-gray-200">
-                    {formatTimeRange(window.start, window.end, timezone)}
-                    <span className="ml-2 text-gray-500">
-                      {formatDurationMinutes(window.durationMinutes)}
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="mt-2 text-gray-500 text-xs">
-              Above both your whole-sky minimum and the obstruction height for each true-north
-              direction.
-            </p>
-          </div>
-        ) : null}
-
-        {/* Imaging window */}
-        {accessibleImagingWindow && (
-          <div className="rounded-lg bg-night-800 p-3">
-            <div className="mb-2 flex items-center gap-2 text-sm">
-              <Camera className="h-4 w-4 text-green-400" />
-              <span className="text-gray-400">Best Imaging Window</span>
-            </div>
-            <div className="text-white">
-              {formatTimeRange(
-                accessibleImagingWindow.start,
-                accessibleImagingWindow.end,
-                timezone
-              )}
-            </div>
-            <div className="mt-1 text-gray-500 text-xs">
-              Quality:{' '}
-              <span className={getImagingQualityColorClass(accessibleImagingWindow.quality)}>
-                {accessibleImagingWindow.quality.charAt(0).toUpperCase() +
-                  accessibleImagingWindow.quality.slice(1)}
-              </span>{' '}
-              (score: {accessibleImagingWindow.qualityScore})
-            </div>
-            <div className="mt-3 space-y-2">
-              <FactorBar label="Altitude" value={accessibleImagingWindow.factors.altitude} />
-              <FactorBar label="Airmass" value={accessibleImagingWindow.factors.airmass} />
-              <FactorBar label="Moon" value={accessibleImagingWindow.factors.moonInterference} />
-              <FactorBar label="Clouds" value={accessibleImagingWindow.factors.cloudCover} />
-            </div>
-          </div>
-        )}
-
-        {/* Visibility windows */}
-        {(visibility.above45Start || visibility.above60Start || visibility.above75Start) && (
-          <div className="space-y-1 rounded-lg bg-night-800 p-3 text-sm">
-            {visibility.above75Start && visibility.above75End && (
-              <div className="flex justify-between">
-                <span className="text-gray-400">Excellent (75°+)</span>
-                <span className="text-gray-300">
-                  {formatTimeRange(visibility.above75Start, visibility.above75End, timezone)}
-                </span>
-              </div>
-            )}
-            {visibility.above60Start && visibility.above60End && (
-              <div className="flex justify-between">
-                <span className="text-gray-400">Very Good (60°+)</span>
-                <span className="text-gray-300">
-                  {formatTimeRange(visibility.above60Start, visibility.above60End, timezone)}
-                </span>
-              </div>
-            )}
-            {visibility.above45Start && visibility.above45End && (
-              <div className="flex justify-between">
-                <span className="text-gray-400">Good (45°+)</span>
-                <span className="text-gray-300">
-                  {formatTimeRange(visibility.above45Start, visibility.above45End, timezone)}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Object-specific badges */}
-        <ObjectSpecificBadges visibility={visibility} />
-
-        {/* Coordinates */}
-        <div className="text-center text-gray-500 text-xs">
-          RA: {visibility.raHours.toFixed(4)}h · Dec: {visibility.decDegrees.toFixed(2)}°
-          {visibility.constellation && ` · ${visibility.constellation}`}
-        </div>
       </div>
     </div>
   );

@@ -153,16 +153,21 @@ export default function ForecastView({
       >
         {activeTab === 'overview' && (
           <div className="space-y-5">
-            <SessionPlanCard
-              objects={selectedObjects}
+            <OverviewTab
               forecast={selectedNight}
               location={location}
-              profile={horizon.horizonProfile}
-              isReady={horizon.isReady}
-              onSelect={(object, accessibility) => setSelectedTarget({ object, accessibility })}
-              onBrowse={() => setActiveTab('targets')}
+              session={
+                <SessionPlanCard
+                  objects={selectedObjects}
+                  forecast={selectedNight}
+                  location={location}
+                  profile={horizon.horizonProfile}
+                  isReady={horizon.isReady}
+                  onSelect={(object, accessibility) => setSelectedTarget({ object, accessibility })}
+                  onBrowse={() => setActiveTab('targets')}
+                />
+              }
             />
-            <OverviewTab forecast={selectedNight} location={location} />
           </div>
         )}
         <Suspense fallback={<TabSkeleton />}>
@@ -207,6 +212,7 @@ export default function ForecastView({
       {/* Object detail panel */}
       {selectedTarget && (
         <ObjectDetailPanel
+          key={`${selectedDateKey}-${selectedTarget.object.objectName}`}
           object={selectedTarget.object}
           accessibility={selectedTarget.accessibility}
           horizonProfile={horizon.horizonProfile}

@@ -1,12 +1,14 @@
 import { ArrowUpRight, Bookmark, CalendarPlus, Telescope } from 'lucide-react';
 import { useMemo } from 'react';
+import ExplainSection from '@/components/ui/ExplainSection';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { createSessionCalendar, downloadSessionCalendar } from '@/lib/planning/calendar';
 import { planSessionTargets } from '@/lib/planning/session';
-import { formatDurationMinutes, formatTimeRange } from '@/lib/utils/format';
+import { formatDurationMinutes } from '@/lib/utils/format';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import type { HorizonProfile, Location, NightForecast, ScoredObject } from '@/types';
+import TargetSummary from './TargetSummary';
 
 interface Props {
   objects: ScoredObject[];
@@ -46,18 +48,16 @@ export default function SessionPlanCard({
       aria-labelledby="session-heading"
       className="relative overflow-hidden rounded-2xl border border-sky-300/20 bg-gradient-to-br from-sky-950/60 via-night-900 to-night-900 p-5 sm:p-6"
     >
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="mb-2 flex items-center gap-2 font-medium text-sky-300 text-xs uppercase tracking-widest">
             <Telescope className="h-4 w-4" /> Your next session
           </p>
-          <h3 id="session-heading" className="font-semibold text-2xl text-white tracking-tight">
-            Choose your next target.
+          <h3 id="session-heading" className="font-semibold text-lg text-white tracking-tight">
+            Recommended targets
           </h3>
           <p className="mt-2 max-w-xl text-gray-400 text-sm">
-            {hasWeather
-              ? 'Deep-sky choices for your telescope and your patch of sky.'
-              : 'Visibility-based ideas. Weather is unavailable; check conditions before setting up.'}
+            {hasWeather ? null : 'Weather unavailable · visibility only'}
           </p>
         </div>
         <button
@@ -68,7 +68,7 @@ export default function SessionPlanCard({
           All targets <ArrowUpRight className="h-4 w-4" />
         </button>
       </div>
-      <div className="grid snap-x snap-mandatory auto-cols-[88%] grid-flow-col gap-3 overflow-x-auto pb-2 md:auto-cols-auto md:grid-flow-row md:grid-cols-3">
+      <div className="grid gap-3 xl:grid-cols-3">
         {picks.map(({ object, access, window }, index) => {
           const name = object.visibility.commonName || object.objectName;
           const isSaved = saved.includes(object.objectName);
@@ -94,20 +94,16 @@ export default function SessionPlanCard({
                 onClick={() => onSelect(object, access)}
                 className="group text-left"
               >
-                <h4 className="font-semibold text-lg text-white group-hover:text-sky-200">
-                  {name}
-                </h4>
-                <p className="mt-1 text-gray-400 text-xs">
-                  {object.visibility.constellation} · peaks at{' '}
-                  {Math.round(object.visibility.maxAltitude)}°
-                </p>
-                <p className="mt-5 font-medium text-sky-100 text-sm tabular-nums">
-                  {formatTimeRange(window.start, window.end, location.timezone)}
-                </p>
-                <p className="mt-1 text-gray-400 text-xs">
-                  {formatDurationMinutes(window.durationMinutes)} above your horizon ·{' '}
-                  {hasWeather ? `${window.quality} conditions estimate` : 'weather unknown'}
-                </p>
+                <TargetSummary
+                  name={name}
+                  visibility={object.visibility}
+                  category={object.category}
+                  subtype={object.subtype}
+                  totalScore={object.totalScore}
+                  accessibility={access}
+                  timezone={location.timezone}
+                  weatherAvailable={hasWeather}
+                />
               </button>
               <button
                 type="button"
@@ -130,11 +126,6 @@ export default function SessionPlanCard({
           );
         })}
       </div>
-      {picks.length > 1 && (
-        <p className="mt-2 text-gray-400 text-xs md:hidden">
-          Swipe to compare {picks.length} targets
-        </p>
-      )}
       {picks.length === 0 && (
         <p className="rounded-xl bg-night-950/40 p-4 text-gray-300 text-sm">
           {isReady
@@ -142,10 +133,7 @@ export default function SessionPlanCard({
             : 'Loading your saved horizon…'}
         </p>
       )}
-      <div className="mt-5 border-white/10 border-t pt-4">
-        <p className="mb-2 font-medium text-gray-300 text-xs">
-          Your watchlist <span className="font-normal text-gray-500">· saved on this device</span>
-        </p>
+      <ExplainSection title="Watchlist" summary={`${saved.length} saved targets`} className="mt-3">
         {saved.length === 0 ? (
           <p className="text-gray-400 text-xs">
             Save a target to see its next opportunity here whenever you return.
@@ -176,7 +164,7 @@ export default function SessionPlanCard({
             ))}
           </div>
         )}
-      </div>
+      </ExplainSection>
     </section>
   );
 }

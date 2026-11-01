@@ -1,7 +1,7 @@
 import { Calculator, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
-import { MAX_CUSTOM_FOV } from '@/lib/telescopes';
+import { formatFOV, MAX_CUSTOM_FOV } from '@/lib/telescopes';
 import {
   calculateFOV,
   type FOVCalculatorResult,
@@ -162,16 +162,13 @@ export default function FOVCalculatorDialog({
         {computed && (
           <div className="mt-4 rounded-lg border border-night-700 bg-night-900 p-3">
             <p className="font-medium text-sky-400 text-sm">
-              {computed.fovWidthArcmin}' &times; {computed.fovHeightArcmin}'{' '}
-              <span className="font-normal text-gray-400">
-                ({computed.fovWidthDeg}&deg; &times; {computed.fovHeightDeg}&deg;)
-              </span>
+              {formatFOV(computed.fovWidthArcmin, computed.fovHeightArcmin)}
             </p>
             <p className="mt-1 text-gray-400 text-xs">
               Image scale: {computed.imageScaleArcsecPerPx} &Prime;/px
             </p>
             {exceedsMax && (
-              <p className="mt-1 text-amber-400 text-xs">Exceeds maximum FOV ({MAX_CUSTOM_FOV}')</p>
+              <p className="mt-1 text-amber-400 text-xs">Exceeds maximum FoV ({MAX_CUSTOM_FOV}′)</p>
             )}
           </div>
         )}

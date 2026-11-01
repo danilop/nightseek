@@ -247,9 +247,9 @@ export function formatAngularSize(arcmin: number): string {
     return `${(arcmin / 60).toFixed(1)}°`;
   }
   if (arcmin >= 1) {
-    return `${arcmin.toFixed(1)}'`;
+    return `${arcmin.toFixed(1)}′`;
   }
-  return `${(arcmin * 60).toFixed(0)}"`;
+  return `${(arcmin * 60).toFixed(0)}″`;
 }
 
 /**
@@ -258,21 +258,6 @@ export function formatAngularSize(arcmin: number): string {
 export function formatMoonSeparation(degrees: number | null): string {
   if (degrees === null) return '—';
   return `${Math.round(degrees)}° from Moon`;
-}
-
-/**
- * Format a date relative to now (e.g., "Tonight", "Tomorrow", "In 3 days")
- */
-export function formatRelativeDate(date: Date): string {
-  const now = new Date();
-  const diffDays = Math.round((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return 'Tonight';
-  if (diffDays === 1) return 'Tomorrow';
-  if (diffDays < 7) return `In ${diffDays} days`;
-  if (diffDays < 30) return `In ${Math.round(diffDays / 7)} weeks`;
-  if (diffDays < 365) return `In ${Math.round(diffDays / 30)} months`;
-  return `In ${Math.round(diffDays / 365)} year(s)`;
 }
 
 /** Do not round a real, very small target down to zero area. */

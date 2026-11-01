@@ -39,7 +39,7 @@ export default function WeatherSummaryCard({ forecast, timezone }: WeatherSummar
       <div className="rounded-xl border border-night-700 bg-night-900 p-4">
         <div className="mb-2 flex items-center gap-2">
           <CloudOff className="h-4 w-4 text-gray-500" />
-          <h3 className="font-semibold text-gray-400">Weather Forecast Unavailable</h3>
+          <h3 className="font-semibold text-gray-400">Weather forecast unavailable</h3>
         </div>
         <p className="text-gray-500 text-sm">
           Weather data is not available for this date. Scores are based on astronomical data (moon
@@ -58,7 +58,7 @@ export default function WeatherSummaryCard({ forecast, timezone }: WeatherSummar
       >
         <h3 className="flex items-center gap-2 font-semibold text-white">
           <CloudSun className="h-4 w-4 text-sky-400" />
-          Weather Conditions
+          Weather conditions
         </h3>
         {showWeatherDetails ? (
           <ChevronUp className="h-4 w-4 text-gray-400" />
@@ -185,7 +185,7 @@ export default function WeatherSummaryCard({ forecast, timezone }: WeatherSummar
 
             {weather.clearWindows.length > 0 && (
               <div className="sm:col-span-2">
-                <div className="mb-2 text-gray-400 text-sm">Clear Windows</div>
+                <div className="mb-2 text-gray-400 text-sm">Clear windows</div>
                 <div className="flex flex-wrap gap-2">
                   {weather.clearWindows.map(window => (
                     <span
@@ -253,7 +253,7 @@ function SeeingForecastCard({
         <Telescope className="h-4 w-4 text-cyan-400" />
         <Tooltip content="A weather-only steadiness proxy from wind, humidity, temperature, and dew point. It cannot predict true optical seeing without turbulence and jet-stream measurements.">
           <span className="border-gray-500 border-b border-dotted font-medium text-sm text-white">
-            Seeing Conditions Proxy
+            Seeing proxy
           </span>
         </Tooltip>
       </div>

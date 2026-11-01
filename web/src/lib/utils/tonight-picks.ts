@@ -32,52 +32,52 @@ export function selectTonightPicks(objects: ScoredObject[]): TonightPick[] {
   const picks: TonightPick[] = [];
   const pickedNames = new Set<string>();
 
-  // Top Planet: highest-scoring planet with score >= 60
+  // Top planet: highest-scoring planet with score >= 60
   const planet = pickBest(
     ranked,
     obj => getTargetCategory(obj) === 'planets',
     60,
-    'Top Planet',
+    'Top planet',
     pickedNames
   );
   if (planet) picks.push(planet);
 
-  // Top Galaxy: highest-scoring galaxy with score >= 60
+  // Top galaxy: highest-scoring galaxy with score >= 60
   const galaxy = pickBest(
     ranked,
     obj => getTargetCategory(obj) === 'galaxies',
     60,
-    'Top Galaxy',
+    'Top galaxy',
     pickedNames
   );
   if (galaxy) picks.push(galaxy);
 
-  // Top Nebula: highest-scoring nebula with score >= 60
+  // Top nebula: highest-scoring nebula with score >= 60
   const nebula = pickBest(
     ranked,
     obj => getTargetCategory(obj) === 'nebulae',
     60,
-    'Top Nebula',
+    'Top nebula',
     pickedNames
   );
   if (nebula) picks.push(nebula);
 
-  // Top Cluster: highest-scoring cluster with score >= 60
+  // Top cluster: highest-scoring cluster with score >= 60
   const cluster = pickBest(
     ranked,
     obj => getTargetCategory(obj) === 'clusters',
     60,
-    'Top Cluster',
+    'Top cluster',
     pickedNames
   );
   if (cluster) picks.push(cluster);
 
-  // Top Comet: highest-scoring comet with score >= 80
+  // Top comet: highest-scoring comet with score >= 80
   const comet = pickBest(
     ranked,
     obj => getTargetCategory(obj) === 'comets',
     80,
-    'Top Comet',
+    'Top comet',
     pickedNames
   );
   if (comet) picks.push(comet);

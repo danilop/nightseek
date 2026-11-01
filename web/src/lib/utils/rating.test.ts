@@ -85,16 +85,16 @@ describe('rating utilities', () => {
       expect(rating.tier).toBe('poor');
       expect(rating.stars).toBe(1);
       expect(rating.label).toBe('Poor');
-      expect(rating.color).toBe('text-blue-400');
+      expect(rating.color).toBe('text-red-400');
       expect(rating.starString).toBe('★☆☆☆☆');
     });
 
     it('should return correct colors for each tier', () => {
       expect(getRatingFromPercentage(80).color).toBe('text-green-400'); // excellent
       expect(getRatingFromPercentage(60).color).toBe('text-lime-400'); // very_good
-      expect(getRatingFromPercentage(40).color).toBe('text-orange-400'); // good
-      expect(getRatingFromPercentage(25).color).toBe('text-red-400'); // fair
-      expect(getRatingFromPercentage(10).color).toBe('text-blue-400'); // poor
+      expect(getRatingFromPercentage(40).color).toBe('text-yellow-400'); // good
+      expect(getRatingFromPercentage(25).color).toBe('text-orange-400'); // fair
+      expect(getRatingFromPercentage(10).color).toBe('text-red-400'); // poor
     });
   });
 
@@ -154,14 +154,14 @@ describe('rating utilities', () => {
     it('should return correct color class for each tier', () => {
       expect(getRatingColorClass('excellent')).toBe('text-green-400');
       expect(getRatingColorClass('very_good')).toBe('text-lime-400');
-      expect(getRatingColorClass('good')).toBe('text-orange-400');
-      expect(getRatingColorClass('fair')).toBe('text-red-400');
-      expect(getRatingColorClass('poor')).toBe('text-blue-400');
+      expect(getRatingColorClass('good')).toBe('text-yellow-400');
+      expect(getRatingColorClass('fair')).toBe('text-orange-400');
+      expect(getRatingColorClass('poor')).toBe('text-red-400');
     });
   });
 
   describe('color scale progression', () => {
-    it('should follow blue → red → orange → yellow → green progression', () => {
+    it('should follow red → orange → yellow → lime → green progression', () => {
       // This test documents the intentional color scale from worst to best
       const colors = [
         getRatingFromPercentage(10).color, // poor
@@ -172,9 +172,9 @@ describe('rating utilities', () => {
       ];
 
       expect(colors).toEqual([
-        'text-blue-400', // poor (worst)
-        'text-red-400', // fair
-        'text-orange-400', // good
+        'text-red-400', // poor (worst)
+        'text-orange-400', // fair
+        'text-yellow-400', // good
         'text-lime-400', // very_good
         'text-green-400', // excellent (best)
       ]);

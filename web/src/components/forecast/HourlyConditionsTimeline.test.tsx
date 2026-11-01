@@ -110,7 +110,7 @@ describe('HourlyConditionsTimeline', () => {
         timezone="America/New_York"
       />
     );
-    const dew = screen.getByTitle(/0\.0° margin/);
+    const dew = screen.getByTitle(/0\.0°C margin/);
     expect(dew).not.toHaveClass('bg-gray-700');
     expect(screen.queryByTitle(/Dew risk unavailable/)).not.toBeInTheDocument();
   });

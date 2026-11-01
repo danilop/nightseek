@@ -67,7 +67,7 @@ describe('selectTonightPicks', () => {
     });
     const picks = selectTonightPicks([planet]);
     expect(picks).toHaveLength(1);
-    expect(picks[0].categoryLabel).toBe('Top Planet');
+    expect(picks[0].categoryLabel).toBe('Top planet');
     expect(picks[0].object.objectName).toBe('Jupiter');
   });
 
@@ -80,7 +80,7 @@ describe('selectTonightPicks', () => {
     });
     const picks = selectTonightPicks([galaxy]);
     expect(picks).toHaveLength(1);
-    expect(picks[0].categoryLabel).toBe('Top Galaxy');
+    expect(picks[0].categoryLabel).toBe('Top galaxy');
   });
 
   it('picks top nebula when score >= 60', () => {
@@ -93,7 +93,7 @@ describe('selectTonightPicks', () => {
     });
     const picks = selectTonightPicks([nebula]);
     expect(picks).toHaveLength(1);
-    expect(picks[0].categoryLabel).toBe('Top Nebula');
+    expect(picks[0].categoryLabel).toBe('Top nebula');
   });
 
   it('picks top cluster when score >= 60', () => {
@@ -106,7 +106,7 @@ describe('selectTonightPicks', () => {
     });
     const picks = selectTonightPicks([cluster]);
     expect(picks).toHaveLength(1);
-    expect(picks[0].categoryLabel).toBe('Top Cluster');
+    expect(picks[0].categoryLabel).toBe('Top cluster');
   });
 
   it('picks top comet only when score >= 80', () => {
@@ -124,7 +124,7 @@ describe('selectTonightPicks', () => {
     });
     const picks = selectTonightPicks([strongComet]);
     expect(picks).toHaveLength(1);
-    expect(picks[0].categoryLabel).toBe('Top Comet');
+    expect(picks[0].categoryLabel).toBe('Top comet');
   });
 
   it('deduplicates across categories', () => {
@@ -135,9 +135,9 @@ describe('selectTonightPicks', () => {
       totalScore: 100,
     });
     const picks = selectTonightPicks([galaxy]);
-    // Only Top Galaxy — no duplicates
+    // Only Top galaxy — no duplicates
     expect(picks).toHaveLength(1);
-    expect(picks[0].categoryLabel).toBe('Top Galaxy');
+    expect(picks[0].categoryLabel).toBe('Top galaxy');
   });
 
   it('returns per-category picks when all DSO categories qualify', () => {
@@ -166,11 +166,11 @@ describe('selectTonightPicks', () => {
     const picks = selectTonightPicks([planet, galaxy, nebula, cluster, comet]);
     expect(picks).toHaveLength(5);
     expect(picks.map(p => p.categoryLabel)).toEqual([
-      'Top Planet',
-      'Top Galaxy',
-      'Top Nebula',
-      'Top Cluster',
-      'Top Comet',
+      'Top planet',
+      'Top galaxy',
+      'Top nebula',
+      'Top cluster',
+      'Top comet',
     ]);
   });
 });

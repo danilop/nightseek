@@ -6,6 +6,10 @@ import { ensembleWindow, fetchEnsemble, parseEnsemble } from '@/lib/weather/ense
 import { fetchMetNorway } from '@/lib/weather/met-norway';
 import { createMockNightForecast, createMockNightInfo } from './factories';
 
+vi.mock('@/stores/AppContext', () => ({
+  useApp: () => ({ state: { settings: { units: { speed: 'kmh', temperature: 'celsius' } } } }),
+}));
+
 vi.mock('@/lib/weather/ensemble', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/weather/ensemble')>()),
   fetchEnsemble: vi.fn(),
@@ -124,6 +128,7 @@ describe('global ensemble coverage', () => {
           location: { latitude: -33.8688, longitude: 151.2093, timezone: 'Australia/Sydney' },
         })
       );
+      fireEvent.click(screen.getByRole('button', { name: /Forecast evidence/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Compare free weather forecasts' }));
       await screen.findByText(
         complete

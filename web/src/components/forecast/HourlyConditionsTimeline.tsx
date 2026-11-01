@@ -2,7 +2,7 @@ import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 import { Cloud, Droplets } from 'lucide-react';
 import { useMemo } from 'react';
 import { getQualityBgColor, type QualityLevel } from '@/lib/utils/colors';
-import { formatTemperature } from '@/lib/utils/units';
+import { formatTemperature, formatTemperatureDifference } from '@/lib/utils/units';
 import type { HourlyWeather, NightWeather, TemperatureUnit } from '@/types';
 
 interface HourlyConditionsTimelineProps {
@@ -109,72 +109,73 @@ export default function HourlyConditionsTimeline({
 
   return (
     <div className="mt-4">
-      <h4 className="mb-3 font-medium text-gray-300 text-sm">Hourly Conditions</h4>
+      <h4 className="mb-3 font-medium text-gray-300 text-sm">Hourly conditions</h4>
 
-      {/* Grid: first column for labels, rest for hours */}
-      <div
-        className="grid gap-0.5 text-xs"
-        style={{
-          gridTemplateColumns: `auto repeat(${displayData.length}, 1fr)`,
-        }}
-      >
-        {/* Header row - hours */}
-        <div /> {/* Empty cell for label column */}
-        {displayData.map(d => (
-          <time
-            key={`h-${d.timestamp}`}
-            className="pb-1 text-center text-gray-500"
-            title={d.timeDescription}
-            dateTime={new Date(d.timestamp).toISOString()}
-          >
-            <span aria-hidden="true">{d.label}</span>
-            <span className="sr-only">{d.timeDescription}</span>
-          </time>
-        ))}
-        {/* Clouds row */}
-        <div className="flex items-center pr-2 text-gray-400">
-          <Cloud className="h-3 w-3" />
-        </div>
-        {displayData.map(d => (
-          <div
-            key={`c-${d.timestamp}`}
-            className={`h-5 rounded-sm ${getQualityBgColor(d.clouds.level)} flex cursor-help items-center justify-center`}
-            title={`${d.timeDescription}: ${Math.round(d.clouds.value)}% clouds`}
-          >
-            {/* Mobile: abbreviated, Desktop: with % */}
-            <span className="font-medium text-[9px] text-white/90 sm:hidden">
-              {Math.round(d.clouds.value)}
-            </span>
-            <span className="hidden font-medium text-[10px] text-white/90 sm:inline">
-              {Math.round(d.clouds.value)}%
-            </span>
+      <div className="overflow-x-auto">
+        {/* Grid: first column for labels, rest for hours */}
+        <div
+          className="grid min-w-max gap-0.5 text-xs"
+          style={{
+            gridTemplateColumns: `auto repeat(${displayData.length}, 1fr)`,
+          }}
+        >
+          {/* Header row - hours */}
+          <div /> {/* Empty cell for label column */}
+          {displayData.map(d => (
+            <time
+              key={`h-${d.timestamp}`}
+              className="pb-1 text-center text-gray-500"
+              title={d.timeDescription}
+              dateTime={new Date(d.timestamp).toISOString()}
+            >
+              <span aria-hidden="true">{d.label}</span>
+              <span className="sr-only">{d.timeDescription}</span>
+            </time>
+          ))}
+          {/* Clouds row */}
+          <div className="flex items-center pr-2 text-gray-400">
+            <Cloud className="h-3 w-3" />
           </div>
-        ))}
-        {/* Dew row */}
-        <div className="flex items-center pr-2 text-gray-400">
-          <Droplets className="h-3 w-3" />
-        </div>
-        {displayData.map(d => (
-          <div
-            key={`d-${d.timestamp}`}
-            className={`h-5 rounded-sm ${d.dew ? getQualityBgColor(d.dew.level) : 'bg-gray-700'} flex cursor-help items-center justify-center`}
-            title={
-              d.dew
-                ? `${d.timeDescription}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${d.dew.margin.toFixed(1)}° margin)`
-                : `${d.timeDescription}: Dew risk unavailable — temperature or dew point missing`
-            }
-          >
-            {/* Mobile: rounded margin, Desktop: with degree */}
-            <span className="font-medium text-[9px] text-white/90 sm:hidden">
-              {d.dew ? Math.round(d.dew.margin) : '—'}
-            </span>
-            <span className="hidden font-medium text-[10px] text-white/90 sm:inline">
-              {d.dew ? `${d.dew.margin.toFixed(1)}°` : '—'}
-            </span>
+          {displayData.map(d => (
+            <div
+              key={`c-${d.timestamp}`}
+              className={`h-5 rounded-sm ${getQualityBgColor(d.clouds.level)} flex cursor-help items-center justify-center`}
+              title={`${d.timeDescription}: ${Math.round(d.clouds.value)}% clouds`}
+            >
+              {/* Mobile: abbreviated, Desktop: with % */}
+              <span className="font-medium text-[9px] text-white/90 sm:hidden">
+                {Math.round(d.clouds.value)}
+              </span>
+              <span className="hidden font-medium text-[10px] text-white/90 sm:inline">
+                {Math.round(d.clouds.value)}%
+              </span>
+            </div>
+          ))}
+          {/* Dew row */}
+          <div className="flex items-center pr-2 text-gray-400">
+            <Droplets className="h-3 w-3" />
           </div>
-        ))}
+          {displayData.map(d => (
+            <div
+              key={`d-${d.timestamp}`}
+              className={`h-5 rounded-sm ${d.dew ? getQualityBgColor(d.dew.level) : 'bg-gray-700'} flex cursor-help items-center justify-center`}
+              title={
+                d.dew
+                  ? `${d.timeDescription}: ${formatTemperature(d.dew.temp, temperatureUnit)} / ${formatTemperature(d.dew.dewPoint, temperatureUnit)} dew (${formatTemperatureDifference(d.dew.margin, temperatureUnit)} margin)`
+                  : `${d.timeDescription}: Dew risk unavailable — temperature or dew point missing`
+              }
+            >
+              {/* Mobile: rounded margin, Desktop: with degree */}
+              <span className="font-medium text-[9px] text-white/90 sm:hidden">
+                {d.dew ? formatTemperatureDifference(d.dew.margin, temperatureUnit) : '—'}
+              </span>
+              <span className="hidden font-medium text-[10px] text-white/90 sm:inline">
+                {d.dew ? formatTemperatureDifference(d.dew.margin, temperatureUnit) : '—'}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
-
       {/* Legend */}
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-gray-500 text-xs">
         <span className="flex items-center gap-1">
@@ -201,7 +202,7 @@ export default function HourlyConditionsTimeline({
           <Cloud className="h-3 w-3" /> Clouds
         </span>
         <span className="flex items-center gap-1">
-          <Droplets className="h-3 w-3" /> Dew Risk
+          <Droplets className="h-3 w-3" /> Dew margin
         </span>
       </div>
     </div>

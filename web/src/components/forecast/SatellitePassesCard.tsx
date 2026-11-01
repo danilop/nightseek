@@ -186,7 +186,7 @@ export default function SatellitePassesCard({
   }
 
   const uniqueSatelliteCount = new Set(passes.map(p => p.noradId)).size;
-  const headerLabel = showAllSatellites ? 'Satellite Passes' : 'ISS Passes';
+  const headerLabel = showAllSatellites ? 'Satellite passes' : 'ISS passes';
 
   return (
     <SectionCard

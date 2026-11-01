@@ -6,10 +6,10 @@ import type { SortMode } from './SortModeControl';
 import { TimeSlider } from './SortModeControl';
 
 const FILTER_PILLS: { id: QuickFilterId; label: string; Icon: typeof Camera }[] = [
-  { id: 'hasImaging', label: 'Imaging Window', Icon: Camera },
-  { id: 'moonSafe', label: 'Moon-Safe', Icon: Moon },
-  { id: 'above45', label: 'Above 45°', Icon: Mountain },
-  { id: 'highRated', label: 'Top Rated', Icon: Star },
+  { id: 'hasImaging', label: 'Imaging window', Icon: Camera },
+  { id: 'moonSafe', label: 'Low Moon impact', Icon: Moon },
+  { id: 'above45', label: 'Peaks above 45°', Icon: Mountain },
+  { id: 'highRated', label: 'Top rated', Icon: Star },
 ];
 
 interface TargetsToolbarProps {
@@ -68,6 +68,7 @@ export default function TargetsToolbar({
               key={id}
               type="button"
               onClick={() => onToggleFilter(id)}
+              aria-pressed={isActive}
               className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${
                 isActive
                   ? 'border-sky-500/30 bg-sky-500/20 text-sky-400'
@@ -112,7 +113,7 @@ export default function TargetsToolbar({
               }`}
             >
               <Star className="h-3.5 w-3.5" />
-              Best Tonight
+              Recommended
             </button>
             <button
               type="button"
@@ -124,7 +125,7 @@ export default function TargetsToolbar({
               }`}
             >
               <ArrowUp className="h-3.5 w-3.5" />
-              Up Now
+              Up now
             </button>
           </div>
         )}

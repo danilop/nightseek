@@ -1,14 +1,13 @@
 import { Trophy, X } from 'lucide-react';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
-import { getTargetRating } from '@/lib/utils/rating';
-import { useApp } from '@/stores/AppContext';
 import type { ScoredObject, TonightPick } from '@/types';
-import TargetWindowSummary from './TargetWindowSummary';
+import TargetSummary from './TargetSummary';
 
 interface TonightPicksCardProps {
   picks: TonightPick[];
   onObjectSelect: (object: ScoredObject) => void;
   onDismiss: () => void;
+  weatherAvailable?: boolean;
   accessibilityByObject?: ReadonlyMap<ScoredObject, TargetAccessibility>;
 }
 
@@ -17,6 +16,7 @@ export default function TonightPicksCard({
   onObjectSelect,
   onDismiss,
   accessibilityByObject,
+  weatherAvailable = true,
 }: TonightPicksCardProps) {
   if (picks.length === 0) return null;
 
@@ -25,11 +25,12 @@ export default function TonightPicksCard({
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Trophy className="h-4 w-4 text-amber-400" />
-          <span className="font-medium text-sm text-white">Best For Tonight</span>
+          <span className="font-medium text-sm text-white">Category leaders</span>
         </div>
         <button
           type="button"
           onClick={onDismiss}
+          aria-label="Hide category leaders"
           className="text-gray-500 transition-colors hover:text-gray-300"
         >
           <X className="h-4 w-4" />
@@ -37,12 +38,13 @@ export default function TonightPicksCard({
       </div>
       <div
         className={`grid gap-3 ${
-          picks.length === 1 ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'
+          picks.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
         }`}
       >
         {picks.map(pick => (
           <PickItem
             key={pick.object.objectName}
+            weatherAvailable={weatherAvailable}
             pick={pick}
             accessibility={accessibilityByObject?.get(pick.object)}
             onSelect={onObjectSelect}
@@ -57,33 +59,29 @@ function PickItem({
   pick,
   onSelect,
   accessibility,
+  weatherAvailable,
 }: {
   pick: TonightPick;
   onSelect: (object: ScoredObject) => void;
   accessibility?: TargetAccessibility;
+  weatherAvailable: boolean;
 }) {
-  const { state } = useApp();
-  const rating = getTargetRating(pick.object.totalScore);
-  const displayName = pick.object.visibility.commonName || pick.object.objectName;
-
   return (
     <button
       type="button"
       onClick={() => onSelect(pick.object)}
-      className="rounded-lg bg-night-800/50 p-3 text-left transition-colors hover:bg-night-700/50"
+      className="rounded-xl bg-night-800/50 p-3 text-left hover:bg-night-700/50"
     >
-      <div className="text-amber-400/80 text-xs">{pick.categoryLabel}</div>
-      <div className="truncate font-medium text-white">{displayName}</div>
-      <div className="truncate text-gray-400 text-xs">{pick.reason}</div>
-      <TargetWindowSummary
+      <p className="mb-2 text-amber-300 text-xs">{pick.categoryLabel}</p>
+      <TargetSummary
+        name={pick.object.visibility.commonName || pick.object.objectName}
+        visibility={pick.object.visibility}
+        category={pick.object.category}
+        subtype={pick.object.subtype}
+        totalScore={pick.object.totalScore}
+        weatherAvailable={weatherAvailable}
         accessibility={accessibility}
-        timezone={state.location?.timezone}
-        compact
       />
-      <div className="mt-1 flex items-center justify-between">
-        <span className={`text-xs ${rating.color}`}>{rating.starString}</span>
-        {pick.keyStat && <span className="text-gray-500 text-xs">{pick.keyStat}</span>}
-      </div>
     </button>
   );
 }

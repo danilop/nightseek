@@ -81,7 +81,6 @@ html {
 
 /* Star rating */
 .star-rating {
-  @apply text-yellow-400;
   letter-spacing: 0.1em;
 }
 

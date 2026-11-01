@@ -15,9 +15,11 @@ import {
 } from '@dnd-kit/sortable';
 import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import ExplainSection from '@/components/ui/ExplainSection';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import type { HorizonProfileController } from '@/hooks/useHorizonProfile';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
+import { formatFOV, TELESCOPE_PRESETS } from '@/lib/telescopes';
 import { getEffectiveFOV } from '@/lib/telescopes/presets';
 import { getAltitudeAtTime } from '@/lib/utils/altitude-interpolation';
 import { getNightLabel } from '@/lib/utils/format';
@@ -27,7 +29,6 @@ import {
   type TargetAccessibility,
 } from '@/lib/utils/horizon-profile';
 import { applyQuickFilters } from '@/lib/utils/quick-filters';
-import { isTopRatedTarget } from '@/lib/utils/rating';
 import { getSecondarySortComparator } from '@/lib/utils/secondary-sort';
 import { getTargetCategory } from '@/lib/utils/target-category';
 import { selectTonightPicks } from '@/lib/utils/tonight-picks';
@@ -91,7 +92,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     key: 'jupiter_moons',
     title: "Jupiter's Galilean Moons",
     icon: '♃',
-    defaultExpanded: true,
+    defaultExpanded: false,
     defaultShowCount: 0,
     filter: () => false, // No regular objects — uses JupiterMoonsCard
     sortOrder: 1.5,
@@ -101,7 +102,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     key: 'milky_way',
     title: 'Milky Way',
     icon: '🌌',
-    defaultExpanded: true,
+    defaultExpanded: false,
     defaultShowCount: 0,
     filter: () => false, // Single extended target — uses MilkyWayPlannerCard
     sortOrder: 1.8,
@@ -118,7 +119,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
   },
   {
     key: 'minor_planets',
-    title: 'Minor Planets',
+    title: 'Minor planets',
     icon: '🪨',
     defaultExpanded: true,
     defaultShowCount: 5,
@@ -147,7 +148,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
   },
   {
     key: 'clusters',
-    title: 'Star Clusters',
+    title: 'Star clusters',
     icon: '✨',
     defaultExpanded: false,
     defaultShowCount: 6,
@@ -157,7 +158,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
   },
   {
     key: 'other',
-    title: 'Other Objects',
+    title: 'Other objects',
     icon: '⭐',
     defaultExpanded: false,
     defaultShowCount: 4,
@@ -489,46 +490,54 @@ export default function TargetsTab({
         </span>
       </div>
 
-      {/* Magnitude Filter Slider */}
-      {maxMag > minMag && (
-        <div className="rounded-lg border border-night-700 bg-night-900 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <label htmlFor="magnitude-limit" className="text-gray-400 text-sm">
-              Magnitude limit
-            </label>
-            <span className="font-medium text-sm text-white">≤ {effectiveMagLimit.toFixed(1)}</span>
+      <ExplainSection
+        title="Equipment & sky access"
+        summary={`${state.settings.telescope === 'custom' ? 'Custom telescope' : (TELESCOPE_PRESETS.find(t => t.id === state.settings.telescope)?.name ?? 'No telescope')}${fov ? ` · FoV ${formatFOV(fov.width, fov.height)}` : ''} · minimum ${horizonProfile.minimumAltitude}°${effectiveMagLimit < maxMag ? ` · magnitude ≤ ${effectiveMagLimit.toFixed(1)}` : ''}`}
+      >
+        {/* Magnitude Filter Slider */}
+        {maxMag > minMag && (
+          <div className="rounded-lg border border-night-700 bg-night-900 p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <label htmlFor="magnitude-limit" className="text-gray-400 text-sm">
+                Magnitude limit
+              </label>
+              <span className="font-medium text-sm text-white">
+                ≤ {effectiveMagLimit.toFixed(1)}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-8 text-gray-500 text-xs">{minMag}</span>
+              <input
+                id="magnitude-limit"
+                type="range"
+                min={minMag}
+                max={maxMag}
+                step={0.5}
+                value={effectiveMagLimit}
+                onChange={e => setMagLimit(parseFloat(e.target.value))}
+                className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-sky-500 [&::-webkit-slider-thumb]:hover:bg-sky-400"
+              />
+              <span className="w-8 text-right text-gray-500 text-xs">{maxMag}</span>
+            </div>
+            <div className="mt-1 flex justify-between text-gray-600 text-xs">
+              <span>brighter</span>
+              <span>fainter</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="w-8 text-gray-500 text-xs">{minMag}</span>
-            <input
-              id="magnitude-limit"
-              type="range"
-              min={minMag}
-              max={maxMag}
-              step={0.5}
-              value={effectiveMagLimit}
-              onChange={e => setMagLimit(parseFloat(e.target.value))}
-              className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-sky-500 [&::-webkit-slider-thumb]:hover:bg-sky-400"
-            />
-            <span className="w-8 text-right text-gray-500 text-xs">{maxMag}</span>
-          </div>
-          <div className="mt-1 flex justify-between text-gray-600 text-xs">
-            <span>brighter</span>
-            <span>fainter</span>
-          </div>
-        </div>
-      )}
+        )}
 
-      <AccessibleSkyControl
-        horizonProfile={horizonProfile}
-        onSetMinimumAltitude={handleSetMinimumAltitude}
-        onSetSectorAltitude={handleSetHorizonSectorAltitude}
-        onReset={handleResetHorizonProfile}
-      />
+        <AccessibleSkyControl
+          horizonProfile={horizonProfile}
+          onSetMinimumAltitude={handleSetMinimumAltitude}
+          onSetSectorAltitude={handleSetHorizonSectorAltitude}
+          onReset={handleResetHorizonProfile}
+        />
+      </ExplainSection>
 
       {/* Tonight's Best Picks (only affected by magnitude slider) */}
       {tonightPicks.length > 0 && !tonightPicksDismissed && (
         <TonightPicksCard
+          weatherAvailable={weather !== null}
           picks={tonightPicks}
           accessibilityByObject={accessibilityByObject}
           onObjectSelect={onObjectSelect}
@@ -576,25 +585,6 @@ export default function TargetsTab({
           >
             Clear filters
           </button>
-        </div>
-      )}
-
-      {/* Summary grid */}
-      {filteredObjects.length > 0 && (
-        <div className="rounded-xl border border-night-700 bg-night-900 p-4">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <SummaryItem emoji="🪐" count={groupedObjects.planets?.length ?? 0} label="Planets" />
-            <SummaryItem
-              emoji="🌌"
-              count={filteredObjects.filter(o => o.category === 'dso').length}
-              label="Deep Sky"
-            />
-            <SummaryItem
-              emoji="⭐"
-              count={filteredObjects.filter(isTopRatedTarget).length}
-              label="Top Rated"
-            />
-          </div>
         </div>
       )}
 
@@ -646,16 +636,6 @@ export default function TargetsTab({
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-function SummaryItem({ emoji, count, label }: { emoji: string; count: number; label: string }) {
-  return (
-    <div className={count === 0 ? 'opacity-50' : ''}>
-      <div className="mb-1 text-2xl">{emoji}</div>
-      <div className="font-bold text-lg text-white">{count}</div>
-      <div className="text-gray-500 text-xs">{label}</div>
     </div>
   );
 }

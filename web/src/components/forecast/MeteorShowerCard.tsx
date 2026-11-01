@@ -29,7 +29,7 @@ export default function MeteorShowerCard({ showers, nightDate }: MeteorShowerCar
   return (
     <SectionCard
       icon="☄️"
-      title="Meteor Showers"
+      title="Meteor showers"
       badge={<CountBadge count={showers.length} />}
       expanded={expanded}
       onToggle={() => setExpanded(!expanded)}

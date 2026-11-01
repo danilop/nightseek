@@ -94,13 +94,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
         bodyClassName=""
       >
         <div className="p-4">
-          {/* Desktop Grid */}
-          <div className="hidden gap-4 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {cards(false)}
-          </div>
-
-          {/* Mobile List */}
-          <div className="space-y-3 sm:hidden">{cards(true)}</div>
+          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">{cards(true)}</div>
         </div>
 
         {/* Show more/less button */}

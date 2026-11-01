@@ -44,7 +44,7 @@ const SIZE_CLASSES = {
  * // Label only
  * <Rating score={nightQuality} showStars={false} />
  */
-export default function Rating({
+function Rating({
   score,
   maxScore = 100,
   showLabel = true,

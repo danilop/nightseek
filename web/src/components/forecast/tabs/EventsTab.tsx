@@ -1,4 +1,6 @@
 import type { HorizonProfile, Location, NightForecast } from '@/types';
+import AuroraNowCard from '../cards/AuroraNowCard';
+import SpaceWeatherOutlookCard from '../cards/SpaceWeatherOutlookCard';
 import VariableStarsCard from '../cards/VariableStarsCard';
 import EventsSection from '../EventsSection';
 import SatellitePassesCard from '../SatellitePassesCard';
@@ -19,6 +21,8 @@ export default function EventsTab({ forecast, location, horizonProfile }: Events
         latitude={location.latitude}
         nightDate={forecast.nightInfo.date}
       />
+      <SpaceWeatherOutlookCard nightInfo={forecast.nightInfo} timezone={location.timezone} />
+      <AuroraNowCard location={location} weather={forecast.weather} />
       <VariableStarsCard nightDate={forecast.nightInfo.date} timezone={location.timezone} />
       <SatellitePassesCard
         nightInfo={forecast.nightInfo}

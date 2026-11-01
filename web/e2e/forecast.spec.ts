@@ -149,3 +149,84 @@ test.describe('Eclipse presentation', () => {
     await expect(page.getByText(/ISO 12312-2/)).toBeVisible();
   });
 });
+
+test.describe('Visual summaries and progressive disclosure', () => {
+  test.beforeEach(async ({ page }) => {
+    test.setTimeout(90000);
+    await page.clock.setFixedTime(new Date('2026-11-01T12:00:00Z'));
+    await seedLocation(page, {
+      name: 'London',
+      latitude: 51.5074,
+      longitude: -0.1278,
+      timezone: 'Europe/London',
+    });
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'nightseek:settings',
+        JSON.stringify({ forecastDays: 2, telescope: 'dwarf_mini' })
+      );
+    });
+    await page.goto('/');
+    await expect(page.getByTestId('forecast-view')).toBeVisible({ timeout: 60000 });
+  });
+
+  test('leads with night conditions and reveals explanations on demand', async ({ page }) => {
+    const night = page.getByRole('region', { name: 'Night conditions', exact: true });
+    await expect(night).toBeVisible();
+    await expect(night.getByRole('slider', { name: 'Night timeline scrubber' })).toBeVisible();
+    const explain = page.getByRole('button', { name: 'Why this night rating?', exact: true });
+    await expect(explain).toHaveAttribute('aria-expanded', 'false');
+    await explain.click();
+    await expect(page.getByText(/Whole-night average/)).toBeVisible();
+    await explain.click();
+    await expect(page.getByText(/Whole-night average/)).toHaveCount(0);
+    const evidence = page.getByRole('button', { name: /^Forecast evidence/ });
+    await expect(evidence).toHaveAttribute('aria-expanded', 'false');
+    await evidence.click();
+    await expect(
+      page.getByRole('button', { name: 'Compare free weather forecasts' })
+    ).toBeVisible();
+  });
+
+  test('shares framing and imaging windows between compact cards and detail', async ({ page }) => {
+    await page.locator('button[role="tab"]:visible', { hasText: 'Targets' }).click();
+    const setup = page.getByRole('button', { name: /^Equipment & sky access/ });
+    await expect(setup).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByRole('slider', { name: 'Minimum target altitude' })).toHaveCount(0);
+    await setup.click();
+    await expect(page.getByRole('slider', { name: 'Minimum target altitude' })).toBeVisible();
+    await setup.click();
+    const card = page
+      .getByTestId('object-card')
+      .filter({ has: page.getByTestId('target-frame') })
+      .first();
+    await expect(card).toBeVisible({ timeout: 30000 });
+    const name = await card.getByRole('heading').innerText();
+    const window = await card.getByTestId('imaging-window-summary').innerText();
+    const ratingColor = await card
+      .getByRole('img', { name: /Target suitability:/ })
+      .evaluate(el => getComputedStyle(el).color);
+    await card.click();
+    const detail = page.getByRole('dialog', { name });
+    await expect(detail).toBeVisible();
+    await expect(detail.getByTestId('imaging-window-summary')).toHaveText(window, {
+      useInnerText: true,
+    });
+    await expect(detail.locator('.star-rating')).toHaveCSS('color', ratingColor);
+    await expect(detail.getByRole('button', { name: 'Why this target rating?' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    await expect(
+      detail.getByRole('button', { name: /Star field & survey imagery/ })
+    ).toHaveAttribute('aria-expanded', 'false');
+    await expect(detail.getByText(/Schematic · long axes aligned/)).toBeVisible();
+    await detail.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(detail).not.toBeVisible();
+    await page.locator('button[role="tab"]:visible', { hasText: 'Sky' }).click();
+    await expect(page.getByRole('button', { name: /^Sky chart/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
+});

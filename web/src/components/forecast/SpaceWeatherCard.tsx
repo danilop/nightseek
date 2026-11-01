@@ -2,6 +2,7 @@ import { Activity, Sun, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import ExplainSection from '@/components/ui/ExplainSection';
 import { getGeomagneticLabel, getKpColorClass, isSpaceWeatherFresh } from '@/lib/nasa/donki';
 import {
   fetchSWPCData,
@@ -53,7 +54,7 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
       <div className="border-night-700 border-b px-4 py-3">
         <h3 className="flex items-center gap-2 font-semibold text-white">
           <Zap className="h-4 w-4 text-purple-400" />
-          Space Weather
+          Space weather
           {swpcData && (
             <span className="ml-auto font-normal text-green-500 text-xs">NOAA reports</span>
           )}
@@ -69,37 +70,10 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
           DONKI event snapshot: {formatDate(new Date(spaceWeather.fetchedAt), timezone)} ·{' '}
           {fresh ? 'recent' : 'stale — unavailable'}. Events are not an aurora forecast.
         </p>
-        {swpcData?.solarFlux && (
-          <p className="text-gray-500 text-xs">
-            Solar flux observed {formatDate(new Date(swpcData.solarFlux.timeTag), timezone)}{' '}
-            {formatTime(new Date(swpcData.solarFlux.timeTag), timezone)}
-          </p>
-        )}
-
-        {liveKp !== null && recentMaxKp !== null && recentMaxKp > liveKp && (
-          <div className="flex items-center justify-between text-gray-500 text-xs">
-            <span>Maximum in available recent readings</span>
-            <span className={getKpColorClass(recentMaxKp)}>Kp {recentMaxKp}</span>
-          </div>
-        )}
-
-        {swpcData?.kpIndex.length ? (
-          <p className="text-gray-500 text-xs">
-            Kp series {formatTime(new Date(swpcData.kpIndex[0].timeTag), timezone)}–
-            {formatTime(new Date(swpcData.kpIndex[swpcData.kpIndex.length - 1].timeTag), timezone)}{' '}
-            · {swpcData.kpIndex.length} readings
-          </p>
-        ) : null}
-        <SolarActivityRow solarFluxValue={solarFluxValue} solarActivityLabel={solarActivityLabel} />
-        <FlareForecastRow flareForecast={flareForecast} />
-        <SunspotRegionsSection swpcData={swpcData} />
-        <RecentStormsSection storms={geomagneticStorms} timezone={timezone} />
-        <SolarFlaresSection flares={solarFlares} timezone={timezone} />
-
         {auroraForecast && (
           <div className="border-night-700 border-t pt-2">
             <div className="flex items-center justify-between">
-              <span className="text-gray-400 text-sm">Aurora Potential</span>
+              <span className="text-gray-400 text-sm">Aurora potential</span>
               <AuroraChanceBadge chance={auroraForecast.chance} />
             </div>
             {auroraForecast.chance !== 'none' && (
@@ -110,6 +84,40 @@ export default function SpaceWeatherCard({ spaceWeather, auroraForecast }: Space
           </div>
         )}
 
+        <ExplainSection title="NOAA readings & solar activity">
+          {swpcData?.solarFlux && (
+            <p className="text-gray-500 text-xs">
+              Solar flux observed {formatDate(new Date(swpcData.solarFlux.timeTag), timezone)}{' '}
+              {formatTime(new Date(swpcData.solarFlux.timeTag), timezone)}
+            </p>
+          )}
+
+          {liveKp !== null && recentMaxKp !== null && recentMaxKp > liveKp && (
+            <div className="flex items-center justify-between text-gray-500 text-xs">
+              <span>Maximum in available recent readings</span>
+              <span className={getKpColorClass(recentMaxKp)}>Kp {recentMaxKp}</span>
+            </div>
+          )}
+
+          {swpcData?.kpIndex.length ? (
+            <p className="text-gray-500 text-xs">
+              Kp series {formatTime(new Date(swpcData.kpIndex[0].timeTag), timezone)}–
+              {formatTime(
+                new Date(swpcData.kpIndex[swpcData.kpIndex.length - 1].timeTag),
+                timezone
+              )}{' '}
+              · {swpcData.kpIndex.length} readings
+            </p>
+          ) : null}
+          <SolarActivityRow
+            solarFluxValue={solarFluxValue}
+            solarActivityLabel={solarActivityLabel}
+          />
+          <FlareForecastRow flareForecast={flareForecast} />
+          <SunspotRegionsSection swpcData={swpcData} />
+          <RecentStormsSection storms={geomagneticStorms} timezone={timezone} />
+          <SolarFlaresSection flares={solarFlares} timezone={timezone} />
+        </ExplainSection>
         {geomagneticStorms.length === 0 && solarFlares.length === 0 && !swpcData && (
           <p className="text-gray-500 text-sm">Space-weather observations unavailable.</p>
         )}
@@ -129,7 +137,7 @@ function GeomagneticRow({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-gray-400 text-sm">Geomagnetic Activity</span>
+      <span className="text-gray-400 text-sm">Geomagnetic activity</span>
       <div className="flex items-center gap-2">
         <span className={`font-medium text-sm capitalize ${kpColor}`}>{geoLabel}</span>
         <Badge variant={displayKp >= 5 ? 'danger' : displayKp >= 3 ? 'warning' : 'default'}>

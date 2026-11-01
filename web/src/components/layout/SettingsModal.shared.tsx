@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import AppFooter from '@/components/ui/AppFooter';
+import ExplainSection from '@/components/ui/ExplainSection';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useApp } from '@/stores/AppContext';
@@ -120,14 +121,23 @@ export default function SettingsModal({
             </div>
           )}
 
-          {/* Forecast Days */}
+          {/* Telescope Section */}
+          <div className="border-night-700 border-t pt-4">
+            <TelescopeSettings
+              telescope={settings.telescope}
+              customFOV={settings.customFOV}
+              onUpdate={updateSettings}
+            />
+          </div>
+
+          {/* Forecast days */}
           <div>
             <label
               htmlFor="forecast-days"
               className="mb-2 flex items-center gap-2 font-medium text-gray-300 text-sm"
             >
               <Calendar className="h-4 w-4" />
-              Forecast Days
+              Forecast days
             </label>
             <div className="flex items-center gap-4">
               <input
@@ -147,185 +157,182 @@ export default function SettingsModal({
             <p className="mt-1 text-gray-500 text-xs">Weather data available for up to 16 days</p>
           </div>
 
-          {/* Max Objects */}
-          <div>
-            <label
-              htmlFor="max-objects"
-              className="mb-2 flex items-center gap-2 font-medium text-gray-300 text-sm"
-            >
-              <Eye className="h-4 w-4" />
-              Objects Per Night
-            </label>
-            <div className="flex items-center gap-4">
-              <input
-                id="max-objects"
-                type="range"
-                min="1"
-                max="50"
-                value={settings.maxObjects}
-                onChange={e => handleMaxObjectsChange(parseInt(e.target.value, 10))}
-                onPointerUp={handleSliderCommit}
-                className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-sky-500"
-              />
-              <span className="w-12 rounded-lg bg-night-800 py-1 text-center text-sm text-white">
-                {settings.maxObjects}
-              </span>
-            </div>
-          </div>
-
-          {/* DSO Magnitude Limit */}
-          <div>
-            <label
-              htmlFor="dso-magnitude"
-              className="mb-2 flex items-center gap-2 font-medium text-gray-300 text-sm"
-            >
-              <CircleDot className="h-4 w-4" />
-              DSO Magnitude Limit
-            </label>
-            <div className="flex items-center gap-4">
-              <input
-                id="dso-magnitude"
-                type="range"
-                min="6"
-                max="18"
-                step="0.5"
-                value={settings.dsoMagnitude}
-                onChange={e => handleDsoMagnitudeChange(parseFloat(e.target.value))}
-                onPointerUp={handleSliderCommit}
-                className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-sky-500"
-              />
-              <span className="w-12 rounded-lg bg-night-800 py-1 text-center text-sm text-white">
-                {settings.dsoMagnitude.toFixed(1)}
-              </span>
-            </div>
-            <p className="mt-1 text-gray-500 text-xs">Lower values show brighter objects only</p>
-          </div>
-
-          {/* Units Section */}
-          <div className="border-night-700 border-t pt-4">
-            <h3 className="mb-4 flex items-center gap-2 font-medium text-gray-300 text-sm">
-              <Ruler className="h-4 w-4" />
-              Units
-            </h3>
-
-            {/* Temperature Unit */}
-            <div className="mb-4">
-              <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
-                <Thermometer className="h-4 w-4" />
-                <span>Temperature</span>
-              </div>
-              <div className="flex gap-2">
-                <UnitButton
-                  active={settings.units.temperature === 'celsius'}
-                  onClick={() =>
-                    updateSettings({ units: { ...settings.units, temperature: 'celsius' } })
-                  }
-                  label="°C"
-                />
-                <UnitButton
-                  active={settings.units.temperature === 'fahrenheit'}
-                  onClick={() =>
-                    updateSettings({
-                      units: { ...settings.units, temperature: 'fahrenheit' as TemperatureUnit },
-                    })
-                  }
-                  label="°F"
-                />
-              </div>
-            </div>
-
-            {/* Speed Unit */}
-            <div className="mb-4">
-              <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
-                <Wind className="h-4 w-4" />
-                <span>Wind Speed</span>
-              </div>
-              <div className="flex gap-2">
-                <UnitButton
-                  active={settings.units.speed === 'kmh'}
-                  onClick={() =>
-                    updateSettings({ units: { ...settings.units, speed: 'kmh' as SpeedUnit } })
-                  }
-                  label="km/h"
-                />
-                <UnitButton
-                  active={settings.units.speed === 'mph'}
-                  onClick={() =>
-                    updateSettings({ units: { ...settings.units, speed: 'mph' as SpeedUnit } })
-                  }
-                  label="mph"
-                />
-              </div>
-            </div>
-
-            {/* Pressure Unit */}
-            <div className="mb-4">
-              <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
-                <CircleDot className="h-4 w-4" />
-                <span>Pressure</span>
-              </div>
-              <div className="flex gap-2">
-                <UnitButton
-                  active={settings.units.pressure === 'hpa'}
-                  onClick={() =>
-                    updateSettings({
-                      units: { ...settings.units, pressure: 'hpa' as PressureUnit },
-                    })
-                  }
-                  label="hPa"
-                />
-                <UnitButton
-                  active={settings.units.pressure === 'inhg'}
-                  onClick={() =>
-                    updateSettings({
-                      units: { ...settings.units, pressure: 'inhg' as PressureUnit },
-                    })
-                  }
-                  label="inHg"
-                />
-              </div>
-            </div>
-
-            {/* Distance Unit */}
+          <ExplainSection
+            title="Catalogue limits"
+            summary={`Magnitude ≤ ${settings.dsoMagnitude} · up to ${settings.maxObjects} per category`}
+          >
+            {/* Max Objects */}
             <div>
-              <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
-                <Ruler className="h-4 w-4" />
-                <span>Distance</span>
-              </div>
-              <div className="flex gap-2">
-                <UnitButton
-                  active={settings.units.distance === 'km'}
-                  onClick={() =>
-                    updateSettings({ units: { ...settings.units, distance: 'km' as DistanceUnit } })
-                  }
-                  label="km"
+              <label
+                htmlFor="max-objects"
+                className="mb-2 flex items-center gap-2 font-medium text-gray-300 text-sm"
+              >
+                <Eye className="h-4 w-4" />
+                Objects Per Night
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  id="max-objects"
+                  type="range"
+                  min="1"
+                  max="50"
+                  value={settings.maxObjects}
+                  onChange={e => handleMaxObjectsChange(parseInt(e.target.value, 10))}
+                  onPointerUp={handleSliderCommit}
+                  className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-sky-500"
                 />
-                <UnitButton
-                  active={settings.units.distance === 'mi'}
-                  onClick={() =>
-                    updateSettings({ units: { ...settings.units, distance: 'mi' as DistanceUnit } })
-                  }
-                  label="mi"
-                />
+                <span className="w-12 rounded-lg bg-night-800 py-1 text-center text-sm text-white">
+                  {settings.maxObjects}
+                </span>
               </div>
             </div>
-          </div>
 
-          {/* Telescope Section */}
-          <div className="border-night-700 border-t pt-4">
-            <TelescopeSettings
-              telescope={settings.telescope}
-              customFOV={settings.customFOV}
-              onUpdate={updateSettings}
-            />
-          </div>
+            {/* DSO Magnitude Limit */}
+            <div>
+              <label
+                htmlFor="dso-magnitude"
+                className="mb-2 flex items-center gap-2 font-medium text-gray-300 text-sm"
+              >
+                <CircleDot className="h-4 w-4" />
+                DSO Magnitude Limit
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  id="dso-magnitude"
+                  type="range"
+                  min="6"
+                  max="18"
+                  step="0.5"
+                  value={settings.dsoMagnitude}
+                  onChange={e => handleDsoMagnitudeChange(parseFloat(e.target.value))}
+                  onPointerUp={handleSliderCommit}
+                  className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-night-700 accent-sky-500"
+                />
+                <span className="w-12 rounded-lg bg-night-800 py-1 text-center text-sm text-white">
+                  {settings.dsoMagnitude.toFixed(1)}
+                </span>
+              </div>
+              <p className="mt-1 text-gray-500 text-xs">Lower values show brighter objects only</p>
+            </div>
+          </ExplainSection>
+          <ExplainSection
+            title="Display units"
+            summary={`${settings.units.temperature === 'fahrenheit' ? '°F' : '°C'} · ${settings.units.speed === 'mph' ? 'mph' : 'km/h'}`}
+          >
+            <div>
+              {/* Temperature Unit */}
+              <div className="mb-4">
+                <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
+                  <Thermometer className="h-4 w-4" />
+                  <span>Temperature</span>
+                </div>
+                <div className="flex gap-2">
+                  <UnitButton
+                    active={settings.units.temperature === 'celsius'}
+                    onClick={() =>
+                      updateSettings({ units: { ...settings.units, temperature: 'celsius' } })
+                    }
+                    label="°C"
+                  />
+                  <UnitButton
+                    active={settings.units.temperature === 'fahrenheit'}
+                    onClick={() =>
+                      updateSettings({
+                        units: { ...settings.units, temperature: 'fahrenheit' as TemperatureUnit },
+                      })
+                    }
+                    label="°F"
+                  />
+                </div>
+              </div>
 
-          {/* Satellite Passes Section */}
+              {/* Speed Unit */}
+              <div className="mb-4">
+                <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
+                  <Wind className="h-4 w-4" />
+                  <span>Wind speed</span>
+                </div>
+                <div className="flex gap-2">
+                  <UnitButton
+                    active={settings.units.speed === 'kmh'}
+                    onClick={() =>
+                      updateSettings({ units: { ...settings.units, speed: 'kmh' as SpeedUnit } })
+                    }
+                    label="km/h"
+                  />
+                  <UnitButton
+                    active={settings.units.speed === 'mph'}
+                    onClick={() =>
+                      updateSettings({ units: { ...settings.units, speed: 'mph' as SpeedUnit } })
+                    }
+                    label="mph"
+                  />
+                </div>
+              </div>
+
+              {/* Pressure Unit */}
+              <div className="mb-4">
+                <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
+                  <CircleDot className="h-4 w-4" />
+                  <span>Pressure</span>
+                </div>
+                <div className="flex gap-2">
+                  <UnitButton
+                    active={settings.units.pressure === 'hpa'}
+                    onClick={() =>
+                      updateSettings({
+                        units: { ...settings.units, pressure: 'hpa' as PressureUnit },
+                      })
+                    }
+                    label="hPa"
+                  />
+                  <UnitButton
+                    active={settings.units.pressure === 'inhg'}
+                    onClick={() =>
+                      updateSettings({
+                        units: { ...settings.units, pressure: 'inhg' as PressureUnit },
+                      })
+                    }
+                    label="inHg"
+                  />
+                </div>
+              </div>
+
+              {/* Distance Unit */}
+              <div>
+                <div className="mb-2 flex items-center gap-2 text-gray-400 text-sm">
+                  <Ruler className="h-4 w-4" />
+                  <span>Distance</span>
+                </div>
+                <div className="flex gap-2">
+                  <UnitButton
+                    active={settings.units.distance === 'km'}
+                    onClick={() =>
+                      updateSettings({
+                        units: { ...settings.units, distance: 'km' as DistanceUnit },
+                      })
+                    }
+                    label="km"
+                  />
+                  <UnitButton
+                    active={settings.units.distance === 'mi'}
+                    onClick={() =>
+                      updateSettings({
+                        units: { ...settings.units, distance: 'mi' as DistanceUnit },
+                      })
+                    }
+                    label="mi"
+                  />
+                </div>
+              </div>
+            </div>
+          </ExplainSection>
+          {/* Satellite passes Section */}
           <div className="border-night-700 border-t pt-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 font-medium text-gray-300 text-sm">
                 <Satellite className="h-4 w-4" />
-                <span>Satellite Passes</span>
+                <span>Satellite passes</span>
               </div>
               <button
                 type="button"
@@ -377,7 +384,7 @@ export default function SettingsModal({
             >
               <div className="flex items-center gap-2">
                 <MessageCircle className="h-4 w-4 text-gray-400" />
-                <span className="font-medium text-gray-300 text-sm">Send Feedback</span>
+                <span className="font-medium text-gray-300 text-sm">Send feedback</span>
               </div>
               <span className="text-gray-500 text-xs">Bugs, features &amp; suggestions</span>
             </a>
@@ -394,7 +401,7 @@ export default function SettingsModal({
               <div className="flex items-center gap-2">
                 <Trash2 className="h-4 w-4 text-gray-400 group-hover:text-red-400" />
                 <span className="text-gray-300 text-sm group-hover:text-red-400">
-                  Reset All Data
+                  Reset all data
                 </span>
               </div>
               <span className="text-gray-500 text-xs">Settings, cache &amp; location</span>
@@ -437,7 +444,7 @@ export default function SettingsModal({
                 <Trash2 className="h-5 w-5 text-red-400" />
               </div>
               <h3 id="reset-confirm-title" className="font-semibold text-lg text-white">
-                Reset All Data?
+                Reset all data?
               </h3>
             </div>
             <p className="mb-5 text-gray-400 text-sm">

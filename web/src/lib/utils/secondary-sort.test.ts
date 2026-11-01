@@ -137,8 +137,8 @@ describe('getSortFieldConfigs', () => {
 
 describe('getSortLabel', () => {
   it('returns correct labels', () => {
-    expect(getSortLabel('score')).toBe('Score');
+    expect(getSortLabel('score')).toBe('Target suitability');
     expect(getSortLabel('magnitude')).toBe('Brightness');
-    expect(getSortLabel('frameFill')).toBe('Frame Area');
+    expect(getSortLabel('frameFill')).toBe('Frame area');
   });
 });

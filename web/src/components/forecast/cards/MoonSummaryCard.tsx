@@ -1,4 +1,5 @@
 import { Moon } from 'lucide-react';
+import ExplainSection from '@/components/ui/ExplainSection';
 import Tooltip from '@/components/ui/Tooltip';
 import {
   getMoonPhaseEmoji as getExactMoonPhaseEmoji,
@@ -50,7 +51,7 @@ export default function MoonSummaryCard({
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 font-semibold text-white">
           <Moon className="h-4 w-4 text-slate-300" />
-          Moon &amp; Moonlight
+          Moonlight
         </h3>
         <Tooltip content="Moonlight exposure combines the illuminated fraction with how much of this observing window the Moon is actually above your horizon.">
           <span
@@ -99,23 +100,25 @@ export default function MoonSummaryCard({
               style={{ width: `${moonlight.exposurePercent}%` }}
             />
           </div>
-          <p className="mt-2 text-gray-400 text-xs">
-            {moonlight.level === 'none'
-              ? 'Moon below the horizon throughout this observing window.'
-              : `Moon up for ${formatDurationMinutes(visibleMinutes)}, reaching ${moonlight.maxAltitude.toFixed(0)}° altitude.`}
-          </p>
-          {(nightInfo.moonSet || nightInfo.moonRise) && (
-            <p className="mt-1 text-gray-500 text-xs">
-              {[
-                nightInfo.moonSet &&
-                  `Moonset ${formatDate(nightInfo.moonSet, timezone)} ${formatTime(nightInfo.moonSet, timezone)}`,
-                nightInfo.moonRise &&
-                  `Moonrise ${formatDate(nightInfo.moonRise, timezone)} ${formatTime(nightInfo.moonRise, timezone)}`,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
+          <ExplainSection title="Moon details">
+            <p className="mt-2 text-gray-400 text-xs">
+              {moonlight.level === 'none'
+                ? 'Moon below the horizon throughout this observing window.'
+                : `Moon up for ${formatDurationMinutes(visibleMinutes)}, reaching ${moonlight.maxAltitude.toFixed(0)}° altitude.`}
             </p>
-          )}
+            {(nightInfo.moonSet || nightInfo.moonRise) && (
+              <p className="mt-1 text-gray-500 text-xs">
+                {[
+                  nightInfo.moonSet &&
+                    `Moonset ${formatDate(nightInfo.moonSet, timezone)} ${formatTime(nightInfo.moonSet, timezone)}`,
+                  nightInfo.moonRise &&
+                    `Moonrise ${formatDate(nightInfo.moonRise, timezone)} ${formatTime(nightInfo.moonRise, timezone)}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
+          </ExplainSection>
         </div>
       </div>
     </div>

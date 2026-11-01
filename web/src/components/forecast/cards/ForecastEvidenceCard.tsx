@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { formatTimeRange } from '@/lib/utils/format';
+import ExplainSection from '@/components/ui/ExplainSection';
+import { formatDate, formatTime, formatTimeRange } from '@/lib/utils/format';
+import { formatSpeed, formatTemperatureDifference } from '@/lib/utils/units';
 import { type EnsembleForecast, ensembleWindow, fetchEnsemble } from '@/lib/weather/ensemble';
 import { fetchMetNorway, type ModelForecast } from '@/lib/weather/met-norway';
 import { weatherCoverage } from '@/lib/weather/observing-conditions';
+import { useApp } from '@/stores/AppContext';
 import type { Location, NightForecast, NightInfo, NightWeather } from '@/types';
 
 export default function ForecastEvidenceCard({
@@ -34,11 +37,14 @@ export default function ForecastEvidenceCard({
   const { nightInfo: night, weather } = forecast;
   const coverage = weather ? weatherCoverage(weather, night) : null;
   return (
-    <section
-      className="rounded-xl border border-white/10 bg-night-900 p-4"
-      aria-label="Forecast evidence"
+    <ExplainSection
+      title="Forecast evidence"
+      summary={
+        coverage
+          ? `${Math.min(coverage.weather, coverage.expected)}/${coverage.expected} weather hours · ${Math.min(coverage.aerosol, coverage.precipitation, coverage.wind, coverage.visibility) < coverage.expected ? 'partial inputs' : 'inputs complete'}${weather?.fetchedAt ? ` · updated ${formatTime(new Date(weather.fetchedAt), location.timezone)}` : ''}`
+          : 'Weather unavailable · astronomy only'
+      }
     >
-      <h3 className="font-semibold text-white">How much can we rely on this night?</h3>
       <p className="mt-2 text-gray-300 text-sm">
         {coverage
           ? `${coverage.weather}/${coverage.expected} weather hours · ${coverage.aerosol}/${coverage.expected} aerosol hours · ${coverage.precipitation}/${coverage.expected} rain hours · ${coverage.wind}/${coverage.expected} gust hours · ${coverage.visibility}/${coverage.expected} visibility hours`
@@ -46,9 +52,9 @@ export default function ForecastEvidenceCard({
       </p>
       {weather?.fetchedAt && (
         <p className="mt-1 text-gray-500 text-xs">
-          {weather.source} · fetched{' '}
-          {new Date(weather.fetchedAt).toLocaleString(undefined, { timeZone: location.timezone })}.
-          Model estimates, not measurements.
+          {weather.source} · fetched {formatDate(new Date(weather.fetchedAt), location.timezone)}{' '}
+          {formatTime(new Date(weather.fetchedAt), location.timezone)}. Model estimates, not
+          measurements.
         </p>
       )}
       <p className="mt-1 text-gray-400 text-xs">
@@ -69,11 +75,13 @@ export default function ForecastEvidenceCard({
       {expanded && (
         <ForecastComparison data={data} night={night} weather={weather} location={location} />
       )}
-    </section>
+    </ExplainSection>
   );
 }
 
 function EquipmentSummary({ weather }: { weather: NightWeather | null }) {
+  const { state } = useApp();
+  const { units } = state.settings;
   const hours = weather ? [...weather.hourlyData.values()] : [];
   const direction = hours.find(h => h.windDirection != null)?.windDirection;
   const jet = hours.flatMap(h => (h.jetStreamSpeed == null ? [] : [h.jetStreamSpeed]));
@@ -89,9 +97,11 @@ function EquipmentSummary({ weather }: { weather: NightWeather | null }) {
           · peak wind/gust{' '}
           {weather.maxWindSpeedKmh === null
             ? 'unknown'
-            : `${Math.round(weather.maxWindSpeedKmh)} km/h`}{' '}
+            : formatSpeed(weather.maxWindSpeedKmh, units.speed)}{' '}
           · dew margin{' '}
-          {weather.minDewMargin === null ? 'unknown' : `${weather.minDewMargin.toFixed(1)}°C`}
+          {weather.minDewMargin === null
+            ? 'unknown'
+            : formatTemperatureDifference(weather.minDewMargin, units.temperature)}
         </p>
       )}
       {direction != null && (
@@ -106,8 +116,8 @@ function EquipmentSummary({ weather }: { weather: NightWeather | null }) {
       )}
       {jet.length > 0 && (
         <p className="mt-1 text-gray-400 text-xs">
-          250 hPa wind: up to {Math.round(Math.max(...jet))} km/h. Jet-stream context, not measured
-          seeing.
+          250 hPa wind: up to {formatSpeed(Math.max(...jet), units.speed)}. Jet-stream context, not
+          measured seeing.
         </p>
       )}
     </>

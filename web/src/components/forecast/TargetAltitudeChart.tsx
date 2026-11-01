@@ -15,14 +15,14 @@ import {
   type TwilightBand,
   type TwilightPhaseId,
 } from '@/lib/astronomy/twilight';
-import { formatTime } from '@/lib/utils/format';
+import { formatTime, formatTimeRange } from '@/lib/utils/format';
 import {
   type AltAzSample,
   getHorizonThresholdSegments,
   type HorizonThresholdSegment,
   type TargetAccessibility,
 } from '@/lib/utils/horizon-profile';
-import type { HorizonProfile, NightInfo, ObjectVisibility } from '@/types';
+import type { HorizonProfile, ImagingWindow, NightInfo, ObjectVisibility } from '@/types';
 import { describeAltitudeAtFraction, getAltitudeChartSummary } from './altitude-chart-summary';
 
 /*
@@ -71,6 +71,7 @@ const MARKER_COLOR = '#f8fafc';
 const PEAK_COLOR = '#e0e7ff';
 
 interface TargetAltitudeChartProps {
+  imagingWindow?: ImagingWindow | null;
   visibility: ObjectVisibility;
   nightInfo: NightInfo;
   horizonProfile: HorizonProfile;
@@ -386,12 +387,14 @@ function buildChartModel(args: {
 }
 
 function ChartCanvas({
+  imagingWindow,
   model,
   windows,
   summary,
   timezone,
 }: {
   model: ChartModel;
+  imagingWindow?: ImagingWindow | null;
   windows: TargetAccessibility['windows'];
   summary: string;
   timezone?: string;
@@ -423,6 +426,21 @@ function ChartCanvas({
       <BlockedSectors segments={model.segments} scales={scales} />
       <AccessibleWindows windows={windows} scales={scales} />
       <AltitudeGrid scales={scales} />
+      {imagingWindow && (
+        <rect
+          data-testid="imaging-window-overlay"
+          x={Math.max(PLOT_LEFT, scales.x(Number(imagingWindow.start)))}
+          y={PLOT_TOP}
+          width={Math.max(
+            0,
+            Math.min(PLOT_RIGHT, scales.x(Number(imagingWindow.end))) -
+              Math.max(PLOT_LEFT, scales.x(Number(imagingWindow.start)))
+          )}
+          height={PLOT_HEIGHT}
+          fill="#34d399"
+          opacity="0.13"
+        />
+      )}
 
       <g clipPath="url(#target-altitude-clip)">
         {model.areaPaths.map(path => (
@@ -611,6 +629,7 @@ function ChartLegend({ showMinimum, showNow }: { showMinimum: boolean; showNow: 
 }
 
 export default function TargetAltitudeChart({
+  imagingWindow,
   visibility,
   nightInfo,
   horizonProfile,
@@ -711,6 +730,7 @@ export default function TargetAltitudeChart({
 
       <div className="relative">
         <ChartCanvas
+          imagingWindow={imagingWindow}
           model={model}
           windows={accessibility.windows}
           summary={summary}
@@ -740,6 +760,12 @@ export default function TargetAltitudeChart({
             : 'Drag across the chart to read altitude and direction at any moment.')}
       </p>
 
+      {imagingWindow && (
+        <p className="text-green-300 text-xs">
+          Shaded: imaging window ·{' '}
+          {formatTimeRange(imagingWindow.start, imagingWindow.end, timezone)}
+        </p>
+      )}
       <ChartLegend showMinimum={horizonProfile.minimumAltitude > 0} showNow={model.nowX !== null} />
     </section>
   );

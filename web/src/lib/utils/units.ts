@@ -130,3 +130,8 @@ export function formatPressure(
 export function getPressureUnitLabel(unit: PressureUnit): string {
   return unit === 'inhg' ? 'inHg' : 'hPa';
 }
+
+/** A temperature interval has no Fahrenheit zero-point offset. */
+export function formatTemperatureDifference(celsius: number, unit: TemperatureUnit): string {
+  return unit === 'fahrenheit' ? `${((celsius * 9) / 5).toFixed(1)}°F` : `${celsius.toFixed(1)}°C`;
+}

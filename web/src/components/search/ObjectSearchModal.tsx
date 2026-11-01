@@ -8,7 +8,6 @@
 import {
   AlertCircle,
   Calendar,
-  Camera,
   Clock,
   Eye,
   EyeOff,
@@ -19,24 +18,21 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import TargetSummary from '@/components/forecast/TargetSummary';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useHorizonProfile } from '@/hooks/useHorizonProfile';
-import { formatImagingWindow } from '@/lib/astronomy/imaging-windows';
 import { searchCelestialObjects } from '@/lib/search/object-search';
 import { getEffectiveFOV } from '@/lib/telescopes';
 import {
   azimuthToCardinal,
-  formatAltitude,
   formatAngularSize,
+  formatDate,
   formatMagnitude,
   formatMoonSeparation,
-  formatRelativeDate,
   formatTime,
-  getAltitudeQualityClass,
 } from '@/lib/utils/format';
-import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
-import { getTargetRating } from '@/lib/utils/rating';
+import { formatSubtype } from '@/lib/utils/format-subtype';
 import { useApp } from '@/stores/AppContext';
 import type { Location, ObjectSearchResult, ObjectVisibilityStatus } from '@/types';
 
@@ -57,35 +53,35 @@ function getStatusInfo(status: ObjectVisibilityStatus): {
   switch (status) {
     case 'visible_tonight':
       return {
-        label: 'Visible Tonight',
+        label: 'Visible tonight',
         color: 'text-green-400',
         icon: <Eye className="h-4 w-4" />,
         bgColor: 'bg-green-500/10',
       };
     case 'visible_soon':
       return {
-        label: 'Visible Soon',
+        label: 'Visible soon',
         color: 'text-sky-400',
         icon: <Calendar className="h-4 w-4" />,
         bgColor: 'bg-sky-500/10',
       };
     case 'visible_later':
       return {
-        label: 'Visible Later',
+        label: 'Visible later',
         color: 'text-yellow-400',
         icon: <Clock className="h-4 w-4" />,
         bgColor: 'bg-yellow-500/10',
       };
     case 'below_horizon':
       return {
-        label: 'Below Horizon',
+        label: 'Below horizon',
         color: 'text-orange-400',
         icon: <EyeOff className="h-4 w-4" />,
         bgColor: 'bg-orange-500/10',
       };
     case 'never_visible':
       return {
-        label: 'Never Visible',
+        label: 'Never visible',
         color: 'text-red-400',
         icon: <AlertCircle className="h-4 w-4" />,
         bgColor: 'bg-red-500/10',
@@ -93,26 +89,7 @@ function getStatusInfo(status: ObjectVisibilityStatus): {
   }
 }
 
-/**
- * Get object type display name
- */
-function getObjectTypeDisplay(type: string): string {
-  const typeMap: Record<string, string> = {
-    planet: 'Planet',
-    dso: 'Deep Sky Object',
-    comet: 'Comet',
-    dwarf_planet: 'Dwarf Planet',
-    asteroid: 'Asteroid',
-    milky_way: 'Milky Way',
-    moon: 'Moon',
-  };
-  return typeMap[type] || type;
-}
-
-/**
- * Search result card component
- */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: UI component displays many conditional states
+/** Search uses the same target summary as the forecast cards. */
 function SearchResultCard({
   result,
   isExpanded,
@@ -124,252 +101,74 @@ function SearchResultCard({
   onToggle: () => void;
   timezone?: string;
 }) {
-  const statusInfo = getStatusInfo(result.visibilityStatus);
-
+  const status = getStatusInfo(result.visibilityStatus);
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={`w-full rounded-lg border text-left transition-all ${
-        isExpanded
-          ? 'border-sky-500/50 bg-night-800/50'
-          : 'border-night-700 bg-night-800/30 hover:border-night-600'
-      }`}
-    >
-      {/* Header */}
-      <div className="p-3">
-        {/* Top row: Icon + Name + Messier badge */}
-        <div className="flex items-start gap-3">
-          {/* Status indicator */}
-          <div className={`shrink-0 rounded-lg p-2 ${statusInfo.bgColor} ${statusInfo.color}`}>
-            {statusInfo.icon}
-          </div>
-
-          {/* Object info */}
-          <div className="min-w-0 flex-1">
-            {/* Name row */}
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-medium text-white">{result.displayName}</h3>
-              {result.messierNumber && (
-                <span className="shrink-0 rounded bg-purple-500/20 px-1.5 py-0.5 text-purple-300 text-xs">
-                  M{result.messierNumber}
-                </span>
-              )}
-            </div>
-
-            {/* Object type and details - wrapped for mobile */}
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-gray-400 text-xs">
-              <span>{getObjectTypeDisplay(result.objectType)}</span>
-              {result.subtype && (
-                <>
-                  <span className="text-gray-600">|</span>
-                  <span className="capitalize">{result.subtype.replace(/_/g, ' ')}</span>
-                </>
-              )}
-              {result.magnitude !== null && (
-                <>
-                  <span className="text-gray-600">|</span>
-                  <span>Mag {formatMagnitude(result.magnitude)}</span>
-                </>
-              )}
-              {result.angularSizeArcmin !== null && result.angularSizeArcmin > 0 && (
-                <>
-                  <span className="text-gray-600">|</span>
-                  <span>Size {formatAngularSize(result.angularSizeArcmin)}</span>
-                </>
-              )}
-            </div>
-
-            {/* Status badge - on its own row */}
-            <div
-              className={`mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-xs ${statusInfo.bgColor} ${statusInfo.color}`}
-            >
-              {statusInfo.icon}
-              <span>{statusInfo.label}</span>
-              {!result.visibleTonight && result.nextVisibleDate && !result.neverVisible && (
-                <span className="ml-1 text-gray-400">
-                  • {formatRelativeDate(result.nextVisibleDate)}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Expanded details */}
+    <div className="rounded-xl border border-night-700 bg-night-800/30">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isExpanded}
+        className="w-full space-y-3 p-3 text-left"
+      >
+        <p className={`text-xs ${status.color}`}>
+          {status.label}
+          {!result.visibleTonight && result.nextVisibleDate
+            ? ` · ${formatDate(result.nextVisibleDate, timezone)}`
+            : ''}
+        </p>
+        {result.visibility ? (
+          <TargetSummary
+            name={result.displayName}
+            visibility={result.visibility}
+            category={result.objectType}
+            subtype={result.subtype}
+            totalScore={result.totalScore}
+            timezone={timezone}
+            weatherAvailable={result.totalScore !== undefined}
+          />
+        ) : (
+          <h3 className="font-semibold text-white">{result.displayName}</h3>
+        )}
+        {result.neverVisibleReason && (
+          <p className="text-amber-300 text-xs">{result.neverVisibleReason}</p>
+        )}
+        <p className="text-sky-300 text-xs">
+          {isExpanded ? 'Hide details' : 'Position & visibility details'}
+        </p>
+      </button>
       {isExpanded && (
-        <div className="mt-0 border-night-700 border-t px-3 pt-0 pb-3">
-          <div className="space-y-3 pt-3">
-            {/* Visibility details */}
-            {result.visibleTonight && result.visibility && (
-              <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-3">
-                {/* Mini star rating */}
-                {(() => {
-                  if (result.totalScore === undefined)
-                    return (
-                      <p className="mb-2 text-gray-400 text-xs">
-                        Visibility only — no forecast rating available
-                      </p>
-                    );
-                  const rating = getTargetRating(result.totalScore);
-                  return (
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className={`text-xs ${rating.color}`}>{rating.starString}</span>
-                      <span className="text-gray-400 text-xs">{rating.label}</span>
-                    </div>
-                  );
-                })()}
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-gray-400">Peak Altitude</span>
-                    <p className={getAltitudeQualityClass(result.visibility.maxAltitude)}>
-                      {formatAltitude(result.visibility.maxAltitude)}
-                    </p>
-                  </div>
-                  {result.visibility.maxAltitudeTime && (
-                    <div>
-                      <span className="text-gray-400">Peak Time</span>
-                      <p className="text-white">
-                        {formatTime(result.visibility.maxAltitudeTime, timezone)}
-                      </p>
-                    </div>
-                  )}
-                  {result.azimuthAtPeak !== null && (
-                    <div>
-                      <span className="text-gray-400">Direction</span>
-                      <p className="text-white">
-                        {azimuthToCardinal(result.azimuthAtPeak)} ({result.azimuthAtPeak.toFixed(0)}
-                        °)
-                      </p>
-                    </div>
-                  )}
-                  {result.visibility.moonSeparation !== null && (
-                    <div>
-                      <span className="text-gray-400">Moon Distance</span>
-                      <p
-                        className={result.visibility.moonWarning ? 'text-amber-400' : 'text-white'}
-                      >
-                        {formatMoonSeparation(result.visibility.moonSeparation)}
-                        {result.visibility.moonWarning && ' ⚠️'}
-                      </p>
-                    </div>
-                  )}
-                  {result.visibility.above45Start && result.visibility.above45End && (
-                    <div className="col-span-2">
-                      <span className="text-gray-400">Above 45° · skyline clear</span>
-                      <p className="text-white">
-                        {formatTime(result.visibility.above45Start, timezone)} –{' '}
-                        {formatTime(result.visibility.above45End, timezone)}
-                      </p>
-                    </div>
-                  )}
-                  {/* Imaging window */}
-                  {result.visibility.imagingWindow && (
-                    <div className="col-span-2 flex items-center gap-2">
-                      <Camera className="h-4 w-4 text-green-400" />
-                      <span className="text-gray-400">Best Window:</span>
-                      <span
-                        className={`font-medium ${getImagingQualityColorClass(result.visibility.imagingWindow.quality)}`}
-                      >
-                        {formatImagingWindow(result.visibility.imagingWindow, timezone)}
-                      </span>
-                    </div>
-                  )}
-                  {/* Show optimal viewing note if not optimal tonight */}
-                  {!result.visibility.above45Start &&
-                    !result.canReachOptimal &&
-                    result.optimalAltitudeNote && (
-                      <div className="col-span-2">
-                        <span className="text-xs text-yellow-400">
-                          {result.optimalAltitudeNote}
-                        </span>
-                      </div>
-                    )}
-                  {/* Show next optimal date if visible but not optimal tonight */}
-                  {!result.visibility.above45Start &&
-                    result.canReachOptimal &&
-                    result.nextOptimalDate && (
-                      <div className="col-span-2">
-                        <span className="text-gray-400">Optimal Viewing (45°+)</span>
-                        <p className="text-sky-400">{formatRelativeDate(result.nextOptimalDate)}</p>
-                      </div>
-                    )}
-                </div>
-              </div>
-            )}
-
-            {/* Next visible date */}
-            {!result.visibleTonight && result.nextVisibleDate && !result.neverVisible && (
-              <div className="rounded-lg border border-sky-500/20 bg-sky-500/10 p-3">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  {result.visibility && (
-                    <div>
-                      <span className="text-gray-400">Peak Altitude</span>
-                      <p className={getAltitudeQualityClass(result.visibility.maxAltitude)}>
-                        {formatAltitude(result.visibility.maxAltitude)}
-                      </p>
-                    </div>
-                  )}
-                  {result.visibility?.maxAltitudeTime && (
-                    <div>
-                      <span className="text-gray-400">Peak Time</span>
-                      <p className="text-white">
-                        {formatTime(result.visibility.maxAltitudeTime, timezone)}
-                      </p>
-                    </div>
-                  )}
-                  {result.azimuthAtPeak !== null && (
-                    <div>
-                      <span className="text-gray-400">Direction</span>
-                      <p className="text-white">
-                        {azimuthToCardinal(result.azimuthAtPeak)} ({result.azimuthAtPeak.toFixed(0)}
-                        °)
-                      </p>
-                    </div>
-                  )}
-                  {/* Optimal viewing info */}
-                  {!result.canReachOptimal && result.optimalAltitudeNote && (
-                    <div className="col-span-2">
-                      <span className="text-xs text-yellow-400">{result.optimalAltitudeNote}</span>
-                    </div>
-                  )}
-                  {result.canReachOptimal &&
-                    result.nextOptimalDate &&
-                    result.visibility &&
-                    result.visibility.maxAltitude < 45 && (
-                      <div className="col-span-2">
-                        <span className="text-gray-400">Optimal Viewing (45°+)</span>
-                        <p className="text-sky-400">{formatRelativeDate(result.nextOptimalDate)}</p>
-                      </div>
-                    )}
-                </div>
-              </div>
-            )}
-
-            {/* Never visible reason */}
-            {result.neverVisible && result.neverVisibleReason && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3">
-                <p className="text-gray-300 text-sm">{result.neverVisibleReason}</p>
-                {result.maxPossibleAltitude > -90 && (
-                  <p className="mt-1 text-gray-400 text-xs">
-                    Maximum possible altitude: {result.maxPossibleAltitude.toFixed(1)}°
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Coordinates */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-gray-400 text-xs">
-              <span>
-                RA: {result.raHours.toFixed(2)}h | Dec: {result.decDegrees.toFixed(1)}°
-              </span>
-              {result.constellation && <span>in {result.constellation}</span>}
-              {result.isMovingObject && <span className="text-purple-400">(position changes)</span>}
-            </div>
-          </div>
+        <div className="space-y-2 border-night-700 border-t p-3 text-gray-300 text-xs">
+          <p>
+            {result.subtype ? formatSubtype(result.subtype) : formatSubtype(result.objectType)} ·
+            magnitude {formatMagnitude(result.magnitude)}
+            {result.angularSizeArcmin ? ` · ${formatAngularSize(result.angularSizeArcmin)}` : ''}
+          </p>
+          {result.visibility?.maxAltitudeTime && (
+            <p>Peak time · {formatTime(result.visibility.maxAltitudeTime, timezone)}</p>
+          )}
+          {result.azimuthAtPeak !== null && (
+            <p>Direction at peak · {azimuthToCardinal(result.azimuthAtPeak)}</p>
+          )}
+          {result.visibility?.moonSeparation !== null && result.visibility && (
+            <p>
+              Moon separation ·{' '}
+              {result.visibility.moonAltitudeAtPeak !== null &&
+              result.visibility.moonAltitudeAtPeak <= 0
+                ? 'Below horizon at peak'
+                : formatMoonSeparation(result.visibility.moonSeparation)}
+            </p>
+          )}
+          {result.optimalAltitudeNote && (
+            <p className="text-amber-300">{result.optimalAltitudeNote}</p>
+          )}
+          {result.totalScore === undefined && <p>Visibility only · no forecast rating available</p>}
+          <p>
+            RA {result.raHours.toFixed(4)}h · Dec {result.decDegrees.toFixed(2)}°
+            {result.constellation ? ` · ${result.constellation}` : ''}
+          </p>
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -443,11 +242,6 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
         );
         if (id !== requestId.current) return;
         setResults(searchResults);
-
-        // Auto-expand first result if only one
-        if (searchResults.length === 1) {
-          setExpandedIndex(0);
-        }
       } catch {
         // Search failed silently, clear results
         if (id === requestId.current) setResults([]);
@@ -503,6 +297,7 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
       }}
     >
       <div className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl border border-night-700 bg-night-900 shadow-xl">
+        <h2 className="px-4 pt-4 font-semibold text-white">Search targets · tonight</h2>
         {/* Header with search input */}
         <div className="flex-shrink-0 border-night-700 border-b p-4">
           <div className="flex items-center gap-3">

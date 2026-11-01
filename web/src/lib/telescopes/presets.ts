@@ -6,9 +6,9 @@ import type { TelescopePreset, TelescopePresetId } from '@/types';
  */
 export const TELESCOPE_PRESETS: TelescopePreset[] = [
   { id: 'generic', name: 'Just exploring', fovWidth: 90, fovHeight: 80 },
-  { id: 'dwarf_mini', name: 'Dwarf Mini', fovWidth: 128, fovHeight: 72 },
-  { id: 'dwarf_ii', name: 'Dwarf II', fovWidth: 180, fovHeight: 100 },
-  { id: 'dwarf_3', name: 'Dwarf 3', fovWidth: 174, fovHeight: 99 },
+  { id: 'dwarf_mini', name: 'DWARF Mini', fovWidth: 128, fovHeight: 72 },
+  { id: 'dwarf_ii', name: 'DWARF II', fovWidth: 180, fovHeight: 100 },
+  { id: 'dwarf_3', name: 'DWARF 3', fovWidth: 174, fovHeight: 99 },
   { id: 'seestar_s30', name: 'Seestar S30', fovWidth: 72, fovHeight: 128 },
   { id: 'seestar_s30_pro', name: 'Seestar S30 Pro', fovWidth: 134, fovHeight: 240 },
   { id: 'seestar_s50', name: 'Seestar S50', fovWidth: 43.8, fovHeight: 77.4 },
@@ -75,9 +75,9 @@ export function formatFOV(widthArcmin: number, heightArcmin: number): string {
   if (widthArcmin >= 60 || heightArcmin >= 60) {
     const widthDeg = widthArcmin / 60;
     const heightDeg = heightArcmin / 60;
-    return `${widthDeg.toFixed(1)}° x ${heightDeg.toFixed(1)}°`;
+    return `${Number(widthDeg.toFixed(2))}° × ${Number(heightDeg.toFixed(2))}°`;
   }
-  return `${widthArcmin}' x ${heightArcmin}'`;
+  return `${Number(widthArcmin.toFixed(2))}′ × ${Number(heightArcmin.toFixed(2))}′`;
 }
 
 /**
