@@ -784,10 +784,14 @@ export default function TargetAltitudeChart({
       </p>
 
       {imagingWindow && (
-        <p className="text-green-300 text-xs">
-          Shaded: imaging window ·{' '}
-          {formatTimeRange(imagingWindow.start, imagingWindow.end, timezone)}
-        </p>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          <span className="text-green-300">
+            ● Recommended · {formatTimeRange(imagingWindow.start, imagingWindow.end, timezone)}
+          </span>
+          {imagingWindows.length > 1 && (
+            <span className="text-sky-300">● Other imaging periods</span>
+          )}
+        </div>
       )}
       <ChartLegend showMinimum={horizonProfile.minimumAltitude > 0} showNow={model.nowX !== null} />
     </section>
