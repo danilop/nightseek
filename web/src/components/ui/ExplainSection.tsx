@@ -20,7 +20,7 @@ export default function ExplainSection({
   const [open, setOpen] = useState(defaultOpen);
   const id = useId();
   return (
-    <section className={`rounded-xl border border-night-700 bg-night-900 ${className}`}>
+    <section className={`min-w-0 rounded-xl border border-night-700 bg-night-900 ${className}`}>
       <button
         type="button"
         aria-expanded={open}

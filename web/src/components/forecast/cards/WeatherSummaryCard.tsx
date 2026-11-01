@@ -254,7 +254,7 @@ function SeeingForecastCard({
           </span>
         </Tooltip>
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <span className={`font-medium text-sm ${colorClass}`}>{ratingLabel}</span>
         <span className="text-gray-500 text-xs">weather-only · not measured FWHM</span>
       </div>

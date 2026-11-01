@@ -267,6 +267,9 @@ test.describe('Visual summaries and progressive disclosure', () => {
   test('keeps sidereal time visually separated and identical across views', async ({ page }) => {
     await page.getByRole('button', { name: /^Weather details/ }).click();
     await page.getByRole('button', { name: 'Weather conditions', exact: true }).click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()!.width
+    );
     const card = page.getByTestId('sidereal-time');
     const value = await card.locator('dd').innerText();
     await expect(card.locator('dt')).toContainText('Local sidereal time');

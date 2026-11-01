@@ -111,7 +111,7 @@ export default function HourlyConditionsTimeline({
     <div className="mt-4">
       <h4 className="mb-3 font-medium text-gray-300 text-sm">Hourly conditions</h4>
 
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         {/* Grid: first column for labels, rest for hours */}
         <div
           className="grid min-w-max gap-0.5 text-xs"
