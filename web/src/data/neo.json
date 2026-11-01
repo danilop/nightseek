@@ -1,8 +1,9 @@
 {
-  "fetchedAt": "2026-10-31T21:36:36.404Z",
-  "startDate": "2026-10-31",
-  "endDate": "2026-11-06",
+  "fetchedAt": "2026-11-01T12:44:06.727Z",
+  "startDate": "2026-11-01",
+  "endDate": "2026-11-07",
   "data": {
+    "2026-11-07": [],
     "2026-11-06": [
       {
         "name": "2001 KF54",
@@ -19,7 +20,6 @@
       }
     ],
     "2026-11-01": [],
-    "2026-10-31": [],
     "2026-11-05": [
       {
         "name": "2017 WJ2",
@@ -60,8 +60,8 @@
           "max": 0.4634895841
         },
         "closeApproachDate": "2026-Nov-02 19:10",
-        "missDistanceLunarDistances": 15.6498723038,
-        "relativeVelocityKmh": 31382.3294286571,
+        "missDistanceLunarDistances": 15.6498726539,
+        "relativeVelocityKmh": 31382.329399152,
         "absoluteMagnitude": 20.54
       }
     ]
