@@ -257,6 +257,8 @@ test.describe('Visual summaries and progressive disclosure', () => {
     await expect(dialog.getByText('mag unknown', { exact: true }).first()).toBeVisible({
       timeout: 30000,
     });
+    await dialog.getByPlaceholder('Search objects', { exact: false }).fill('M10');
+    await expect(dialog.getByText('mag 6.6', { exact: true })).toBeVisible({ timeout: 30000 });
     await dialog.getByRole('button', { name: 'Close', exact: true }).click();
     await page.locator('button[role="tab"]:visible', { hasText: 'Targets' }).click();
     await expect(page.getByText('All magnitudes', { exact: true })).toBeVisible();
@@ -295,6 +297,7 @@ test.describe('Visual summaries and progressive disclosure', () => {
       .filter({ has: page.getByTestId('target-frame') })
       .first();
     await expect(card).toBeVisible({ timeout: 30000 });
+    const frameFill = await card.getByTestId('target-frame-fill').innerText();
     const magnitude = await card.getByTestId('target-magnitude').innerText();
     await expect(card.getByTestId('target-magnitude')).toBeVisible();
     const name = await card.getByRole('heading').innerText();
@@ -305,6 +308,7 @@ test.describe('Visual summaries and progressive disclosure', () => {
     await card.click();
     const detail = page.getByRole('dialog', { name });
     await expect(detail).toBeVisible();
+    await expect(detail.getByTestId('target-frame-fill')).toHaveText(frameFill);
     await expect(detail.getByTestId('target-magnitude').first()).toHaveText(magnitude, {
       useInnerText: true,
     });

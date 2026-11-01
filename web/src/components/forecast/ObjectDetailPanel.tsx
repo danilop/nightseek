@@ -1,6 +1,7 @@
 import { Bookmark, Clock, Compass, Moon, Mountain, Star, X } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ExplainSection from '@/components/ui/ExplainSection';
+import FrameFill from '@/components/ui/FrameFill';
 import Magnitude from '@/components/ui/Magnitude';
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
@@ -249,11 +250,14 @@ export default function ObjectDetailPanel({
             <h2 id="object-detail-title" className="truncate font-semibold text-lg text-white">
               {visibility.commonName || visibility.objectName}
             </h2>
-            <Magnitude
-              value={magnitude}
-              estimated={isMagnitudeEstimate(category)}
-              source={visibility.magnitudeSource}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Magnitude
+                value={magnitude}
+                estimated={isMagnitudeEstimate(category)}
+                source={visibility.magnitudeSource}
+              />
+              <FrameFill visibility={visibility} category={category} />
+            </div>
             {visibility.commonName && visibility.commonName !== visibility.objectName && (
               <p className="truncate text-gray-500 text-sm">{visibility.objectName}</p>
             )}

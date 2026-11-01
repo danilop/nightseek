@@ -94,13 +94,13 @@ export async function cleanupOldCaches(): Promise<void> {
 
 // Cache version - increment when cached data format changes or dictionaries are updated
 // This ensures users get fresh data after updates to common-names, star catalogs, etc.
-const CACHE_VERSION = 5;
+const CACHE_VERSION = 6;
 
 // Cache keys (versioned keys will invalidate old caches automatically)
 export const CACHE_KEYS = {
   LOCATION: 'nightseek:location', // User data - no version needed
   SETTINGS: 'nightseek:settings', // User data - no version needed
-  FORECAST: 'nightseek:forecast:v6',
+  FORECAST: 'nightseek:forecast:v7',
   OPENGC: `nightseek:opengc:v${CACHE_VERSION}`, // Versioned - depends on common-names.ts
   COMETS: `nightseek:comets:v${CACHE_VERSION}`, // Versioned - catalog data
   WEATHER_PREFIX: 'nightseek:weather:',

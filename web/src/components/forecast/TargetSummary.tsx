@@ -1,3 +1,4 @@
+import FrameFill from '@/components/ui/FrameFill';
 import Magnitude from '@/components/ui/Magnitude';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { getEffectiveFOV } from '@/lib/telescopes';
@@ -64,6 +65,7 @@ export default function TargetSummary({
             estimated={isMagnitudeEstimate(category)}
             source={visibility.magnitudeSource}
           />
+          <FrameFill visibility={visibility} category={category} />
         </div>
         {rating && (
           <p className="flex flex-wrap items-center gap-x-2 text-xs">

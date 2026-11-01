@@ -1,6 +1,7 @@
 import { ArrowUpRight, Bookmark, CalendarPlus, Telescope } from 'lucide-react';
 import { useMemo } from 'react';
 import ExplainSection from '@/components/ui/ExplainSection';
+import FrameFill from '@/components/ui/FrameFill';
 import Magnitude from '@/components/ui/Magnitude';
 import MagnitudeFilterStatus from '@/components/ui/MagnitudeFilterStatus';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
@@ -172,30 +173,33 @@ export default function SessionPlanCard({
                   estimated={isMagnitudeEstimate(object.category)}
                   source={object.visibility.magnitudeSource}
                 />{' '}
-                · {formatDurationMinutes(window.durationMinutes)} available
+                <FrameFill visibility={object.visibility} category={object.category} /> ·{' '}
+                {formatDurationMinutes(window.durationMinutes)} available
               </button>
             ))}
-            {unavailable.map(id => (
-              <button
-                type="button"
-                key={id}
-                onClick={() => toggle(id)}
-                aria-label={`Remove ${id} from watchlist`}
-                className="min-h-11 rounded-lg bg-white/5 px-3 py-2 text-gray-400 text-xs"
-              >
-                {id}{' '}
-                <Magnitude
-                  value={objects.find(object => object.objectName === id)?.magnitude}
-                  estimated={objects.some(
-                    object => object.objectName === id && isMagnitudeEstimate(object.category)
-                  )}
-                  source={
-                    objects.find(object => object.objectName === id)?.visibility.magnitudeSource
-                  }
-                />{' '}
-                · no window · remove
-              </button>
-            ))}
+            {unavailable.map(id => {
+              const object = objects.find(item => item.objectName === id);
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  onClick={() => toggle(id)}
+                  aria-label={`Remove ${id} from watchlist`}
+                  className="min-h-11 rounded-lg bg-white/5 px-3 py-2 text-gray-400 text-xs"
+                >
+                  {id}{' '}
+                  <Magnitude
+                    value={object?.magnitude}
+                    estimated={object ? isMagnitudeEstimate(object.category) : false}
+                    source={object?.visibility.magnitudeSource}
+                  />{' '}
+                  {object && (
+                    <FrameFill visibility={object.visibility} category={object.category} />
+                  )}{' '}
+                  · no window · remove
+                </button>
+              );
+            })}
           </div>
         )}
       </ExplainSection>

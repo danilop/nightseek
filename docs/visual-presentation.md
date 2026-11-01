@@ -40,3 +40,10 @@ text and star colours. Check narrow and desktop layouts in the browser as well.
 `SiderealTimeCard` separates label, midpoint context and value in both Overview and Sky.
 See [photometry policy and source comparisons](photometry.md) for shared filtering,
 source priority, comet estimates and data-quality limitations.
+
+`FrameFill` restores the compact `FoV x.y%` tag beside magnitude for deep-sky targets
+in cards, Overview, category previews, Search, Watchlist and target detail. It uses
+`getFramePresentation`, just like the diagram: target ellipse area / camera rectangle
+area, not linear width or visible coverage. Tiny positive values show `<0.1%`, unknown
+sizes show `FoV unknown`, and an estimated minor axis is marked `≈`. Values above 100%
+are allowed. Planets, Moon and point-like moving objects do not receive this DSO tag.

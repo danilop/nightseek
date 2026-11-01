@@ -1,8 +1,9 @@
 import { forwardRef, useState } from 'react';
 import { CountBadge } from '@/components/ui/Card';
+import FrameFill from '@/components/ui/FrameFill';
+import Magnitude from '@/components/ui/Magnitude';
 import SectionCard from '@/components/ui/SectionCard';
 import { useUIState } from '@/hooks/useUIState';
-import { formatMagnitude } from '@/lib/utils/format';
 import { formatSubtype } from '@/lib/utils/format-subtype';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
 import { isMagnitudeEstimate } from '@/lib/utils/magnitude';
@@ -28,14 +29,25 @@ interface CategorySectionProps {
   onObjectClick?: (object: ScoredObject, accessibility?: TargetAccessibility) => void;
 }
 
-function getTopObjectsPreview(objects: ScoredObject[], showSubtype: boolean): string {
-  return objects
-    .slice(0, 3)
-    .map(obj => {
-      const name = `${obj.visibility.commonName || obj.objectName} · ${isMagnitudeEstimate(obj.category) ? 'est. ' : ''}mag ${formatMagnitude(obj.magnitude)}`;
-      return showSubtype && obj.subtype ? `${name} (${formatSubtype(obj.subtype)})` : name;
-    })
-    .join(', ');
+function getTopObjectsPreview(objects: ScoredObject[], showSubtype: boolean) {
+  return (
+    <span className="flex flex-wrap gap-x-3 gap-y-1">
+      {objects.slice(0, 3).map(obj => (
+        <span key={obj.objectName} className="inline-flex flex-wrap items-center gap-1">
+          <span>
+            {obj.visibility.commonName || obj.objectName}
+            {showSubtype && obj.subtype ? ` (${formatSubtype(obj.subtype)})` : ''}
+          </span>
+          <Magnitude
+            value={obj.magnitude}
+            estimated={isMagnitudeEstimate(obj.category)}
+            source={obj.visibility.magnitudeSource}
+          />
+          <FrameFill visibility={obj.visibility} category={obj.category} />
+        </span>
+      ))}
+    </span>
+  );
 }
 
 const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(function CategorySection(
@@ -88,7 +100,7 @@ const CategorySection = forwardRef<HTMLDivElement, CategorySectionProps>(functio
         icon={icon}
         title={title}
         badge={<CountBadge count={objects.length} />}
-        preview={`Top: ${getTopObjectsPreview(objects, showSubtypeInPreview)}`}
+        preview={getTopObjectsPreview(objects, showSubtypeInPreview)}
         expanded={expanded}
         onToggle={() => toggleCategoryExpanded(categoryKey)}
         dragHandleProps={dragHandleProps}
