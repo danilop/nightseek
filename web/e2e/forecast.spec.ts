@@ -136,7 +136,7 @@ test.describe('Error Handling', () => {
 
 test.describe('Night Selection', () => {
   test('should allow selecting different nights', async ({ page }) => {
-    test.setTimeout(90000);
+    test.setTimeout(150000);
     await seedLocation(page);
 
     await page.goto('/');
@@ -145,7 +145,9 @@ test.describe('Night Selection', () => {
     const nightSelectors = page
       .getByRole('listbox', { name: 'Night selection' })
       .getByRole('option');
-    await expect(nightSelectors).toHaveCount(2, { timeout: 30000 });
+    // The first night renders while the worker is still calculating the next.
+    // A full-catalogue second night can exceed 30s in CI Firefox.
+    await expect(nightSelectors).toHaveCount(2, { timeout: 90000 });
     await nightSelectors.nth(1).click();
     await expect(nightSelectors.nth(1)).toHaveAttribute('aria-selected', 'true');
   });

@@ -83,8 +83,12 @@ jobs:
         run: npm run build
 
   validate-browser:
-    name: Browser flows
+    name: Browser flows (${{ matrix.project }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit, 'Mobile Chrome', 'Mobile Safari']
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -107,4 +111,4 @@ jobs:
 
       - name: Test desktop and mobile browser flows
         working-directory: ./web
-        run: pnpm test:e2e --workers=2
+        run: pnpm test:e2e --project="${{ matrix.project }}" --workers=2
