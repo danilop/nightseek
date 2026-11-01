@@ -5,7 +5,7 @@ Warnings about missing data, short imaging windows, Moon interference and camera
 remain visible. Eclipse viewing guidance also stays visible. Target magnitude labels and the
 Targets magnitude-limit slider are primary information/controls and must stay visible by default.
 `Magnitude` shares compact formatting across cards, recommendations, search, watchlists, detail,
-variable stars, satellite passes and moving-object results. Unknown values show `mag —`; estimates
+variable stars, satellite passes and moving-object results. Unknown values show `mag unknown`; estimates
 are marked `est.`. Negative and zero magnitudes are valid. Absolute magnitude (H) remains distinct.
 Detailed positions, angular size, 45°/60° altitude intervals and lunar libration remain available
 inside target details; reducing default text must not remove these facts.
@@ -36,3 +36,7 @@ Run web type checking, Biome, Knip, Vitest coverage, web and mobile-wrapper buil
 Playwright desktop/mobile flows. Regression coverage includes DST, absent weather and
 angular dimensions, framing, disclosure keyboard controls, and equal card/detail window
 text and star colours. Check narrow and desktop layouts in the browser as well.
+
+`SiderealTimeCard` separates label, midpoint context and value in both Overview and Sky.
+See [photometry policy and source comparisons](photometry.md) for shared filtering,
+source priority, comet estimates and data-quality limitations.

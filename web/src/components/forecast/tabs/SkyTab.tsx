@@ -1,3 +1,4 @@
+import SiderealTimeCard from '@/components/forecast/SiderealTimeCard';
 import SkyChart from '@/components/forecast/SkyChart';
 import ExplainSection from '@/components/ui/ExplainSection';
 import type { Location, NightInfo, SkyMapFocus } from '@/types';
@@ -14,10 +15,7 @@ export default function SkyTab({ nightInfo, location, focus }: SkyTabProps) {
       <SkyChart nightInfo={nightInfo} location={location} focus={focus} />
       {nightInfo.localSiderealTimeAtMidnight && (
         <ExplainSection title="Sky coordinates">
-          <span className="text-gray-400 text-sm">
-            Local sidereal time at observing-window midpoint
-          </span>
-          <span className="font-medium text-white">{nightInfo.localSiderealTimeAtMidnight}</span>
+          <SiderealTimeCard nightInfo={nightInfo} />
         </ExplainSection>
       )}
     </div>

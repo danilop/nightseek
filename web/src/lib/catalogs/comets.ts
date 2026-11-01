@@ -1,4 +1,5 @@
 import cometsJson from '@/data/comets.json';
+import dataMeta from '@/data/meta.json';
 import type { NightInfo, ObjectVisibility } from '@/types';
 import type { SkyCalculator } from '../astronomy/calculator';
 import { GAUSSIAN_GRAVITATIONAL_CONSTANT } from '../astronomy/constants';
@@ -9,193 +10,40 @@ import {
   solveKepler,
 } from '../astronomy/orbital-mechanics';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
+import { hasMagnitude } from '../utils/magnitude';
+import { isInterstellarDesignation, type ParsedComet, parseMPCCometLine } from './mpc-comet';
+
+export { isInterstellarDesignation, type ParsedComet, parseMPCCometLine } from './mpc-comet';
 
 // MPC Comet data URL - we'll use a CORS proxy or fetch directly
 const MPC_COMET_URL = 'https://www.minorplanetcenter.net/iau/MPCORB/CometEls.txt';
-
-/**
- * Parsed comet from MPC data
- */
-export interface ParsedComet {
-  designation: string;
-  name: string;
-  perihelionDistance: number; // q in AU
-  eccentricity: number;
-  inclination: number; // degrees
-  longitudeOfAscendingNode: number; // degrees
-  argumentOfPerihelion: number; // degrees
-  perihelionTime: number; // Julian date
-  absoluteMagnitude: number; // g
-  slopeParameter: number; // k (default 10)
-  isInterstellar: boolean;
-  epochJD: number;
-}
-
-/** MPC interstellar designations use a numbered I/ prefix (for example 2I/Borisov). */
-export function isInterstellarDesignation(designation: string): boolean {
-  return /^\d+I(?:\/|$)/i.test(designation.trim());
-}
 
 function normalizeComet(comet: ParsedComet): ParsedComet {
   return { ...comet, isInterstellar: isInterstellarDesignation(comet.designation) };
 }
 
-/**
- * Calculate apparent magnitude for a comet
- * m = g + 5*log10(Δ) + k*log10(r)
- * where:
- *   g = absolute magnitude
- *   Δ = Earth distance (AU)
- *   r = Sun distance (AU)
- *   k = slope parameter (typically 10)
+/** MPC uses exponent n: m = H + 5 log10(delta) + 2.5 n log10(r).
+ * JPL's k1 convention already includes 2.5; do not interchange those parameters.
+ * See docs/photometry.md for the source convention and limitations.
  */
-function calculateCometMagnitude(
-  absoluteMag: number,
+export function calculateCometMagnitude(
+  absoluteMag: number | null,
   earthDistanceAU: number,
   sunDistanceAU: number,
-  slopeParameter: number = 10
-): number {
-  if (earthDistanceAU <= 0 || sunDistanceAU <= 0) return 99.0;
-
-  return absoluteMag + 5 * Math.log10(earthDistanceAU) + slopeParameter * Math.log10(sunDistanceAU);
-}
-
-/**
- * Parse MPC comet designation and name
- * Examples:
- *   "C/2023 A3 (Tsuchinshan-ATLAS)" -> code="C/2023 A3", name="Tsuchinshan-ATLAS"
- *   "12P/Pons-Brooks" -> code="12P", name="Pons-Brooks"
- */
-function parseCometName(fullDesignation: string): { designation: string; name: string } {
-  // MPC appends a publication reference in a distant fixed-width column.
-  const catalogName = fullDesignation.trim().split(/\s{2,}/, 1)[0];
-
-  // Check for name in parentheses
-  if (catalogName.includes('(') && catalogName.includes(')')) {
-    const parenStart = catalogName.indexOf('(');
-    const parenEnd = catalogName.lastIndexOf(')');
-    const code = catalogName.substring(0, parenStart).trim();
-    const name = catalogName.substring(parenStart + 1, parenEnd);
-    return { designation: code, name };
-  }
-
-  // Check for periodic comet format (e.g., "12P/Pons-Brooks")
-  if (catalogName.includes('/')) {
-    const slashIndex = catalogName.indexOf('/');
-    const code = catalogName.substring(0, slashIndex);
-    const name = catalogName.substring(slashIndex + 1);
-    return { designation: code, name };
-  }
-
-  return { designation: catalogName, name: catalogName };
-}
-
-/**
- * Parse MPC comet elements format
- * The format is a fixed-width text file with columns:
- * Columns 1-4: Perihelion year
- * Columns 6-7: Perihelion month
- * etc.
- */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixed-width MPC parsing validates each independent field
-export function parseMPCCometLine(line: string): ParsedComet | null {
-  try {
-    // Skip header lines and empty lines
-    if (line.trim().length < 100 || line.startsWith('#') || line.startsWith('Num')) {
-      return null;
-    }
-
-    // MPC CometEls fixed-width columns (zero-based slice boundaries below).
-    // Perihelion date: columns 15-29 (YYYYMMDD.dddd)
-    // q (perihelion dist): columns 31-39
-    // e (eccentricity): columns 42-51
-    // ω (arg of perihelion): columns 52-62
-    // Ω (long of asc node): columns 62-72
-    // i (inclination): columns 72-82
-    // Epoch: columns 82-93
-    // H (abs magnitude): columns 93-98
-    // G (slope): columns 98-103
-    // Designation/Name: columns 103-end
-
-    const perihelionDateStr = line.substring(14, 29).trim();
-    const qStr = line.substring(30, 40).trim();
-    const eStr = line.substring(41, 52).trim();
-    const omegaStr = line.substring(51, 62).trim();
-    const nodeStr = line.substring(61, 72).trim();
-    const incStr = line.substring(71, 82).trim();
-    const epochStr = line.substring(81, 93).trim();
-    const hStr = line.substring(91, 97).trim();
-    const kStr = line.substring(96, 102).trim();
-    const nameStr = line.substring(102).trim();
-
-    const q = parseFloat(qStr);
-    const e = parseFloat(eStr);
-    const inc = parseFloat(incStr);
-    const omega = parseFloat(omegaStr);
-    const node = parseFloat(nodeStr);
-    const parsedH = parseFloat(hStr);
-    const parsedK = parseFloat(kStr);
-    const H = Number.isFinite(parsedH) ? parsedH : 10.0;
-    const K = Number.isFinite(parsedK) ? parsedK : 10.0;
-
-    if (Number.isNaN(q) || Number.isNaN(e)) {
-      return null;
-    }
-
-    // Parse perihelion date (YYYYMMDD.dddd format)
-    const perihelionParts = perihelionDateStr.split(/\s+/);
-    if (perihelionParts.length !== 3) return null;
-    const year = parseInt(perihelionParts[0], 10);
-    const month = parseInt(perihelionParts[1], 10);
-    const day = parseFloat(perihelionParts[2]);
-    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
-
-    // Convert the fractional calendar day to Julian date.
-    const perihelionJD = dateToJulian(year, month, day);
-
-    // Parse epoch
-    let epochJD = perihelionJD;
-    if (epochStr.length >= 8) {
-      const epochYear = parseInt(epochStr.substring(0, 4), 10);
-      const epochMonth = parseInt(epochStr.substring(4, 6), 10);
-      const epochDay = parseFloat(epochStr.substring(6));
-      if (Number.isFinite(epochYear) && Number.isFinite(epochMonth) && Number.isFinite(epochDay)) {
-        epochJD = dateToJulian(epochYear, epochMonth, epochDay);
-      }
-    }
-
-    const { designation, name } = parseCometName(nameStr);
-
-    return {
-      designation,
-      name: name || designation,
-      perihelionDistance: q,
-      eccentricity: e,
-      inclination: Number.isNaN(inc) ? 0 : inc,
-      longitudeOfAscendingNode: Number.isNaN(node) ? 0 : node,
-      argumentOfPerihelion: Number.isNaN(omega) ? 0 : omega,
-      perihelionTime: perihelionJD,
-      absoluteMagnitude: H,
-      slopeParameter: K,
-      isInterstellar: isInterstellarDesignation(designation),
-      epochJD,
-    };
-  } catch {
+  slopeParameter: number | null
+): number | null {
+  if (
+    !hasMagnitude(absoluteMag) ||
+    !hasMagnitude(slopeParameter) ||
+    !Number.isFinite(earthDistanceAU) ||
+    !Number.isFinite(sunDistanceAU) ||
+    earthDistanceAU <= 0 ||
+    sunDistanceAU <= 0
+  )
     return null;
-  }
-}
-
-/**
- * Convert date to Julian date
- */
-function dateToJulian(year: number, month: number, day: number): number {
-  if (month <= 2) {
-    year -= 1;
-    month += 12;
-  }
-  const A = Math.floor(year / 100);
-  const B = 2 - A + Math.floor(A / 4);
-  return Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day + B - 1524.5;
+  return (
+    absoluteMag + 5 * Math.log10(earthDistanceAU) + 2.5 * slopeParameter * Math.log10(sunDistanceAU)
+  );
 }
 
 /**
@@ -284,14 +132,21 @@ export async function fetchComets(maxMagnitude: number = 12.0): Promise<ParsedCo
   // Check cache first
   const cached = await getCached<ParsedComet[]>(CACHE_KEYS.COMETS, CACHE_TTLS.COMETS);
   if (cached) {
-    return cached.map(normalizeComet).filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
+    return cached
+      .map(normalizeComet)
+      .filter(c => !hasMagnitude(c.absoluteMagnitude) || c.absoluteMagnitude <= maxMagnitude + 5);
   }
 
   // Use bundled static data
-  const staticComets = cometsJson as unknown as ParsedComet[];
+  const staticComets: ParsedComet[] = (cometsJson as unknown as ParsedComet[]).map(comet => ({
+    ...comet,
+    dataRetrievedAt: dataMeta.sources['comets.json'],
+  }));
   if (staticComets && staticComets.length > 0) {
     await setCache(CACHE_KEYS.COMETS, staticComets);
-    return staticComets.map(normalizeComet).filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
+    return staticComets
+      .map(normalizeComet)
+      .filter(c => !hasMagnitude(c.absoluteMagnitude) || c.absoluteMagnitude <= maxMagnitude + 5);
   }
 
   // Fallback: try fetching directly from MPC
@@ -308,12 +163,14 @@ export async function fetchComets(maxMagnitude: number = 12.0): Promise<ParsedCo
     for (const line of lines) {
       const comet = parseMPCCometLine(line);
       if (comet) {
-        comets.push(comet);
+        comets.push({ ...comet, dataRetrievedAt: new Date().toISOString() });
       }
     }
 
     await setCache(CACHE_KEYS.COMETS, comets);
-    return comets.filter(c => c.absoluteMagnitude <= maxMagnitude + 5);
+    return comets.filter(
+      c => !hasMagnitude(c.absoluteMagnitude) || c.absoluteMagnitude <= maxMagnitude + 5
+    );
   } catch (_error) {
     // No data is safer than silently substituting stale historical elements,
     // which can produce convincing but wrong positions and magnitudes.
@@ -364,7 +221,7 @@ export function calculateCometVisibility(
   );
 
   // Skip if too faint
-  if (apparentMag > maxMagnitude) {
+  if (apparentMag !== null && apparentMag > maxMagnitude) {
     return null;
   }
 
@@ -382,6 +239,8 @@ export function calculateCometVisibility(
       positionAtTime: time => getCometEquatorial(comet, time),
     }
   );
+
+  visibility.magnitudeSource = `MPC brightness model · observing-window midpoint${comet.dataRetrievedAt ? ` · elements retrieved ${comet.dataRetrievedAt.slice(0, 10)} UTC` : ''}`;
 
   // Skip if not visible
   if (!includeInvisible && !visibility.isVisible) {

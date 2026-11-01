@@ -24,10 +24,12 @@ import { firstNightDate, nightDateAtOffset } from '../forecast/night-dates';
 import { scoreTargetForNight } from '../scoring/target';
 import { formatDateKey } from '../utils/format';
 import { createDefaultHorizonProfile, evaluateTargetAccessibility } from '../utils/horizon-profile';
+import { matchesMagnitudeLimit } from '../utils/magnitude';
 import { getTargetPhotoWindow } from '../utils/target-photo-windows';
 import { findFirstMatchingDay } from './search-astronomy';
 
 interface SearchContext {
+  magnitudeLimit?: number | null;
   horizonProfile?: HorizonProfile;
   forecasts?: NightForecast[];
   scoredObjects?: Map<string, ScoredObject[]>;
@@ -316,10 +318,9 @@ export async function searchCelestialObjects(
   progressCallback?.('Searching deep sky objects...');
   try {
     const catalog = await loadOpenNGCCatalog({ maxMagnitude: 20 });
-    for (const dso of (await searchDSOs(query, catalog)).slice(
-      0,
-      Math.max(0, maxResults - candidates.length)
-    )) {
+    for (const dso of (await searchDSOs(query, catalog))
+      .filter(dso => matchesMagnitudeLimit(dso.magnitude, context.magnitudeLimit ?? null))
+      .slice(0, Math.max(0, maxResults - candidates.length))) {
       candidates.push({
         name: dso.name,
         messierNumber: dso.messierNumber,
@@ -352,7 +353,8 @@ export async function searchCelestialObjects(
       context,
       referenceDate
     );
-    if (result) results.push(result);
+    if (result && matchesMagnitudeLimit(result.magnitude, context.magnitudeLimit ?? null))
+      results.push(result);
   }
   const statusOrder: Record<ObjectVisibilityStatus, number> = {
     visible_tonight: 0,

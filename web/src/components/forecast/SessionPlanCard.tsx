@@ -2,12 +2,15 @@ import { ArrowUpRight, Bookmark, CalendarPlus, Telescope } from 'lucide-react';
 import { useMemo } from 'react';
 import ExplainSection from '@/components/ui/ExplainSection';
 import Magnitude from '@/components/ui/Magnitude';
+import MagnitudeFilterStatus from '@/components/ui/MagnitudeFilterStatus';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
+import { useMagnitudeFilter } from '@/hooks/useMagnitudeFilter';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { createSessionCalendar, downloadSessionCalendar } from '@/lib/planning/calendar';
 import { planSessionTargets } from '@/lib/planning/session';
 import { formatDurationMinutes } from '@/lib/utils/format';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
+import { isMagnitudeEstimate, matchesMagnitudeLimit } from '@/lib/utils/magnitude';
 import type { HorizonProfile, Location, NightForecast, ScoredObject } from '@/types';
 import TargetSummary from './TargetSummary';
 
@@ -31,17 +34,30 @@ export default function SessionPlanCard({
   onBrowse,
 }: Props) {
   const now = useCurrentTime();
+  const { limit } = useMagnitudeFilter();
   const { saved, toggle } = useWatchlist();
   const candidates = useMemo(
-    () => (isReady ? planSessionTargets(objects, profile, forecast.weather, now) : []),
-    [objects, profile, forecast.weather, now, isReady]
+    () =>
+      isReady
+        ? planSessionTargets(
+            objects.filter(object => matchesMagnitudeLimit(object.magnitude, limit)),
+            profile,
+            forecast.weather,
+            now
+          )
+        : [],
+    [objects, profile, forecast.weather, now, isReady, limit]
   );
   const picks = candidates.slice(0, 3);
   const savedCandidates = candidates.filter(candidate =>
     saved.includes(candidate.object.objectName)
   );
   const candidateIds = new Set(savedCandidates.map(candidate => candidate.object.objectName));
-  const unavailable = saved.filter(id => !candidateIds.has(id));
+  const unavailable = saved.filter(
+    id =>
+      !candidateIds.has(id) &&
+      matchesMagnitudeLimit(objects.find(object => object.objectName === id)?.magnitude, limit)
+  );
   const hasWeather = forecast.weather !== null;
 
   return (
@@ -69,6 +85,7 @@ export default function SessionPlanCard({
           All targets <ArrowUpRight className="h-4 w-4" />
         </button>
       </div>
+      <MagnitudeFilterStatus />
       <div className="grid gap-3 xl:grid-cols-3">
         {picks.map(({ object, access, window }, index) => {
           const name = object.visibility.commonName || object.objectName;
@@ -150,8 +167,12 @@ export default function SessionPlanCard({
                 className="min-h-11 rounded-lg bg-sky-400/10 px-3 py-2 text-left text-sky-200 text-xs"
               >
                 {object.visibility.commonName || object.objectName}{' '}
-                <Magnitude value={object.magnitude} /> ·{' '}
-                {formatDurationMinutes(window.durationMinutes)} available
+                <Magnitude
+                  value={object.magnitude}
+                  estimated={isMagnitudeEstimate(object.category)}
+                  source={object.visibility.magnitudeSource}
+                />{' '}
+                · {formatDurationMinutes(window.durationMinutes)} available
               </button>
             ))}
             {unavailable.map(id => (
@@ -163,8 +184,16 @@ export default function SessionPlanCard({
                 className="min-h-11 rounded-lg bg-white/5 px-3 py-2 text-gray-400 text-xs"
               >
                 {id}{' '}
-                <Magnitude value={objects.find(object => object.objectName === id)?.magnitude} /> ·
-                no window · remove
+                <Magnitude
+                  value={objects.find(object => object.objectName === id)?.magnitude}
+                  estimated={objects.some(
+                    object => object.objectName === id && isMagnitudeEstimate(object.category)
+                  )}
+                  source={
+                    objects.find(object => object.objectName === id)?.visibility.magnitudeSource
+                  }
+                />{' '}
+                · no window · remove
               </button>
             ))}
           </div>

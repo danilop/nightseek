@@ -20,9 +20,11 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import TargetSummary from '@/components/forecast/TargetSummary';
 import Magnitude from '@/components/ui/Magnitude';
+import MagnitudeFilterStatus from '@/components/ui/MagnitudeFilterStatus';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useHorizonProfile } from '@/hooks/useHorizonProfile';
+import { useMagnitudeFilter } from '@/hooks/useMagnitudeFilter';
 import { searchCelestialObjects } from '@/lib/search/object-search';
 import { getEffectiveFOV } from '@/lib/telescopes';
 import {
@@ -33,6 +35,7 @@ import {
   formatTime,
 } from '@/lib/utils/format';
 import { formatSubtype } from '@/lib/utils/format-subtype';
+import { isMagnitudeEstimate, matchesMagnitudeLimit } from '@/lib/utils/magnitude';
 import { useApp } from '@/stores/AppContext';
 import type { Location, ObjectSearchResult, ObjectVisibilityStatus } from '@/types';
 
@@ -130,7 +133,10 @@ function SearchResultCard({
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-white">{result.displayName}</h3>
-            <Magnitude value={result.magnitude} />
+            <Magnitude
+              value={result.magnitude}
+              estimated={isMagnitudeEstimate(result.objectType)}
+            />
           </div>
         )}
         {result.neverVisibleReason && (
@@ -180,11 +186,13 @@ function SearchResultCard({
  */
 export default function ObjectSearchModal({ location, onClose }: ObjectSearchModalProps) {
   const { state } = useApp();
+  const { limit } = useMagnitudeFilter();
   const { horizonProfile, isReady } = useHorizonProfile();
   const requestId = useRef(0);
   const timezone = location.timezone;
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ObjectSearchResult[]>([]);
+  const visibleResults = results.filter(result => matchesMagnitudeLimit(result.magnitude, limit));
   const [isSearching, setIsSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState('');
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
@@ -237,6 +245,7 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
           },
           new Date(),
           {
+            magnitudeLimit: limit,
             horizonProfile,
             forecasts: state.forecasts ?? undefined,
             scoredObjects: state.scoredObjects ?? undefined,
@@ -255,25 +264,20 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
         }
       }
     },
-    [location, isReady, horizonProfile, state.forecasts, state.scoredObjects, state.settings]
+    [location, isReady, horizonProfile, state.forecasts, state.scoredObjects, state.settings, limit]
   );
 
-  // Handle input change with debounce
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Re-run when either the query or shared magnitude filter changes.
+  useEffect(() => {
     ++requestId.current;
-    const newQuery = e.target.value;
-    setQuery(newQuery);
+    searchTimeoutRef.current = setTimeout(() => handleSearch(query), 300);
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      ++requestId.current;
+    };
+  }, [query, handleSearch]);
 
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // Debounce search
-    searchTimeoutRef.current = setTimeout(() => {
-      handleSearch(newQuery);
-    }, 300);
-  };
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value);
 
   // Handle keyboard on input
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -351,18 +355,21 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
           )}
 
           {/* No results */}
-          {hasSearched && !isSearching && results.length === 0 && (
+          {hasSearched && !isSearching && visibleResults.length === 0 && (
             <div className="py-8 text-center">
               <Search className="mx-auto mb-3 h-12 w-12 text-gray-600" />
-              <p className="text-gray-400 text-sm">No objects found matching "{query}"</p>
+              <p className="text-gray-400 text-sm">
+                No targets match "{query}"{limit === null ? '' : ' within the magnitude limit'}
+              </p>
               <p className="mt-2 text-gray-500 text-xs">Try a different name or catalog number</p>
             </div>
           )}
 
+          <MagnitudeFilterStatus />
           {/* Results list */}
-          {results.length > 0 && (
+          {visibleResults.length > 0 && (
             <div className="space-y-2">
-              {results.map((result, index) => (
+              {visibleResults.map((result, index) => (
                 <SearchResultCard
                   key={`${result.objectName}-${result.objectType}`}
                   result={result}

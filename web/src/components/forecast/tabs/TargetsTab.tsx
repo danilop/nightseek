@@ -16,8 +16,10 @@ import {
 import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import ExplainSection from '@/components/ui/ExplainSection';
+import MagnitudeFilterStatus from '@/components/ui/MagnitudeFilterStatus';
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import type { HorizonProfileController } from '@/hooks/useHorizonProfile';
+import { useMagnitudeFilter } from '@/hooks/useMagnitudeFilter';
 import { getOrderedCategories, useUIState } from '@/hooks/useUIState';
 import { formatFOV, TELESCOPE_PRESETS } from '@/lib/telescopes';
 import { getEffectiveFOV } from '@/lib/telescopes/presets';
@@ -28,6 +30,7 @@ import {
   type HorizonAltitudeLevel,
   type TargetAccessibility,
 } from '@/lib/utils/horizon-profile';
+import { hasMagnitude, matchesMagnitudeLimit } from '@/lib/utils/magnitude';
 import { applyQuickFilters } from '@/lib/utils/quick-filters';
 import { getSecondarySortComparator } from '@/lib/utils/secondary-sort';
 import { getTargetCategory } from '@/lib/utils/target-category';
@@ -230,56 +233,34 @@ export default function TargetsTab({
     })
   );
 
+  const { limit: magLimit, setLimit: setMagLimit } = useMagnitudeFilter();
+
   // Calculate magnitude range
   const { minMag, maxMag } = useMemo(() => {
     let min = Infinity;
     let max = -Infinity;
     for (const obj of catalogObjects) {
-      if (obj.magnitude !== null && obj.magnitude !== undefined) {
+      if (hasMagnitude(obj.magnitude)) {
         min = Math.min(min, obj.magnitude);
         max = Math.max(max, obj.magnitude);
       }
     }
     return {
-      minMag: Math.floor(min),
-      maxMag: Math.ceil(max),
+      minMag: Math.floor(Math.min(Number.isFinite(min) ? min : 0, magLimit ?? Infinity)),
+      maxMag: Math.ceil(
+        Math.max(
+          Number.isFinite(max) ? max : 20,
+          magLimit ?? -Infinity,
+          Number.isFinite(min) ? min + 1 : 1
+        )
+      ),
     };
-  }, [catalogObjects]);
-
-  // Magnitude filter state
-  const STORAGE_KEY = 'nightseek:magLimit';
-  const [magLimit, setMagLimit] = useState<number | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = parseFloat(saved);
-      if (!Number.isNaN(parsed)) return parsed;
-    }
-    return null;
-  });
-
-  const effectiveMagLimit = useMemo(() => {
-    if (magLimit !== null && magLimit >= minMag && magLimit <= maxMag) {
-      return magLimit;
-    }
-    return maxMag;
-  }, [magLimit, minMag, maxMag]);
-
-  useEffect(() => {
-    if (magLimit !== null) {
-      localStorage.setItem(STORAGE_KEY, magLimit.toString());
-    }
-  }, [magLimit]);
-
-  // Filter objects by magnitude
-  const magFilteredObjects = useMemo(() => {
-    return catalogObjects.filter(obj => {
-      if (obj.magnitude === null || obj.magnitude === undefined) {
-        return effectiveMagLimit >= maxMag;
-      }
-      return obj.magnitude <= effectiveMagLimit;
-    });
-  }, [catalogObjects, effectiveMagLimit, maxMag]);
+  }, [catalogObjects, magLimit]);
+  const effectiveMagLimit = magLimit ?? maxMag;
+  const magFilteredObjects = useMemo(
+    () => catalogObjects.filter(obj => matchesMagnitudeLimit(obj.magnitude, magLimit)),
+    [catalogObjects, magLimit]
+  );
 
   const accessibilityByObject = useMemo(() => {
     const accessMap = new Map<ScoredObject, TargetAccessibility>();
@@ -362,7 +343,7 @@ export default function TargetsTab({
     groupedObjects.planets?.some(p => p.objectName.toLowerCase() === 'jupiter') &&
     !!astronomicalEvents?.jupiterMoons;
 
-  const showMilkyWay = !!milkyWayTarget && horizonProfileReady;
+  const showMilkyWay = !!milkyWayTarget && horizonProfileReady && magLimit === null;
 
   const categoriesWithObjects = orderedConfigs.filter(config => {
     if (config.key === 'jupiter_moons') return showJupiterMoons;
@@ -497,7 +478,9 @@ export default function TargetsTab({
             <label htmlFor="magnitude-limit" className="text-gray-400 text-sm">
               Magnitude limit
             </label>
-            <span className="font-medium text-sm text-white">≤ {effectiveMagLimit.toFixed(1)}</span>
+            <span className="font-medium text-sm text-white">
+              {magLimit === null ? 'All magnitudes' : `≤ ${magLimit.toFixed(1)}`}
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <span className="w-8 text-gray-500 text-xs">{minMag}</span>
@@ -513,10 +496,11 @@ export default function TargetsTab({
             />
             <span className="w-8 text-right text-gray-500 text-xs">{maxMag}</span>
           </div>
-          <div className="mt-1 flex justify-between text-gray-600 text-xs">
+          <div className="mt-1 flex justify-between text-gray-400 text-xs">
             <span>brighter</span>
             <span>fainter</span>
           </div>
+          <MagnitudeFilterStatus />
         </div>
       )}
 
@@ -625,7 +609,7 @@ export default function TargetsTab({
           <button
             type="button"
             onClick={() => {
-              setMagLimit(maxMag);
+              setMagLimit(null);
               clearQuickFilters();
             }}
             className="mt-2 text-sky-400 text-sm hover:text-sky-300"

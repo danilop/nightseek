@@ -1,6 +1,7 @@
 import type { DSOCatalogEntry, DSOSubtype } from '@/types';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
 import { getCommonName, MESSIER_EXTRAS } from './common-names';
+import { resolveCatalogMagnitude } from './photometry';
 
 const OPENGC_URL =
   'https://raw.githubusercontent.com/mattiaverga/OpenNGC/master/database_files/NGC.csv';
@@ -156,6 +157,20 @@ export async function loadOpenNGCCatalog(
       magnitude = parseFloat(bMag);
     }
 
+    const photometry = resolveCatalogMagnitude(
+      name,
+      mapTypeToSubtype(type),
+      magnitude,
+      raHours,
+      decDegrees,
+      vMag && Number.isFinite(Number(vMag))
+        ? 'V'
+        : bMag && Number.isFinite(Number(bMag))
+          ? 'B'
+          : null
+    );
+    magnitude = photometry.magnitude;
+
     // Parse angular size
     const majorAxisArcmin =
       majorAx && !Number.isNaN(parseFloat(majorAx)) ? parseFloat(majorAx) : null;
@@ -183,6 +198,7 @@ export async function loadOpenNGCCatalog(
       raHours,
       decDegrees,
       magnitude,
+      magnitudeSource: photometry.source,
       majorAxisArcmin,
       minorAxisArcmin,
       constellation,

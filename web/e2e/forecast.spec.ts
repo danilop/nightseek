@@ -7,6 +7,32 @@ const MOCK_LOCATION = {
   timezone: 'America/New_York',
 };
 
+async function mockWeather(page: import('@playwright/test').Page): Promise<void> {
+  const first = Date.parse('2026-11-01T00:00:00Z');
+  const time = Array.from({ length: 72 }, (_, index) => (first + index * 3600000) / 1000);
+  await page.route('https://api.open-meteo.com/v1/forecast?*', route =>
+    route.fulfill({
+      json: {
+        timezone: 'Europe/London',
+        hourly: {
+          time,
+          cloud_cover: time.map(t =>
+            [19, 20, 22, 23, 0, 2, 3, 4].includes(new Date(t * 1000).getUTCHours()) ? 0 : 95
+          ),
+          wind_speed_10m: time.map(() => 5),
+          wind_gusts_10m: time.map(() => 7),
+          relative_humidity_2m: time.map(() => 50),
+          temperature_2m: time.map(() => 10),
+          dew_point_2m: time.map(() => 0),
+          precipitation: time.map(() => 0),
+          precipitation_probability: time.map(() => 0),
+          visibility: time.map(() => 20000),
+        },
+      },
+    })
+  );
+}
+
 async function seedLocation(
   page: import('@playwright/test').Page,
   location: typeof MOCK_LOCATION = MOCK_LOCATION
@@ -152,6 +178,7 @@ test.describe('Eclipse presentation', () => {
 
 test.describe('Visual summaries and progressive disclosure', () => {
   test.beforeEach(async ({ page }) => {
+    await mockWeather(page);
     test.setTimeout(90000);
     await page.clock.setFixedTime(new Date('2026-11-01T12:00:00Z'));
     await seedLocation(page, {
@@ -212,6 +239,48 @@ test.describe('Visual summaries and progressive disclosure', () => {
     );
   });
 
+  test('shares an active limit with search and restores unknowns when cleared', async ({
+    page,
+  }) => {
+    await page.locator('button[role="tab"]:visible', { hasText: 'Targets' }).click();
+    const slider = page.getByRole('slider', { name: 'Magnitude limit', exact: true });
+    await slider.press('Home');
+    await slider.press('End');
+    await expect(page.getByRole('button', { name: 'Clear magnitude filter' })).toBeVisible();
+    await page.locator('button[role="tab"]:visible', { hasText: 'Overview' }).click();
+    await expect(page.getByRole('button', { name: 'Clear magnitude filter' })).toBeVisible();
+    await page.getByRole('button', { name: 'Search objects', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByPlaceholder('Search objects', { exact: false }).fill('IC0341');
+    await expect(dialog.getByText(/No targets match/)).toBeVisible({ timeout: 30000 });
+    await dialog.getByRole('button', { name: 'Clear magnitude filter' }).click();
+    await expect(dialog.getByText('mag unknown', { exact: true }).first()).toBeVisible({
+      timeout: 30000,
+    });
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.locator('button[role="tab"]:visible', { hasText: 'Targets' }).click();
+    await expect(page.getByText('All magnitudes', { exact: true })).toBeVisible();
+  });
+
+  test('keeps sidereal time visually separated and identical across views', async ({ page }) => {
+    await page.getByRole('button', { name: /^Weather details/ }).click();
+    await page.getByRole('button', { name: 'Weather conditions', exact: true }).click();
+    const card = page.getByTestId('sidereal-time');
+    const value = await card.locator('dd').innerText();
+    await expect(card.locator('dt')).toContainText('Local sidereal time');
+    await expect(card.locator('dd')).toBeVisible();
+    const term = await card.locator('dt').boundingBox();
+    const definition = await card.locator('dd').boundingBox();
+    expect(term).not.toBeNull();
+    expect(definition).not.toBeNull();
+    expect(
+      definition!.x >= term!.x + term!.width + 8 || definition!.y >= term!.y + term!.height + 8
+    ).toBe(true);
+    await page.locator('button[role="tab"]:visible', { hasText: 'Sky' }).click();
+    await page.getByRole('button', { name: /^Sky coordinates/ }).click();
+    await expect(page.getByTestId('sidereal-time').locator('dd')).toHaveText(value);
+  });
+
   test('shares framing and imaging windows between compact cards and detail', async ({ page }) => {
     await page.locator('button[role="tab"]:visible', { hasText: 'Targets' }).click();
     await expect(page.getByRole('slider', { name: 'Magnitude limit', exact: true })).toBeVisible();
@@ -266,29 +335,7 @@ test('shows separated usable periods and inspects one without expanding explanat
 }) => {
   test.setTimeout(90000);
   await page.clock.setFixedTime(new Date('2026-11-01T12:00:00Z'));
-  const first = Date.parse('2026-11-01T00:00:00Z');
-  const time = Array.from({ length: 72 }, (_, index) => (first + index * 3600000) / 1000);
-  await page.route('https://api.open-meteo.com/v1/forecast?*', route =>
-    route.fulfill({
-      json: {
-        timezone: 'Europe/London',
-        hourly: {
-          time,
-          cloud_cover: time.map(t =>
-            [19, 20, 22, 23, 0, 2, 3, 4].includes(new Date(t * 1000).getUTCHours()) ? 0 : 95
-          ),
-          wind_speed_10m: time.map(() => 5),
-          wind_gusts_10m: time.map(() => 7),
-          relative_humidity_2m: time.map(() => 50),
-          temperature_2m: time.map(() => 10),
-          dew_point_2m: time.map(() => 0),
-          precipitation: time.map(() => 0),
-          precipitation_probability: time.map(() => 0),
-          visibility: time.map(() => 20000),
-        },
-      },
-    })
-  );
+  await mockWeather(page);
   await seedLocation(page, {
     name: 'London',
     latitude: 51.5074,

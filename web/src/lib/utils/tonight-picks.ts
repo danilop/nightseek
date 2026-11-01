@@ -1,10 +1,8 @@
 import type { ScoredObject, TonightPick } from '@/types';
 import { compareTargetScores } from '../scoring';
+import { formatMagnitude } from './format';
+import { isMagnitudeEstimate } from './magnitude';
 import { getTargetCategory } from './target-category';
-
-function formatMagnitude(mag: number | null): string {
-  return mag === null ? '' : `mag ${mag.toFixed(1)}`;
-}
 
 function pickBest(
   objects: ScoredObject[],
@@ -21,7 +19,7 @@ function pickBest(
       object: best,
       categoryLabel,
       reason: best.reason,
-      keyStat: formatMagnitude(best.magnitude),
+      keyStat: `${isMagnitudeEstimate(best.category) && best.magnitude !== null ? 'est. ' : ''}mag ${formatMagnitude(best.magnitude)}`,
     };
   }
   return null;

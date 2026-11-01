@@ -225,8 +225,8 @@ describe('format utils', () => {
       expect(formatMagnitude(-2.5)).toBe('-2.5');
     });
 
-    it('should return dash for null', () => {
-      expect(formatMagnitude(null)).toBe('—');
+    it('should label unknown magnitude', () => {
+      expect(formatMagnitude(null)).toBe('unknown');
     });
   });
 

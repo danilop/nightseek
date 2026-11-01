@@ -15,7 +15,7 @@ describe('target magnitude labels', () => {
     'labels unavailable magnitude explicitly (%s)',
     value => {
       render(<Magnitude value={value} />);
-      expect(screen.getByText('mag —')).toBeVisible();
+      expect(screen.getByText('mag unknown')).toBeVisible();
       expect(screen.getByText('Magnitude unknown')).toBeInTheDocument();
     }
   );

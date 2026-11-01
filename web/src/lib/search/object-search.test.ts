@@ -114,3 +114,30 @@ describe('search and forecast consistency', () => {
     expect(result.visibility?.maxAltitude).toBe(expected.maxAltitude);
   });
 });
+
+describe('magnitude-filtered search', () => {
+  it('filters before the result cap and excludes unknowns only for an active limit', async () => {
+    const unknown = {
+      ...dso,
+      name: 'NGC 0001',
+      commonName: 'Test unknown',
+      messierNumber: null,
+      magnitude: null,
+    };
+    const known = {
+      ...dso,
+      name: 'NGC 0002',
+      commonName: 'Test known',
+      messierNumber: null,
+      magnitude: 5,
+    };
+    vi.mocked(loadOpenNGCCatalog).mockResolvedValue([unknown, known]);
+    const filtered = await searchCelestialObjects('Test', location, 1, undefined, now, {
+      magnitudeLimit: 20,
+    });
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].magnitude).toBe(5);
+    const all = await searchCelestialObjects('Test', location, 20, undefined, now);
+    expect(all.map(item => item.magnitude)).toEqual(expect.arrayContaining([null, 5]));
+  });
+});

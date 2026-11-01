@@ -235,7 +235,7 @@ export function getAltitudeQualityClass(altitude: number): string {
  * Format magnitude
  */
 export function formatMagnitude(magnitude: number | null): string {
-  if (magnitude === null) return '—';
+  if (magnitude === null || !Number.isFinite(magnitude)) return 'unknown';
   return magnitude.toFixed(1);
 }
 

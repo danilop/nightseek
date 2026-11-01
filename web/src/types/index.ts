@@ -140,6 +140,7 @@ export interface ObjectVisibility {
   moonAltitudeAtPeak: number | null;
   moonWarning: boolean;
   magnitude: number | null;
+  magnitudeSource?: string;
   isInterstellar: boolean;
   altitudeSamples: [Date, number][];
   azimuthSamples: [Date, number][];
@@ -418,6 +419,7 @@ export interface DSOCatalogEntry {
   raHours: number;
   decDegrees: number;
   magnitude: number | null;
+  magnitudeSource?: string;
   majorAxisArcmin: number | null;
   minorAxisArcmin: number | null;
   constellation: string;

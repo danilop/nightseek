@@ -1,0 +1,543 @@
+{
+  "source": "https://physics.mcmaster.ca/~harris/mwgc.dat",
+  "citation": "Harris 1996 (2010 edition)",
+  "band": "integrated V",
+  "sha256": "b457a690adc422fb2e8e05a23e1de50b62d1d5ac10dce99963c956c1b17ca658",
+  "clusters": {
+    "IC1257": {
+      "raDegrees": 261.7854167,
+      "decDegrees": -7.0930556,
+      "vMagnitude": 13.1
+    },
+    "IC1276": {
+      "raDegrees": 272.6841667,
+      "decDegrees": -7.2076111,
+      "vMagnitude": 10.34
+    },
+    "IC4499": {
+      "raDegrees": 225.076875,
+      "decDegrees": -82.2136944,
+      "vMagnitude": 9.76
+    },
+    "NGC104": {
+      "raDegrees": 6.023625,
+      "decDegrees": -72.0812778,
+      "vMagnitude": 3.95
+    },
+    "NGC1261": {
+      "raDegrees": 48.0675417,
+      "decDegrees": -55.2162222,
+      "vMagnitude": 8.29
+    },
+    "NGC1851": {
+      "raDegrees": 78.5281667,
+      "decDegrees": -40.0465556,
+      "vMagnitude": 7.14
+    },
+    "NGC1904": {
+      "raDegrees": 81.0462083,
+      "decDegrees": -24.5247222,
+      "vMagnitude": 7.73
+    },
+    "NGC2298": {
+      "raDegrees": 102.2475417,
+      "decDegrees": -36.0053056,
+      "vMagnitude": 9.29
+    },
+    "NGC2419": {
+      "raDegrees": 114.5352917,
+      "decDegrees": 38.8824444,
+      "vMagnitude": 10.41
+    },
+    "NGC2808": {
+      "raDegrees": 138.0129167,
+      "decDegrees": -64.8635,
+      "vMagnitude": 6.2
+    },
+    "NGC288": {
+      "raDegrees": 13.1885,
+      "decDegrees": -26.5826111,
+      "vMagnitude": 8.09
+    },
+    "NGC3201": {
+      "raDegrees": 154.4034167,
+      "decDegrees": -46.4124722,
+      "vMagnitude": 6.75
+    },
+    "NGC362": {
+      "raDegrees": 15.8094167,
+      "decDegrees": -70.8487778,
+      "vMagnitude": 6.4
+    },
+    "NGC4147": {
+      "raDegrees": 182.52625,
+      "decDegrees": 18.5426389,
+      "vMagnitude": 10.32
+    },
+    "NGC4372": {
+      "raDegrees": 186.4391667,
+      "decDegrees": -72.659,
+      "vMagnitude": 7.24
+    },
+    "NGC4590": {
+      "raDegrees": 189.8665833,
+      "decDegrees": -26.7440556,
+      "vMagnitude": 7.84
+    },
+    "NGC4833": {
+      "raDegrees": 194.8913333,
+      "decDegrees": -70.8765,
+      "vMagnitude": 6.91
+    },
+    "NGC5024": {
+      "raDegrees": 198.2302083,
+      "decDegrees": 18.1681667,
+      "vMagnitude": 7.61
+    },
+    "NGC5053": {
+      "raDegrees": 199.112875,
+      "decDegrees": 17.70025,
+      "vMagnitude": 9.47
+    },
+    "NGC5139": {
+      "raDegrees": 201.6968333,
+      "decDegrees": -47.4795833,
+      "vMagnitude": 3.68
+    },
+    "NGC5272": {
+      "raDegrees": 205.5484167,
+      "decDegrees": 28.3772778,
+      "vMagnitude": 6.19
+    },
+    "NGC5286": {
+      "raDegrees": 206.6117083,
+      "decDegrees": -51.37425,
+      "vMagnitude": 7.34
+    },
+    "NGC5466": {
+      "raDegrees": 211.3637083,
+      "decDegrees": 28.5344444,
+      "vMagnitude": 9.04
+    },
+    "NGC5634": {
+      "raDegrees": 217.405125,
+      "decDegrees": -5.9764167,
+      "vMagnitude": 9.47
+    },
+    "NGC5694": {
+      "raDegrees": 219.9012083,
+      "decDegrees": -26.5389444,
+      "vMagnitude": 10.17
+    },
+    "NGC5824": {
+      "raDegrees": 225.9942917,
+      "decDegrees": -33.0682222,
+      "vMagnitude": 9.09
+    },
+    "NGC5897": {
+      "raDegrees": 229.3520833,
+      "decDegrees": -21.0102778,
+      "vMagnitude": 8.53
+    },
+    "NGC5904": {
+      "raDegrees": 229.6384167,
+      "decDegrees": 2.0810278,
+      "vMagnitude": 5.65
+    },
+    "NGC5927": {
+      "raDegrees": 232.002875,
+      "decDegrees": -50.6730278,
+      "vMagnitude": 8.01
+    },
+    "NGC5946": {
+      "raDegrees": 233.8688333,
+      "decDegrees": -50.6596667,
+      "vMagnitude": 9.61
+    },
+    "NGC5986": {
+      "raDegrees": 236.5125,
+      "decDegrees": -37.7864167,
+      "vMagnitude": 7.52
+    },
+    "NGC6093": {
+      "raDegrees": 244.2600417,
+      "decDegrees": -22.9760833,
+      "vMagnitude": 7.33
+    },
+    "NGC6101": {
+      "raDegrees": 246.4505,
+      "decDegrees": -72.2021944,
+      "vMagnitude": 9.16
+    },
+    "NGC6121": {
+      "raDegrees": 245.89675,
+      "decDegrees": -26.52575,
+      "vMagnitude": 5.63
+    },
+    "NGC6139": {
+      "raDegrees": 246.9182083,
+      "decDegrees": -38.84875,
+      "vMagnitude": 8.99
+    },
+    "NGC6144": {
+      "raDegrees": 246.80775,
+      "decDegrees": -26.0235,
+      "vMagnitude": 9.01
+    },
+    "NGC6171": {
+      "raDegrees": 248.13275,
+      "decDegrees": -13.0537778,
+      "vMagnitude": 7.93
+    },
+    "NGC6205": {
+      "raDegrees": 250.4218333,
+      "decDegrees": 36.4598611,
+      "vMagnitude": 5.78
+    },
+    "NGC6218": {
+      "raDegrees": 251.8090833,
+      "decDegrees": -1.9485278,
+      "vMagnitude": 6.7
+    },
+    "NGC6229": {
+      "raDegrees": 251.7449583,
+      "decDegrees": 47.52775,
+      "vMagnitude": 9.39
+    },
+    "NGC6235": {
+      "raDegrees": 253.3554583,
+      "decDegrees": -22.1774444,
+      "vMagnitude": 9.97
+    },
+    "NGC6254": {
+      "raDegrees": 254.2877083,
+      "decDegrees": -4.1003056,
+      "vMagnitude": 6.6
+    },
+    "NGC6256": {
+      "raDegrees": 254.8859167,
+      "decDegrees": -37.1213889,
+      "vMagnitude": 11.29
+    },
+    "NGC6266": {
+      "raDegrees": 255.3033333,
+      "decDegrees": -30.1137222,
+      "vMagnitude": 6.45
+    },
+    "NGC6273": {
+      "raDegrees": 255.6575,
+      "decDegrees": -26.2679722,
+      "vMagnitude": 6.77
+    },
+    "NGC6284": {
+      "raDegrees": 256.1187917,
+      "decDegrees": -24.7648611,
+      "vMagnitude": 8.83
+    },
+    "NGC6287": {
+      "raDegrees": 256.2880417,
+      "decDegrees": -22.7083611,
+      "vMagnitude": 9.35
+    },
+    "NGC6293": {
+      "raDegrees": 257.5425,
+      "decDegrees": -26.5820833,
+      "vMagnitude": 8.22
+    },
+    "NGC6304": {
+      "raDegrees": 258.634375,
+      "decDegrees": -29.4620278,
+      "vMagnitude": 8.22
+    },
+    "NGC6316": {
+      "raDegrees": 259.1554167,
+      "decDegrees": -28.1401111,
+      "vMagnitude": 8.43
+    },
+    "NGC6325": {
+      "raDegrees": 259.4967083,
+      "decDegrees": -23.766,
+      "vMagnitude": 10.33
+    },
+    "NGC6333": {
+      "raDegrees": 259.7969167,
+      "decDegrees": -18.5159444,
+      "vMagnitude": 7.72
+    },
+    "NGC6341": {
+      "raDegrees": 259.2807917,
+      "decDegrees": 43.1359444,
+      "vMagnitude": 6.44
+    },
+    "NGC6342": {
+      "raDegrees": 260.292,
+      "decDegrees": -19.5874167,
+      "vMagnitude": 9.66
+    },
+    "NGC6352": {
+      "raDegrees": 261.3712917,
+      "decDegrees": -48.4221667,
+      "vMagnitude": 7.96
+    },
+    "NGC6355": {
+      "raDegrees": 260.994125,
+      "decDegrees": -26.3534167,
+      "vMagnitude": 9.14
+    },
+    "NGC6356": {
+      "raDegrees": 260.8955417,
+      "decDegrees": -17.8130278,
+      "vMagnitude": 8.25
+    },
+    "NGC6362": {
+      "raDegrees": 262.979125,
+      "decDegrees": -67.0483333,
+      "vMagnitude": 7.73
+    },
+    "NGC6366": {
+      "raDegrees": 261.9343333,
+      "decDegrees": -5.0798611,
+      "vMagnitude": 9.2
+    },
+    "NGC6380": {
+      "raDegrees": 263.6166667,
+      "decDegrees": -39.0691667,
+      "vMagnitude": 11.31
+    },
+    "NGC6388": {
+      "raDegrees": 264.0717917,
+      "decDegrees": -44.7355,
+      "vMagnitude": 6.72
+    },
+    "NGC6397": {
+      "raDegrees": 265.175375,
+      "decDegrees": -53.6743333,
+      "vMagnitude": 5.73
+    },
+    "NGC6401": {
+      "raDegrees": 264.6525,
+      "decDegrees": -23.9095,
+      "vMagnitude": 9.45
+    },
+    "NGC6402": {
+      "raDegrees": 264.4004167,
+      "decDegrees": -3.2459167,
+      "vMagnitude": 7.59
+    },
+    "NGC6426": {
+      "raDegrees": 266.2277083,
+      "decDegrees": 3.1701389,
+      "vMagnitude": 11.01
+    },
+    "NGC6440": {
+      "raDegrees": 267.2195833,
+      "decDegrees": -20.36025,
+      "vMagnitude": 9.2
+    },
+    "NGC6441": {
+      "raDegrees": 267.5544167,
+      "decDegrees": -37.0514444,
+      "vMagnitude": 7.15
+    },
+    "NGC6453": {
+      "raDegrees": 267.7154167,
+      "decDegrees": -34.5991667,
+      "vMagnitude": 10.08
+    },
+    "NGC6496": {
+      "raDegrees": 269.7653333,
+      "decDegrees": -44.2659444,
+      "vMagnitude": 8.54
+    },
+    "NGC6517": {
+      "raDegrees": 270.4605,
+      "decDegrees": -8.9587778,
+      "vMagnitude": 10.23
+    },
+    "NGC6522": {
+      "raDegrees": 270.89175,
+      "decDegrees": -30.0339722,
+      "vMagnitude": 8.27
+    },
+    "NGC6528": {
+      "raDegrees": 271.2068333,
+      "decDegrees": -30.0562778,
+      "vMagnitude": 9.6
+    },
+    "NGC6535": {
+      "raDegrees": 270.9604583,
+      "decDegrees": -0.2976389,
+      "vMagnitude": 10.47
+    },
+    "NGC6539": {
+      "raDegrees": 271.207,
+      "decDegrees": -7.5858611,
+      "vMagnitude": 9.33
+    },
+    "NGC6540": {
+      "raDegrees": 271.5358333,
+      "decDegrees": -27.7652778,
+      "vMagnitude": 9.3
+    },
+    "NGC6541": {
+      "raDegrees": 272.0098333,
+      "decDegrees": -43.7148889,
+      "vMagnitude": 6.3
+    },
+    "NGC6544": {
+      "raDegrees": 271.83575,
+      "decDegrees": -24.9973333,
+      "vMagnitude": 7.77
+    },
+    "NGC6553": {
+      "raDegrees": 272.3233333,
+      "decDegrees": -25.9086944,
+      "vMagnitude": 8.06
+    },
+    "NGC6558": {
+      "raDegrees": 272.5733333,
+      "decDegrees": -31.7638889,
+      "vMagnitude": 9.26
+    },
+    "NGC6569": {
+      "raDegrees": 273.4116667,
+      "decDegrees": -31.8268889,
+      "vMagnitude": 8.55
+    },
+    "NGC6584": {
+      "raDegrees": 274.6566667,
+      "decDegrees": -52.2157778,
+      "vMagnitude": 8.27
+    },
+    "NGC6624": {
+      "raDegrees": 275.9187917,
+      "decDegrees": -30.3610278,
+      "vMagnitude": 7.87
+    },
+    "NGC6626": {
+      "raDegrees": 276.1367083,
+      "decDegrees": -24.8697778,
+      "vMagnitude": 6.79
+    },
+    "NGC6637": {
+      "raDegrees": 277.84625,
+      "decDegrees": -32.3480833,
+      "vMagnitude": 7.64
+    },
+    "NGC6638": {
+      "raDegrees": 277.73375,
+      "decDegrees": -25.4974722,
+      "vMagnitude": 9.02
+    },
+    "NGC6642": {
+      "raDegrees": 277.9754167,
+      "decDegrees": -23.4751944,
+      "vMagnitude": 9.13
+    },
+    "NGC6652": {
+      "raDegrees": 278.940125,
+      "decDegrees": -32.9907222,
+      "vMagnitude": 8.62
+    },
+    "NGC6656": {
+      "raDegrees": 279.09975,
+      "decDegrees": -23.90475,
+      "vMagnitude": 5.1
+    },
+    "NGC6681": {
+      "raDegrees": 280.8031667,
+      "decDegrees": -32.2921111,
+      "vMagnitude": 7.87
+    },
+    "NGC6712": {
+      "raDegrees": 283.2679167,
+      "decDegrees": -8.7061111,
+      "vMagnitude": 8.1
+    },
+    "NGC6715": {
+      "raDegrees": 283.763875,
+      "decDegrees": -30.4798611,
+      "vMagnitude": 7.6
+    },
+    "NGC6717": {
+      "raDegrees": 283.7751667,
+      "decDegrees": -22.7014722,
+      "vMagnitude": 9.28
+    },
+    "NGC6723": {
+      "raDegrees": 284.888125,
+      "decDegrees": -36.63225,
+      "vMagnitude": 7.01
+    },
+    "NGC6749": {
+      "raDegrees": 286.31375,
+      "decDegrees": 1.9008333,
+      "vMagnitude": 12.44
+    },
+    "NGC6752": {
+      "raDegrees": 287.717125,
+      "decDegrees": -59.9845556,
+      "vMagnitude": 5.4
+    },
+    "NGC6760": {
+      "raDegrees": 287.8000417,
+      "decDegrees": 1.0304722,
+      "vMagnitude": 8.88
+    },
+    "NGC6779": {
+      "raDegrees": 289.1482083,
+      "decDegrees": 30.1834722,
+      "vMagnitude": 8.27
+    },
+    "NGC6809": {
+      "raDegrees": 294.9987917,
+      "decDegrees": -30.96475,
+      "vMagnitude": 6.32
+    },
+    "NGC6838": {
+      "raDegrees": 298.4437083,
+      "decDegrees": 18.7791944,
+      "vMagnitude": 8.19
+    },
+    "NGC6864": {
+      "raDegrees": 301.5195417,
+      "decDegrees": -21.9211667,
+      "vMagnitude": 8.52
+    },
+    "NGC6934": {
+      "raDegrees": 308.547375,
+      "decDegrees": 7.4044722,
+      "vMagnitude": 8.83
+    },
+    "NGC6981": {
+      "raDegrees": 313.3654167,
+      "decDegrees": -12.5373056,
+      "vMagnitude": 9.27
+    },
+    "NGC7006": {
+      "raDegrees": 315.3724167,
+      "decDegrees": 16.1873333,
+      "vMagnitude": 10.56
+    },
+    "NGC7078": {
+      "raDegrees": 322.4930417,
+      "decDegrees": 12.167,
+      "vMagnitude": 6.2
+    },
+    "NGC7089": {
+      "raDegrees": 323.3625833,
+      "decDegrees": -0.82325,
+      "vMagnitude": 6.47
+    },
+    "NGC7099": {
+      "raDegrees": 325.0921667,
+      "decDegrees": -23.1798611,
+      "vMagnitude": 7.19
+    },
+    "NGC7492": {
+      "raDegrees": 347.1109583,
+      "decDegrees": -15.6115,
+      "vMagnitude": 11.29
+    }
+  }
+}

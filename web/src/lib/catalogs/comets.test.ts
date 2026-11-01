@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { lightTimeCorrectedEquatorial } from '../astronomy/orbital-mechanics';
 import type { ParsedComet } from './comets';
-import { calculateCometPosition, isInterstellarDesignation, parseMPCCometLine } from './comets';
+import {
+  calculateCometMagnitude,
+  calculateCometPosition,
+  isInterstellarDesignation,
+  parseMPCCometLine,
+} from './comets';
 
 function comet(eccentricity: number): ParsedComet {
   return {
@@ -100,5 +105,35 @@ describe('interstellar classification', () => {
     expect(isInterstellarDesignation('3I/ATLAS')).toBe(true);
     expect(isInterstellarDesignation('C/1999 J2')).toBe(false);
     expect(isInterstellarDesignation('C/2023 A3')).toBe(false);
+  });
+});
+
+describe('comet photometry', () => {
+  it('converts the MPC brightness exponent to a magnitude coefficient', () => {
+    // H=5, delta=1 AU, r=10 AU and MPC n=4 => 15, not 9.
+    expect(calculateCometMagnitude(5, 1, 10, 4)).toBe(15);
+    expect(calculateCometMagnitude(5, 10, 1, 4)).toBe(10);
+    expect(calculateCometMagnitude(5, 1, 0.1, 4)).toBe(-5);
+    expect(calculateCometMagnitude(0, 1, 1, 0)).toBe(0);
+  });
+  it('does not invent brightness for missing parameters or invalid distances', () => {
+    expect(calculateCometMagnitude(null, 1, 1, 4)).toBeNull();
+    expect(calculateCometMagnitude(5, 1, 1, null)).toBeNull();
+    expect(calculateCometMagnitude(5, 0, 1, 4)).toBeNull();
+    expect(calculateCometMagnitude(5, 1, Infinity, 4)).toBeNull();
+  });
+  it('parses missing fields without borrowing digits from adjacent columns', () => {
+    const line =
+      '0003I         2025 10 29.4825  1.356507  6.139884  128.0055  322.1535  175.1129  20251121  11.8  4.0  3I/ATLAS';
+    const parsed = parseMPCCometLine(line);
+    expect(parsed?.absoluteMagnitude).toBe(11.8);
+    expect(parsed?.slopeParameter).toBe(4);
+    expect(
+      parseMPCCometLine(`${line.slice(0, 91)}    ${line.slice(95)}`)?.absoluteMagnitude
+    ).toBeNull();
+    expect(
+      parseMPCCometLine(`${line.slice(0, 96)}    ${line.slice(100)}`)?.slopeParameter
+    ).toBeNull();
+    expect(parseMPCCometLine(`${line.slice(0, 102)}A/2025 A1`)?.designation).toBe('A/2025 A1');
   });
 });

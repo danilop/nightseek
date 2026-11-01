@@ -22,6 +22,7 @@ import {
 import { useApp } from '@/stores/AppContext';
 import type { NightForecast, NightInfo } from '@/types';
 import HourlyConditionsTimeline from '../HourlyConditionsTimeline';
+import SiderealTimeCard from '../SiderealTimeCard';
 
 interface WeatherSummaryCardProps {
   forecast: NightForecast;
@@ -174,13 +175,9 @@ export default function WeatherSummaryCard({ forecast, timezone }: WeatherSummar
             )}
 
             {nightInfo.localSiderealTimeAtMidnight && (
-              <DetailRow
-                icon={<span className="text-sm">🌟</span>}
-                label="LST at Dark-window Midpoint"
-                value={nightInfo.localSiderealTimeAtMidnight}
-                subtext="Local Sidereal Time"
-                tooltip="Local Sidereal Time at the midpoint of the observing window. Objects with this Right Ascension will be at their highest point (transit) at the midpoint of the observing window."
-              />
+              <div className="sm:col-span-2">
+                <SiderealTimeCard nightInfo={nightInfo} />
+              </div>
             )}
 
             {weather.clearWindows.length > 0 && (

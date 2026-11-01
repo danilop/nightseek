@@ -3,6 +3,7 @@ import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { getEffectiveFOV } from '@/lib/telescopes';
 import { formatAltitude, getCategoryIcon } from '@/lib/utils/format';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
+import { isMagnitudeEstimate } from '@/lib/utils/magnitude';
 import { getTargetRating } from '@/lib/utils/rating';
 import { getTargetPhotoWindow } from '@/lib/utils/target-photo-windows';
 import { useApp } from '@/stores/AppContext';
@@ -58,7 +59,11 @@ export default function TargetSummary({
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <h4 className="break-words font-semibold text-white">{name}</h4>
-          <Magnitude value={magnitude} />
+          <Magnitude
+            value={magnitude}
+            estimated={isMagnitudeEstimate(category)}
+            source={visibility.magnitudeSource}
+          />
         </div>
         {rating && (
           <p className="flex flex-wrap items-center gap-x-2 text-xs">

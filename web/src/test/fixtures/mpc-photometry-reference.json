@@ -1,0 +1,44 @@
+[
+  {
+    "designation": "2P",
+    "name": "Encke",
+    "perihelionDistance": 0.338597,
+    "eccentricity": 0.847321,
+    "inclination": 11.348,
+    "longitudeOfAscendingNode": 334.0199,
+    "argumentOfPerihelion": 187.2875,
+    "perihelionTime": 2461446.7274,
+    "absoluteMagnitude": 14.4,
+    "slopeParameter": 4,
+    "isInterstellar": false,
+    "epochJD": 2461344.5
+  },
+  {
+    "designation": "67P",
+    "name": "Churyumov-Gerasimenko",
+    "perihelionDistance": 1.212476,
+    "eccentricity": 0.649471,
+    "inclination": 3.866,
+    "longitudeOfAscendingNode": 36.2846,
+    "argumentOfPerihelion": 22.241,
+    "perihelionTime": 2461871.0558,
+    "absoluteMagnitude": 12.3,
+    "slopeParameter": 4,
+    "isInterstellar": false,
+    "epochJD": 2461344.5
+  },
+  {
+    "designation": "C/2023 A3",
+    "name": "Tsuchinshan-ATLAS",
+    "perihelionDistance": 0.391301,
+    "eccentricity": 1.000181,
+    "inclination": 139.0985,
+    "longitudeOfAscendingNode": 21.6798,
+    "argumentOfPerihelion": 308.5869,
+    "perihelionTime": 2460581.3385,
+    "absoluteMagnitude": 6.5,
+    "slopeParameter": 3.2,
+    "isInterstellar": false,
+    "epochJD": 2461344.5
+  }
+]

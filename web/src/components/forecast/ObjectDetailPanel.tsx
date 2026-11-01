@@ -31,6 +31,7 @@ import {
 } from '@/lib/utils/format';
 import { formatSubtype } from '@/lib/utils/format-subtype';
 import { evaluateTargetAccessibility, type TargetAccessibility } from '@/lib/utils/horizon-profile';
+import { isMagnitudeEstimate } from '@/lib/utils/magnitude';
 import { TARGET_MAX_SCORE } from '@/lib/utils/rating';
 import { getTargetPhotoWindows } from '@/lib/utils/target-photo-windows';
 import { useApp } from '@/stores/AppContext';
@@ -248,7 +249,11 @@ export default function ObjectDetailPanel({
             <h2 id="object-detail-title" className="truncate font-semibold text-lg text-white">
               {visibility.commonName || visibility.objectName}
             </h2>
-            <Magnitude value={magnitude} />
+            <Magnitude
+              value={magnitude}
+              estimated={isMagnitudeEstimate(category)}
+              source={visibility.magnitudeSource}
+            />
             {visibility.commonName && visibility.commonName !== visibility.objectName && (
               <p className="truncate text-gray-500 text-sm">{visibility.objectName}</p>
             )}
@@ -458,6 +463,25 @@ export default function ObjectDetailPanel({
             </div>
           ) : null}
 
+          {visibility.magnitudeSource && (
+            <p className="text-gray-400 text-xs">Magnitude source · {visibility.magnitudeSource}</p>
+          )}
+          {visibility.magnitudeSource?.startsWith('Harris') && (
+            <a
+              href="https://physics.mcmaster.ca/~harris/mwgc.dat"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sky-300 text-xs underline"
+            >
+              Harris catalogue · original source (free)
+            </a>
+          )}
+          {category === 'comet' && (
+            <p className="text-gray-400 text-xs">
+              Predicted brightness for this night, not a recent observation. Comet activity and
+              outbursts can change it.
+            </p>
+          )}
           <ObjectSpecificBadges visibility={visibility} />
           <p className="text-gray-400 text-xs">
             RA {visibility.raHours.toFixed(4)}h · Dec {visibility.decDegrees.toFixed(2)}° ·{' '}

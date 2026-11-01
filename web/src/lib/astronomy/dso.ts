@@ -32,6 +32,7 @@ export function calculateDSOVisibility(
         : getConstellation(dso.raHours, dso.decDegrees),
     }
   );
+  visibility.magnitudeSource = dso.magnitudeSource;
   if (visibility.maxAltitudeTime) {
     visibility.hourAngle = calculator.getHourAngleForRA(
       dso.raHours,

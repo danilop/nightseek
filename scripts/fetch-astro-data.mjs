@@ -10,9 +10,10 @@
  * Output: web/public/data/{neo,comets,asteroids,meta}.json
  *
  * Designed to run as a GitHub Action (daily cron) or locally.
- * Zero dependencies — plain Node.js 20+ ESM with native fetch.
+ * Zero dependencies — plain Node.js 24+ ESM with native fetch.
  */
 
+import { parseMPCCometLine } from '../web/src/lib/catalogs/mpc-comet.ts';
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -114,104 +115,6 @@ async function fetchNeoData() {
 // ─── Comet Orbital Elements (MPC) ──────────────────────────────────────────
 
 const MPC_COMET_URL = 'https://www.minorplanetcenter.net/iau/MPCORB/CometEls.txt';
-
-/**
- * Convert calendar date to Julian date
- */
-function dateToJulian(year, month, day) {
-  if (month <= 2) {
-    year -= 1;
-    month += 12;
-  }
-  const A = Math.floor(year / 100);
-  const B = 2 - A + Math.floor(A / 4);
-  return Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day + B - 1524.5;
-}
-
-/**
- * Parse a single line of MPC comet elements (fixed-width format)
- * Replicates parseMPCCometLine() from web/src/lib/catalogs/comets.ts
- */
-function parseMPCCometLine(line) {
-  if (line.trim().length < 100 || line.startsWith('#') || line.startsWith('Num')) {
-    return null;
-  }
-
-  try {
-    const perihelionDateStr = line.substring(14, 29).trim();
-    const qStr = line.substring(30, 40).trim();
-    const eStr = line.substring(41, 52).trim();
-    const omegaStr = line.substring(51, 62).trim();
-    const nodeStr = line.substring(61, 72).trim();
-    const incStr = line.substring(71, 82).trim();
-    const epochStr = line.substring(81, 93).trim();
-    const hStr = line.substring(91, 97).trim();
-    const kStr = line.substring(96, 102).trim();
-    const nameStr = line.substring(102).trim();
-
-    const q = parseFloat(qStr);
-    const e = parseFloat(eStr);
-    const inc = parseFloat(incStr);
-    const omega = parseFloat(omegaStr);
-    const node = parseFloat(nodeStr);
-    const parsedH = parseFloat(hStr);
-    const parsedK = parseFloat(kStr);
-    const H = Number.isFinite(parsedH) ? parsedH : 10.0;
-    const K = Number.isFinite(parsedK) ? parsedK : 10.0;
-
-    if (Number.isNaN(q) || Number.isNaN(e)) return null;
-
-    const perihelionParts = perihelionDateStr.split(/\s+/);
-    if (perihelionParts.length !== 3) return null;
-    const year = parseInt(perihelionParts[0], 10);
-    const month = parseInt(perihelionParts[1], 10);
-    const day = parseFloat(perihelionParts[2]);
-    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
-    const perihelionJD = dateToJulian(year, month, day);
-
-    let epochJD = perihelionJD;
-    if (epochStr.length >= 8) {
-      const epochYear = parseInt(epochStr.substring(0, 4), 10);
-      const epochMonth = parseInt(epochStr.substring(4, 6), 10);
-      const epochDay = parseFloat(epochStr.substring(6));
-      if (Number.isFinite(epochYear) && Number.isFinite(epochMonth) && Number.isFinite(epochDay)) {
-        epochJD = dateToJulian(epochYear, epochMonth, epochDay);
-      }
-    }
-
-    // Parse designation and name
-    const catalogName = nameStr.trim().split(/\s{2,}/, 1)[0];
-    let designation = catalogName;
-    let name = catalogName;
-    if (catalogName.includes('(') && catalogName.includes(')')) {
-      const parenStart = catalogName.indexOf('(');
-      const parenEnd = catalogName.lastIndexOf(')');
-      designation = catalogName.substring(0, parenStart).trim();
-      name = catalogName.substring(parenStart + 1, parenEnd);
-    } else if (catalogName.includes('/')) {
-      const slashIndex = catalogName.indexOf('/');
-      designation = catalogName.substring(0, slashIndex);
-      name = catalogName.substring(slashIndex + 1);
-    }
-
-    return {
-      designation,
-      name: name || designation,
-      perihelionDistance: q,
-      eccentricity: e,
-      inclination: Number.isNaN(inc) ? 0 : inc,
-      longitudeOfAscendingNode: Number.isNaN(node) ? 0 : node,
-      argumentOfPerihelion: Number.isNaN(omega) ? 0 : omega,
-      perihelionTime: perihelionJD,
-      absoluteMagnitude: H,
-      slopeParameter: K,
-      isInterstellar: /^\d+I(?:\/|$)/i.test(designation.trim()),
-      epochJD,
-    };
-  } catch {
-    return null;
-  }
-}
 
 async function fetchCometData() {
   console.log('Fetching comet orbital elements...');
