@@ -236,6 +236,9 @@ export interface NightWeather {
   avgPressureHpa: number | null;
   pressureTrend: 'rising' | 'falling' | 'steady' | null;
   maxCape: number | null;
+  /** All distinct weather-usable periods, in chronological order. */
+  observingWindows?: BestObservingTime[];
+  /** Recommended interval within those periods. */
   bestTime: BestObservingTime | null;
   avgAerosolOpticalDepth: number | null;
   avgPm25: number | null;
@@ -571,6 +574,8 @@ export interface ImagingWindow {
   end: Date;
   quality: 'excellent' | 'good' | 'acceptable' | 'poor';
   qualityScore: number;
+  /** Retained samples allow scores to be recalculated after horizon/time clipping. */
+  samples?: { time: Date; score: number; factors: ImagingWindow['factors'] }[];
   factors: {
     altitude: number;
     airmass: number;

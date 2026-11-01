@@ -7,7 +7,7 @@ import {
   getTwilightGradientCss,
   getTwilightPhaseAtFraction,
 } from '@/lib/astronomy/twilight';
-import { formatTime, formatTimeRange } from '@/lib/utils/format';
+import { formatDurationMinutes, formatTime, formatTimeRange } from '@/lib/utils/format';
 import {
   buildNightTimeline,
   timelinePosition,
@@ -55,6 +55,7 @@ export default function NightConditionsTimeline({
   const hour = timelineWeatherAt(Number(time), weather);
   const blockers = hour ? observingBlockers(hour) : [];
   const window = weather?.bestTime;
+  const windows = weather?.observingWindows ?? (window ? [window] : []);
   const start = window ? timelinePosition(window.start, night.sunset, night.sunrise) : 0;
   const width = window ? timelinePosition(window.end, night.sunset, night.sunrise) - start : 0;
   return (
@@ -109,16 +110,31 @@ export default function NightConditionsTimeline({
             />
           ))}
         </div>
-        <span>Best window</span>
+        <span>Windows</span>
         <div
           className="relative h-4 overflow-hidden rounded bg-night-700"
           role="img"
           aria-label={
             window
-              ? `Best conditions: ${formatTimeRange(window.start, window.end, timezone)}`
-              : 'No practical multi-hour window'
+              ? `Recommended: ${formatTimeRange(window.start, window.end, timezone)}; ${windows.length} usable ${windows.length === 1 ? 'period' : 'periods'}`
+              : weather
+                ? windows.length
+                  ? 'No remaining observing window'
+                  : 'No usable observing window'
+                : 'Observing windows unknown without weather'
           }
         >
+          {windows.map(period => (
+            <span
+              key={Number(period.start)}
+              data-testid="observing-window-segment"
+              className={`absolute inset-y-0 rounded ${Number(period.end) <= Number(now) ? 'bg-slate-500/30' : 'bg-sky-400/50'}`}
+              style={{
+                left: `${timelinePosition(period.start, night.sunset, night.sunrise)}%`,
+                width: `${timelinePosition(period.end, night.sunset, night.sunrise) - timelinePosition(period.start, night.sunset, night.sunrise)}%`,
+              }}
+            />
+          ))}
           {window && (
             <span
               className="absolute inset-y-0 rounded bg-green-400"
@@ -127,8 +143,38 @@ export default function NightConditionsTimeline({
           )}
         </div>
       </div>
+      {windows.length > 0 && (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Usable observing periods">
+          {windows.map((period, index) => (
+            <button
+              key={Number(period.start)}
+              type="button"
+              onClick={() => {
+                setTracking(false);
+                setPosition(
+                  timelinePosition(
+                    (Number(period.start) + Number(period.end)) / 2,
+                    night.sunset,
+                    night.sunrise
+                  )
+                );
+              }}
+              className="rounded-lg border border-sky-400/30 px-2 py-2 text-sky-200 text-xs focus-visible:outline-sky-300"
+              aria-label={`Inspect period ${index + 1}: ${formatTimeRange(period.start, period.end, timezone)}`}
+            >
+              {formatTimeRange(period.start, period.end, timezone)} ·{' '}
+              {formatDurationMinutes((Number(period.end) - Number(period.start)) / 60000)}
+            </button>
+          ))}
+          <div className="flex w-full flex-wrap gap-3 text-xs">
+            <span className="text-sky-300">● Usable</span>
+            <span className="text-green-300">● Recommended</span>
+            <span className="text-gray-400">● Elapsed</span>
+          </div>
+        </div>
+      )}
       <label className="grid grid-cols-[4rem_1fr] items-center text-gray-400 text-xs">
-        Inspect time
+        Time
         <input
           type="range"
           min="0"
@@ -167,9 +213,6 @@ export default function NightConditionsTimeline({
         {hour
           ? `${Math.round(hour.cloudCover)}% cloud · ${hour.windGust == null ? 'wind' : 'gusts'} ${formatSpeed(hour.windGust ?? hour.windSpeed, units.speed)} · ${formatTemperature(hour.temperature, units.temperature)}${blockers.length ? ` · ${blockers.join(', ')}` : ' · no known weather blocker'}`
           : 'Weather unavailable for this time'}
-      </p>
-      <p className="text-gray-400 text-xs">
-        Red: weather blocker · blue: no known blocker · grey: no data. Moon: pale when up.
       </p>
     </div>
   );

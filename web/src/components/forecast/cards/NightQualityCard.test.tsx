@@ -2,7 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import NightQualityCard from '@/components/forecast/cards/NightQualityCard';
 import { SkyCalculator } from '@/lib/astronomy/calculator';
-import { createMockNightForecast, createMockNightInfo } from '@/test/factories';
+import {
+  createMockNightForecast,
+  createMockNightInfo,
+  createMockNightWeather,
+} from '@/test/factories';
 
 const london = { latitude: 51.5074, longitude: -0.1278, timezone: 'Europe/London' };
 
@@ -70,4 +74,34 @@ describe('NightQualityCard', () => {
     expect(screen.getByText(/Astronomical twilight window/)).toBeInTheDocument();
     expect(screen.queryByRole('slider', { name: /night timeline scrubber/i })).toBeInTheDocument();
   });
+});
+
+it('shows separate periods visually and lets a period move the inspector', () => {
+  const windows = [
+    {
+      start: new Date('2025-01-15T20:00Z'),
+      end: new Date('2025-01-15T22:00Z'),
+      score: 90,
+      reason: 'Clear skies',
+    },
+    {
+      start: new Date('2025-01-16T02:00Z'),
+      end: new Date('2025-01-16T04:00Z'),
+      score: 80,
+      reason: 'Clear skies',
+    },
+  ];
+  const forecast = createMockNightForecast({
+    weather: createMockNightWeather({ observingWindows: windows, bestTime: windows[0] }),
+  });
+  render(<NightQualityCard location={london} forecast={forecast} />);
+  expect(screen.getAllByTestId('observing-window-segment')).toHaveLength(2);
+  expect(screen.getByText(/^Recommended ·/)).toBeInTheDocument();
+  const slider = screen.getByRole('slider', { name: 'Night timeline scrubber' });
+  fireEvent.click(screen.getByRole('button', { name: /Inspect period 2/ }));
+  expect(slider).toHaveAttribute('aria-valuetext', expect.stringContaining('3:00 AM'));
+  expect(screen.getByRole('button', { name: 'Why this night rating?' })).toHaveAttribute(
+    'aria-expanded',
+    'false'
+  );
 });

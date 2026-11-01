@@ -72,6 +72,7 @@ const PEAK_COLOR = '#e0e7ff';
 
 interface TargetAltitudeChartProps {
   imagingWindow?: ImagingWindow | null;
+  imagingWindows?: ImagingWindow[];
   visibility: ObjectVisibility;
   nightInfo: NightInfo;
   horizonProfile: HorizonProfile;
@@ -388,6 +389,7 @@ function buildChartModel(args: {
 
 function ChartCanvas({
   imagingWindow,
+  imagingWindows = [],
   model,
   windows,
   summary,
@@ -395,6 +397,7 @@ function ChartCanvas({
 }: {
   model: ChartModel;
   imagingWindow?: ImagingWindow | null;
+  imagingWindows?: ImagingWindow[];
   windows: TargetAccessibility['windows'];
   summary: string;
   timezone?: string;
@@ -426,6 +429,24 @@ function ChartCanvas({
       <BlockedSectors segments={model.segments} scales={scales} />
       <AccessibleWindows windows={windows} scales={scales} />
       <AltitudeGrid scales={scales} />
+      {imagingWindows
+        .filter(window => window !== imagingWindow)
+        .map(window => (
+          <rect
+            key={Number(window.start)}
+            data-testid="alternative-imaging-window-overlay"
+            x={Math.max(PLOT_LEFT, scales.x(Number(window.start)))}
+            y={PLOT_TOP}
+            width={Math.max(
+              0,
+              Math.min(PLOT_RIGHT, scales.x(Number(window.end))) -
+                Math.max(PLOT_LEFT, scales.x(Number(window.start)))
+            )}
+            height={PLOT_HEIGHT}
+            fill="#38bdf8"
+            opacity="0.1"
+          />
+        ))}
       {imagingWindow && (
         <rect
           data-testid="imaging-window-overlay"
@@ -630,6 +651,7 @@ function ChartLegend({ showMinimum, showNow }: { showMinimum: boolean; showNow: 
 
 export default function TargetAltitudeChart({
   imagingWindow,
+  imagingWindows = [],
   visibility,
   nightInfo,
   horizonProfile,
@@ -731,6 +753,7 @@ export default function TargetAltitudeChart({
       <div className="relative">
         <ChartCanvas
           imagingWindow={imagingWindow}
+          imagingWindows={imagingWindows}
           model={model}
           windows={accessibility.windows}
           summary={summary}

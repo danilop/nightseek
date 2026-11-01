@@ -230,3 +230,53 @@ test.describe('Visual summaries and progressive disclosure', () => {
     );
   });
 });
+
+test('shows separated usable periods and inspects one without expanding explanations', async ({
+  page,
+}) => {
+  test.setTimeout(90000);
+  await page.clock.setFixedTime(new Date('2026-11-01T12:00:00Z'));
+  const first = Date.parse('2026-11-01T00:00:00Z');
+  const time = Array.from({ length: 72 }, (_, index) => (first + index * 3600000) / 1000);
+  await page.route('https://api.open-meteo.com/v1/forecast?*', route =>
+    route.fulfill({
+      json: {
+        timezone: 'Europe/London',
+        hourly: {
+          time,
+          cloud_cover: time.map(t =>
+            [19, 20, 22, 23, 0, 2, 3, 4].includes(new Date(t * 1000).getUTCHours()) ? 0 : 95
+          ),
+          wind_speed_10m: time.map(() => 5),
+          wind_gusts_10m: time.map(() => 7),
+          relative_humidity_2m: time.map(() => 50),
+          temperature_2m: time.map(() => 10),
+          dew_point_2m: time.map(() => 0),
+          precipitation: time.map(() => 0),
+          precipitation_probability: time.map(() => 0),
+          visibility: time.map(() => 20000),
+        },
+      },
+    })
+  );
+  await seedLocation(page, {
+    name: 'London',
+    latitude: 51.5074,
+    longitude: -0.1278,
+    timezone: 'Europe/London',
+  });
+  await page.goto('/');
+  const night = page.getByRole('region', { name: 'Night conditions', exact: true });
+  await expect(night).toBeVisible({ timeout: 60000 });
+  await expect(night.getByTestId('observing-window-segment')).toHaveCount(3);
+  await expect(night.getByText(/^Recommended ·/)).toBeVisible();
+  await night.getByRole('button', { name: /Inspect period 2/ }).click();
+  await expect(night.getByRole('slider', { name: 'Night timeline scrubber' })).toHaveAttribute(
+    'aria-valuetext',
+    /11:30 PM/
+  );
+  await expect(night.getByRole('button', { name: 'Why this night rating?' })).toHaveAttribute(
+    'aria-expanded',
+    'false'
+  );
+});

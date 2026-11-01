@@ -1,3 +1,4 @@
+import { hourlyWeatherAt } from '@/lib/weather/hourly-slices';
 import { observingBlockers } from '@/lib/weather/observing-conditions';
 import type { HourlyWeather, NightInfo, NightWeather } from '@/types';
 import { getAltitudeAtTime } from './altitude-interpolation';
@@ -12,9 +13,7 @@ export function timelineWeatherAt(
   time: number,
   weather: NightWeather | null
 ): HourlyWeather | null {
-  if (!weather) return null;
-  const hour = Math.floor(time / 3_600_000) * 3_600_000;
-  return weather.hourlyData.get(hour) ?? null;
+  return hourlyWeatherAt(weather, new Date(time));
 }
 
 export function buildNightTimeline(night: NightInfo, weather: NightWeather | null) {

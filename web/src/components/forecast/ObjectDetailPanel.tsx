@@ -31,7 +31,7 @@ import {
 import { formatSubtype } from '@/lib/utils/format-subtype';
 import { evaluateTargetAccessibility, type TargetAccessibility } from '@/lib/utils/horizon-profile';
 import { TARGET_MAX_SCORE } from '@/lib/utils/rating';
-import { getTargetPhotoWindow } from '@/lib/utils/target-photo-windows';
+import { getTargetPhotoWindows } from '@/lib/utils/target-photo-windows';
 import { useApp } from '@/stores/AppContext';
 import type {
   EnhancedGaiaStarField,
@@ -98,7 +98,8 @@ export default function ObjectDetailPanel({
     [latitude, longitude]
   );
   const now = useCurrentTime();
-  const accessibleImagingWindow = getTargetPhotoWindow(visibility, resolvedAccessibility, now);
+  const imagingWindows = getTargetPhotoWindows(visibility, resolvedAccessibility, now);
+  const accessibleImagingWindow = imagingWindows[0] ?? null;
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const icon = getCategoryIcon(category, subtype);
   const frameFillPercent = calculateFrameFillPercent(
@@ -302,6 +303,19 @@ export default function ObjectDetailPanel({
             weatherAvailable={weather !== null}
             timezone={timezone}
           />
+          {imagingWindows.length > 1 && (
+            <ExplainSection title={`All ${imagingWindows.length} imaging windows`}>
+              {[...imagingWindows]
+                .sort((a, b) => Number(a.start) - Number(b.start))
+                .map(window => (
+                  <p key={Number(window.start)}>
+                    {formatTimeRange(window.start, window.end, timezone)} ·{' '}
+                    {formatDurationMinutes(window.durationMinutes)}
+                    {window === accessibleImagingWindow ? ' · Recommended' : ''}
+                  </p>
+                ))}
+            </ExplainSection>
+          )}
           {visibility.moonWarning && (
             <p className="text-amber-300 text-xs">Moon interference near this target</p>
           )}
@@ -309,6 +323,7 @@ export default function ObjectDetailPanel({
         {/* Altitude through the night, against the same horizon limits. */}
         <TargetAltitudeChart
           imagingWindow={accessibleImagingWindow}
+          imagingWindows={imagingWindows}
           visibility={visibility}
           nightInfo={nightInfo}
           horizonProfile={horizonProfile}

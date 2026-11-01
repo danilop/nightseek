@@ -1,11 +1,51 @@
 import type { ImagingWindow, ObjectVisibility } from '@/types';
+import { getImagingQualityRating } from '../astronomy/imaging-windows';
 import type { TargetAccessibility } from './horizon-profile';
+import { compareObservingWindows, MIN_OBSERVING_WINDOW_MS } from './observing-window';
 
 export interface PhotoReadyWindow extends ImagingWindow {
   durationMinutes: number;
 }
 
-const MIN_PHOTO_READY_DURATION_MINUTES = 30;
+const MIN_PHOTO_READY_DURATION_MINUTES = MIN_OBSERVING_WINDOW_MS / 60_000;
+
+/** Integrate retained samples over the actual fragment, including interpolated edges. */
+function clipWindow(window: ImagingWindow, start: Date, end: Date): PhotoReadyWindow {
+  const result = { ...window, start, end, durationMinutes: (Number(end) - Number(start)) / 60_000 };
+  if (!window.samples || window.samples.length < 2) return result;
+  const totals = { altitude: 0, airmass: 0, moonInterference: 0, cloudCover: 0 };
+  let duration = 0;
+  let score = 0;
+  for (let i = 1; i < window.samples.length; i++) {
+    const a = window.samples[i - 1];
+    const b = window.samples[i];
+    const from = Math.max(Number(start), Number(a.time));
+    const to = Math.min(Number(end), Number(b.time));
+    if (to <= from) continue;
+    const span = Number(b.time) - Number(a.time);
+    const midpoint = ((from + to) / 2 - Number(a.time)) / span;
+    const weight = to - from;
+    score += (a.score + (b.score - a.score) * midpoint) * weight;
+    for (const key of Object.keys(totals) as (keyof typeof totals)[]) {
+      totals[key] += (a.factors[key] + (b.factors[key] - a.factors[key]) * midpoint) * weight;
+    }
+    duration += weight;
+  }
+  if (!duration) return result;
+  const qualityScore = Math.round(score / duration);
+  for (const key of Object.keys(totals) as (keyof typeof totals)[])
+    totals[key] = Math.round(totals[key] / duration);
+  return {
+    ...result,
+    qualityScore,
+    quality: getImagingQualityRating(qualityScore),
+    factors: totals,
+  };
+}
+
+function comparePhotoWindows(a: PhotoReadyWindow, b: PhotoReadyWindow) {
+  return compareObservingWindows({ ...a, score: a.qualityScore }, { ...b, score: b.qualityScore });
+}
 
 /**
  * Restrict atmosphere/Moon/weather imaging windows to the exact intervals that
@@ -26,18 +66,11 @@ export function intersectImagingAndAccessWindows(
       const durationMinutes = (endMs - startMs) / 60_000;
       if (durationMinutes < MIN_PHOTO_READY_DURATION_MINUTES) continue;
 
-      intersections.push({
-        ...imagingWindow,
-        start: new Date(startMs),
-        end: new Date(endMs),
-        durationMinutes,
-      });
+      intersections.push(clipWindow(imagingWindow, new Date(startMs), new Date(endMs)));
     }
   }
 
-  return intersections.sort(
-    (a, b) => b.qualityScore - a.qualityScore || b.durationMinutes - a.durationMinutes
-  );
+  return intersections.sort(comparePhotoWindows);
 }
 
 export function getBestPhotoReadyWindow(
@@ -48,27 +81,26 @@ export function getBestPhotoReadyWindow(
 }
 
 /** One photo-window policy for cards, filters, search and session planning. */
+export function getTargetPhotoWindows(
+  visibility: ObjectVisibility,
+  accessibility?: TargetAccessibility,
+  now: Date = new Date()
+): PhotoReadyWindow[] {
+  const windows = (
+    visibility.imagingWindows ?? (visibility.imagingWindow ? [visibility.imagingWindow] : [])
+  ).map(window =>
+    clipWindow(window, new Date(Math.max(Number(window.start), Number(now))), window.end)
+  );
+  if (accessibility) return intersectImagingAndAccessWindows(windows, accessibility);
+  return windows
+    .filter(window => window.durationMinutes >= MIN_PHOTO_READY_DURATION_MINUTES)
+    .sort(comparePhotoWindows);
+}
+
 export function getTargetPhotoWindow(
   visibility: ObjectVisibility,
   accessibility?: TargetAccessibility,
   now: Date = new Date()
 ): PhotoReadyWindow | null {
-  const windows = (
-    visibility.imagingWindows ?? (visibility.imagingWindow ? [visibility.imagingWindow] : [])
-  ).map(window => ({
-    ...window,
-    start: new Date(Math.max(window.start.getTime(), now.getTime())),
-  }));
-  if (accessibility) return getBestPhotoReadyWindow(windows, accessibility);
-  return (
-    windows
-      .map(window => ({
-        ...window,
-        durationMinutes: (window.end.getTime() - window.start.getTime()) / 60_000,
-      }))
-      .filter(window => window.durationMinutes >= MIN_PHOTO_READY_DURATION_MINUTES)
-      .sort(
-        (a, b) => b.qualityScore - a.qualityScore || b.durationMinutes - a.durationMinutes
-      )[0] ?? null
-  );
+  return getTargetPhotoWindows(visibility, accessibility, now)[0] ?? null;
 }

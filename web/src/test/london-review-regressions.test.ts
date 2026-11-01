@@ -109,7 +109,8 @@ describe('London review regressions — captured 31 October 2026', () => {
       new Date('2026-10-31T22:00Z').getTime()
     );
     expect(parsed.bestTime.end.getTime()).toBeLessThanOrEqual(
-      new Date('2026-11-01T01:00Z').getTime()
+      // The 01:00 dry sample covers the hour until rain starts at 02:00.
+      new Date('2026-11-01T02:00Z').getTime()
     );
   });
   it('does not turn missing aerosols or weather into complete high confidence', () => {

@@ -2,6 +2,8 @@ import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getCached, setCache } from '@/lib/utils/cache';
+import { parseNightWeather } from '@/lib/weather/open-meteo';
+import { createMockNightForecast, createMockNightInfo } from '@/test/factories';
 import { AppProvider, useApp } from './AppContext';
 
 // Mock IDB cache module
@@ -355,4 +357,52 @@ describe('AppContext', () => {
     expect(result.current.state.settings.forecastDays).toBe(7);
     expect(result.current.state.settings.maxObjects).toBe(8);
   });
+});
+
+it('updates the shared recommendation and best-night badge when time runs out', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-11-01T20:00:00Z'));
+  const nightInfo = createMockNightInfo({
+    date: new Date('2026-11-01T12:00Z'),
+    observingWindowStart: new Date('2026-11-01T20:00Z'),
+    observingWindowEnd: new Date('2026-11-01T22:00Z'),
+  });
+  const weather = parseNightWeather(
+    {
+      timezone: 'UTC',
+      hourly: {
+        time: ['2026-11-01T20:00', '2026-11-01T21:00', '2026-11-01T22:00'],
+        cloud_cover: [0, 0, 0],
+        wind_speed_10m: [5, 5, 5],
+        wind_gusts_10m: [7, 7, 7],
+        precipitation: [0, 0, 0],
+        precipitation_probability: [0, 0, 0],
+        visibility: [20000, 20000, 20000],
+      },
+    },
+    null,
+    nightInfo
+  );
+  const rendered = await renderAppHook();
+  try {
+    act(() =>
+      rendered.result.current.dispatch({
+        type: 'SET_FORECAST',
+        payload: {
+          forecasts: [createMockNightForecast({ nightInfo, weather })],
+          scoredObjects: new Map(),
+          bestNights: ['2026-11-01'],
+        },
+      })
+    );
+    expect(rendered.result.current.state.forecasts?.[0].weather?.bestTime).not.toBeNull();
+    act(() => vi.advanceTimersByTime(91 * 60000));
+    expect(rendered.result.current.state.forecasts?.[0].weather?.bestTime).toBeNull();
+    expect(rendered.result.current.state.forecasts?.[0].weather?.observingWindows).toHaveLength(1);
+    expect(rendered.result.current.state.bestNights).toEqual([]);
+    expect(weather?.bestTime).not.toBeNull();
+  } finally {
+    rendered.unmount();
+    vi.useRealTimers();
+  }
 });

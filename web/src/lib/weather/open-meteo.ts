@@ -1,16 +1,10 @@
 import { fromZonedTime } from 'date-fns-tz';
 import { publicData, record } from '@/lib/api/public-data';
-import type {
-  BestObservingTime,
-  ClearWindow,
-  HourlyWeather,
-  NightInfo,
-  NightWeather,
-} from '@/types';
+import type { HourlyWeather, NightInfo, NightWeather } from '@/types';
 import { avg, maxVal, minVal, sum } from '../utils/array-math';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
-import { getOrDefault } from '../utils/map-helpers';
-import { observingBlockers } from './observing-conditions';
+import { transparencyFromAod } from './observing-conditions';
+import { calculateObservingWindows, collectWeatherWindows } from './observing-windows';
 
 const BROWSER_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -289,14 +283,6 @@ function buildHourlyWeather(hourly: WeatherAPIResponse['hourly'], i: number): Ho
 }
 
 /**
- * Calculate transparency score from AOD
- */
-function calculateTransparencyScore(avgAod: number | null): number | null {
-  if (avgAod === null) return null;
-  return Math.max(0, Math.min(100, (1 - avgAod / 0.5) * 100));
-}
-
-/**
  * Calculate pressure trend from pressure array
  */
 function calculatePressureTrend(pressureValues: number[]): 'rising' | 'falling' | 'steady' | null {
@@ -390,10 +376,16 @@ export function parseNightWeather(
   if (arrays.cloudCover.length === 0) return null;
 
   const avgAod = avgOrNull(arrays.aod);
-  const clearWindows = findClearWindows(hourlyMap, duskTime, dawnTime);
-  const bestTime = findBestObservingTime(hourlyMap, duskTime, dawnTime);
+  const clearWindows = collectWeatherWindows(hourlyMap, nightInfo, 30).map(window => ({
+    ...window,
+    avgCloudCover: avg(
+      [...hourlyMap.entries()]
+        .filter(([time]) => time >= Number(window.start) && time < Number(window.end))
+        .map(([, hour]) => hour.cloudCover)
+    ),
+  }));
 
-  return {
+  const weather: NightWeather = {
     fetchedAt: weatherData.fetchedAt,
     source: weatherData.source,
     date: nightInfo.date,
@@ -411,7 +403,7 @@ export function parseNightWeather(
     maxWindSpeedKmh: maxOrNull(arrays.windGust),
     avgHumidity: avgOrNull(arrays.humidity),
     avgTemperatureC: avgOrNull(arrays.temp),
-    transparencyScore: calculateTransparencyScore(avgAod),
+    transparencyScore: transparencyFromAod(avgAod),
     cloudCoverLow: avgOrNull(arrays.cloudCoverLow),
     cloudCoverMid: avgOrNull(arrays.cloudCoverMid),
     cloudCoverHigh: avgOrNull(arrays.cloudCoverHigh),
@@ -423,223 +415,15 @@ export function parseNightWeather(
     avgPressureHpa: avgOrNull(arrays.pressure),
     pressureTrend: calculatePressureTrend(arrays.pressure),
     maxCape: maxOrNull(arrays.cape),
-    bestTime,
+    bestTime: null,
     avgAerosolOpticalDepth: avgAod,
     avgPm25: avgOrNull(arrays.pm25),
     avgPm10: avgOrNull(arrays.pm10),
     avgDust: avgOrNull(arrays.dust),
   };
+  const plan = calculateObservingWindows(weather, nightInfo);
+  return { ...weather, observingWindows: plan.windows, bestTime: plan.recommended };
 }
-
-/**
- * Finalize a clear window if it meets minimum duration
- */
-function finalizeClearWindow(
-  windowStart: Date,
-  windowEnd: Date,
-  cloudCoverValues: number[]
-): ClearWindow | null {
-  if (cloudCoverValues.length < 2) return null;
-  return {
-    start: windowStart,
-    end: windowEnd,
-    avgCloudCover: avg(cloudCoverValues),
-  };
-}
-
-function findClearWindows(
-  hourlyData: Map<number, HourlyWeather>,
-  _duskTime: number,
-  dawnTime: number
-): ClearWindow[] {
-  const windows: ClearWindow[] = [];
-  let windowStart: Date | null = null;
-  let windowCloudCover: number[] = [];
-  let previousTime: number | null = null;
-
-  const times = Array.from(hourlyData.keys()).sort((a, b) => a - b);
-
-  for (const time of times) {
-    if (windowStart && previousTime !== null && time - previousTime > HOUR_MS) {
-      const window = finalizeClearWindow(windowStart, new Date(previousTime), windowCloudCover);
-      if (window) windows.push(window);
-      windowStart = null;
-      windowCloudCover = [];
-    }
-    const data = getOrDefault(hourlyData, time, { cloudCover: 100 } as HourlyWeather);
-
-    if (data.cloudCover < 30 && observingBlockers(data).length === 0) {
-      if (!windowStart) {
-        windowStart = new Date(time);
-        windowCloudCover = [];
-      }
-      windowCloudCover.push(data.cloudCover);
-    } else if (windowStart) {
-      const window = finalizeClearWindow(
-        windowStart,
-        new Date(time - 60 * 60 * 1000),
-        windowCloudCover
-      );
-      if (window) windows.push(window);
-      windowStart = null;
-      windowCloudCover = [];
-    }
-    previousTime = time;
-  }
-
-  // Handle window that extends to dawn
-  if (windowStart && previousTime !== null) {
-    // Samples do not establish clear weather beyond the end of the forecast.
-    const window = finalizeClearWindow(
-      windowStart,
-      new Date(Math.min(dawnTime, previousTime)),
-      windowCloudCover
-    );
-    if (window) windows.push(window);
-  }
-
-  return windows;
-}
-
-/**
- * Score a single hour for observing quality
- */
-function scoreObservingHour(data: HourlyWeather): number {
-  let score = 100 - data.cloudCover;
-
-  if (data.humidity !== null && data.humidity < 70) {
-    score += 10;
-  }
-
-  if (data.windGust !== null && data.windGust > 30) {
-    score -= 20;
-  }
-
-  return score;
-}
-
-/**
- * Get reason string for observing conditions
- */
-function getObservingReason(cloudCover: number): string {
-  if (cloudCover < 20) return 'Clear skies';
-  if (cloudCover < 40) return 'Partly cloudy';
-  return 'Best conditions';
-}
-
-const HOUR_MS = 60 * 60 * 1000;
-const MIN_PRACTICAL_WINDOW_HOURS = 2;
-const MAX_BEST_WINDOW_HOURS = 3;
-const MAX_PRACTICAL_WINDOW_CLOUD_COVER = 60;
-const MIN_PRACTICAL_WINDOW_SCORE = 25;
-const LATE_WINDOW_SOFT_THRESHOLD_HOURS = 2.5;
-const LATE_WINDOW_HARD_THRESHOLD_HOURS = 1.5;
-
-interface PracticalWindowCandidate {
-  avgCloudCover: number;
-  end: Date;
-  score: number;
-  start: Date;
-}
-
-function getWindowDurationHours(startTime: number, endTime: number): number {
-  return (endTime - startTime) / HOUR_MS;
-}
-
-function scorePracticalWindowCandidate(
-  hourlyData: Map<number, HourlyWeather>,
-  times: number[],
-  startIndex: number,
-  endIndex: number,
-  dawnTime: number
-): PracticalWindowCandidate | null {
-  const startTime = times[startIndex];
-  const endTime = times[endIndex];
-  const durationHours = getWindowDurationHours(startTime, endTime);
-
-  if (durationHours < MIN_PRACTICAL_WINDOW_HOURS) return null;
-
-  const hoursBeforeDawn = (dawnTime - endTime) / HOUR_MS;
-  if (hoursBeforeDawn < LATE_WINDOW_HARD_THRESHOLD_HOURS) return null;
-
-  const windowHours: number[] = [];
-  const cloudCoverValues: number[] = [];
-
-  for (let index = startIndex; index <= endIndex; index++) {
-    if (index > startIndex && times[index] - times[index - 1] > HOUR_MS) return null;
-    const data = getOrDefault(hourlyData, times[index], { cloudCover: 100 } as HourlyWeather);
-    if (observingBlockers(data).length > 0) return null;
-    windowHours.push(scoreObservingHour(data));
-    cloudCoverValues.push(data.cloudCover);
-  }
-
-  const avgCloudCover = avg(cloudCoverValues);
-  if (avgCloudCover > MAX_PRACTICAL_WINDOW_CLOUD_COVER) return null;
-
-  let practicalScore = avg(windowHours);
-
-  if (durationHours >= MAX_BEST_WINDOW_HOURS) {
-    practicalScore += 5;
-  }
-
-  if (hoursBeforeDawn < LATE_WINDOW_SOFT_THRESHOLD_HOURS) {
-    practicalScore -= 8;
-  }
-
-  if (avgCloudCover > 50) {
-    practicalScore -= 12;
-  }
-
-  if (practicalScore < MIN_PRACTICAL_WINDOW_SCORE) return null;
-
-  return {
-    avgCloudCover,
-    end: new Date(endTime),
-    score: practicalScore,
-    start: new Date(startTime),
-  };
-}
-
-function findBestObservingTime(
-  hourlyData: Map<number, HourlyWeather>,
-  _duskTime: number,
-  dawnTime: number
-): BestObservingTime | null {
-  const times = Array.from(hourlyData.keys()).sort((a, b) => a - b);
-  let bestCandidate: PracticalWindowCandidate | null = null;
-
-  for (let startIndex = 0; startIndex < times.length; startIndex++) {
-    for (
-      let endIndex = startIndex + MIN_PRACTICAL_WINDOW_HOURS;
-      endIndex < Math.min(startIndex + MAX_BEST_WINDOW_HOURS + 1, times.length);
-      endIndex++
-    ) {
-      const candidate = scorePracticalWindowCandidate(
-        hourlyData,
-        times,
-        startIndex,
-        endIndex,
-        dawnTime
-      );
-
-      if (!candidate) continue;
-
-      if (!bestCandidate || candidate.score > bestCandidate.score) {
-        bestCandidate = candidate;
-      }
-    }
-  }
-
-  if (!bestCandidate) return null;
-
-  return {
-    start: bestCandidate.start,
-    end: bestCandidate.end,
-    score: bestCandidate.score,
-    reason: getObservingReason(bestCandidate.avgCloudCover),
-  };
-}
-
 // ─── Historical Weather ──────────────────────────────────────────────────────
 
 interface HistoricalAPIResponse {

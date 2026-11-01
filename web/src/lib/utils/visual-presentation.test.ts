@@ -73,6 +73,7 @@ describe('shared night timeline', () => {
       hourlyData: new Map([
         [Number(start), { ...hour, windGust: 50 }],
         [Number(start) + 3600000, hour],
+        [Number(start) + 7200000, hour],
       ]),
     });
     const segments = buildNightTimeline(night, weather);

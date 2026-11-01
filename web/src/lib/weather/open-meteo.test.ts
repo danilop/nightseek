@@ -33,10 +33,10 @@ describe('parseNightWeather practical best window selection', () => {
     );
 
     expect(weather?.bestTime?.start.toISOString()).toBe('2025-01-15T21:00:00.000Z');
-    expect(weather?.bestTime?.end.toISOString()).toBe('2025-01-15T23:00:00.000Z');
+    expect(weather?.bestTime?.end.toISOString()).toBe('2025-01-16T00:00:00.000Z');
   });
 
-  it('drops a late one-hour marginal slot instead of treating it as a usable best window', () => {
+  it('keeps a late one-hour marginal slot with an honestly low quality score', () => {
     const nightInfo = createMockNightInfo({
       astronomicalDusk: new Date('2025-01-15T21:00:00Z'),
       astronomicalDawn: new Date('2025-01-16T03:08:00Z'),
@@ -67,7 +67,8 @@ describe('parseNightWeather practical best window selection', () => {
       nightInfo
     );
 
-    expect(weather?.bestTime).toBeNull();
+    expect(weather?.bestTime?.start.toISOString()).toBe('2025-01-16T02:00:00.000Z');
+    expect(weather?.bestTime?.score).toBeLessThan(50);
   });
 });
 
@@ -116,7 +117,9 @@ describe('missing weather and forecast boundaries', () => {
       night
     );
     expect(result?.clearWindows).toHaveLength(2);
-    expect(result?.bestTime).toBeNull();
+    expect(result?.observingWindows).toHaveLength(2);
+    expect(result?.bestTime?.start.toISOString()).toBe('2025-01-15T20:00:00.000Z');
+    expect(result?.bestTime?.end.toISOString()).toBe('2025-01-15T21:00:00.000Z');
   });
   it('joins air quality by instant across source timezones and retains hourly values', () => {
     const result = parseNightWeather(

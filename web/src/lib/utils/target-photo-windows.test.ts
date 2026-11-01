@@ -103,3 +103,26 @@ describe('photo window selection after horizon and elapsed-time restrictions', (
     expect(getTargetPhotoWindow(visibility, access, new Date('2025-07-17T03:31:00Z'))).toBeNull();
   });
 });
+
+it('reranks a horizon-clipped window using the actual remaining samples', () => {
+  const start = new Date('2025-07-16T22:00Z');
+  const at = (minutes: number) => new Date(Number(start) + minutes * 60_000);
+  const original: ImagingWindow = {
+    ...imagingWindow,
+    start,
+    end: at(180),
+    qualityScore: 90,
+    samples: [
+      { time: at(0), score: 100, factors: imagingWindow.factors },
+      { time: at(120), score: 60, factors: imagingWindow.factors },
+      { time: at(180), score: 50, factors: imagingWindow.factors },
+    ],
+  };
+  const alternative = { ...imagingWindow, start: at(120), end: at(180), qualityScore: 75 };
+  const access = accessibility(at(120).toISOString(), at(180).toISOString());
+  const windows = intersectImagingAndAccessWindows([original, alternative], access);
+  expect(windows.map(w => w.qualityScore)).toEqual([75, 55]);
+  expect(windows[1].quality).toBe('acceptable');
+  const visibility = createMockObjectVisibility({ imagingWindows: [original, alternative] });
+  expect(getTargetPhotoWindow(visibility, undefined, at(120))?.qualityScore).toBe(75);
+});

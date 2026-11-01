@@ -43,3 +43,8 @@ export function forecastConfidence(
     ? 'high'
     : 'medium';
 }
+
+/** Aerosol optical depth to the shared transparency scale. */
+export function transparencyFromAod(aod: number | null): number | null {
+  return aod === null ? null : Math.max(0, Math.min(100, (1 - aod / 0.5) * 100));
+}

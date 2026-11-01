@@ -1,8 +1,19 @@
-import { createContext, useCallback, useContext, useEffect, useReducer, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useState,
+} from 'react';
+import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { resetUIState } from '@/hooks/useUIState';
 import { getEffectiveFOV } from '@/lib/telescopes';
 import { CACHE_KEYS, clearAllCache, getCached, setCache } from '@/lib/utils/cache';
 import { getLocaleUnitDefaults } from '@/lib/utils/units';
+import { determineBestNights } from '@/lib/weather/night-ranking';
+import { calculateObservingWindows } from '@/lib/weather/observing-windows';
 import type { Location, NightForecast, ScoredObject, Settings } from '@/types';
 
 interface AppState {
@@ -253,8 +264,30 @@ export function AppProvider({
     dispatch({ type: 'SET_LOADING', payload: { isLoading: true, message, percent } });
   }, []);
 
+  const now = useCurrentTime();
+  const currentPlan = useMemo(() => {
+    if (!state.forecasts) return null;
+    let changed = false;
+    const forecasts = state.forecasts.map(forecast => {
+      const { weather, nightInfo } = forecast;
+      if (!weather?.bestTime || Number(weather.bestTime.start) >= Number(now)) return forecast;
+      const plan = calculateObservingWindows(weather, nightInfo, now);
+      changed = true;
+      return {
+        ...forecast,
+        weather: { ...weather, observingWindows: plan.windows, bestTime: plan.recommended },
+      };
+    });
+    return changed
+      ? {
+          forecasts,
+          bestNights: determineBestNights(forecasts, state.location?.timezone),
+        }
+      : null;
+  }, [state.forecasts, state.location?.timezone, now]);
+
   const value: AppContextValue = {
-    state,
+    state: currentPlan ? { ...state, ...currentPlan } : state,
     dispatch,
     setLocation,
     updateSettings,

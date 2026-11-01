@@ -1,11 +1,7 @@
+import { MIN_OBSERVING_WINDOW_MS } from '@/lib/utils/observing-window';
+import { hourlyWeatherAt } from '@/lib/weather/hourly-slices';
 import { observingBlockers } from '@/lib/weather/observing-conditions';
-import type {
-  HourlyWeather,
-  ImagingWindow,
-  NightInfo,
-  NightWeather,
-  ObjectVisibility,
-} from '@/types';
+import type { ImagingWindow, NightInfo, NightWeather, ObjectVisibility } from '@/types';
 import { avg } from '../utils/array-math';
 import { formatTimeRange } from '../utils/format';
 import { calculateAirmass } from './airmass';
@@ -14,7 +10,7 @@ import { angularSeparation, type SkyCalculator } from './calculator';
 /**
  * Minimum window duration in minutes to be considered useful
  */
-const MIN_WINDOW_DURATION_MINUTES = 30;
+const MIN_WINDOW_DURATION_MINUTES = MIN_OBSERVING_WINDOW_MS / 60_000;
 
 /**
  * Quality thresholds for imaging windows
@@ -98,27 +94,11 @@ function calculateCloudQuality(cloudCover: number): number {
 /**
  * Get quality rating from score
  */
-function getQualityRating(score: number): ImagingWindow['quality'] {
+export function getImagingQualityRating(score: number): ImagingWindow['quality'] {
   if (score >= QUALITY_THRESHOLDS.excellent) return 'excellent';
   if (score >= QUALITY_THRESHOLDS.good) return 'good';
   if (score >= QUALITY_THRESHOLDS.acceptable) return 'acceptable';
   return 'poor';
-}
-
-/**
- * Get weather data for a specific hour
- */
-function getHourlyWeatherAt(weather: NightWeather | null, time: Date): HourlyWeather | null {
-  if (!weather?.hourlyData || weather.hourlyData.size === 0) return null;
-
-  const targetTime = time.getTime();
-  const THIRTY_MIN = 30 * 60 * 1000;
-  for (const [timestamp, data] of weather.hourlyData) {
-    if (Math.abs(timestamp - targetTime) <= THIRTY_MIN) {
-      return data;
-    }
-  }
-  return null;
 }
 
 function getMoonSeparationAt(
@@ -169,7 +149,7 @@ function calculateQualityAtTime(
   );
 
   // Get cloud cover from weather data
-  const hourlyWeather = getHourlyWeatherAt(weather, time);
+  const hourlyWeather = hourlyWeatherAt(weather, time);
   const cloudCover = hourlyWeather?.cloudCover ?? weather?.avgCloudCover ?? 30;
   const cloudQuality = calculateCloudQuality(cloudCover);
 
@@ -223,7 +203,7 @@ function finalizeImagingWindow(
   return {
     start,
     end,
-    quality: getQualityRating(avgScore),
+    quality: getImagingQualityRating(avgScore),
     qualityScore: Math.round(avgScore),
     factors: averageFactors(factors),
   };
@@ -299,7 +279,11 @@ export function calculateImagingWindows(
     } else if (!isAcceptable && windowStart) {
       const windowEnd = qualityPoints[i - 1].time;
       const window = finalizeImagingWindow(windowStart, windowEnd, windowScores, windowFactors);
-      if (window) windows.push(window);
+      if (window)
+        windows.push({
+          ...window,
+          samples: qualityPoints.filter(p => p.time >= window.start && p.time <= window.end),
+        });
       windowStart = null;
       windowScores = [];
       windowFactors = [];
@@ -310,7 +294,11 @@ export function calculateImagingWindows(
   if (windowStart && windowScores.length > 0) {
     const windowEnd = qualityPoints[qualityPoints.length - 1].time;
     const window = finalizeImagingWindow(windowStart, windowEnd, windowScores, windowFactors);
-    if (window) windows.push(window);
+    if (window)
+      windows.push({
+        ...window,
+        samples: qualityPoints.filter(p => p.time >= window.start && p.time <= window.end),
+      });
   }
 
   // Sort by quality score descending

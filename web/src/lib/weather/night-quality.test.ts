@@ -502,9 +502,7 @@ describe('night-quality', () => {
 
       expect(quality.score).toBeLessThan(50);
       expect(quality.rating.tier).not.toBe('very_good');
-      expect(quality.penalties.map(penalty => penalty.detail)).toContain(
-        'short 1h window, near dawn'
-      );
+      expect(quality.penalties.map(penalty => penalty.detail)).toContain('short 60m window');
     });
   });
 });

@@ -5,7 +5,12 @@ import {
   TWILIGHT_GUIDE_ORDER,
   TWILIGHT_PHASES,
 } from '@/lib/astronomy/twilight';
-import { clockChangeMinutes, formatTimeRange, getNightLabel } from '@/lib/utils/format';
+import {
+  clockChangeMinutes,
+  formatDurationMinutes,
+  formatTimeRange,
+  getNightLabel,
+} from '@/lib/utils/format';
 import type { UnitPreferences } from '@/lib/utils/units';
 import { calculateHeadlineNightQuality, calculateNightQuality } from '@/lib/weather/night-quality';
 import type { Location, NightForecast } from '@/types';
@@ -48,9 +53,11 @@ export default function NightQualityCard({
       </div>
       <p className={weather?.bestTime ? 'text-green-300 text-sm' : 'text-amber-300 text-sm'}>
         {weather?.bestTime
-          ? `Best window · ${formatTimeRange(weather.bestTime.start, weather.bestTime.end, timezone)}`
+          ? `Recommended · ${formatTimeRange(weather.bestTime.start, weather.bestTime.end, timezone)} · ${formatDurationMinutes((Number(weather.bestTime.end) - Number(weather.bestTime.start)) / 60000)}`
           : weather
-            ? 'No practical multi-hour imaging window'
+            ? weather.observingWindows?.length
+              ? 'No remaining observing window'
+              : 'No usable observing window in the forecast'
             : 'Weather unavailable · astronomy only'}
       </p>
       {headline.penalties.length > 0 && (
@@ -85,6 +92,19 @@ export default function NightQualityCard({
       />
       <ExplainSection title="Why this night rating?">
         <p>{headline.summary}</p>
+        <p>{weather?.bestTime?.reason}</p>
+        <p>
+          Usable periods stay inside the observing night and exclude heavy cloud, rain, strong wind,
+          fog and missing forecast hours. Recommendations compare clouds, moonlight, wind, dew,
+          transparency and estimated seeing, with a modest preference for longer sessions. Short
+          opportunities of at least 30 minutes and pre-dawn periods remain eligible. Times are
+          estimates from hourly forecasts; target windows also account for altitude and your
+          horizon.
+        </p>
+        <p>
+          Weather: red means blocked, blue means no known blocker, grey means missing data. Moon:
+          pale while above the horizon.
+        </p>
         <p>
           Darkness duration:{' '}
           <span>
@@ -96,8 +116,8 @@ export default function NightQualityCard({
           </span>
         </p>
         <p>
-          Night conditions use the best practical observing window when available. Target
-          suitability is a separate rating for each object and your telescope.
+          Night conditions use the recommended interval when available. Target suitability is a
+          separate rating for each object and your telescope.
         </p>
         <p>
           Whole-night average:{' '}
