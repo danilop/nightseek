@@ -12,9 +12,10 @@ export async function generateForecastInBackground(
   signal: AbortSignal
 ): Promise<ForecastResult> {
   signal.throwIfAborted();
+  const referenceDate = new Date();
   if (typeof Worker === 'undefined') {
     const { generateForecast } = await import('../analyzer');
-    return generateForecast(location, settings, onProgress, onPartial, signal);
+    return generateForecast(location, settings, onProgress, onPartial, signal, referenceDate);
   }
 
   return new Promise((resolve, reject) => {
@@ -63,6 +64,6 @@ export async function generateForecastInBackground(
           break;
       }
     };
-    worker.postMessage({ location, settings });
+    worker.postMessage({ location, settings, referenceDate });
   });
 }

@@ -1,115 +1,88 @@
 import { describe, expect, it } from 'vitest';
-import type { ScoredObject } from '@/types';
+import { createMockObjectVisibility, createMockScoredObject } from '@/test/factories';
+import { calculateMoonInterference } from '../scoring';
+import { createDefaultHorizonProfile, evaluateTargetAccessibility } from './horizon-profile';
 import { applyQuickFilters } from './quick-filters';
+import { getTargetRating } from './rating';
 
-function makeScoredObject(
-  overrides: Omit<Partial<ScoredObject>, 'visibility'> & {
-    visibility?: Partial<ScoredObject['visibility']>;
-  } = {}
-): ScoredObject {
-  return {
-    objectName: 'Test Object',
-    category: 'dso',
-    subtype: 'galaxy',
-    totalScore: 80,
-    scoreBreakdown: {} as ScoredObject['scoreBreakdown'],
-    reason: 'Good target',
-    magnitude: 10,
-    ...overrides,
-    visibility: {
-      objectName: 'Test Object',
-      objectType: 'dso',
-      isVisible: true,
-      maxAltitude: 60,
-      maxAltitudeTime: new Date(),
-      above45Start: null,
-      above45End: null,
-      above60Start: null,
-      above60End: null,
-      above75Start: null,
-      above75End: null,
-      moonSeparation: 50,
-      moonWarning: false,
-      magnitude: 10,
-      isInterstellar: false,
-      altitudeSamples: [],
-      subtype: 'galaxy',
-      angularSizeArcmin: 10,
-      surfaceBrightness: null,
-      raHours: 12,
-      decDegrees: 30,
-      commonName: 'Test',
-      minAirmass: 1.1,
-      azimuthAtPeak: 180,
-      apparentDiameterArcsec: null,
-      apparentDiameterMin: null,
-      apparentDiameterMax: null,
-      positionAngle: null,
-      imagingWindow: undefined,
-      ...overrides.visibility,
-    },
-  } as ScoredObject;
-}
+const now = new Date('2026-11-03T20:00:00Z');
+const end = new Date('2026-11-03T23:00:00Z');
+const imaging = {
+  start: now,
+  end,
+  quality: 'good' as const,
+  qualityScore: 80,
+  factors: { altitude: 70, airmass: 1.2, moonInterference: 5, cloudCover: 10 },
+};
+const target = createMockScoredObject({
+  visibility: createMockObjectVisibility({
+    imagingWindow: imaging,
+    altitudeSamples: [
+      [now, 60],
+      [end, 60],
+    ],
+    azimuthSamples: [
+      [now, 180],
+      [end, 180],
+    ],
+  }),
+});
 
-describe('applyQuickFilters', () => {
-  it('returns all objects when no filters active', () => {
-    const objects = [makeScoredObject({}), makeScoredObject({})];
-    expect(applyQuickFilters(objects, [])).toHaveLength(2);
+describe('quick filters share target eligibility and ratings', () => {
+  it('returns all objects when no filters are active', () => {
+    const objects = [target];
+    expect(applyQuickFilters(objects, [])).toBe(objects);
   });
-
-  it('filters by hasImaging', () => {
-    const withImaging = makeScoredObject({
-      visibility: {
-        imagingWindow: {
-          start: new Date(),
-          end: new Date(),
-          quality: 'good',
-          qualityScore: 80,
-          factors: { altitude: 70, airmass: 1.2, moonInterference: 5, cloudCover: 10 },
-        },
+  it('requires a remaining useful photo window, including the local horizon', () => {
+    const profile = createDefaultHorizonProfile();
+    const clear = evaluateTargetAccessibility(target.visibility, profile, null);
+    const blocked = evaluateTargetAccessibility(
+      target.visibility,
+      { ...profile, sectors: profile.sectors.map(s => ({ ...s, minAltitude: 90 })) },
+      null
+    );
+    expect(applyQuickFilters([target], ['hasImaging'], new Map([[target, clear]]), now)).toEqual([
+      target,
+    ]);
+    expect(applyQuickFilters([target], ['hasImaging'], new Map([[target, blocked]]), now)).toEqual(
+      []
+    );
+    expect(applyQuickFilters([target], ['hasImaging'], new Map([[target, clear]]), end)).toEqual(
+      []
+    );
+  });
+  it('uses Moon interference scoring, including the Moon below the horizon', () => {
+    const moonDown = createMockScoredObject({
+      scoreBreakdown: {
+        ...target.scoreBreakdown,
+        moonInterference: calculateMoonInterference(100, 10, 'dso', 'galaxy', -10),
       },
     });
-    const withoutImaging = makeScoredObject({});
-    const result = applyQuickFilters([withImaging, withoutImaging], ['hasImaging']);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toBe(withImaging);
-  });
-
-  it('filters by moonSafe (passes null moonSep)', () => {
-    const moonNull = makeScoredObject({ visibility: { moonSeparation: null } });
-    const moonFar = makeScoredObject({ visibility: { moonSeparation: 60 } });
-    const moonClose = makeScoredObject({ visibility: { moonSeparation: 20 } });
-    const result = applyQuickFilters([moonNull, moonFar, moonClose], ['moonSafe']);
-    expect(result).toHaveLength(2);
-  });
-
-  it('filters by above45', () => {
-    const high = makeScoredObject({ visibility: { maxAltitude: 70 } });
-    const low = makeScoredObject({ visibility: { maxAltitude: 30 } });
-    const result = applyQuickFilters([high, low], ['above45']);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toBe(high);
-  });
-
-  it('filters by highRated', () => {
-    const highScore = makeScoredObject({ totalScore: 150 });
-    const lowScore = makeScoredObject({ totalScore: 50 });
-    const result = applyQuickFilters([highScore, lowScore], ['highRated']);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toBe(highScore);
-  });
-
-  it('applies multiple filters as AND', () => {
-    const goodObj = makeScoredObject({
-      totalScore: 120,
-      visibility: { maxAltitude: 60 },
+    const moonUp = createMockScoredObject({
+      scoreBreakdown: {
+        ...target.scoreBreakdown,
+        moonInterference: calculateMoonInterference(100, 10, 'dso', 'galaxy', 50),
+      },
     });
-    const highOnly = makeScoredObject({
-      totalScore: 120,
-      visibility: { maxAltitude: 30 },
+    expect(applyQuickFilters([moonDown, moonUp], ['moonSafe'])).toEqual([moonDown]);
+  });
+  it('top-rated means the same four or five stars shown on cards', () => {
+    const objects = [50, 100, 117, 118, 150, 200].map(totalScore =>
+      createMockScoredObject({ totalScore })
+    );
+    expect(applyQuickFilters(objects, ['highRated'])).toEqual(
+      objects.filter(o => getTargetRating(o.totalScore).stars >= 4)
+    );
+    expect(applyQuickFilters(objects, ['highRated']).map(o => o.totalScore)).toEqual([
+      118, 150, 200,
+    ]);
+  });
+  it('combines filters with AND', () => {
+    const high = createMockScoredObject({ totalScore: 150 });
+    const low = createMockScoredObject({
+      totalScore: 150,
+      visibility: createMockObjectVisibility({ maxAltitude: 30 }),
     });
-    const result = applyQuickFilters([goodObj, highOnly], ['above45', 'highRated']);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toBe(goodObj);
+    expect(applyQuickFilters([high, low], ['highRated', 'above45'])).toEqual([high]);
   });
 });

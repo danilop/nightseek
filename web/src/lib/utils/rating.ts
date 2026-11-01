@@ -94,16 +94,17 @@ export function getTierConfig(tier: RatingTier): { stars: number; label: string;
 }
 
 /**
- * Normalize a score to 0-100 scale
- */
-export function normalizeScore(score: number, maxScore: number = 235): number {
-  if (maxScore <= 0) return 0;
-  return Math.max(0, Math.min(100, (score / maxScore) * 100));
-}
-
-/**
  * Get color class for a rating tier
  */
 export function getRatingColorClass(tier: RatingTier): string {
   return TIER_CONFIG[tier].color;
+}
+
+/** Target scores use one scale; night/weather percentages keep the 0–100 scale. */
+export const TARGET_MAX_SCORE = 235;
+export function getTargetRating(score: number): RatingDisplay {
+  return getRatingFromScore(score, TARGET_MAX_SCORE);
+}
+export function isTopRatedTarget(object: { totalScore: number }): boolean {
+  return getTargetRating(object.totalScore).stars >= 4;
 }

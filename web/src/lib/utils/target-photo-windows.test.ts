@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { createMockObjectVisibility } from '@/test/factories';
 import type { ImagingWindow } from '@/types';
 import type { TargetAccessibility } from './horizon-profile';
-import { getBestPhotoReadyWindow, intersectImagingAndAccessWindows } from './target-photo-windows';
+import {
+  getBestPhotoReadyWindow,
+  getTargetPhotoWindow,
+  intersectImagingAndAccessWindows,
+} from './target-photo-windows';
 
 const imagingWindow: ImagingWindow = {
   start: new Date('2025-07-16T22:00:00Z'),
@@ -24,7 +29,6 @@ function accessibility(start: string, end: string): TargetAccessibility {
     bestWindow: window,
     accessibleMinutes: window.durationMinutes,
     bestWindowOverlapMinutes: 0,
-    priorityScore: window.durationMinutes,
   };
 }
 
@@ -74,5 +78,28 @@ describe('target photo windows', () => {
 
     expect(result?.quality).toBe('excellent');
     expect(result?.durationMinutes).toBe(40);
+  });
+});
+
+describe('photo window selection after horizon and elapsed-time restrictions', () => {
+  it('keeps a later candidate when the highest quality candidate is blocked or elapsed', () => {
+    const later = {
+      ...imagingWindow,
+      start: new Date('2025-07-17T02:00:00Z'),
+      end: new Date('2025-07-17T04:00:00Z'),
+      qualityScore: 65,
+    };
+    const visibility = createMockObjectVisibility({
+      imagingWindow,
+      imagingWindows: [imagingWindow, later],
+    });
+    const access = accessibility('2025-07-17T02:00:00Z', '2025-07-17T04:00:00Z');
+    expect(
+      getTargetPhotoWindow(visibility, access, new Date('2025-07-16T21:00:00Z'))?.start
+    ).toEqual(later.start);
+    expect(
+      getTargetPhotoWindow(visibility, undefined, new Date('2025-07-17T02:15:00Z'))?.durationMinutes
+    ).toBe(105);
+    expect(getTargetPhotoWindow(visibility, access, new Date('2025-07-17T03:31:00Z'))).toBeNull();
   });
 });

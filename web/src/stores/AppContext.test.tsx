@@ -158,6 +158,30 @@ describe('AppContext', () => {
     expect(result.current.state.settings.telescope).toBe('generic');
   });
 
+  it('invalidates device-dependent scores when the effective field of view changes', async () => {
+    const { result } = await renderAppHook();
+    const forecast = { forecasts: [], scoredObjects: new Map(), bestNights: ['2026-11-03'] };
+    act(() => result.current.dispatch({ type: 'SET_FORECAST', payload: forecast }));
+    act(() => result.current.updateSettings({ telescope: 'dwarf_mini' }));
+    expect(result.current.state.forecasts).toBeNull();
+    expect(result.current.state.scoredObjects).toBeNull();
+    expect(result.current.state.bestNights).toEqual([]);
+
+    act(() => result.current.dispatch({ type: 'SET_FORECAST', payload: forecast }));
+    act(() => result.current.updateSettings({ telescope: 'dwarf_mini' }));
+    expect(result.current.state.forecasts).toBe(forecast.forecasts);
+    act(() => result.current.updateSettings({ theme: 'light' }));
+    expect(result.current.state.forecasts).toBe(forecast.forecasts);
+
+    act(() =>
+      result.current.updateSettings({ telescope: 'custom', customFOV: { width: 60, height: 40 } })
+    );
+    expect(result.current.state.forecasts).toBeNull();
+    act(() => result.current.dispatch({ type: 'SET_FORECAST', payload: forecast }));
+    act(() => result.current.updateSettings({ customFOV: { width: 120, height: 80 } }));
+    expect(result.current.state.forecasts).toBeNull();
+  });
+
   it('SET_LOADING updates loading state', async () => {
     const { result } = await renderAppHook();
 

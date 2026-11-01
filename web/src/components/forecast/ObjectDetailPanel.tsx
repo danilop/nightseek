@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { RatingStars } from '@/components/ui/Rating';
 import Tooltip from '@/components/ui/Tooltip';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { SkyCalculator } from '@/lib/astronomy/calculator';
@@ -18,6 +19,7 @@ import {
   azimuthToCardinal,
   formatAltitude,
   formatDurationMinutes,
+  formatFrameFillPercent,
   formatMagnitude,
   formatMoonSeparation,
   formatTime,
@@ -28,7 +30,8 @@ import {
 import { formatSubtype } from '@/lib/utils/format-subtype';
 import { evaluateTargetAccessibility, type TargetAccessibility } from '@/lib/utils/horizon-profile';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
-import { getBestPhotoReadyWindow } from '@/lib/utils/target-photo-windows';
+import { TARGET_MAX_SCORE } from '@/lib/utils/rating';
+import { getTargetPhotoWindow } from '@/lib/utils/target-photo-windows';
 import { useApp } from '@/stores/AppContext';
 import type {
   EnhancedGaiaStarField,
@@ -91,10 +94,8 @@ export default function ObjectDetailPanel({
         : new SkyCalculator(latitude, longitude),
     [latitude, longitude]
   );
-  const accessibleImagingWindow =
-    visibility.imagingWindow && resolvedAccessibility
-      ? getBestPhotoReadyWindow([visibility.imagingWindow], resolvedAccessibility)
-      : visibility.imagingWindow;
+  const now = useCurrentTime();
+  const accessibleImagingWindow = getTargetPhotoWindow(visibility, resolvedAccessibility, now);
   const fov = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
   const icon = getCategoryIcon(category, subtype);
   const frameFillPercent = calculateFrameFillPercent(
@@ -269,7 +270,7 @@ export default function ObjectDetailPanel({
         </button>
         {/* Rating and badges */}
         <div className="flex items-center justify-between">
-          <RatingStars score={totalScore} maxScore={235} size="md" />
+          <RatingStars score={totalScore} maxScore={TARGET_MAX_SCORE} size="md" />
           <div className="flex items-center gap-2 text-sm">
             {magnitude !== null && (
               <span className="text-gray-400">mag {formatMagnitude(magnitude)}</span>
@@ -319,7 +320,8 @@ export default function ObjectDetailPanel({
                 <Focus className="h-3 w-3" />
                 <span>
                   FOV: {formatFOV(fov.width, fov.height)}
-                  {frameFillPercent !== null && ` · ${frameFillPercent.toFixed(1)}% frame area`}
+                  {frameFillPercent !== null &&
+                    ` · ${formatFrameFillPercent(frameFillPercent)} frame area`}
                   {mosaic && ` · ${mosaic.cols}\u00d7${mosaic.rows} mosaic`}
                 </span>
               </div>

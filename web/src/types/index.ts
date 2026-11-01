@@ -171,7 +171,8 @@ export interface ObjectVisibility {
   geocentricDistanceAU?: number; // Distance from Earth
   isNearPerihelion?: boolean; // Planet within 30 days of perihelion
   perihelionSolarFluxBoostPercent?: number;
-  imagingWindow?: ImagingWindow; // Best imaging slot
+  imagingWindows?: ImagingWindow[]; // All candidates, before local horizon/time restrictions
+  imagingWindow?: ImagingWindow; // Best unrestricted imaging slot
   saturnRings?: SaturnRingInfo; // Saturn ring geometry (Saturn only)
   physicalData?: AsteroidPhysicalData; // JPL SBDB physical data (asteroids)
 }
@@ -327,10 +328,9 @@ export interface ScoreBreakdown {
   seeingQuality: number; // 0-8 (atmospheric conditions)
   dewRiskPenalty: number; // -5 to 0 (high dew probability)
   imagingWindowScore: number; // 0-25 (time-correlated imaging conditions)
-  fovSuitability: number; // 0-15 (how well object fits telescope FOV)
+  fovSuitability: number; // 0-15 (how much of the frame the object spans)
+  framingPenalty: number; // <=0, reduces deep-sky priority for small subjects in the selected FOV
 }
-
-export type ScoreTier = 'excellent' | 'very_good' | 'good' | 'fair' | 'poor';
 
 export interface Conjunction {
   object1Name: string;
@@ -756,6 +756,7 @@ export interface ISSPosition {
 
 // Object Search Result
 export interface ObjectSearchResult {
+  totalScore?: number; // Present only when backed by the same forecast as Targets
   objectName: string;
   displayName: string;
   objectType: ObjectCategory;

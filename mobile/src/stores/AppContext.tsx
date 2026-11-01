@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { AppProvider as SharedAppProvider, useApp } from '@/stores/AppContext.shared';
 import { scheduleNotificationsFromForecast } from '../lib/notifications/scheduler';
 
@@ -11,10 +11,10 @@ function resetNativePreferences() {
 function ForecastNotifications() {
   const { state } = useApp();
   useEffect(() => {
-    if (!state.isLoading && state.forecasts && state.scoredObjects) {
-      void scheduleNotificationsFromForecast(state.forecasts, state.scoredObjects);
+    if (!state.isLoading && state.forecasts && state.scoredObjects && state.location) {
+      void scheduleNotificationsFromForecast(state.forecasts, state.scoredObjects, state.location);
     }
-  }, [state.forecasts, state.scoredObjects, state.isLoading]);
+  }, [state.forecasts, state.scoredObjects, state.isLoading, state.location]);
   return null;
 }
 

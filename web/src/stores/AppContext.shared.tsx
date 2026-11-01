@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useReducer, useState } from 'react';
 import { resetUIState } from '@/hooks/useUIState';
+import { getEffectiveFOV } from '@/lib/telescopes';
 import { CACHE_KEYS, clearAllCache, getCached, setCache } from '@/lib/utils/cache';
 import { getLocaleUnitDefaults } from '@/lib/utils/units';
 import type { Location, NightForecast, ScoredObject, Settings } from '@/types';
@@ -79,8 +80,18 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_LOCATION':
       return { ...state, location: action.payload };
-    case 'SET_SETTINGS':
-      return { ...state, settings: { ...state.settings, ...action.payload } };
+    case 'SET_SETTINGS': {
+      const settings = { ...state.settings, ...action.payload };
+      const before = getEffectiveFOV(state.settings.telescope, state.settings.customFOV);
+      const after = getEffectiveFOV(settings.telescope, settings.customFOV);
+      const frameChanged = before?.width !== after?.width || before?.height !== after?.height;
+      // Frame-area labels and recommendation scores must describe the same device.
+      return {
+        ...state,
+        settings,
+        ...(frameChanged ? { forecasts: null, scoredObjects: null, bestNights: [] } : {}),
+      };
+    }
     case 'RESET_SETTINGS':
       return { ...state, settings: getDefaultSettingsWithLocale() };
     case 'SET_FORECAST':

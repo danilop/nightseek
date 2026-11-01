@@ -15,9 +15,14 @@ class TestWorker {
 }
 const location = { latitude: 0, longitude: 0 } as Location;
 const settings = { forecastDays: 7 } as Settings;
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 describe('background forecast lifecycle', () => {
   it('publishes the first night before completion and cleans up', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-04T01:00:00Z'));
     vi.stubGlobal('Worker', TestWorker);
     const partial = vi.fn();
     const progress = vi.fn();
@@ -29,6 +34,11 @@ describe('background forecast lifecycle', () => {
       new AbortController().signal
     );
     const worker = TestWorker.instance;
+    expect(worker.postMessage).toHaveBeenCalledWith({
+      location,
+      settings,
+      referenceDate: new Date('2026-11-04T01:00:00Z'),
+    });
     const result = { forecasts: [], scoredObjects: new Map(), bestNights: [], timezone: 'UTC' };
     worker.onmessage?.({ data: { type: 'progress', message: 'First night', percent: 20 } });
     worker.onmessage?.({ data: { type: 'partial', result } });

@@ -1,47 +1,9 @@
-import type { DSOSubtype, ScoredObject, TonightPick } from '@/types';
+import type { ScoredObject, TonightPick } from '@/types';
+import { compareTargetScores } from '../scoring';
+import { getTargetCategory } from './target-category';
 
 function formatMagnitude(mag: number | null): string {
   return mag === null ? '' : `mag ${mag.toFixed(1)}`;
-}
-
-function isPlanet(obj: ScoredObject): boolean {
-  return obj.category === 'planet';
-}
-
-function isComet(obj: ScoredObject): boolean {
-  return obj.category === 'comet';
-}
-
-const GALAXY_SUBTYPES: Set<DSOSubtype> = new Set([
-  'galaxy',
-  'galaxy_pair',
-  'galaxy_triplet',
-  'galaxy_group',
-]);
-
-const NEBULA_SUBTYPES: Set<DSOSubtype> = new Set([
-  'emission_nebula',
-  'reflection_nebula',
-  'planetary_nebula',
-  'supernova_remnant',
-  'nebula',
-  'hii_region',
-  'dark_nebula',
-  'cluster_nebula',
-]);
-
-const CLUSTER_SUBTYPES: Set<DSOSubtype> = new Set(['open_cluster', 'globular_cluster']);
-
-function isGalaxy(obj: ScoredObject): boolean {
-  return obj.category === 'dso' && obj.subtype !== null && GALAXY_SUBTYPES.has(obj.subtype);
-}
-
-function isNebula(obj: ScoredObject): boolean {
-  return obj.category === 'dso' && obj.subtype !== null && NEBULA_SUBTYPES.has(obj.subtype);
-}
-
-function isCluster(obj: ScoredObject): boolean {
-  return obj.category === 'dso' && obj.subtype !== null && CLUSTER_SUBTYPES.has(obj.subtype);
 }
 
 function pickBest(
@@ -49,12 +11,9 @@ function pickBest(
   filter: (obj: ScoredObject) => boolean,
   minScore: number,
   categoryLabel: string,
-  pickedNames: Set<string>,
-  compareObjects: (a: ScoredObject, b: ScoredObject) => number
+  pickedNames: Set<string>
 ): TonightPick | null {
-  const best = objects
-    .filter(obj => filter(obj) && !pickedNames.has(obj.objectName))
-    .sort(compareObjects)[0];
+  const best = objects.find(obj => filter(obj) && !pickedNames.has(obj.objectName));
 
   if (best && best.totalScore >= minScore) {
     pickedNames.add(best.objectName);
@@ -68,32 +27,59 @@ function pickBest(
   return null;
 }
 
-export function selectTonightPicks(
-  objects: ScoredObject[],
-  compareObjects: (a: ScoredObject, b: ScoredObject) => number = (a, b) =>
-    b.totalScore - a.totalScore
-): TonightPick[] {
+export function selectTonightPicks(objects: ScoredObject[]): TonightPick[] {
+  const ranked = [...objects].sort(compareTargetScores);
   const picks: TonightPick[] = [];
   const pickedNames = new Set<string>();
 
   // Top Planet: highest-scoring planet with score >= 60
-  const planet = pickBest(objects, isPlanet, 60, 'Top Planet', pickedNames, compareObjects);
+  const planet = pickBest(
+    ranked,
+    obj => getTargetCategory(obj) === 'planets',
+    60,
+    'Top Planet',
+    pickedNames
+  );
   if (planet) picks.push(planet);
 
   // Top Galaxy: highest-scoring galaxy with score >= 60
-  const galaxy = pickBest(objects, isGalaxy, 60, 'Top Galaxy', pickedNames, compareObjects);
+  const galaxy = pickBest(
+    ranked,
+    obj => getTargetCategory(obj) === 'galaxies',
+    60,
+    'Top Galaxy',
+    pickedNames
+  );
   if (galaxy) picks.push(galaxy);
 
   // Top Nebula: highest-scoring nebula with score >= 60
-  const nebula = pickBest(objects, isNebula, 60, 'Top Nebula', pickedNames, compareObjects);
+  const nebula = pickBest(
+    ranked,
+    obj => getTargetCategory(obj) === 'nebulae',
+    60,
+    'Top Nebula',
+    pickedNames
+  );
   if (nebula) picks.push(nebula);
 
   // Top Cluster: highest-scoring cluster with score >= 60
-  const cluster = pickBest(objects, isCluster, 60, 'Top Cluster', pickedNames, compareObjects);
+  const cluster = pickBest(
+    ranked,
+    obj => getTargetCategory(obj) === 'clusters',
+    60,
+    'Top Cluster',
+    pickedNames
+  );
   if (cluster) picks.push(cluster);
 
   // Top Comet: highest-scoring comet with score >= 80
-  const comet = pickBest(objects, isComet, 80, 'Top Comet', pickedNames, compareObjects);
+  const comet = pickBest(
+    ranked,
+    obj => getTargetCategory(obj) === 'comets',
+    80,
+    'Top Comet',
+    pickedNames
+  );
   if (comet) picks.push(comet);
 
   return picks;

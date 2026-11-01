@@ -7,7 +7,7 @@ import type {
   SeeingForecast,
   VenusPeakInfo,
 } from '@/types';
-import { getTierConfig, normalizeScore } from '../utils/rating';
+import { getTierConfig } from '../utils/rating';
 import {
   calculateAltitudeScore,
   calculateDewRiskPenalty,
@@ -29,7 +29,6 @@ import {
   calculateVenusPeakBonus,
   calculateWeatherScore,
   getMosaicFootprint,
-  getScoreTier,
 } from './index';
 
 describe('scoring', () => {
@@ -96,6 +95,68 @@ describe('scoring', () => {
       );
       expect(score.scoreBreakdown.fovSuitability).toBe(12);
       expect(calculateMosaicPanels(62.09, fov, 36.73)).toBeNull();
+    });
+  });
+
+  describe('device-aware deep-sky ranking', () => {
+    const fov = { width: 128, height: 72 };
+    const score = (target: ReturnType<typeof createMockObjectVisibility>, frame = fov) =>
+      calculateTotalScore(target, createMockNightInfo(), null, 12, [], null, null, frame);
+
+    it('strongly demotes tiny galaxies even at excellent altitude', () => {
+      const tiny = createMockObjectVisibility({
+        angularSizeArcmin: 5,
+        minorAxisArcmin: 4,
+        maxAltitude: 85,
+        minAirmass: 1.01,
+      });
+      const m31 = createMockObjectVisibility({ angularSizeArcmin: 178, minorAxisArcmin: 70 });
+      const m45 = createMockObjectVisibility({
+        objectName: 'M45',
+        subtype: 'open_cluster',
+        angularSizeArcmin: 110,
+        minorAxisArcmin: 110,
+      });
+      expect(calculateFrameFillPercent(5, 'dso', fov, 4)).toBeLessThan(0.3);
+      expect(score(tiny).totalScore).toBeLessThan(score(m31).totalScore / 2);
+      expect(score(tiny).totalScore).toBeLessThan(score(m45).totalScore / 2);
+      expect(score(tiny).reason).toContain('Very small');
+    });
+
+    it('restores the same small target’s score on a suitably narrow field', () => {
+      const target = createMockObjectVisibility({ angularSizeArcmin: 5, minorAxisArcmin: 4 });
+      expect(score(target, { width: 6, height: 5 }).totalScore).toBeGreaterThan(
+        score(target).totalScore * 2
+      );
+    });
+
+    it('keeps altitude relevant for large targets', () => {
+      const high = createMockObjectVisibility({ angularSizeArcmin: 178, minorAxisArcmin: 70 });
+      const low = { ...high, maxAltitude: 12, minAirmass: 4.8 };
+      expect(score(high).totalScore).toBeGreaterThan(score(low).totalScore);
+    });
+
+    it('keeps unknown framing and planetary capture neutral, with an additive breakdown', () => {
+      for (const target of [
+        createMockObjectVisibility({ angularSizeArcmin: 0 }),
+        createMockObjectVisibility({ objectType: 'planet', angularSizeArcmin: 0.5 }),
+        createMockObjectVisibility({ objectType: 'moon', angularSizeArcmin: 30 }),
+      ]) {
+        expect(score(target).scoreBreakdown.framingPenalty).toBe(0);
+      }
+      const result = score(
+        createMockObjectVisibility({ angularSizeArcmin: 5, minorAxisArcmin: 4 })
+      );
+      expect(result.totalScore).toBe(
+        Math.round(Object.values(result.scoreBreakdown).reduce((a, b) => a + b, 0))
+      );
+      const generic = calculateTotalScore(
+        createMockObjectVisibility(),
+        createMockNightInfo(),
+        null,
+        12
+      );
+      expect(generic.scoreBreakdown.framingPenalty).toBe(0);
     });
   });
 
@@ -495,33 +556,6 @@ describe('scoring', () => {
     });
   });
 
-  describe('getScoreTier', () => {
-    it('should return excellent for score >= 150', () => {
-      expect(getScoreTier(150)).toBe('excellent');
-      expect(getScoreTier(200)).toBe('excellent');
-    });
-
-    it('should return very_good for score >= 100', () => {
-      expect(getScoreTier(100)).toBe('very_good');
-      expect(getScoreTier(149)).toBe('very_good');
-    });
-
-    it('should return good for score >= 75', () => {
-      expect(getScoreTier(75)).toBe('good');
-      expect(getScoreTier(99)).toBe('good');
-    });
-
-    it('should return fair for score >= 40', () => {
-      expect(getScoreTier(40)).toBe('fair');
-      expect(getScoreTier(74)).toBe('fair');
-    });
-
-    it('should return poor for score < 40', () => {
-      expect(getScoreTier(39)).toBe('poor');
-      expect(getScoreTier(0)).toBe('poor');
-    });
-  });
-
   describe('getTierConfig', () => {
     it('should return correct display for excellent', () => {
       const display = getTierConfig('excellent');
@@ -607,23 +641,6 @@ describe('scoring', () => {
       const shortScore = calculateImagingWindowScore(shortWindow, baseWeather);
       const longScore = calculateImagingWindowScore(longWindow, baseWeather);
       expect(longScore).toBeGreaterThan(shortScore);
-    });
-  });
-
-  describe('normalizeScore', () => {
-    it('should normalize score to 0-100 range', () => {
-      expect(normalizeScore(117.5, 235)).toBe(50);
-      expect(normalizeScore(176.25, 235)).toBe(75);
-      expect(normalizeScore(235, 235)).toBe(100);
-    });
-
-    it('should clamp values', () => {
-      expect(normalizeScore(250, 235)).toBe(100);
-      expect(normalizeScore(-50, 235)).toBe(0);
-    });
-
-    it('should handle maxScore of 0', () => {
-      expect(normalizeScore(50, 0)).toBe(0);
     });
   });
 

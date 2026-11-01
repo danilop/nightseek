@@ -232,13 +232,6 @@ export function getAltitudeQualityClass(altitude: number): string {
 }
 
 /**
- * Format score with tier
- */
-export function formatScore(score: number, maxScore: number = 235): string {
-  return `${score}/${maxScore}`;
-}
-
-/**
  * Format magnitude
  */
 export function formatMagnitude(magnitude: number | null): string {
@@ -268,15 +261,6 @@ export function formatMoonSeparation(degrees: number | null): string {
 }
 
 /**
- * Get star rating string
- */
-export function getStarRating(rating: number, maxStars: number = 5): string {
-  const filled = Math.round(rating);
-  const empty = maxStars - filled;
-  return '★'.repeat(filled) + '☆'.repeat(empty);
-}
-
-/**
  * Format a date relative to now (e.g., "Tonight", "Tomorrow", "In 3 days")
  */
 export function formatRelativeDate(date: Date): string {
@@ -291,24 +275,7 @@ export function formatRelativeDate(date: Date): string {
   return `In ${Math.round(diffDays / 365)} year(s)`;
 }
 
-/**
- * Calculate night quality rating (1-5 stars)
- */
-export function calculateNightRating(moonIllumination: number, cloudCover?: number | null): number {
-  let rating = 5;
-
-  // Moon penalty
-  if (moonIllumination > 80) rating -= 2;
-  else if (moonIllumination > 50) rating -= 1;
-  else if (moonIllumination > 30) rating -= 0.5;
-
-  // Cloud penalty
-  if (cloudCover !== null && cloudCover !== undefined) {
-    if (cloudCover > 70) rating -= 2;
-    else if (cloudCover > 50) rating -= 1.5;
-    else if (cloudCover > 30) rating -= 1;
-    else if (cloudCover > 15) rating -= 0.5;
-  }
-
-  return Math.max(1, Math.min(5, Math.round(rating)));
+/** Do not round a real, very small target down to zero area. */
+export function formatFrameFillPercent(percent: number): string {
+  return percent > 0 && percent < 0.1 ? '<0.1%' : `${percent.toFixed(1)}%`;
 }

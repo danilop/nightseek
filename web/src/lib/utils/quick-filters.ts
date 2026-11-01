@@ -1,38 +1,29 @@
 import type { QuickFilterId, ScoredObject } from '@/types';
-
-interface QuickFilterConfig {
-  id: QuickFilterId;
-  predicate: (obj: ScoredObject) => boolean;
-}
-
-const QUICK_FILTER_CONFIGS: QuickFilterConfig[] = [
-  {
-    id: 'hasImaging',
-    predicate: obj => obj.visibility.imagingWindow != null,
-  },
-  {
-    id: 'moonSafe',
-    predicate: obj => obj.visibility.moonSeparation === null || obj.visibility.moonSeparation > 30,
-  },
-  {
-    id: 'above45',
-    predicate: obj => obj.visibility.maxAltitude >= 45,
-  },
-  {
-    id: 'highRated',
-    predicate: obj => obj.totalScore >= 100,
-  },
-];
+import type { TargetAccessibility } from './horizon-profile';
+import { isTopRatedTarget } from './rating';
+import { getTargetPhotoWindow } from './target-photo-windows';
 
 export function applyQuickFilters(
   objects: ScoredObject[],
-  activeFilters: QuickFilterId[]
+  activeFilters: QuickFilterId[],
+  accessibility?: ReadonlyMap<ScoredObject, TargetAccessibility>,
+  now: Date = new Date()
 ): ScoredObject[] {
   if (activeFilters.length === 0) return objects;
-
-  const predicates = activeFilters
-    .map(id => QUICK_FILTER_CONFIGS.find(c => c.id === id)?.predicate)
-    .filter((p): p is QuickFilterConfig['predicate'] => p != null);
-
-  return objects.filter(obj => predicates.every(p => p(obj)));
+  return objects.filter(object =>
+    activeFilters.every(filter => {
+      switch (filter) {
+        case 'hasImaging':
+          return getTargetPhotoWindow(object.visibility, accessibility?.get(object), now) !== null;
+        case 'moonSafe':
+          return object.scoreBreakdown.moonInterference >= 24;
+        case 'above45':
+          return object.visibility.maxAltitude >= 45;
+        case 'highRated':
+          return isTopRatedTarget(object);
+        default:
+          return true;
+      }
+    })
+  );
 }

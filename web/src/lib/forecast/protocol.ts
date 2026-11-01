@@ -4,6 +4,7 @@ import type { ForecastResult } from '../analyzer';
 export interface ForecastRequest {
   location: Location;
   settings: Settings;
+  referenceDate: Date; // One request-time instant for both UI and worker calculations
 }
 
 export type ForecastMessage =

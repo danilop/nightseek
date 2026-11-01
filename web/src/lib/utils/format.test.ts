@@ -1,21 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
-  calculateNightRating,
   formatAltitude,
   formatAngularSize,
   formatDate,
   formatDateKey,
   formatDateRange,
   formatDurationMinutes,
+  formatFrameFillPercent,
   formatMagnitude,
   formatMoonSeparation,
-  formatScore,
   formatTime,
   getAltitudeQualityClass,
   getCategoryIcon,
   getMoonPhaseEmoji,
   getMoonPhaseName,
-  getStarRating,
   getWeatherDescription,
   getWeatherEmoji,
 } from './format';
@@ -218,16 +216,6 @@ describe('format utils', () => {
     });
   });
 
-  describe('formatScore', () => {
-    it('should format score with default max', () => {
-      expect(formatScore(150)).toBe('150/235');
-    });
-
-    it('should format score with custom max', () => {
-      expect(formatScore(75, 100)).toBe('75/100');
-    });
-  });
-
   describe('formatMagnitude', () => {
     it('should format positive magnitude', () => {
       expect(formatMagnitude(8.5)).toBe('8.5');
@@ -269,49 +257,13 @@ describe('format utils', () => {
       expect(formatMoonSeparation(45.7)).toBe('46° from Moon');
     });
   });
+});
 
-  describe('getStarRating', () => {
-    it('should return filled stars for high rating', () => {
-      expect(getStarRating(5)).toBe('★★★★★');
-    });
-
-    it('should return mixed stars for medium rating', () => {
-      expect(getStarRating(3)).toBe('★★★☆☆');
-    });
-
-    it('should return empty stars for low rating', () => {
-      expect(getStarRating(1)).toBe('★☆☆☆☆');
-    });
-
-    it('should support custom max stars', () => {
-      expect(getStarRating(3, 3)).toBe('★★★');
-    });
-  });
-
-  describe('calculateNightRating', () => {
-    it('should return 5 for ideal conditions', () => {
-      expect(calculateNightRating(0, 0)).toBe(5);
-    });
-
-    it('should penalize high moon illumination', () => {
-      expect(calculateNightRating(90, 0)).toBeLessThan(5);
-    });
-
-    it('should penalize high cloud cover', () => {
-      expect(calculateNightRating(0, 80)).toBeLessThan(5);
-    });
-
-    it('should return at least 1', () => {
-      expect(calculateNightRating(100, 100)).toBeGreaterThanOrEqual(1);
-    });
-
-    it('should handle null cloud cover', () => {
-      expect(calculateNightRating(50, null)).toBeGreaterThanOrEqual(1);
-    });
-
-    it('should return integer rating', () => {
-      const rating = calculateNightRating(40, 35);
-      expect(Number.isInteger(rating)).toBe(true);
-    });
+describe('formatFrameFillPercent', () => {
+  it('preserves a useful label for tiny nonzero targets', () => {
+    expect(formatFrameFillPercent(0.003)).toBe('<0.1%');
+    expect(formatFrameFillPercent(0.09)).toBe('<0.1%');
+    expect(formatFrameFillPercent(0.2)).toBe('0.2%');
+    expect(formatFrameFillPercent(105.3)).toBe('105.3%');
   });
 });

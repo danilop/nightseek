@@ -14,11 +14,8 @@ import type {
   Settings,
 } from '@/types';
 import { SkyCalculator } from './astronomy/calculator';
-import {
-  getConstellation,
-  getConstellationFullName,
-  getPlanetConstellation,
-} from './astronomy/constellations';
+import { getPlanetConstellation } from './astronomy/constellations';
+import { calculateDSOVisibility } from './astronomy/dso';
 import {
   detectMaxElongations,
   getElongationForPlanet,
@@ -26,7 +23,6 @@ import {
   isOuterPlanet,
 } from './astronomy/elongation';
 import { getJupiterMoonsData } from './astronomy/galilean-moons';
-import { getBestImagingWindow } from './astronomy/imaging-windows';
 import { getLibrationForNight } from './astronomy/libration';
 import { getLunarApsisForNight } from './astronomy/lunar-apsis';
 import { getEclipseSeasonInfo } from './astronomy/lunar-nodes';
@@ -39,7 +35,6 @@ import { getSeeingFromWeather } from './astronomy/seeing';
 import { getLocalSiderealTime } from './astronomy/sidereal';
 import { getVenusPeakInfo } from './astronomy/venus-peak';
 import { calculateCometVisibility, fetchComets } from './catalogs/comets';
-import { getCommonName } from './catalogs/common-names';
 import {
   calculateMinorPlanetVisibility,
   getDwarfPlanets,
@@ -55,7 +50,8 @@ import { firstNightDate, nightDateAtOffset } from './forecast/night-dates';
 import { fetchAsteroidPhysicalData } from './jpl/sbdb';
 import { computeAuroraForecast, fetchSpaceWeather } from './nasa/donki';
 import { fetchNeoCloseApproachesRange } from './nasa/neows';
-import { calculateTotalScore } from './scoring';
+import { compareTargetScores } from './scoring';
+import { scoreTargetForNight } from './scoring/target';
 import { getEffectiveFOV } from './telescopes';
 import { formatDateKey } from './utils/format';
 import { logger } from './utils/logger';
@@ -173,68 +169,14 @@ async function calculateAllVisibilities(
 
   const dsos: ObjectVisibility[] = [];
   for (const dso of dsoCatalog) {
-    const baseCommonName = dso.commonName || getCommonName(dso.name);
-    let formattedCommonName: string;
-    if (dso.messierNumber === null) {
-      formattedCommonName = baseCommonName ?? dso.name;
-    } else {
-      formattedCommonName = baseCommonName
-        ? `M${dso.messierNumber} ${baseCommonName}`
-        : `M${dso.messierNumber}`;
-    }
-
-    const constellation = dso.constellation
-      ? getConstellationFullName(dso.constellation)
-      : getConstellation(dso.raHours, dso.decDegrees);
-
     let visibility: ObjectVisibility;
     try {
-      visibility = calculator.calculateVisibility(
-        dso.raHours,
-        dso.decDegrees,
-        nightInfo,
-        dso.name,
-        'dso',
-        {
-          magnitude: dso.magnitude,
-          subtype: dso.type,
-          angularSizeArcmin: dso.majorAxisArcmin ?? 0,
-          minorAxisArcmin: dso.minorAxisArcmin ?? undefined,
-          surfaceBrightness: dso.surfaceBrightness,
-          commonName: formattedCommonName,
-          isMessier: dso.messierNumber !== null,
-          constellation,
-        }
-      );
+      visibility = calculateDSOVisibility(dso, calculator, nightInfo);
     } catch (error) {
       throw errorWithCause(`Invalid deep-sky catalog entry: ${dso.name}`, error);
     }
 
-    if (visibility.isVisible) {
-      try {
-        if (visibility.maxAltitudeTime) {
-          visibility.hourAngle = calculator.getHourAngleForRA(
-            dso.raHours,
-            visibility.maxAltitudeTime,
-            dso.decDegrees
-          );
-          visibility.meridianTransitTime =
-            calculator.getMeridianTransitTimeForRA(
-              dso.raHours,
-              nightInfo.observingWindowStart,
-              dso.decDegrees
-            ) ?? undefined;
-        }
-        visibility.sunAngle = calculator.getSunAngleForPosition(
-          dso.raHours,
-          dso.decDegrees,
-          nightInfo.observingWindowStart
-        );
-      } catch (error) {
-        throw errorWithCause(`Deep-sky metadata calculation failed: ${dso.name}`, error);
-      }
-      dsos.push(visibility);
-    }
+    if (visibility.isVisible) dsos.push(visibility);
   }
 
   const comets: ObjectVisibility[] = [];
@@ -386,26 +328,9 @@ function scoreNightObjects(
 ): ScoredObject[] {
   const sunPos = calculator.getSunPosition(nightDate);
 
-  // Calculate imaging windows
-  for (const obj of allObjects) {
-    const imagingWindow = getBestImagingWindow(obj, nightInfo, weather, calculator);
-    if (imagingWindow) obj.imagingWindow = imagingWindow;
-  }
-
   return allObjects
-    .map(obj =>
-      calculateTotalScore(
-        obj,
-        nightInfo,
-        weather,
-        sunPos.ra,
-        events.oppositions,
-        events.lunarApsis,
-        events.venusPeak,
-        fov
-      )
-    )
-    .sort((a, b) => b.totalScore - a.totalScore);
+    .map(obj => scoreTargetForNight(obj, nightInfo, weather, calculator, events, fov, sunPos.ra))
+    .sort(compareTargetScores);
 }
 
 /**
@@ -416,7 +341,8 @@ export async function generateForecast(
   settings: Settings,
   onProgress?: (message: string, percent: number) => void,
   onPartial?: (result: ForecastResult) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  referenceDate: Date = new Date()
 ): Promise<ForecastResult> {
   const { latitude, longitude } = location;
   const { forecastDays, dsoMagnitude } = settings;
@@ -464,7 +390,7 @@ export async function generateForecast(
   const scoredObjects = new Map<string, ScoredObject[]>();
 
   // Anchor "tonight" to noon in the selected location, not the device timezone.
-  const today = firstNightDate(new Date(), locationTimezone, calculator);
+  const today = firstNightDate(referenceDate, locationTimezone, calculator);
 
   // Start the location-dependent NEO request before synchronous event work so
   // its network latency overlaps those calculations.

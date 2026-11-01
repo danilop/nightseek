@@ -1,6 +1,7 @@
 import type { HorizonProfile, NightWeather, ScoredObject } from '@/types';
+import { compareTargetScores } from '../scoring';
 import { evaluateTargetAccessibility, type TargetAccessibility } from '../utils/horizon-profile';
-import { getBestPhotoReadyWindow, type PhotoReadyWindow } from '../utils/target-photo-windows';
+import { getTargetPhotoWindow, type PhotoReadyWindow } from '../utils/target-photo-windows';
 
 export interface SessionTarget {
   object: ScoredObject;
@@ -18,23 +19,10 @@ export function planSessionTargets(
 ): SessionTarget[] {
   const candidates: SessionTarget[] = [];
   for (const object of objects) {
-    if (object.category !== 'dso' || !object.visibility.imagingWindow) continue;
+    if (object.category !== 'dso') continue;
     const access = evaluateTargetAccessibility(object.visibility, profile, weather);
-    const imaging = object.visibility.imagingWindow;
-    const window = getBestPhotoReadyWindow(
-      [
-        {
-          ...imaging,
-          start: new Date(Math.max(imaging.start.getTime(), now.getTime())),
-        },
-      ],
-      access
-    );
+    const window = getTargetPhotoWindow(object.visibility, access, now);
     if (window) candidates.push({ object, access, window });
   }
-  return candidates.sort(
-    (a, b) =>
-      b.object.totalScore - a.object.totalScore ||
-      b.window.durationMinutes - a.window.durationMinutes
-  );
+  return candidates.sort((a, b) => compareTargetScores(a.object, b.object));
 }

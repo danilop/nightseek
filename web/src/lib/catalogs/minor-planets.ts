@@ -294,7 +294,8 @@ export function calculateMinorPlanetVisibility(
   mp: MinorPlanetData,
   calculator: SkyCalculator,
   nightInfo: NightInfo,
-  maxMagnitude: number = 12.0
+  maxMagnitude: number = 12.0,
+  includeInvisible = false
 ): ObjectVisibility | null {
   // Get Julian date for midnight
   const midnight = new Date(
@@ -357,7 +358,7 @@ export function calculateMinorPlanetVisibility(
   );
 
   // Skip if not visible
-  if (!visibility.isVisible) {
+  if (!includeInvisible && !visibility.isVisible) {
     return null;
   }
 

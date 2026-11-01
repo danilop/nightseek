@@ -1,5 +1,14 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
-import type { NightForecast, ScoredObject } from '@/types';
+import { fromZonedTime } from 'date-fns-tz';
+import { planNightNotification } from '@/lib/planning/night-notification';
+import { getCached } from '@/lib/utils/cache';
+import { formatDateKey } from '@/lib/utils/format';
+import {
+  createDefaultHorizonProfile,
+  getHorizonProfileCacheKey,
+  normalizeHorizonProfile,
+} from '@/lib/utils/horizon-profile';
+import type { HorizonProfile, Location, NightForecast, ScoredObject } from '@/types';
 import { isNativePlatform } from '../native/platform';
 import { loadNotificationPrefs } from './types';
 
@@ -39,21 +48,14 @@ async function cancelAllScheduled(): Promise<void> {
   }
 }
 
-/** Get a score tier label */
-function getScoreTier(score: number): string {
-  if (score >= 160) return 'Excellent';
-  if (score >= 130) return 'Very Good';
-  if (score >= 100) return 'Good';
-  return '';
-}
-
 /**
  * Schedule notifications from forecast data.
  * Called after generateForecast() completes in AppContext.
  */
 export async function scheduleNotificationsFromForecast(
   forecasts: NightForecast[],
-  scoredObjects: Map<string, ScoredObject[]>
+  scoredObjects: Map<string, ScoredObject[]>,
+  location: Location
 ): Promise<void> {
   if (!isNativePlatform()) return;
 
@@ -73,34 +75,27 @@ export async function scheduleNotificationsFromForecast(
     schedule: { at: Date };
   }> = [];
 
+  const now = new Date();
+  const timezone = location.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const profile = normalizeHorizonProfile(
+    (await getCached<HorizonProfile>(getHorizonProfileCacheKey(location), Infinity)) ??
+      createDefaultHorizonProfile()
+  );
   let notifIndex = 0;
 
   for (const forecast of forecasts) {
-    const dateKey = forecast.nightInfo.date.toISOString().split('T')[0];
+    const dateKey = formatDateKey(forecast.nightInfo.date, timezone);
     const nightObjects = scoredObjects.get(dateKey) ?? [];
 
-    // 1. Optimal Night notifications (score > "Good" threshold)
-    if (prefs.types.optimal_night && nightObjects.length > 0) {
-      const topScore = nightObjects[0]?.totalScore ?? 0;
-      const tier = getScoreTier(topScore);
-
-      if (tier) {
-        // Schedule 1 hour before sunset
-        const notifTime = new Date(forecast.nightInfo.sunset.getTime() - 60 * 60 * 1000);
-        if (notifTime > new Date()) {
-          const topObjects = nightObjects
-            .slice(0, 3)
-            .map(o => o.objectName)
-            .join(', ');
-
-          notifications.push({
-            id: ID_RANGES.optimal_night + notifIndex++,
-            title: `${tier} Night Tonight`,
-            body: `Clear skies expected. Top targets: ${topObjects}`,
-            schedule: { at: notifTime },
-          });
-        }
-      }
+    if (prefs.types.optimal_night) {
+      const plan = planNightNotification(forecast, nightObjects, profile, now);
+      if (plan)
+        notifications.push({
+          id: ID_RANGES.optimal_night + notifIndex++,
+          title: plan.title,
+          body: plan.body,
+          schedule: { at: plan.at },
+        });
     }
 
     // 2. Meteor Shower notifications
@@ -108,13 +103,12 @@ export async function scheduleNotificationsFromForecast(
       for (const shower of forecast.meteorShowers) {
         if (shower.daysFromPeak !== null && Math.abs(shower.daysFromPeak) <= 1) {
           // Schedule at 6pm on the peak day
-          const notifTime = new Date(forecast.nightInfo.date);
-          notifTime.setHours(18, 0, 0, 0);
-          if (notifTime > new Date()) {
+          const notifTime = fromZonedTime(`${dateKey}T18:00:00`, timezone);
+          if (notifTime > now) {
             notifications.push({
               id: ID_RANGES.meteor_shower + notifIndex++,
               title: `${shower.name} Peak Tonight`,
-              body: `Up to ${shower.zhr} meteors/hour expected. Best viewing after midnight.`,
+              body: `Ideal dark-sky rate: ${shower.zhr} meteors/hour. Actual counts depend on weather, Moon and radiant altitude.`,
               schedule: { at: notifTime },
             });
           }
@@ -125,10 +119,14 @@ export async function scheduleNotificationsFromForecast(
     // 3. Aurora Alert notifications
     if (prefs.types.aurora_alert && forecast.astronomicalEvents.auroraForecast) {
       const aurora = forecast.astronomicalEvents.auroraForecast;
-      if (aurora.chance === 'possible' || aurora.chance === 'likely' || aurora.chance === 'certain') {
+      if (
+        aurora.chance === 'possible' ||
+        aurora.chance === 'likely' ||
+        aurora.chance === 'certain'
+      ) {
         // Schedule at dusk
         const notifTime = new Date(forecast.nightInfo.astronomicalDusk);
-        if (notifTime > new Date()) {
+        if (notifTime > now) {
           notifications.push({
             id: ID_RANGES.aurora_alert + notifIndex++,
             title: `Aurora ${aurora.chance === 'certain' ? 'Expected' : 'Possible'} Tonight`,
@@ -144,9 +142,8 @@ export async function scheduleNotificationsFromForecast(
       const events = forecast.astronomicalEvents;
 
       if (events.lunarEclipse?.isVisible) {
-        const notifTime = new Date(forecast.nightInfo.date);
-        notifTime.setHours(12, 0, 0, 0);
-        if (notifTime > new Date()) {
+        const notifTime = fromZonedTime(`${dateKey}T12:00:00`, timezone);
+        if (notifTime > now) {
           notifications.push({
             id: ID_RANGES.event_reminder + notifIndex++,
             title: `Lunar Eclipse Tonight`,
@@ -159,7 +156,7 @@ export async function scheduleNotificationsFromForecast(
       for (const opp of events.oppositions) {
         if (opp.isActive && opp.daysUntil <= 1) {
           const notifTime = new Date(forecast.nightInfo.sunset.getTime() - 2 * 60 * 60 * 1000);
-          if (notifTime > new Date()) {
+          if (notifTime > now) {
             notifications.push({
               id: ID_RANGES.event_reminder + notifIndex++,
               title: `${opp.planet} at Opposition`,
@@ -172,7 +169,7 @@ export async function scheduleNotificationsFromForecast(
 
       if (events.solarEclipse && events.solarEclipse.obscuration > 0) {
         const notifTime = new Date(events.solarEclipse.peakTime.getTime() - 2 * 60 * 60 * 1000);
-        if (notifTime > new Date()) {
+        if (notifTime > now) {
           notifications.push({
             id: ID_RANGES.event_reminder + notifIndex++,
             title: `Solar Eclipse Today`,

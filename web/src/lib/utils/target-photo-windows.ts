@@ -1,4 +1,4 @@
-import type { ImagingWindow } from '@/types';
+import type { ImagingWindow, ObjectVisibility } from '@/types';
 import type { TargetAccessibility } from './horizon-profile';
 
 export interface PhotoReadyWindow extends ImagingWindow {
@@ -45,4 +45,30 @@ export function getBestPhotoReadyWindow(
   accessibility: TargetAccessibility
 ): PhotoReadyWindow | null {
   return intersectImagingAndAccessWindows(imagingWindows, accessibility)[0] ?? null;
+}
+
+/** One photo-window policy for cards, filters, search and session planning. */
+export function getTargetPhotoWindow(
+  visibility: ObjectVisibility,
+  accessibility?: TargetAccessibility,
+  now: Date = new Date()
+): PhotoReadyWindow | null {
+  const windows = (
+    visibility.imagingWindows ?? (visibility.imagingWindow ? [visibility.imagingWindow] : [])
+  ).map(window => ({
+    ...window,
+    start: new Date(Math.max(window.start.getTime(), now.getTime())),
+  }));
+  if (accessibility) return getBestPhotoReadyWindow(windows, accessibility);
+  return (
+    windows
+      .map(window => ({
+        ...window,
+        durationMinutes: (window.end.getTime() - window.start.getTime()) / 60_000,
+      }))
+      .filter(window => window.durationMinutes >= MIN_PHOTO_READY_DURATION_MINUTES)
+      .sort(
+        (a, b) => b.qualityScore - a.qualityScore || b.durationMinutes - a.durationMinutes
+      )[0] ?? null
+  );
 }

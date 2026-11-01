@@ -21,8 +21,10 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
+import { useHorizonProfile } from '@/hooks/useHorizonProfile';
 import { formatImagingWindow } from '@/lib/astronomy/imaging-windows';
 import { searchCelestialObjects } from '@/lib/search/object-search';
+import { getEffectiveFOV } from '@/lib/telescopes';
 import {
   azimuthToCardinal,
   formatAltitude,
@@ -34,7 +36,8 @@ import {
   getAltitudeQualityClass,
 } from '@/lib/utils/format';
 import { getImagingQualityColorClass } from '@/lib/utils/quality-helpers';
-import { getRatingFromScore } from '@/lib/utils/rating';
+import { getTargetRating } from '@/lib/utils/rating';
+import { useApp } from '@/stores/AppContext';
 import type { Location, ObjectSearchResult, ObjectVisibilityStatus } from '@/types';
 
 interface ObjectSearchModalProps {
@@ -202,7 +205,13 @@ function SearchResultCard({
               <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-3">
                 {/* Mini star rating */}
                 {(() => {
-                  const rating = getRatingFromScore(result.visibility.maxAltitude, 90);
+                  if (result.totalScore === undefined)
+                    return (
+                      <p className="mb-2 text-gray-400 text-xs">
+                        Visibility only — no forecast rating available
+                      </p>
+                    );
+                  const rating = getTargetRating(result.totalScore);
                   return (
                     <div className="mb-2 flex items-center gap-2">
                       <span className={`text-xs ${rating.color}`}>{rating.starString}</span>
@@ -247,7 +256,7 @@ function SearchResultCard({
                   )}
                   {result.visibility.above45Start && result.visibility.above45End && (
                     <div className="col-span-2">
-                      <span className="text-gray-400">Good Observing (45°+)</span>
+                      <span className="text-gray-400">Above 45° · skyline clear</span>
                       <p className="text-white">
                         {formatTime(result.visibility.above45Start, timezone)} –{' '}
                         {formatTime(result.visibility.above45End, timezone)}
@@ -262,7 +271,7 @@ function SearchResultCard({
                       <span
                         className={`font-medium ${getImagingQualityColorClass(result.visibility.imagingWindow.quality)}`}
                       >
-                        {formatImagingWindow(result.visibility.imagingWindow)}
+                        {formatImagingWindow(result.visibility.imagingWindow, timezone)}
                       </span>
                     </div>
                   )}
@@ -368,6 +377,9 @@ function SearchResultCard({
  * Main search modal component
  */
 export default function ObjectSearchModal({ location, onClose }: ObjectSearchModalProps) {
+  const { state } = useApp();
+  const { horizonProfile, isReady } = useHorizonProfile();
+  const requestId = useRef(0);
   const timezone = location.timezone;
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ObjectSearchResult[]>([]);
@@ -399,9 +411,12 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
   // Debounced search
   const handleSearch = useCallback(
     async (searchQuery: string) => {
+      const id = ++requestId.current;
+      if (!isReady) return;
       if (searchQuery.trim().length < 2) {
         setResults([]);
         setHasSearched(false);
+        setIsSearching(false);
         return;
       }
 
@@ -411,9 +426,22 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
       setHasSearched(true);
 
       try {
-        const searchResults = await searchCelestialObjects(searchQuery, location, 20, message => {
-          setSearchMessage(message);
-        });
+        const searchResults = await searchCelestialObjects(
+          searchQuery,
+          location,
+          20,
+          message => {
+            if (id === requestId.current) setSearchMessage(message);
+          },
+          new Date(),
+          {
+            horizonProfile,
+            forecasts: state.forecasts ?? undefined,
+            scoredObjects: state.scoredObjects ?? undefined,
+            fov: getEffectiveFOV(state.settings.telescope, state.settings.customFOV),
+          }
+        );
+        if (id !== requestId.current) return;
         setResults(searchResults);
 
         // Auto-expand first result if only one
@@ -422,17 +450,20 @@ export default function ObjectSearchModal({ location, onClose }: ObjectSearchMod
         }
       } catch {
         // Search failed silently, clear results
-        setResults([]);
+        if (id === requestId.current) setResults([]);
       } finally {
-        setIsSearching(false);
-        setSearchMessage('');
+        if (id === requestId.current) {
+          setIsSearching(false);
+          setSearchMessage('');
+        }
       }
     },
-    [location]
+    [location, isReady, horizonProfile, state.forecasts, state.scoredObjects, state.settings]
   );
 
   // Handle input change with debounce
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    ++requestId.current;
     const newQuery = e.target.value;
     setQuery(newQuery);
 

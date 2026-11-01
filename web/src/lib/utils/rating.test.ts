@@ -6,7 +6,6 @@ import {
   getStarString,
   getTierConfig,
   getTierFromPercentage,
-  normalizeScore,
   type RatingTier,
 } from './rating';
 
@@ -148,23 +147,6 @@ describe('rating utilities', () => {
       expect(getTierConfig('good').stars).toBe(3);
       expect(getTierConfig('fair').stars).toBe(2);
       expect(getTierConfig('poor').stars).toBe(1);
-    });
-  });
-
-  describe('normalizeScore', () => {
-    it('should normalize to 0-100 range', () => {
-      expect(normalizeScore(100, 200)).toBe(50);
-      expect(normalizeScore(150, 200)).toBe(75);
-      expect(normalizeScore(200, 200)).toBe(100);
-    });
-
-    it('should clamp values to 0-100', () => {
-      expect(normalizeScore(250, 200)).toBe(100);
-      expect(normalizeScore(-50, 200)).toBe(0);
-    });
-
-    it('should handle maxScore of 0', () => {
-      expect(normalizeScore(50, 0)).toBe(0);
     });
   });
 

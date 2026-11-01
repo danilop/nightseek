@@ -27,12 +27,13 @@ import {
   type TargetAccessibility,
 } from '@/lib/utils/horizon-profile';
 import { applyQuickFilters } from '@/lib/utils/quick-filters';
+import { isTopRatedTarget } from '@/lib/utils/rating';
 import { getSecondarySortComparator } from '@/lib/utils/secondary-sort';
+import { getTargetCategory } from '@/lib/utils/target-category';
 import { selectTonightPicks } from '@/lib/utils/tonight-picks';
 import { useApp } from '@/stores/AppContext';
 import type {
   AstronomicalEvents,
-  DSOSubtype,
   HorizonProfile,
   Location,
   NightForecast,
@@ -83,7 +84,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     icon: '🪐',
     defaultExpanded: true,
     defaultShowCount: 8,
-    filter: obj => obj.category === 'planet',
+    filter: obj => getTargetCategory(obj) === 'planets',
     sortOrder: 1,
   },
   {
@@ -112,7 +113,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     icon: '☄️',
     defaultExpanded: true,
     defaultShowCount: 5,
-    filter: obj => obj.category === 'comet',
+    filter: obj => getTargetCategory(obj) === 'comets',
     sortOrder: 2,
   },
   {
@@ -121,7 +122,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     icon: '🪨',
     defaultExpanded: true,
     defaultShowCount: 5,
-    filter: obj => obj.category === 'dwarf_planet' || obj.category === 'asteroid',
+    filter: obj => getTargetCategory(obj) === 'minor_planets',
     sortOrder: 3,
   },
   {
@@ -130,12 +131,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     icon: '🌀',
     defaultExpanded: false,
     defaultShowCount: 6,
-    filter: obj =>
-      obj.category === 'dso' &&
-      (obj.subtype === 'galaxy' ||
-        obj.subtype === 'galaxy_pair' ||
-        obj.subtype === 'galaxy_triplet' ||
-        obj.subtype === 'galaxy_group'),
+    filter: obj => getTargetCategory(obj) === 'galaxies',
     sortOrder: 4,
     showSubtypeInPreview: true,
   },
@@ -145,16 +141,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     icon: '☁️',
     defaultExpanded: false,
     defaultShowCount: 6,
-    filter: obj =>
-      obj.category === 'dso' &&
-      (obj.subtype === 'emission_nebula' ||
-        obj.subtype === 'reflection_nebula' ||
-        obj.subtype === 'planetary_nebula' ||
-        obj.subtype === 'supernova_remnant' ||
-        obj.subtype === 'nebula' ||
-        obj.subtype === 'hii_region' ||
-        obj.subtype === 'dark_nebula' ||
-        obj.subtype === 'cluster_nebula'),
+    filter: obj => getTargetCategory(obj) === 'nebulae',
     sortOrder: 5,
     showSubtypeInPreview: true,
   },
@@ -164,9 +151,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     icon: '✨',
     defaultExpanded: false,
     defaultShowCount: 6,
-    filter: obj =>
-      obj.category === 'dso' &&
-      (obj.subtype === 'open_cluster' || obj.subtype === 'globular_cluster'),
+    filter: obj => getTargetCategory(obj) === 'clusters',
     sortOrder: 6,
     showSubtypeInPreview: true,
   },
@@ -176,27 +161,7 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     icon: '⭐',
     defaultExpanded: false,
     defaultShowCount: 4,
-    filter: obj => {
-      const covered = ['planet', 'comet', 'dwarf_planet', 'asteroid', 'milky_way'];
-      if (covered.includes(obj.category)) return false;
-      if (obj.category !== 'dso') return true;
-      const coveredSubtypes: DSOSubtype[] = [
-        'galaxy',
-        'galaxy_pair',
-        'galaxy_triplet',
-        'galaxy_group',
-        'emission_nebula',
-        'reflection_nebula',
-        'planetary_nebula',
-        'supernova_remnant',
-        'nebula',
-        'hii_region',
-        'dark_nebula',
-        'open_cluster',
-        'globular_cluster',
-      ];
-      return !coveredSubtypes.includes(obj.subtype as DSOSubtype);
-    },
+    filter: obj => getTargetCategory(obj) === 'other',
     sortOrder: 8,
     showSubtypeInPreview: true,
   },
@@ -329,43 +294,19 @@ export default function TargetsTab({
     return magFilteredObjects.filter(obj => accessibilityByObject.get(obj)?.isAccessible);
   }, [magFilteredObjects, accessibilityByObject]);
 
-  const compareByAccessibilityThenScore = useMemo(() => {
-    return (a: ScoredObject, b: ScoredObject) => {
-      const accessA = accessibilityByObject.get(a);
-      const accessB = accessibilityByObject.get(b);
-      const priorityA = accessA?.priorityScore ?? 0;
-      const priorityB = accessB?.priorityScore ?? 0;
-
-      if (priorityA !== priorityB) return priorityB - priorityA;
-
-      const overlapA = accessA?.bestWindowOverlapMinutes ?? 0;
-      const overlapB = accessB?.bestWindowOverlapMinutes ?? 0;
-      if (overlapA !== overlapB) return overlapB - overlapA;
-
-      const minutesA = accessA?.accessibleMinutes ?? 0;
-      const minutesB = accessB?.accessibleMinutes ?? 0;
-      if (minutesA !== minutesB) return minutesB - minutesA;
-
-      return b.totalScore - a.totalScore;
-    };
-  }, [accessibilityByObject]);
-
   // Tonight picks (computed from accessible objects, ignoring quick filters)
-  const tonightPicks = useMemo(
-    () => selectTonightPicks(accessibleObjects, compareByAccessibilityThenScore),
-    [accessibleObjects, compareByAccessibilityThenScore]
-  );
+  const tonightPicks = useMemo(() => selectTonightPicks(accessibleObjects), [accessibleObjects]);
 
   // Apply quick filters
   const filteredObjects = useMemo(
-    () => applyQuickFilters(accessibleObjects, activeQuickFilters),
-    [accessibleObjects, activeQuickFilters]
+    () => applyQuickFilters(accessibleObjects, activeQuickFilters, accessibilityByObject, now),
+    [accessibleObjects, activeQuickFilters, accessibilityByObject, now]
   );
 
   // Secondary sort comparator
   const secondarySortComparator = useMemo(
-    () => getSecondarySortComparator(secondarySort, fov),
-    [secondarySort, fov]
+    () => getSecondarySortComparator(secondarySort, fov, accessibilityByObject, now),
+    [secondarySort, fov, accessibilityByObject, now]
   );
 
   // Group filtered objects by category
@@ -381,21 +322,11 @@ export default function TargetsTab({
           if (altB <= 0 && altA > 0) return -1;
           return altB - altA;
         }
-        if (secondarySort === 'score') {
-          return compareByAccessibilityThenScore(a, b);
-        }
         return secondarySortComparator(a, b);
       });
     }
     return groups;
-  }, [
-    filteredObjects,
-    sortMode,
-    selectedTime,
-    secondarySort,
-    secondarySortComparator,
-    compareByAccessibilityThenScore,
-  ]);
+  }, [filteredObjects, sortMode, selectedTime, secondarySortComparator]);
 
   const totalCount = filteredObjects.length;
   const totalLoaded = catalogObjects.length;
@@ -655,17 +586,12 @@ export default function TargetsTab({
             <SummaryItem emoji="🪐" count={groupedObjects.planets?.length ?? 0} label="Planets" />
             <SummaryItem
               emoji="🌌"
-              count={
-                (groupedObjects.galaxies?.length ?? 0) +
-                (groupedObjects.nebulae?.length ?? 0) +
-                (groupedObjects.clusters?.length ?? 0) +
-                (groupedObjects.other?.length ?? 0)
-              }
+              count={filteredObjects.filter(o => o.category === 'dso').length}
               label="Deep Sky"
             />
             <SummaryItem
               emoji="⭐"
-              count={filteredObjects.filter(o => o.totalScore >= 100).length}
+              count={filteredObjects.filter(isTopRatedTarget).length}
               label="Top Rated"
             />
           </div>

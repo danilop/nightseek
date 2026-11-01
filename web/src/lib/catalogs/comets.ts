@@ -49,7 +49,7 @@ function normalizeComet(comet: ParsedComet): ParsedComet {
  *   r = Sun distance (AU)
  *   k = slope parameter (typically 10)
  */
-export function calculateCometMagnitude(
+function calculateCometMagnitude(
   absoluteMag: number,
   earthDistanceAU: number,
   sunDistanceAU: number,
@@ -265,9 +265,6 @@ export function calculateCometPosition(
   return { ...ecliptic, r };
 }
 
-// heliocentricToEquatorial is re-exported from orbital-mechanics for backward compatibility
-export { heliocentricToEquatorial } from '../astronomy/orbital-mechanics';
-
 function getCometEquatorial(
   comet: ParsedComet,
   time: Date
@@ -331,7 +328,8 @@ export function calculateCometVisibility(
   comet: ParsedComet,
   calculator: SkyCalculator,
   nightInfo: NightInfo,
-  maxMagnitude: number = 12.0
+  maxMagnitude: number = 12.0,
+  includeInvisible = false
 ): ObjectVisibility | null {
   // Get Julian date for midnight
   const midnight = new Date(
@@ -386,7 +384,7 @@ export function calculateCometVisibility(
   );
 
   // Skip if not visible
-  if (!visibility.isVisible) {
+  if (!includeInvisible && !visibility.isVisible) {
     return null;
   }
 

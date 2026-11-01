@@ -20,7 +20,6 @@ export interface TargetAccessibility {
   bestWindow: TargetAccessWindow | null;
   accessibleMinutes: number;
   bestWindowOverlapMinutes: number;
-  priorityScore: number;
 }
 
 /** A time-ordered altitude/azimuth sample pair for one object. */
@@ -445,6 +444,5 @@ export function evaluateTargetAccessibility(
     bestWindow: selectBestWindow(windows),
     accessibleMinutes,
     bestWindowOverlapMinutes,
-    priorityScore: bestWindowOverlapMinutes * 3 + accessibleMinutes,
   };
 }

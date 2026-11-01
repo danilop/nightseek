@@ -161,7 +161,6 @@ describe('horizon-profile utilities', () => {
     expect(accessibility.bestWindowOverlapMinutes).toBe(10);
     expect(accessibility.bestWindow?.start).toEqual(new Date('2025-01-15T22:00:00Z'));
     expect(accessibility.bestWindow?.end).toEqual(new Date('2025-01-15T22:20:00Z'));
-    expect(accessibility.priorityScore).toBeGreaterThan(accessibility.accessibleMinutes);
   });
 
   it('interpolates threshold crossings to produce useful start and end times', () => {

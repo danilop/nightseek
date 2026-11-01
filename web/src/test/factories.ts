@@ -164,6 +164,7 @@ export function createMockScoreBreakdown(overrides: Partial<ScoreBreakdown> = {}
     dewRiskPenalty: 0,
     imagingWindowScore: 15,
     fovSuitability: 10,
+    framingPenalty: 0,
     ...overrides,
   };
 }

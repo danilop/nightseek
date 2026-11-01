@@ -77,3 +77,30 @@ jobs:
       - name: Build
         working-directory: ./mobile
         run: npm run build
+
+  validate-browser:
+    name: Browser flows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.13.1
+
+      - name: Install dependencies and test browsers
+        working-directory: ./web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: Test desktop and mobile browser flows
+        working-directory: ./web
+        run: pnpm test:e2e --workers=2

@@ -9,7 +9,6 @@ import type {
   OppositionEvent,
   ScoreBreakdown,
   ScoredObject,
-  ScoreTier,
   SeeingForecast,
   VenusPeakInfo,
 } from '@/types';
@@ -837,7 +836,7 @@ export function calculateTotalScore(
     visibility.minorAxisArcmin
   );
 
-  const totalScore =
+  const baseScore =
     altitudeScore +
     moonInterference +
     peakTiming +
@@ -859,6 +858,19 @@ export function calculateTotalScore(
     dewRiskPenalty +
     imagingWindowScore +
     fovSuitability;
+
+  // Framing is a practical limit for deep-sky imaging, not just a small bonus.
+  // Use the unrounded linear occupancy estimate: almost point-sized targets
+  // retain 15% of their score, rising smoothly to full credit at full framing.
+  // This is a composition preference, not a resolution/detectability model.
+  const frameGeometry =
+    objectType === 'dso'
+      ? getFrameGeometry(angularSizeArcmin, fov, visibility.minorAxisArcmin)
+      : null;
+  const framingPenalty = frameGeometry
+    ? -Math.round(Math.max(0, baseScore) * 0.85 * (1 - Math.sqrt(frameGeometry.frameCoverage)))
+    : 0;
+  const totalScore = baseScore + framingPenalty;
 
   const scoreBreakdown: ScoreBreakdown = {
     altitudeScore,
@@ -882,6 +894,7 @@ export function calculateTotalScore(
     dewRiskPenalty,
     imagingWindowScore,
     fovSuitability,
+    framingPenalty,
   };
 
   // Generate reason string
@@ -901,6 +914,9 @@ export function calculateTotalScore(
   if (seeingQuality >= 6) reasons.push('Good seeing');
   if (dewRiskPenalty < -3) reasons.push('Dew risk');
   if (imagingWindowScore >= 15) reasons.push('Good imaging conditions');
+  if (frameGeometry && frameGeometry.frameCoverage < 0.01) {
+    reasons.unshift('Very small in this telescope’s frame');
+  }
 
   return {
     objectName,
@@ -914,13 +930,7 @@ export function calculateTotalScore(
   };
 }
 
-/**
- * Get score tier from total score
- */
-export function getScoreTier(totalScore: number): ScoreTier {
-  if (totalScore >= 150) return 'excellent';
-  if (totalScore >= 100) return 'very_good';
-  if (totalScore >= 75) return 'good';
-  if (totalScore >= 40) return 'fair';
-  return 'poor';
+/** One recommendation order everywhere; visibility and weather determine eligibility separately. */
+export function compareTargetScores(a: ScoredObject, b: ScoredObject): number {
+  return b.totalScore - a.totalScore || a.objectName.localeCompare(b.objectName);
 }

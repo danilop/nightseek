@@ -93,7 +93,7 @@ describe('getSecondarySortComparator', () => {
       visibility: {
         imagingWindow: {
           start: new Date(),
-          end: new Date(),
+          end: new Date(Date.now() + 3_600_000),
           quality: 'excellent',
           qualityScore: 90,
           factors: { altitude: 80, airmass: 1.1, moonInterference: 2, cloudCover: 5 },

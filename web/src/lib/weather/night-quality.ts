@@ -325,7 +325,8 @@ function buildPracticalWindowPenalty(
   const durationHours =
     (weather.bestTime.end.getTime() - weather.bestTime.start.getTime()) / (1000 * 60 * 60);
   const hoursBeforeDawn =
-    (nightInfo.observingWindowEnd.getTime() - weather.bestTime.end.getTime()) / (1000 * 60 * 60);
+    // A long clear window ending at dawn still offers useful evening hours.
+    (nightInfo.observingWindowEnd.getTime() - weather.bestTime.start.getTime()) / (1000 * 60 * 60);
 
   let penalty = 0;
   const detailParts: string[] = [];

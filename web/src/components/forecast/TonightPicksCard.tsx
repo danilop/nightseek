@@ -1,6 +1,6 @@
 import { Trophy, X } from 'lucide-react';
 import type { TargetAccessibility } from '@/lib/utils/horizon-profile';
-import { getRatingFromScore } from '@/lib/utils/rating';
+import { getTargetRating } from '@/lib/utils/rating';
 import { useApp } from '@/stores/AppContext';
 import type { ScoredObject, TonightPick } from '@/types';
 import TargetWindowSummary from './TargetWindowSummary';
@@ -63,7 +63,7 @@ function PickItem({
   accessibility?: TargetAccessibility;
 }) {
   const { state } = useApp();
-  const rating = getRatingFromScore(pick.object.totalScore, 235);
+  const rating = getTargetRating(pick.object.totalScore);
   const displayName = pick.object.visibility.commonName || pick.object.objectName;
 
   return (

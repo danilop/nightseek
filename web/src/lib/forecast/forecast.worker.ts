@@ -21,7 +21,9 @@ self.onmessage = async ({ data }: MessageEvent<ForecastRequest>) => {
             scoredObjects: new Map(latestObjects),
           },
         });
-      }
+      },
+      undefined,
+      data.referenceDate
     );
     send({ type: 'complete', result });
   } catch (error) {

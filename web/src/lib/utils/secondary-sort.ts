@@ -1,10 +1,17 @@
 import type { ScoredObject, SecondarySortField } from '@/types';
-import { calculateFrameFillPercent } from '../scoring';
+import { calculateFrameFillPercent, compareTargetScores } from '../scoring';
+import type { TargetAccessibility } from './horizon-profile';
+import { getTargetPhotoWindow } from './target-photo-windows';
 
 interface SortFieldConfig {
   field: SecondarySortField;
   label: string;
-  getValue: (obj: ScoredObject, fov: { width: number; height: number } | null) => number | null;
+  getValue: (
+    obj: ScoredObject,
+    fov: { width: number; height: number } | null,
+    access?: TargetAccessibility,
+    now?: Date
+  ) => number | null;
   direction: 'desc' | 'asc';
 }
 
@@ -36,7 +43,8 @@ const SORT_FIELD_CONFIGS: SortFieldConfig[] = [
   {
     field: 'imaging',
     label: 'Imaging Quality',
-    getValue: obj => obj.visibility.imagingWindow?.qualityScore ?? null,
+    getValue: (obj, _fov, access, now) =>
+      getTargetPhotoWindow(obj.visibility, access, now)?.qualityScore ?? null,
     direction: 'desc',
   },
   {
@@ -65,14 +73,16 @@ export function getSortFieldConfigs(): { field: SecondarySortField; label: strin
 
 export function getSecondarySortComparator(
   field: SecondarySortField,
-  fov: { width: number; height: number } | null
+  fov: { width: number; height: number } | null,
+  accessibility?: ReadonlyMap<ScoredObject, TargetAccessibility>,
+  now: Date = new Date()
 ): (a: ScoredObject, b: ScoredObject) => number {
   const config = SORT_FIELD_CONFIGS.find(c => c.field === field);
-  if (!config) return (a, b) => b.totalScore - a.totalScore;
+  if (!config || field === 'score') return compareTargetScores;
 
   return (a, b) => {
-    const valA = config.getValue(a, fov);
-    const valB = config.getValue(b, fov);
+    const valA = config.getValue(a, fov, accessibility?.get(a), now);
+    const valB = config.getValue(b, fov, accessibility?.get(b), now);
 
     // Null → end
     if (valA === null && valB === null) return 0;
