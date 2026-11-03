@@ -131,8 +131,8 @@ describe('Southern and Pacific observing-night regression matrix', () => {
       expect(formatInTimeZone(nextNoon, city.timezone, 'HH:mm')).toBe('12:00');
       const calculator = new SkyCalculator(city.latitude, city.longitude);
       const night = calculator.getNightInfo(noon);
-      const firstHour = Math.ceil(night.observingWindowStart.getTime() / 3_600_000);
-      const lastHour = Math.floor(night.observingWindowEnd.getTime() / 3_600_000);
+      const firstHour = Math.floor(night.observingWindowStart.getTime() / 3_600_000);
+      const lastHour = Math.ceil(night.observingWindowEnd.getTime() / 3_600_000);
       const times = Array.from(
         { length: lastHour - firstHour + 1 },
         (_, i) => (firstHour + i) * 3600
@@ -144,6 +144,11 @@ describe('Southern and Pacific observing-night regression matrix', () => {
           time: times,
           cloud_cover: values(0),
           precipitation: values(0),
+          precipitation_probability: values(0),
+          wind_speed_10m: values(5),
+          temperature_2m: values(10),
+          dew_point_2m: values(0),
+          relative_humidity_2m: values(50),
           wind_gusts_10m: values(8),
           visibility: values(20_000),
         },
@@ -159,14 +164,9 @@ describe('Southern and Pacific observing-night regression matrix', () => {
       expect(weather).not.toBeNull();
       if (!weather) throw new Error('Missing weather for a complete observing night');
       expect([...weather.hourlyData.keys()]).toEqual(times.map(time => time * 1000));
-      expect(weatherCoverage(weather, night)).toEqual({
-        expected: times.length,
-        weather: times.length,
-        aerosol: times.length,
-        precipitation: times.length,
-        wind: times.length,
-        visibility: times.length,
-      });
+      const duration = (+night.observingWindowEnd - +night.observingWindowStart) / 3_600_000;
+      for (const value of Object.values(weatherCoverage(weather, night)))
+        expect(value).toBeCloseTo(duration, 10);
       const localTimes = times.map(time =>
         formatInTimeZone(new Date(time * 1000), city.timezone, 'HH:mm')
       );

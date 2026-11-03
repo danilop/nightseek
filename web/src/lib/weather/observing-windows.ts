@@ -3,30 +3,12 @@ import {
   MIN_OBSERVING_WINDOW_MS,
   type TimeWindow,
 } from '@/lib/utils/observing-window';
-import type { BestObservingTime, HourlyWeather, NightInfo, NightWeather } from '@/types';
-import { weatherIntervals } from './hourly-slices';
-import { calculateWindowNightQuality } from './night-quality';
-import { observingBlockers } from './observing-conditions';
+import type { BestObservingTime, NightInfo, NightWeather } from '@/types';
 
-/** Only adjacent, usable forecast samples establish a period. Never bridge gaps. */
-export function collectWeatherWindows(
-  hours: Map<number, HourlyWeather>,
-  night: NightInfo,
-  cloudLimit = 70
-): TimeWindow[] {
-  const windows: TimeWindow[] = [];
-  if (night.observingWindowMode === 'none') return windows;
-  for (const { start: before, end: after, hour } of weatherIntervals(hours)) {
-    if (hour.cloudCover >= cloudLimit || observingBlockers(hour).length > 0) continue;
-    const start = Math.max(before, Number(night.observingWindowStart));
-    const end = Math.min(after, Number(night.observingWindowEnd));
-    if (end <= start) continue;
-    const previous = windows[windows.length - 1];
-    if (previous && Number(previous.end) === start) previous.end = new Date(end);
-    else windows.push({ start: new Date(start), end: new Date(end) });
-  }
-  return windows.filter(w => Number(w.end) - Number(w.start) >= MIN_OBSERVING_WINDOW_MS);
-}
+export { collectWeatherWindows } from './observing-conditions';
+
+import { calculateWindowNightQuality } from './night-quality';
+import { collectWeatherWindows } from './observing-conditions';
 
 function candidateBoundaries(window: TimeWindow, notBefore: Date): number[] {
   const start = Math.max(Number(window.start), Number(notBefore));
@@ -52,7 +34,7 @@ export function calculateObservingWindows(
 ) {
   const evaluate = (start: Date, end: Date): BestObservingTime => {
     const quality = calculateWindowNightQuality(weather, night, start, end);
-    return { start, end, score: quality.conditionsScore, reason: quality.summary };
+    return { start, end, score: quality.score, reason: quality.summary };
   };
   const windows = collectWeatherWindows(weather.hourlyData, night).map(w =>
     evaluate(w.start, w.end)
@@ -67,5 +49,14 @@ export function calculateObservingWindows(
       }
     }
   }
-  return { windows, recommended: candidates.sort(compareObservingWindows)[0] ?? null };
+  const recommended = candidates.sort(compareObservingWindows)[0] ?? null;
+  const strongest = recommended
+    ? (candidates
+        .filter(c => c.start >= recommended.start && c.end <= recommended.end)
+        .sort(
+          (a, b) =>
+            b.score - a.score || Number(b.end) - Number(b.start) - (Number(a.end) - Number(a.start))
+        )[0] ?? null)
+    : null;
+  return { windows, recommended, strongest, assessedFrom: notBefore };
 }

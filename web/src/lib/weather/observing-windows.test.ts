@@ -91,7 +91,7 @@ describe('observing periods and recommendation', () => {
     expect(plan.recommended?.start).toEqual(at(4));
     expect(plan.recommended?.end).toEqual(at(7));
   });
-  it('prefers a moon-free part of a clear period and uses the headline calculation', () => {
+  it('retains a useful long session and marks its moon-free strongest interval', () => {
     const data = weather(Array(11).fill(0));
     const moonNight = {
       ...night,
@@ -105,7 +105,9 @@ describe('observing periods and recommendation', () => {
     const plan = calculateObservingWindows(data, moonNight);
     expect(plan.windows).toHaveLength(1);
     expect(plan.recommended?.start).toEqual(at(0));
-    expect(plan.recommended?.end).toEqual(at(3));
+    expect(plan.recommended?.end).toEqual(at(10));
+    expect(plan.strongest?.start).toEqual(at(0));
+    expect(plan.strongest?.end).toEqual(at(3));
     const headline = calculateHeadlineNightQuality(
       { ...data, bestTime: plan.recommended },
       moonNight

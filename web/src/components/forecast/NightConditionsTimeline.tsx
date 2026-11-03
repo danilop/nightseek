@@ -55,6 +55,7 @@ export default function NightConditionsTimeline({
   const hour = timelineWeatherAt(Number(time), weather);
   const blockers = hour ? observingBlockers(hour) : [];
   const window = weather?.bestTime;
+  const strongest = weather?.strongestTime;
   const windows = weather?.observingWindows ?? (window ? [window] : []);
   const start = window ? timelinePosition(window.start, night.sunset, night.sunrise) : 0;
   const width = window ? timelinePosition(window.end, night.sunset, night.sunrise) - start : 0;
@@ -141,6 +142,16 @@ export default function NightConditionsTimeline({
               style={{ left: `${start}%`, width: `${width}%` }}
             />
           )}
+          {strongest && (
+            <span
+              className="absolute inset-y-0 rounded border-2 border-white"
+              title={`Strongest conditions: ${formatTimeRange(strongest.start, strongest.end, timezone)}`}
+              style={{
+                left: `${timelinePosition(strongest.start, night.sunset, night.sunrise)}%`,
+                width: `${timelinePosition(strongest.end, night.sunset, night.sunrise) - timelinePosition(strongest.start, night.sunset, night.sunrise)}%`,
+              }}
+            />
+          )}
         </div>
       </div>
       {windows.length > 0 && (
@@ -169,10 +180,19 @@ export default function NightConditionsTimeline({
           <div className="flex w-full flex-wrap gap-3 text-xs">
             <span className="text-sky-300">● Usable</span>
             <span className="text-green-300">● Recommended</span>
+            <span className="text-white">□ Strongest conditions</span>
             <span className="text-gray-400">● Elapsed</span>
           </div>
         </div>
       )}
+      {strongest &&
+        window &&
+        (Number(strongest.start) !== Number(window.start) ||
+          Number(strongest.end) !== Number(window.end)) && (
+          <p className="text-gray-300 text-xs">
+            Strongest conditions · {formatTimeRange(strongest.start, strongest.end, timezone)}
+          </p>
+        )}
       <label className="grid grid-cols-[4rem_1fr] items-center text-gray-400 text-xs">
         Time
         <input

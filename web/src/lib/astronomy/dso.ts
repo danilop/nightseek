@@ -33,6 +33,7 @@ export function calculateDSOVisibility(
     }
   );
   visibility.magnitudeSource = dso.magnitudeSource;
+  visibility.dimensionProvenance = dso.dimensionProvenance;
   if (visibility.maxAltitudeTime) {
     visibility.hourAngle = calculator.getHourAngleForRA(
       dso.raHours,

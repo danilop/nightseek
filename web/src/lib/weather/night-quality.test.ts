@@ -24,8 +24,8 @@ describe('night-quality', () => {
       });
 
       for (
-        let t = Math.ceil(nightInfo.observingWindowStart.getTime() / 3_600_000) * 3_600_000;
-        t <= nightInfo.observingWindowEnd.getTime();
+        let t = Math.floor(nightInfo.observingWindowStart.getTime() / 3_600_000) * 3_600_000;
+        t <= Math.ceil(nightInfo.observingWindowEnd.getTime() / 3_600_000) * 3_600_000;
         t += 3_600_000
       ) {
         weather.hourlyData.set(t, {
@@ -399,15 +399,14 @@ describe('night-quality', () => {
       expect(headline.metrics.cloudCover).toBeLessThan(wholeNight.metrics.cloudCover ?? 100);
     });
 
-    it('falls back to the whole-night score when no best window exists', () => {
+    it('does not invent an opportunity when no usable forecast intervals exist', () => {
       const nightInfo = createMockNightInfo();
       const weather = createMockNightWeather({ bestTime: null });
 
-      const wholeNight = calculateNightQuality(weather, nightInfo);
       const headline = calculateHeadlineNightQuality(weather, nightInfo);
 
-      expect(headline.score).toBe(wholeNight.score);
-      expect(headline.rating.tier).toBe(wholeNight.rating.tier);
+      expect(headline.score).toBe(0);
+      expect(headline.opportunity?.usableHours).toBe(0);
       expect(headline.metrics.source).toBe('whole_night');
     });
 
@@ -502,7 +501,8 @@ describe('night-quality', () => {
 
       expect(quality.score).toBeLessThan(50);
       expect(quality.rating.tier).not.toBe('very_good');
-      expect(quality.penalties.map(penalty => penalty.detail)).toContain('short 60m window');
+      expect(quality.opportunity?.usableHours).toBe(1);
+      expect(quality.opportunity?.longestHours).toBe(1);
     });
   });
 });

@@ -75,7 +75,7 @@ describe('native night notifications', () => {
     const plan = planNightNotification(forecast, [target], profile, now);
     const rating = calculateHeadlineNightQuality(forecast.weather, night).rating;
     expect(rating.stars).toBeGreaterThanOrEqual(4);
-    expect(plan?.title).toBe(`${rating.label} Observing Window Tonight`);
+    expect(plan?.title).toBe(`${rating.label} Observing Opportunity Tonight`);
     expect(plan?.body).toContain(target.objectName);
     expect(plan?.at.getTime()).toBe(night.sunset.getTime() - 3_600_000);
   });

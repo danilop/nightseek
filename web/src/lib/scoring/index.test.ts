@@ -93,7 +93,7 @@ describe('scoring', () => {
         null,
         fov
       );
-      expect(score.scoreBreakdown.fovSuitability).toBe(12);
+      expect(score.scoreBreakdown.fovSuitability).toBe(13);
       expect(calculateMosaicPanels(62.09, fov, 36.73)).toBeNull();
     });
   });
@@ -651,7 +651,7 @@ describe('scoring', () => {
 
     it('distinguishes a well-framed galaxy from small isolated galaxies', () => {
       const m33 = score(62.09, 36.73);
-      expect(m33).toBe(12);
+      expect(m33).toBe(13);
       for (const [major, minor] of [
         [7.74, 4.86],
         [11.4, 10.84],

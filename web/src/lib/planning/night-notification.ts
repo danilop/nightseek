@@ -15,7 +15,7 @@ export function planNightNotification(
   const targets = planSessionTargets(objects, profile, forecast.weather, now).slice(0, 3);
   if (!targets.length) return null;
   return {
-    title: `${quality.rating.label} Observing Window Tonight`,
+    title: `${quality.rating.label} Observing Opportunity Tonight`,
     body: `Forecast: ${quality.summary}. Top targets: ${targets.map(target => target.object.objectName).join(', ')}. Recheck conditions before observing.`,
     at,
   };

@@ -358,6 +358,26 @@ export default function ObjectDetailPanel({
               uncertainty affect cropping.
             </p>
           )}
+          {visibility.dimensionProvenance && (
+            <div className="space-y-1 text-xs">
+              <p>
+                {visibility.dimensionProvenance.region} · {visibility.dimensionProvenance.note}
+              </p>
+              <p className="flex flex-wrap gap-3">
+                {visibility.dimensionProvenance.sources.map(source => (
+                  <a
+                    key={source.url}
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sky-300 underline"
+                  >
+                    {source.label}
+                  </a>
+                ))}
+              </p>
+            </div>
+          )}
           {accessibleImagingWindow && (
             <div className="space-y-2">
               <p className="text-gray-400 text-xs">

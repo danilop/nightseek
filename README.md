@@ -85,13 +85,16 @@ or guarantees. Open-Meteo's free hosted service is restricted to non-commercial
 use; see its [terms](https://open-meteo.com/en/terms). NOAA's public Kp feed needs
 no key, and does not establish whether an aurora is visible at a specific site.
 
-Target-size preference uses both catalogue axes relative to the selected field
-of view. Its bonus increases until the target spans both frame dimensions, then
-plateaus; larger targets retain the bonus and show crop/mosaic needs separately.
-This expresses a preference for substantial subjects, not a detection limit.
-Displayed frame area estimates the catalogue ellipse relative to the rectangular
-frame; it can exceed 100% and does not measure how much of a cropped target is
-visible. Brightness, altitude, Moon and imaging conditions still affect ranking.
+Target-size preference uses both catalogue axes and the selected field of view.
+Length span earns composition credit, while extremely narrow targets receive less
+credit for detail. It is not an optical detection/resolution limit. Shared tags and
+diagrams show dimensions and fit; crop/mosaic needs remain visible. Estimated ellipse
+area is secondary, can exceed 100%, and is not visible frame coverage. See
+[dimension provenance and corrections](docs/catalogue-dimensions.md).
+
+Night stars describe [remaining observing opportunity](docs/observing-windows.md),
+including usable time and continuity. Window conditions and evidence confidence are
+shown separately; a brief excellent gap does not make the whole night five-star.
 
 ## Web development
 

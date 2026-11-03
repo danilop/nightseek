@@ -123,8 +123,8 @@ describe.each(cities)('$name: location calendar, season and DST', city => {
       const raw = makeWeather(anchor, city.timezone);
       const selected = (raw.hourly.time as number[]).filter(
         t =>
-          t * 1000 >= night.observingWindowStart.getTime() &&
-          t * 1000 <= night.observingWindowEnd.getTime()
+          t * 1000 >= Math.floor(night.observingWindowStart.getTime() / 3_600_000) * 3_600_000 &&
+          t * 1000 <= Math.ceil(night.observingWindowEnd.getTime() / 3_600_000) * 3_600_000
       );
       // Deliberately reverse AQ order: the join must use timestamps, not array position.
       const airTimes = [...selected].reverse();
@@ -146,17 +146,23 @@ describe.each(cities)('$name: location calendar, season and DST', city => {
       expect([...result.hourlyData.keys()]).toEqual(selected.map(t => t * 1000));
       for (const [time, weather] of result.hourlyData)
         expect(weather.aod).toBe(((time / 1000) % 10000) / 100000);
-      expect(weatherCoverage(result, night)).toMatchObject({
-        expected: selected.length,
-        weather: selected.length,
-        aerosol: selected.length,
-      });
-      const mean =
-        selected.reduce(
-          (total, t) => total + Number(raw.hourly.cloud_cover[raw.hourly.time.indexOf(t)]),
-          0
-        ) / selected.length;
-      expect(result.avgCloudCover).toBeCloseTo(mean, 10);
+      const coverage = weatherCoverage(result, night);
+      const duration =
+        (Number(night.observingWindowEnd) - Number(night.observingWindowStart)) / 3_600_000;
+      expect(coverage.expected).toBeCloseTo(duration, 10);
+      expect(coverage.weather).toBeCloseTo(duration, 10);
+      expect(coverage.aerosol).toBeCloseTo(duration, 10);
+      const weightedCloud =
+        selected.slice(0, -1).reduce((total, t, i) => {
+          const hours =
+            Math.max(
+              0,
+              Math.min(selected[i + 1] * 1000, +night.observingWindowEnd) -
+                Math.max(t * 1000, +night.observingWindowStart)
+            ) / 3_600_000;
+          return total + hours * Number(raw.hourly.cloud_cover[raw.hourly.time.indexOf(t)]);
+        }, 0) / duration;
+      expect(result.avgCloudCover).toBeCloseTo(weightedCloud, 10);
       const labels = selected.map(t =>
         formatInTimeZone(new Date(t * 1000), city.timezone, 'HH:mm')
       );

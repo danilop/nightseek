@@ -63,7 +63,7 @@ describe('target photo windows', () => {
     expect(result).toBeNull();
   });
 
-  it('prefers quality before duration when several accessible windows overlap', () => {
+  it('balances conditions and duration when several accessible windows overlap', () => {
     const excellent = {
       ...imagingWindow,
       start: new Date('2025-07-17T00:00:00Z'),
@@ -76,8 +76,8 @@ describe('target photo windows', () => {
       accessibility('2025-07-16T22:00:00Z', '2025-07-17T01:00:00Z')
     );
 
-    expect(result?.quality).toBe('excellent');
-    expect(result?.durationMinutes).toBe(40);
+    expect(result?.quality).toBe(imagingWindow.quality);
+    expect(result?.durationMinutes).toBe(180);
   });
 });
 

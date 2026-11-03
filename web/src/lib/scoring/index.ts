@@ -609,6 +609,9 @@ export function getFrameGeometry(
   minorEstimated: boolean;
   relativeArea: number;
   frameCoverage: number;
+  spanFraction: number;
+  widthFraction: number;
+  compositionCoverage: number;
 } | null {
   if (
     !fov ||
@@ -624,10 +627,18 @@ export function getFrameGeometry(
   // Unknown minor axes use a circle, matching the mosaic estimate.
   const minor =
     minorAxis !== undefined && Number.isFinite(minorAxis) && minorAxis > 0 ? minorAxis : majorAxis;
+  const spanFraction = majorAxis / Math.max(fov.width, fov.height);
+  const widthFraction = minor / Math.min(fov.width, fov.height);
+  // Composition heuristic, not an optical resolution model. A long filament
+  // gets span credit once its width occupies 5% of the short frame axis.
+  const compositionCoverage = Math.min(1, spanFraction) * Math.min(1, widthFraction / 0.05) ** 3;
   const covered = (width: number, height: number) =>
     Math.min(1, majorAxis / width) * Math.min(1, minor / height);
   return {
     major: majorAxis,
+    spanFraction,
+    widthFraction,
+    compositionCoverage,
     minor,
     minorEstimated: !(minorAxis !== undefined && Number.isFinite(minorAxis) && minorAxis > 0),
     relativeArea: (majorAxis / fov.width) * (minor / fov.height),
@@ -640,8 +651,8 @@ export function getFrameGeometry(
 
 /**
  * Apparent-size preference (0-15), not target detectability.
- * Credit grows with the geometric mean of the two occupied axis fractions,
- * reaching its maximum when both axes span the frame. Larger subjects retain
+ * Credit grows with length span; extremely narrow subjects lose detail credit.
+ * A width of 5% of the short frame axis earns full width credit. Larger subjects retain
  * full credit; cropping and mosaic needs are explained separately. Size beyond
  * the frame cannot provide unlimited detail in a single view.
  */
@@ -655,7 +666,7 @@ export function calculateFOVSuitabilityScore(
   if (objectType === 'planet' || objectType === 'moon') return 10;
   const geometry = getFrameGeometry(angularSizeArcmin, fov, minorAxisArcmin);
   if (!geometry) return 10;
-  return Math.round(15 * Math.sqrt(geometry.frameCoverage));
+  return Math.round(15 * Math.sqrt(geometry.compositionCoverage));
 }
 
 /**
@@ -867,7 +878,9 @@ export function calculateTotalScore(
       ? getFrameGeometry(angularSizeArcmin, fov, visibility.minorAxisArcmin)
       : null;
   const framingPenalty = frameGeometry
-    ? -Math.round(Math.max(0, baseScore) * 0.85 * (1 - Math.sqrt(frameGeometry.frameCoverage)))
+    ? -Math.round(
+        Math.max(0, baseScore) * 0.85 * (1 - Math.sqrt(frameGeometry.compositionCoverage))
+      )
     : 0;
   const totalScore = baseScore + framingPenalty;
 
@@ -913,7 +926,7 @@ export function calculateTotalScore(
   if (seeingQuality >= 6) reasons.push('Good seeing');
   if (dewRiskPenalty < -3) reasons.push('Dew risk');
   if (imagingWindowScore >= 15) reasons.push('Good imaging conditions');
-  if (frameGeometry && frameGeometry.frameCoverage < 0.01) {
+  if (frameGeometry && frameGeometry.spanFraction < 0.1) {
     reasons.unshift('Very small in this telescope’s frame');
   }
 

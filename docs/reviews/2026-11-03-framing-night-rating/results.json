@@ -1,0 +1,465 @@
+{
+  "commit": "37dca47",
+  "rows": [
+    {
+      "name": "30 minutes clear, rest overcast",
+      "score": 88,
+      "stars": 5,
+      "recommendedHours": 0.5,
+      "usableHours": 1,
+      "wholeNightScore": 3,
+      "penalties": [
+        {
+          "key": "seeing",
+          "detail": "good seeing",
+          "penalty": 25
+        },
+        {
+          "key": "transparency",
+          "detail": "90% transparency",
+          "penalty": 10
+        },
+        {
+          "key": "practicality",
+          "detail": "short 30m window",
+          "penalty": 6
+        }
+      ]
+    },
+    {
+      "name": "1 hour clear, rest overcast",
+      "score": 90,
+      "stars": 5,
+      "recommendedHours": 1,
+      "usableHours": 1,
+      "wholeNightScore": 3,
+      "penalties": [
+        {
+          "key": "seeing",
+          "detail": "good seeing",
+          "penalty": 25
+        },
+        {
+          "key": "transparency",
+          "detail": "90% transparency",
+          "penalty": 10
+        },
+        {
+          "key": "practicality",
+          "detail": "short 60m window",
+          "penalty": 4
+        }
+      ]
+    },
+    {
+      "name": "2 hours clear, rest overcast",
+      "score": 94,
+      "stars": 5,
+      "recommendedHours": 2,
+      "usableHours": 2,
+      "wholeNightScore": 6,
+      "penalties": [
+        {
+          "key": "seeing",
+          "detail": "good seeing",
+          "penalty": 25
+        },
+        {
+          "key": "transparency",
+          "detail": "90% transparency",
+          "penalty": 10
+        }
+      ]
+    },
+    {
+      "name": "8 hours clear",
+      "score": 94,
+      "stars": 5,
+      "recommendedHours": 8,
+      "usableHours": 8,
+      "wholeNightScore": 25,
+      "penalties": [
+        {
+          "key": "seeing",
+          "detail": "good seeing",
+          "penalty": 25
+        },
+        {
+          "key": "transparency",
+          "detail": "90% transparency",
+          "penalty": 10
+        }
+      ]
+    },
+    {
+      "name": "2 pristine hours inside 10 usable hours",
+      "score": 94,
+      "stars": 5,
+      "recommendedHours": 2.5,
+      "usableHours": 10,
+      "wholeNightScore": 88,
+      "penalties": [
+        {
+          "key": "seeing",
+          "detail": "good seeing",
+          "penalty": 25
+        },
+        {
+          "key": "transparency",
+          "detail": "90% transparency",
+          "penalty": 10
+        },
+        {
+          "key": "clouds",
+          "detail": "2% clouds",
+          "penalty": 2
+        }
+      ]
+    },
+    {
+      "name": "10 hours clear",
+      "score": 94,
+      "stars": 5,
+      "recommendedHours": 10,
+      "usableHours": 10,
+      "wholeNightScore": 91,
+      "penalties": [
+        {
+          "key": "seeing",
+          "detail": "good seeing",
+          "penalty": 25
+        },
+        {
+          "key": "transparency",
+          "detail": "90% transparency",
+          "penalty": 10
+        }
+      ]
+    },
+    {
+      "name": "1 hour clear, 9 hours at 10% cloud",
+      "score": 93,
+      "stars": 5,
+      "recommendedHours": 2,
+      "usableHours": 10,
+      "wholeNightScore": 87,
+      "penalties": [
+        {
+          "key": "seeing",
+          "detail": "good seeing",
+          "penalty": 25
+        },
+        {
+          "key": "transparency",
+          "detail": "90% transparency",
+          "penalty": 10
+        },
+        {
+          "key": "clouds",
+          "detail": "5% clouds",
+          "penalty": 5
+        }
+      ]
+    }
+  ],
+  "stress": {
+    "missing temperature and dew point": {
+      "score": 94,
+      "stars": 5,
+      "factors": {
+        "clouds": 100,
+        "transparency": 90,
+        "seeing": 75,
+        "moon": 100,
+        "dewRisk": 100,
+        "wind": 100
+      }
+    },
+    "50% cloud": {
+      "score": 77,
+      "stars": 5,
+      "factors": {
+        "clouds": 50,
+        "transparency": 90,
+        "seeing": 75,
+        "moon": 100,
+        "dewRisk": 100,
+        "wind": 100
+      }
+    },
+    "50.01% cloud": {
+      "score": 49,
+      "stars": 3,
+      "factors": {
+        "clouds": 49.99,
+        "transparency": 90,
+        "seeing": 75,
+        "moon": 100,
+        "dewRisk": 100,
+        "wind": 100
+      }
+    },
+    "60% cloud": {
+      "score": 49,
+      "stars": 3,
+      "factors": {
+        "clouds": 40,
+        "transparency": 90,
+        "seeing": 75,
+        "moon": 100,
+        "dewRisk": 100,
+        "wind": 100
+      }
+    },
+    "60.01% cloud": {
+      "score": 34,
+      "stars": 2,
+      "factors": {
+        "clouds": 39.99,
+        "transparency": 90,
+        "seeing": 75,
+        "moon": 100,
+        "dewRisk": 100,
+        "wind": 100
+      }
+    },
+    "missing aerosol outside selected interval": 69,
+    "full moon above horizon": 79,
+    "no remaining window, otherwise clear night": 91
+  },
+  "framing": [
+    {
+      "name": "upstream Western Veil",
+      "major": 210,
+      "minor": 160,
+      "areaPercent": 286.3430804053197,
+      "sizePoints": 15,
+      "baseScoreRetention": 1
+    },
+    {
+      "name": "SAC Western Veil",
+      "major": 70,
+      "minor": 6,
+      "areaPercent": 3.579288505066496,
+      "sizePoints": 3,
+      "baseScoreRetention": 0.33145641981386786
+    },
+    {
+      "name": "upstream N America",
+      "major": 120,
+      "minor": 30,
+      "areaPercent": 30.679615757712824,
+      "sizePoints": 9,
+      "baseScoreRetention": 0.68125
+    },
+    {
+      "name": "SAC N America",
+      "major": 120,
+      "minor": 100,
+      "areaPercent": 102.26538585904275,
+      "sizePoints": 15,
+      "baseScoreRetention": 0.9730089610690761
+    }
+  ],
+  "boundary": {
+    "nightHours": 10,
+    "firstKeptHour": 1793739600000,
+    "usableHours": 9
+  },
+  "london": [
+    {
+      "date": "2026-11-03T12:00:00.000Z",
+      "score": 70,
+      "stars": 4,
+      "nightStart": "2026-11-03T18:23:41.538Z",
+      "nightEnd": "2026-11-04T05:05:07.007Z",
+      "recommended": {
+        "start": "2026-11-04T01:00:00.000Z",
+        "end": "2026-11-04T03:00:00.000Z",
+        "score": 70,
+        "reason": "Partly cloudy, calm winds"
+      },
+      "usableHours": 4,
+      "windows": [
+        {
+          "start": "2026-11-04T00:00:00.000Z",
+          "end": "2026-11-04T04:00:00.000Z",
+          "score": 49,
+          "reason": "Mostly cloudy, calm winds"
+        }
+      ],
+      "metrics": {
+        "source": "best_window",
+        "cloudCover": 33.5,
+        "transparencyScore": 69,
+        "seeingRating": "fair",
+        "moonlightExposure": 23.656024287652173,
+        "dewRiskHours": 0,
+        "totalHours": 2,
+        "windSpeedKmh": 14.95
+      }
+    },
+    {
+      "date": "2026-11-04T12:00:00.000Z",
+      "score": 0,
+      "stars": 1,
+      "nightStart": "2026-11-04T18:22:11.611Z",
+      "nightEnd": "2026-11-05T05:06:38.472Z",
+      "recommended": null,
+      "usableHours": 0,
+      "windows": [],
+      "metrics": {
+        "source": "whole_night",
+        "cloudCover": 97.45454545454545,
+        "transparencyScore": 70.9090909090909,
+        "seeingRating": null,
+        "moonlightExposure": 4.34020589669854,
+        "dewRiskHours": 0,
+        "totalHours": 10.740794722222223,
+        "windSpeedKmh": 14.07272727272727
+      }
+    },
+    {
+      "date": "2026-11-05T12:00:00.000Z",
+      "score": 55,
+      "stars": 4,
+      "nightStart": "2026-11-05T18:20:43.809Z",
+      "nightEnd": "2026-11-06T05:08:09.480Z",
+      "recommended": {
+        "start": "2026-11-06T03:00:00.000Z",
+        "end": "2026-11-06T05:00:00.000Z",
+        "score": 55,
+        "reason": "Partly cloudy, calm winds, little moonlight, dew risk"
+      },
+      "usableHours": 2,
+      "windows": [
+        {
+          "start": "2026-11-06T03:00:00.000Z",
+          "end": "2026-11-06T05:00:00.000Z",
+          "score": 55,
+          "reason": "Partly cloudy, calm winds, little moonlight, dew risk"
+        }
+      ],
+      "metrics": {
+        "source": "best_window",
+        "cloudCover": 49,
+        "transparencyScore": 54,
+        "seeingRating": "fair",
+        "moonlightExposure": 6.258308655643156,
+        "dewRiskHours": 2,
+        "totalHours": 2,
+        "windSpeedKmh": 7.4
+      }
+    },
+    {
+      "date": "2026-11-06T12:00:00.000Z",
+      "score": 0,
+      "stars": 1,
+      "nightStart": "2026-11-06T18:19:18.161Z",
+      "nightEnd": "2026-11-07T05:09:40.011Z",
+      "recommended": null,
+      "usableHours": 0,
+      "windows": [],
+      "metrics": {
+        "source": "whole_night",
+        "cloudCover": 87.0909090909091,
+        "transparencyScore": 48.18181818181818,
+        "seeingRating": null,
+        "moonlightExposure": 0.006704953268924895,
+        "dewRiskHours": 8,
+        "totalHours": 10.839402777777778,
+        "windSpeedKmh": 5.036363636363636
+      }
+    },
+    {
+      "date": "2026-11-07T12:00:00.000Z",
+      "score": 69,
+      "stars": 4,
+      "nightStart": "2026-11-07T18:17:54.692Z",
+      "nightEnd": "2026-11-08T05:11:10.041Z",
+      "recommended": {
+        "start": "2026-11-07T19:00:00.000Z",
+        "end": "2026-11-07T21:30:00.000Z",
+        "score": 85,
+        "reason": "Clear skies, calm winds, little moonlight · incomplete weather evidence"
+      },
+      "usableHours": 7,
+      "windows": [
+        {
+          "start": "2026-11-07T19:00:00.000Z",
+          "end": "2026-11-07T23:00:00.000Z",
+          "score": 79,
+          "reason": "Mostly clear, calm winds, little moonlight · incomplete weather evidence"
+        },
+        {
+          "start": "2026-11-08T02:00:00.000Z",
+          "end": "2026-11-08T05:00:00.000Z",
+          "score": 64,
+          "reason": "Partly cloudy, calm winds, little moonlight, dew risk · incomplete weather evidence"
+        }
+      ],
+      "metrics": {
+        "source": "best_window",
+        "cloudCover": 2,
+        "transparencyScore": 63.6,
+        "seeingRating": "fair",
+        "moonlightExposure": 0,
+        "dewRiskHours": 0,
+        "totalHours": 2.5,
+        "windSpeedKmh": 5.839999999999999
+      }
+    },
+    {
+      "date": "2026-11-08T12:00:00.000Z",
+      "score": 34,
+      "stars": 2,
+      "nightStart": "2026-11-08T18:16:33.430Z",
+      "nightEnd": "2026-11-09T05:12:39.546Z",
+      "recommended": {
+        "start": "2026-11-09T04:00:00.000Z",
+        "end": "2026-11-09T05:00:00.000Z",
+        "score": 34,
+        "reason": "Mostly cloudy, calm winds, little moonlight, dew risk · incomplete weather evidence"
+      },
+      "usableHours": 1,
+      "windows": [
+        {
+          "start": "2026-11-09T04:00:00.000Z",
+          "end": "2026-11-09T05:00:00.000Z",
+          "score": 34,
+          "reason": "Mostly cloudy, calm winds, little moonlight, dew risk · incomplete weather evidence"
+        }
+      ],
+      "metrics": {
+        "source": "best_window",
+        "cloudCover": 64,
+        "transparencyScore": null,
+        "seeingRating": "fair",
+        "moonlightExposure": 0,
+        "dewRiskHours": 1,
+        "totalHours": 1,
+        "windSpeedKmh": 3.6
+      }
+    },
+    {
+      "date": "2026-11-09T12:00:00.000Z",
+      "score": 0,
+      "stars": 1,
+      "nightStart": "2026-11-09T18:15:14.398Z",
+      "nightEnd": "2026-11-10T05:14:08.500Z",
+      "recommended": null,
+      "usableHours": 0,
+      "windows": [],
+      "metrics": {
+        "source": "whole_night",
+        "cloudCover": 98.18181818181819,
+        "transparencyScore": null,
+        "seeingRating": null,
+        "moonlightExposure": 0,
+        "dewRiskHours": 9,
+        "totalHours": 10.981695,
+        "windSpeedKmh": 10.354545454545457
+      }
+    }
+  ]
+}

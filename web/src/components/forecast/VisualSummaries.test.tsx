@@ -81,7 +81,7 @@ describe('visual disclosure and consistent summaries', () => {
     const summaries = screen.getAllByTestId('target-summary');
     expect(within(summaries[0]).getByText('mag 3.4')).toBeVisible();
     expect(summaries[0].textContent).toBe(summaries[1].textContent);
-    expect(within(summaries[0]).getByText('Extends beyond frame', { selector: 'p' })).toBeVisible();
+    expect(within(summaries[0]).getByRole('img', { name: /Extends beyond frame/ })).toBeVisible();
     expect(within(summaries[0]).getByText('1h · short window')).toBeVisible();
   });
   it('shows a dimensioned schematic without a remote image request', () => {

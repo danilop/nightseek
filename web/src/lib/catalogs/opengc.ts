@@ -1,6 +1,7 @@
 import type { DSOCatalogEntry, DSOSubtype } from '@/types';
 import { CACHE_KEYS, CACHE_TTLS, getCached, setCache } from '../utils/cache';
 import { getCommonName, MESSIER_EXTRAS } from './common-names';
+import { resolveCatalogDimensions } from './dimensions';
 import { resolveCatalogMagnitude } from './photometry';
 
 const OPENGC_URL =
@@ -171,11 +172,9 @@ export async function loadOpenNGCCatalog(
     );
     magnitude = photometry.magnitude;
 
-    // Parse angular size
-    const majorAxisArcmin =
-      majorAx && !Number.isNaN(parseFloat(majorAx)) ? parseFloat(majorAx) : null;
-    const minorAxisArcmin =
-      minorAx && !Number.isNaN(parseFloat(minorAx)) ? parseFloat(minorAx) : null;
+    const dimensions = resolveCatalogDimensions(name, parseFloat(majorAx), parseFloat(minorAx));
+    const majorAxisArcmin = dimensions.major;
+    const minorAxisArcmin = dimensions.minor;
 
     // Get Messier number
     const messierNumber = messier?.match(/\d+/) ? parseInt(messier, 10) : null;
@@ -186,7 +185,12 @@ export async function loadOpenNGCCatalog(
 
     // Calculate surface brightness if possible
     let surfaceBrightness: number | null = null;
-    if (magnitude !== null && majorAxisArcmin !== null && majorAxisArcmin > 0) {
+    if (
+      !dimensions.corrected &&
+      magnitude !== null &&
+      majorAxisArcmin !== null &&
+      majorAxisArcmin > 0
+    ) {
       const minorAx = minorAxisArcmin || majorAxisArcmin;
       const areaArcsec2 = Math.PI * ((majorAxisArcmin * 60) / 2) * ((minorAx * 60) / 2);
       surfaceBrightness = magnitude + 2.5 * Math.log10(areaArcsec2);
@@ -199,6 +203,7 @@ export async function loadOpenNGCCatalog(
       decDegrees,
       magnitude,
       magnitudeSource: photometry.source,
+      dimensionProvenance: dimensions.provenance,
       majorAxisArcmin,
       minorAxisArcmin,
       constellation,

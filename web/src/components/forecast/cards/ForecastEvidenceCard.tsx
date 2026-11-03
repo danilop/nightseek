@@ -4,7 +4,7 @@ import { formatDate, formatTime, formatTimeRange } from '@/lib/utils/format';
 import { formatSpeed, formatTemperatureDifference } from '@/lib/utils/units';
 import { type EnsembleForecast, ensembleWindow, fetchEnsemble } from '@/lib/weather/ensemble';
 import { fetchMetNorway, type ModelForecast } from '@/lib/weather/met-norway';
-import { weatherCoverage } from '@/lib/weather/observing-conditions';
+import { isWeatherCoverageComplete, weatherCoverage } from '@/lib/weather/observing-conditions';
 import { useApp } from '@/stores/AppContext';
 import type { Location, NightForecast, NightInfo, NightWeather } from '@/types';
 
@@ -41,13 +41,13 @@ export default function ForecastEvidenceCard({
       title="Forecast evidence"
       summary={
         coverage
-          ? `${Math.min(coverage.weather, coverage.expected)}/${coverage.expected} weather hours · ${Math.min(coverage.aerosol, coverage.precipitation, coverage.wind, coverage.visibility) < coverage.expected ? 'partial inputs' : 'inputs complete'}${weather?.fetchedAt ? ` · updated ${formatTime(new Date(weather.fetchedAt), location.timezone)}` : ''}`
+          ? `${Math.min(coverage.weather, coverage.expected).toFixed(1)}/${coverage.expected.toFixed(1)} weather hours · ${isWeatherCoverageComplete(coverage) ? 'inputs complete' : 'partial inputs'}${weather?.fetchedAt ? ` · updated ${formatTime(new Date(weather.fetchedAt), location.timezone)}` : ''}`
           : 'Weather unavailable · astronomy only'
       }
     >
       <p className="mt-2 text-gray-300 text-sm">
         {coverage
-          ? `${coverage.weather}/${coverage.expected} weather hours · ${coverage.aerosol}/${coverage.expected} aerosol hours · ${coverage.precipitation}/${coverage.expected} rain hours · ${coverage.wind}/${coverage.expected} gust hours · ${coverage.visibility}/${coverage.expected} visibility hours`
+          ? `${coverage.weather.toFixed(1)}/${coverage.expected.toFixed(1)} weather hours · ${coverage.aerosol.toFixed(1)}/${coverage.expected.toFixed(1)} aerosol hours · ${coverage.precipitation.toFixed(1)}/${coverage.expected.toFixed(1)} rain hours · ${coverage.wind.toFixed(1)}/${coverage.expected.toFixed(1)} gust hours · ${coverage.visibility.toFixed(1)}/${coverage.expected.toFixed(1)} visibility hours`
           : 'Weather unavailable — astronomy only'}
       </p>
       {weather?.fetchedAt && (

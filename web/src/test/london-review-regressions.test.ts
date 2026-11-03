@@ -115,7 +115,12 @@ describe('London review regressions — captured 31 October 2026', () => {
   });
   it('does not turn missing aerosols or weather into complete high confidence', () => {
     const parsed = requireWeather(weather());
-    expect(weatherCoverage(parsed, night)).toMatchObject({ weather: 11, expected: 11, aerosol: 0 });
+    const coverage = weatherCoverage(parsed, night);
+    expect(coverage.aerosol).toBe(0);
+    expect(coverage.expected).toBeCloseTo(
+      (+night.observingWindowEnd - +night.observingWindowStart) / 3_600_000
+    );
+    expect(coverage.weather).toBeLessThanOrEqual(coverage.expected);
     expect(forecastConfidence(parsed, night)).not.toBe('high');
     expect(calculateHeadlineNightQuality(parsed, night).rating.stars).toBeLessThan(5);
     expect(forecastConfidence(null, night)).toBe('low');

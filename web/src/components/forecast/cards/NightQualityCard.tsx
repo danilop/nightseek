@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import ExplainSection from '@/components/ui/ExplainSection';
+import NightRating from '@/components/ui/NightRating';
 import {
   getTwilightWindowLabel,
   TWILIGHT_GUIDE_ORDER,
@@ -12,9 +13,10 @@ import {
   getNightLabel,
 } from '@/lib/utils/format';
 import type { UnitPreferences } from '@/lib/utils/units';
-import { calculateHeadlineNightQuality, calculateNightQuality } from '@/lib/weather/night-quality';
+import { calculateHeadlineNightQuality } from '@/lib/weather/night-quality';
 import type { Location, NightForecast } from '@/types';
 import NightConditionsTimeline from '../NightConditionsTimeline';
+import NightOpportunitySummary from '../NightOpportunitySummary';
 
 export default function NightQualityCard({
   forecast,
@@ -32,23 +34,19 @@ export default function NightQualityCard({
     () => calculateHeadlineNightQuality(weather, nightInfo),
     [weather, nightInfo]
   );
-  const average = useMemo(() => calculateNightQuality(weather, nightInfo), [weather, nightInfo]);
   const clockShift = clockChangeMinutes(nightInfo.sunset, nightInfo.sunrise, timezone);
   return (
     <section
       className="space-y-3 rounded-xl border border-night-700 bg-night-900 p-4"
-      aria-label="Night conditions"
+      aria-label="Night opportunity"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-gray-400 text-xs">{getNightLabel(nightInfo.date, false, timezone)}</p>
-          <h3 className="font-semibold text-white">Night conditions</h3>
+          <h3 className="font-semibold text-white">Night opportunity</h3>
         </div>
-        <p className={`font-semibold ${headline.rating.color}`}>
-          <span role="img" aria-label={`Night conditions: ${headline.rating.stars} out of 5`}>
-            {headline.rating.starString}
-          </span>{' '}
-          {headline.rating.label}
+        <p className="font-semibold">
+          <NightRating quality={headline} />
         </p>
       </div>
       <p className={weather?.bestTime ? 'text-green-300 text-sm' : 'text-amber-300 text-sm'}>
@@ -60,14 +58,7 @@ export default function NightQualityCard({
               : 'No usable observing window in the forecast'
             : 'Weather unavailable · astronomy only'}
       </p>
-      {headline.penalties.length > 0 && (
-        <p className="text-amber-300 text-xs">
-          {headline.penalties
-            .slice(0, 2)
-            .map(p => p.detail)
-            .join(' · ')}
-        </p>
-      )}
+      <NightOpportunitySummary quality={headline} />
       {nightInfo.astronomicalNightMode === 'none' && (
         <p className="text-amber-300 text-xs">
           No astronomical night ·{' '}
@@ -95,11 +86,10 @@ export default function NightQualityCard({
         <p>{weather?.bestTime?.reason}</p>
         <p>
           Usable periods stay inside the observing night and exclude heavy cloud, rain, strong wind,
-          fog and missing forecast hours. Recommendations compare clouds, moonlight, wind, dew,
-          transparency and estimated seeing, with a modest preference for longer sessions. Short
-          opportunities of at least 30 minutes and pre-dawn periods remain eligible. Times are
-          estimates from hourly forecasts; target windows also account for altitude and your
-          horizon.
+          fog and missing forecast hours. Recommended sessions balance conditions and duration; the
+          outlined segment marks their strongest conditions. Periods of at least 30 minutes,
+          including pre-dawn opportunities, remain eligible. Times are estimates from hourly
+          forecasts; target windows also account for altitude and your horizon.
         </p>
         <p>
           Weather: red means blocked, blue means no known blocker, grey means missing data. Moon:
@@ -116,15 +106,22 @@ export default function NightQualityCard({
           </span>
         </p>
         <p>
-          Night conditions use the recommended interval when available. Target suitability is a
-          separate rating for each object and your telescope.
+          Stars rate remaining dark-sky imaging opportunity. Usable time is weighted by local
+          conditions squared. The strongest block earns full time credit and other blocks earn half.
+          Four hours at steady quality reach that conditions rating; short or split opportunities
+          score lower. Adding usable time cannot lower the score. This is a planning heuristic, not
+          a measured success probability. Narrowband and planetary imaging can tolerate more
+          moonlight. Target suitability also accounts for your telescope.
         </p>
         <p>
-          Whole-night average:{' '}
-          <span className={average.rating.color}>
-            {average.rating.starString} {average.rating.label}
-          </span>
+          Confidence reflects missing inputs and forecast lead time; it is not a guarantee. Missing
+          weather evidence limits the conditions score. Seeing is estimated, not measured.
         </p>
+        <ul className="list-inside list-disc">
+          {headline.penalties.map(p => (
+            <li key={`${p.key}-${p.detail}`}>{p.detail}</li>
+          ))}
+        </ul>
         <dl className="space-y-2">
           {TWILIGHT_GUIDE_ORDER.map(id => (
             <div key={id}>

@@ -1,6 +1,5 @@
 import { Focus } from 'lucide-react';
 import { formatFOV } from '@/lib/telescopes';
-import { formatFrameFillPercent } from '@/lib/utils/format';
 import { getFramePresentation } from '@/lib/utils/target-presentation';
 import type { ObjectCategory } from '@/types';
 
@@ -37,7 +36,7 @@ export default function TargetFrameDiagram({
         <svg
           viewBox="0 0 180 110"
           role="img"
-          aria-label={`${label}. Camera field ${formatFOV(fov.width, fov.height)}. Schematic, long axes aligned.`}
+          aria-label={`${frame.dimensions} · ${label}. Camera field ${formatFOV(fov.width, fov.height)}. Schematic, long axes aligned.`}
           className={compact ? 'h-16 w-full' : 'mx-auto max-h-44 w-full'}
         >
           <title>{label}</title>
@@ -66,16 +65,15 @@ export default function TargetFrameDiagram({
       ) : (
         <Focus aria-hidden="true" className="mx-auto my-4 h-6 w-6 text-gray-500" />
       )}
-      <p
-        className={`text-xs ${compact ? 'text-center' : 'font-medium'} ${frame.warning ? 'text-amber-300' : 'text-sky-200'}`}
-      >
-        {frame.label}
-      </p>
+      {!compact && (
+        <p className={`font-medium text-xs ${frame.warning ? 'text-amber-300' : 'text-sky-200'}`}>
+          {frame.dimensions} · {frame.label}
+        </p>
+      )}
       {!compact && (
         <p className="mt-1 text-gray-400 text-xs">
           FoV {formatFOV(fov.width, fov.height)}
-          {frame.percent !== null &&
-            ` · ${formatFrameFillPercent(frame.percent)} target/frame area`}
+          {geometry && ` · ≈${Math.round(geometry.spanFraction * 100)}% length span`}
           <br />
           Schematic · long axes aligned{geometry?.minorEstimated ? ' · minor axis estimated' : ''}
         </p>

@@ -7,10 +7,18 @@
 import { calculateMoonlightInfo } from '@/lib/astronomy/moonlight';
 import { estimateSeeing } from '@/lib/astronomy/seeing';
 import { formatDurationMinutes } from '@/lib/utils/format';
+import { MIN_OBSERVING_WINDOW_MS } from '@/lib/utils/observing-window';
 import { getRatingFromPercentage, type RatingDisplay } from '@/lib/utils/rating';
-import type { HourlyWeather, NightInfo, NightWeather, SeeingForecast } from '@/types';
-import { weatherSlices } from './hourly-slices';
-import { observingBlockers, transparencyFromAod, weatherCoverage } from './observing-conditions';
+import type { NightInfo, NightWeather, SeeingForecast } from '@/types';
+import { averageMetric, weatherSlices } from './hourly-slices';
+import {
+  collectWeatherWindows,
+  forecastConfidence,
+  isWeatherCoverageComplete,
+  observingBlockers,
+  transparencyFromAod,
+  weatherCoverage,
+} from './observing-conditions';
 
 export interface NightQualityFactors {
   clouds: number; // 0-100 contribution
@@ -38,14 +46,16 @@ export interface NightQualityMetrics {
   windSpeedKmh: number | null;
 }
 
-interface PracticalWindowPenalty {
-  detail: string;
-  penalty: number;
-}
-
 export interface NightQuality {
   score: number; // 0-100
-  conditionsScore: number; // Before the confidence cap; used to distinguish otherwise capped candidates
+  conditionsScore: number; // Window conditions before opportunity duration adjustment
+  confidence: 'high' | 'medium' | 'low';
+  opportunity?: {
+    usableHours: number;
+    longestHours: number;
+    windowCount: number;
+    label: string;
+  };
   rating: RatingDisplay;
   summary: string; // "Clear skies, calm winds"
   factors: NightQualityFactors;
@@ -132,25 +142,6 @@ function calculateWindScore(windSpeed: number | null): number {
   return 0;
 }
 
-function averageMetric(
-  hourlyData: { hour: HourlyWeather; hours: number }[],
-  getValue: (hour: HourlyWeather) => number | null
-): number | null {
-  const values = hourlyData
-    .map(({ hour, hours }) => ({ value: getValue(hour), hours }))
-    .filter((sample): sample is { value: number; hours: number } => sample.value != null);
-
-  if (values.length === 0) return null;
-  return (
-    values.reduce((sum, sample) => sum + sample.value * sample.hours, 0) /
-    values.reduce((sum, sample) => sum + sample.hours, 0)
-  );
-}
-
-function getHourlySlice(weather: NightWeather, start: Date, end: Date): HourlyWeather[] {
-  return weatherSlices(weather, start, end).map(slice => slice.hour);
-}
-
 function buildWholeNightMetrics(
   weather: NightWeather | null,
   nightInfo: NightInfo
@@ -195,11 +186,11 @@ function buildBestWindowMetrics(
   return {
     source: 'best_window',
     cloudCover: avgCloudCover,
-    transparencyScore:
-      transparencyFromAod(averageMetric(hourlySlice, hour => hour.aod ?? null)) ??
-      weather.transparencyScore,
-    seeingRating: estimateSeeing(avgWindSpeedKmh ?? 0, avgHumidity ?? 50, avgTempC, avgDewPointC)
-      .rating,
+    transparencyScore: transparencyFromAod(averageMetric(hourlySlice, hour => hour.aod ?? null)),
+    seeingRating:
+      avgWindSpeedKmh === null || avgHumidity === null
+        ? null
+        : estimateSeeing(avgWindSpeedKmh, avgHumidity, avgTempC, avgDewPointC).rating,
     moonlightExposure: nightInfo.moonAltitudeSamples
       ? calculateMoonlightInfo(
           nightInfo.moonIllumination,
@@ -208,7 +199,11 @@ function buildBestWindowMetrics(
           weather.bestTime.end
         ).exposurePercent
       : nightInfo.moonlight.exposurePercent,
-    dewRiskHours,
+    dewRiskHours: hourlySlice.some(
+      ({ hour }) => hour.temperature === null || hour.dewPoint === null
+    )
+      ? null
+      : dewRiskHours,
     totalHours: Math.max(
       (weather.bestTime.end.getTime() - weather.bestTime.start.getTime()) / (1000 * 60 * 60),
       0.5
@@ -219,8 +214,7 @@ function buildBestWindowMetrics(
 
 function buildPenaltyBreakdown(
   metrics: NightQualityMetrics,
-  factors: NightQualityFactors,
-  practicalWindowPenalty: PracticalWindowPenalty | null = null
+  factors: NightQualityFactors
 ): NightQualityPenalty[] {
   const penalties: NightQualityPenalty[] = [
     {
@@ -264,15 +258,13 @@ function buildPenaltyBreakdown(
     },
   ];
 
-  if (practicalWindowPenalty) {
-    penalties.push({
-      key: 'practicality',
-      detail: practicalWindowPenalty.detail,
-      penalty: practicalWindowPenalty.penalty,
-    });
-  }
-
-  return penalties.filter(penalty => penalty.penalty > 0).sort((a, b) => b.penalty - a.penalty);
+  return penalties
+    .map(p => ({
+      ...p,
+      penalty: Math.round(p.penalty * WEIGHTS[p.key as keyof NightQualityFactors] * 100) / 100,
+    }))
+    .filter(p => p.penalty > 0)
+    .sort((a, b) => b.penalty - a.penalty);
 }
 
 /**
@@ -320,50 +312,6 @@ function generateSummary(factors: NightQualityFactors, metrics: NightQualityMetr
   }
 
   return descriptions.join(', ') || 'Average conditions';
-}
-
-function buildPracticalWindowPenalty(
-  metrics: NightQualityMetrics,
-  weather: NightWeather | null
-): PracticalWindowPenalty | null {
-  if (metrics.source !== 'best_window' || !weather?.bestTime) return null;
-
-  const durationHours =
-    (weather.bestTime.end.getTime() - weather.bestTime.start.getTime()) / (1000 * 60 * 60);
-  // A brief opportunity is useful, but comparable longer sessions are preferable.
-  // Being close to dawn is not a penalty while the interval remains dark.
-  let penalty = Math.round(Math.max(0, 2 - durationHours) * 4);
-  const detailParts: string[] = [];
-  if (penalty > 0) detailParts.push(`short ${Math.round(durationHours * 60)}m window`);
-
-  if (metrics.cloudCover !== null) {
-    if (metrics.cloudCover > 60) {
-      penalty += 12;
-    } else if (metrics.cloudCover > 50) {
-      penalty += 6;
-    }
-  }
-
-  if (penalty === 0 || detailParts.length === 0) return null;
-
-  return {
-    detail: detailParts.join(', '),
-    penalty,
-  };
-}
-
-function applyPracticalWindowScoreCaps(score: number, metrics: NightQualityMetrics): number {
-  let cappedScore = score;
-
-  if (metrics.source === 'best_window' && metrics.cloudCover !== null) {
-    if (metrics.cloudCover > 60) {
-      cappedScore = Math.min(cappedScore, 34);
-    } else if (metrics.cloudCover > 50) {
-      cappedScore = Math.min(cappedScore, 49);
-    }
-  }
-
-  return cappedScore;
 }
 
 interface ObservingWindowLimit {
@@ -439,7 +387,7 @@ function calculateFromMetrics(
     moon: calculateMoonScore(metrics.moonlightExposure),
     dewRisk:
       metrics.dewRiskHours === null
-        ? 75
+        ? 50
         : calculateDewScore(metrics.dewRiskHours, metrics.totalHours),
     wind: calculateWindScore(metrics.windSpeedKmh),
   };
@@ -453,58 +401,60 @@ function calculateFromMetrics(
       factors.wind * WEIGHTS.wind
   );
 
-  if (metrics.cloudCover !== null) {
-    if (metrics.cloudCover > 80) {
-      score = Math.min(score, 34);
-    } else if (metrics.cloudCover > 70) {
-      score = Math.min(score, 49);
-    }
-  }
-
-  const practicalWindowPenalty =
-    weather && nightInfo ? buildPracticalWindowPenalty(metrics, weather) : null;
-
-  if (practicalWindowPenalty) {
-    score = Math.max(0, score - practicalWindowPenalty.penalty);
-  }
-
-  score = applyPracticalWindowScoreCaps(score, metrics);
-
+  // Continuous limits: cloud and moonlight cannot be cancelled by calm winds.
+  // This is a dark-sky imaging heuristic, not a calibrated success probability.
+  const penalties = buildPenaltyBreakdown(metrics, factors);
+  const cloudCap = metrics.cloudCover === null ? 69 : Math.max(0, 100 - 1.2 * metrics.cloudCover);
+  const moonCap = 100 - 0.4 * metrics.moonlightExposure;
+  const limited = Math.round(Math.min(score, cloudCap, moonCap));
+  if (limited < score)
+    penalties.push({
+      key: 'practicality',
+      detail: cloudCap < moonCap ? 'Cloud limits imaging' : 'Moonlight limits dark-sky imaging',
+      penalty: score - limited,
+    });
+  score = limited;
   let conditionsSummary = generateSummary(factors, metrics);
-  const selectedHours = weather
-    ? metrics.source === 'best_window' && weather.bestTime
-      ? getHourlySlice(weather, weather.bestTime.start, weather.bestTime.end)
-      : [...weather.hourlyData.values()]
-    : [];
-  const blocked = selectedHours.filter(hour => observingBlockers(hour).length > 0);
-  if (blocked.length) {
-    score = Math.min(score, Math.round(34 * (1 - blocked.length / selectedHours.length)));
-    const reasons = [...new Set(blocked.flatMap(observingBlockers))].join(', ');
-    conditionsSummary = `Limited by ${reasons} — ${blocked.length}/${selectedHours.length} sampled hours unsuitable`;
+  const start =
+    metrics.source === 'best_window' ? weather?.bestTime?.start : nightInfo?.observingWindowStart;
+  const end =
+    metrics.source === 'best_window' ? weather?.bestTime?.end : nightInfo?.observingWindowEnd;
+  const selected = weather && start && end ? weatherSlices(weather, start, end) : [];
+  const blockedHours = selected.reduce(
+    (sum, s) => sum + (observingBlockers(s.hour).length ? s.hours : 0),
+    0
+  );
+  const selectedHours = selected.reduce((sum, s) => sum + s.hours, 0);
+  if (blockedHours > 0 && selectedHours > 0) {
+    const loss = Math.round((score * blockedHours) / selectedHours);
+    score -= loss;
+    penalties.push({
+      key: 'practicality',
+      detail: 'Unsuitable weather within interval',
+      penalty: loss,
+    });
   }
+  const confidence = nightInfo ? forecastConfidence(weather, nightInfo, start, end) : 'low';
   if (!weather) score = Math.min(score, 49);
-  const conditionsScore = score;
   if (weather && nightInfo) {
-    const coverage = weatherCoverage(weather, nightInfo);
-    if (
-      Math.min(
-        coverage.weather,
-        coverage.precipitation,
-        coverage.wind,
-        coverage.visibility,
-        coverage.aerosol
-      ) < coverage.expected
-    ) {
-      score = Math.min(score, 69);
+    const coverage = weatherCoverage(weather, nightInfo, start, end);
+    if (!isWeatherCoverageComplete(coverage)) {
+      const capped = Math.min(score, 69);
+      if (capped < score)
+        penalties.push({
+          key: 'practicality',
+          detail: 'Incomplete weather evidence',
+          penalty: score - capped,
+        });
+      score = capped;
       conditionsSummary += ' · incomplete weather evidence';
     }
   }
-  const penalties = buildPenaltyBreakdown(metrics, factors, practicalWindowPenalty);
   const windowLimited = applyObservingWindowLimit(score, penalties, conditionsSummary, nightInfo);
 
   return {
-    conditionsScore: applyObservingWindowLimit(conditionsScore, [], conditionsSummary, nightInfo)
-      .score,
+    conditionsScore: windowLimited.score,
+    confidence,
     score: windowLimited.score,
     rating: getRatingFromPercentage(windowLimited.score),
     summary: windowLimited.summary,
@@ -524,31 +474,104 @@ export function calculateNightQuality(
   return calculateFromMetrics(buildWholeNightMetrics(weather, nightInfo), weather, nightInfo);
 }
 
-/**
- * Calculate the displayed headline quality from the best observing window,
- * falling back to whole-night averages when no best window exists.
- */
+/** One night-opportunity assessment for calendar, cards, rankings and notifications. */
 export function calculateHeadlineNightQuality(
   weather: NightWeather | null,
   nightInfo: NightInfo
 ): NightQuality {
-  if (!weather) return calculateNightQuality(weather, nightInfo);
-
-  const bestWindowMetrics = buildBestWindowMetrics(weather, nightInfo);
-  if (!bestWindowMetrics) return calculateNightQuality(weather, nightInfo);
-
-  return calculateFromMetrics(bestWindowMetrics, weather, nightInfo);
+  const fallback = calculateNightQuality(weather, nightInfo);
+  const cutoff = weather?.assessedFrom ?? nightInfo.observingWindowStart;
+  const windows = weather
+    ? collectWeatherWindows(weather.hourlyData, nightInfo)
+        .map(w => ({ start: new Date(Math.max(Number(w.start), Number(cutoff))), end: w.end }))
+        .filter(w => Number(w.end) - Number(w.start) >= MIN_OBSERVING_WINDOW_MS)
+    : [];
+  const durations = windows.map(w => (Number(w.end) - Number(w.start)) / 3_600_000);
+  const usableHours = durations.reduce((sum, h) => sum + h, 0);
+  const longestHours = Math.max(0, ...durations);
+  // Other blocks earn half credit for setup/reacquisition. Four equivalent hours
+  // remove the duration reduction; no night-length fraction penalises summer twice.
+  const label =
+    usableHours === 0
+      ? weather
+        ? 'No remaining opportunity'
+        : 'Opportunity unknown'
+      : longestHours < 1
+        ? 'Brief opportunity'
+        : windows.length > 1
+          ? 'Split opportunity'
+          : 'Continuous opportunity';
+  const opportunity = {
+    usableHours,
+    longestHours,
+    windowCount: windows.length,
+    label,
+  };
+  if (!weather || !usableHours)
+    return {
+      ...fallback,
+      score: 0,
+      rating: getRatingFromPercentage(0),
+      summary: label,
+      opportunity,
+    };
+  const conditions = windows.map(w =>
+    calculateWindowNightQuality(weather, nightInfo, w.start, w.end)
+  );
+  // Integrate local quality before summing: adding a worse but usable hour must
+  // never lower opportunity. Whole-block average squared would violate this.
+  let peakScore = 0;
+  const qualityHours = windows.map(w => {
+    let total = 0;
+    for (let time = Number(w.start); time < Number(w.end); time += MIN_OBSERVING_WINDOW_MS) {
+      const end = Math.min(Number(w.end), time + MIN_OBSERVING_WINDOW_MS);
+      const q = calculateWindowNightQuality(weather, nightInfo, new Date(time), new Date(end));
+      peakScore = Math.max(peakScore, q.score);
+      total += ((end - time) / 3_600_000) * (q.score / 100) ** 2;
+    }
+    return total;
+  });
+  const effectiveQualityHours =
+    (qualityHours.reduce((sum, h) => sum + h, 0) + Math.max(...qualityHours)) / 2;
+  const score = Math.round(Math.min(peakScore, 100 * Math.sqrt(effectiveQualityHours / 4)));
+  const session = weather.bestTime
+    ? calculateWindowNightQuality(weather, nightInfo, weather.bestTime.start, weather.bestTime.end)
+    : conditions[durations.indexOf(longestHours)];
+  const confidence = conditions.some(q => q.confidence === 'low')
+    ? 'low'
+    : conditions.some(q => q.confidence === 'medium')
+      ? 'medium'
+      : 'high';
+  const penalties = [...session.penalties];
+  if (score < peakScore)
+    penalties.unshift({
+      key: 'practicality',
+      detail: `${formatDurationMinutes(usableHours * 60)} usable · ${formatDurationMinutes(longestHours * 60)} longest block`,
+      penalty: Math.round(peakScore - score),
+    });
+  return {
+    ...session,
+    conditionsScore: session.score,
+    score,
+    rating: getRatingFromPercentage(score),
+    confidence,
+    opportunity,
+    penalties,
+    summary: `${label} · ${session.summary}`,
+  };
 }
 
-/** The same quality calculation selects an interval and explains its headline rating. */
+/** Conditions only: duration belongs to session selection and night opportunity. */
 export function calculateWindowNightQuality(
   weather: NightWeather,
   night: NightInfo,
   start: Date,
   end: Date
 ): NightQuality {
-  return calculateHeadlineNightQuality(
-    { ...weather, bestTime: { start, end, score: 0, reason: '' } },
+  const scoped = { ...weather, bestTime: { start, end, score: 0, reason: '' } };
+  return calculateFromMetrics(
+    buildBestWindowMetrics(scoped, night) ?? buildWholeNightMetrics(scoped, night),
+    scoped,
     night
   );
 }

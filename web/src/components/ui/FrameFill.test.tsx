@@ -8,21 +8,21 @@ vi.mock('@/stores/AppContext', () => ({
   }),
 }));
 describe('shared field-of-view tag', () => {
-  it('uses ellipse area, not diameter, and preserves tiny nonzero values', () => {
+  it('shows dimensions and fit rather than an ambiguous area percentage', () => {
     const { rerender } = render(
       <FrameFill visibility={{ angularSizeArcmin: 10, minorAxisArcmin: 10 }} category="dso" />
     );
-    expect(screen.getByTestId('target-frame-fill')).toHaveTextContent('FoV 0.8%');
+    expect(screen.getByTestId('target-frame-fill')).toHaveTextContent('10′ × 10′ · Fits in frame');
     rerender(
       <FrameFill visibility={{ angularSizeArcmin: 1, minorAxisArcmin: 1 }} category="dso" />
     );
-    expect(screen.getByTestId('target-frame-fill')).toHaveTextContent('FoV <0.1%');
+    expect(screen.getByTestId('target-frame-fill')).toHaveTextContent('1′ × 1′ · Small in frame');
   });
   it('distinguishes unknown size from estimated minor axis', () => {
     const { rerender } = render(<FrameFill visibility={{ angularSizeArcmin: 0 }} category="dso" />);
     expect(screen.getByTestId('target-frame-fill')).toHaveTextContent('FoV unknown');
     rerender(<FrameFill visibility={{ angularSizeArcmin: 10 }} category="dso" />);
-    expect(screen.getByTestId('target-frame-fill')).toHaveTextContent('FoV ≈');
+    expect(screen.getByTestId('target-frame-fill')).toHaveTextContent('10′ · width unknown');
   });
   it('does not misrepresent a planet or comet as an extended deep-sky target', () => {
     const { rerender } = render(

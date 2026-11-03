@@ -199,22 +199,39 @@ test.describe('Visual summaries and progressive disclosure', () => {
     await expect(page.getByTestId('forecast-view')).toBeVisible({ timeout: 60000 });
   });
 
-  test('leads with night conditions and reveals explanations on demand', async ({ page }) => {
-    const night = page.getByRole('region', { name: 'Night conditions', exact: true });
+  test('leads with night opportunity and reveals explanations on demand', async ({ page }) => {
+    const night = page.getByRole('region', { name: 'Night opportunity', exact: true });
     await expect(night).toBeVisible();
     await expect(night.getByRole('slider', { name: 'Night timeline scrubber' })).toBeVisible();
     const explain = page.getByRole('button', { name: 'Why this night rating?', exact: true });
     await expect(explain).toHaveAttribute('aria-expanded', 'false');
     await explain.click();
-    await expect(page.getByText(/Whole-night average/)).toBeVisible();
+    await expect(page.getByText(/Stars rate remaining dark-sky imaging opportunity/)).toBeVisible();
     await explain.click();
-    await expect(page.getByText(/Whole-night average/)).toHaveCount(0);
+    await expect(page.getByText(/Stars rate remaining dark-sky imaging opportunity/)).toHaveCount(
+      0
+    );
     const evidence = page.getByRole('button', { name: /^Forecast evidence/ });
     await expect(evidence).toHaveAttribute('aria-expanded', 'false');
     await evidence.click();
     await expect(
       page.getByRole('button', { name: 'Compare free weather forecasts' })
     ).toBeVisible();
+  });
+
+  test('shows the corrected Western Veil footprint and wraps large frame labels', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Search objects', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    const search = dialog.getByPlaceholder('Search objects', { exact: false });
+    await search.fill('NGC6960');
+    await expect(dialog.getByTestId('target-frame-fill')).toHaveText('70′ × 6′ · Fits in frame');
+    await expect(dialog.getByTestId('target-magnitude')).toBeVisible();
+    await search.fill('M31');
+    await expect(dialog.getByTestId('target-frame-fill')).toContainText('Extends beyond frame');
+    const overflow = await dialog.evaluate(el => el.scrollWidth > el.clientWidth + 1);
+    expect(overflow).toBe(false);
   });
 
   test('keeps the magnitude filter visible and filters target cards', async ({ page }) => {
@@ -352,7 +369,7 @@ test('shows separated usable periods and inspects one without expanding explanat
     timezone: 'Europe/London',
   });
   await page.goto('/');
-  const night = page.getByRole('region', { name: 'Night conditions', exact: true });
+  const night = page.getByRole('region', { name: 'Night opportunity', exact: true });
   await expect(night).toBeVisible({ timeout: 60000 });
   await expect(night.getByTestId('observing-window-segment')).toHaveCount(3);
   await expect(night.getByText(/^Recommended ·/)).toBeVisible();

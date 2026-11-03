@@ -141,6 +141,7 @@ export interface ObjectVisibility {
   moonWarning: boolean;
   magnitude: number | null;
   magnitudeSource?: string;
+  dimensionProvenance?: DimensionProvenance;
   isInterstellar: boolean;
   altitudeSamples: [Date, number][];
   azimuthSamples: [Date, number][];
@@ -233,7 +234,7 @@ export interface NightWeather {
   maxPrecipProbability: number | null;
   totalPrecipitationMm: number | null;
   minDewMargin: number | null;
-  dewRiskHours: number;
+  dewRiskHours: number | null;
   avgPressureHpa: number | null;
   pressureTrend: 'rising' | 'falling' | 'steady' | null;
   maxCape: number | null;
@@ -241,6 +242,10 @@ export interface NightWeather {
   observingWindows?: BestObservingTime[];
   /** Recommended interval within those periods. */
   bestTime: BestObservingTime | null;
+  /** Strongest conditions within the recommended session. */
+  strongestTime?: BestObservingTime | null;
+  /** Cutoff used for remaining opportunity; set by the shared live plan. */
+  assessedFrom?: Date;
   avgAerosolOpticalDepth: number | null;
   avgPm25: number | null;
   avgPm10: number | null;
@@ -248,6 +253,9 @@ export interface NightWeather {
 }
 
 export interface HourlyWeather {
+  cloudCoverLow?: number | null;
+  cloudCoverMid?: number | null;
+  cloudCoverHigh?: number | null;
   windDirection?: number | null;
   jetStreamSpeed?: number | null;
   fogCover?: number | null;
@@ -413,6 +421,12 @@ export interface Settings {
   customFOV: CustomFOV | null;
 }
 
+export interface DimensionProvenance {
+  region: string;
+  note: string;
+  sources: { label: string; url: string }[];
+}
+
 export interface DSOCatalogEntry {
   name: string;
   type: DSOSubtype;
@@ -420,6 +434,7 @@ export interface DSOCatalogEntry {
   decDegrees: number;
   magnitude: number | null;
   magnitudeSource?: string;
+  dimensionProvenance?: DimensionProvenance;
   majorAxisArcmin: number | null;
   minorAxisArcmin: number | null;
   constellation: string;

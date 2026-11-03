@@ -1,6 +1,7 @@
 import { formatInTimeZone } from 'date-fns-tz';
 import { useEffect, useMemo, useRef } from 'react';
-import { formatDateKey, getMoonPhaseEmoji } from '@/lib/utils/format';
+import NightRating from '@/components/ui/NightRating';
+import { formatDateKey, formatDurationMinutes, getMoonPhaseEmoji } from '@/lib/utils/format';
 import { calculateHeadlineNightQuality } from '@/lib/weather/night-quality';
 import type { NightForecast } from '@/types';
 
@@ -64,12 +65,12 @@ export default function NightStrip({
         aria-label="Night selection"
       >
         {forecasts.map((forecast, index) => {
-          const { nightInfo, forecastConfidence } = forecast;
+          const { nightInfo } = forecast;
           const dateKey = formatDateKey(nightInfo.date, timezone);
           const isBestNight = bestNightSet.has(dateKey);
           const isSelected = index === selectedIndex;
           const nightQuality = nightQualities[index];
-          const isLowConfidence = forecastConfidence === 'low';
+          const isLowConfidence = nightQuality.confidence === 'low';
 
           const dayName = timezone
             ? formatInTimeZone(nightInfo.date, timezone, 'EEE')
@@ -90,7 +91,7 @@ export default function NightStrip({
               aria-selected={isSelected}
               onClick={() => onSelectNight(index)}
               onKeyDown={e => handleKeyDown(e, index)}
-              className={`flex h-[4.5rem] w-[4.5rem] min-w-[4rem] flex-shrink-0 snap-center flex-col items-center justify-center rounded-xl border transition-all ${
+              className={`flex h-[5.5rem] w-[5.5rem] min-w-[5rem] flex-shrink-0 snap-center flex-col items-center justify-center rounded-xl border transition-all ${
                 isSelected
                   ? 'border-sky-500/60 bg-sky-600/20 ring-1 ring-sky-500/40'
                   : 'border-night-700 bg-night-900 hover:border-night-600 hover:bg-night-800'
@@ -105,9 +106,14 @@ export default function NightStrip({
                 <span
                   className={`whitespace-nowrap text-[0.6rem] leading-none ${nightQuality.rating.color}`}
                 >
-                  {nightQuality.rating.starString}
+                  <NightRating quality={nightQuality} compact />
                 </span>
               </div>
+              <span className="mt-1 text-[0.6rem] text-gray-300">
+                {nightQuality.opportunity?.label === 'Opportunity unknown'
+                  ? 'Weather unknown'
+                  : `${formatDurationMinutes((nightQuality.opportunity?.usableHours ?? 0) * 60)} usable`}
+              </span>
               <span className="mt-0.5 h-2.5 text-[0.6rem] text-green-400 leading-none">
                 {isBestNight ? 'Best' : null}
               </span>

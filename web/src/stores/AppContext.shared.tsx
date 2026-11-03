@@ -270,12 +270,18 @@ export function AppProvider({
     let changed = false;
     const forecasts = state.forecasts.map(forecast => {
       const { weather, nightInfo } = forecast;
-      if (!weather?.bestTime || Number(weather.bestTime.start) >= Number(now)) return forecast;
+      if (!weather || Number(nightInfo.observingWindowStart) >= Number(now)) return forecast;
       const plan = calculateObservingWindows(weather, nightInfo, now);
       changed = true;
       return {
         ...forecast,
-        weather: { ...weather, observingWindows: plan.windows, bestTime: plan.recommended },
+        weather: {
+          ...weather,
+          observingWindows: plan.windows,
+          bestTime: plan.recommended,
+          strongestTime: plan.strongest,
+          assessedFrom: plan.assessedFrom,
+        },
       };
     });
     return changed
