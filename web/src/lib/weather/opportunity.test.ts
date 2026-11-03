@@ -123,6 +123,24 @@ describe('practical night opportunity', () => {
     expect(q.penalties.find(p => p.key === 'seeing')?.penalty).toBe(3.75);
     expect(q.penalties.find(p => p.key === 'transparency')?.penalty).toBe(2);
   });
+  it('keeps steady dew risk unchanged across fractional dawn boundaries', () => {
+    const w = weather(Array(11).fill(0));
+    for (const h of w.hourlyData.values()) {
+      h.dewPoint = 9;
+      h.aod = 0.3;
+    }
+    const conditions = calculateWindowNightQuality(w, night, at(0), at(5));
+    const scores = [5, 5.01, 5.49, 5.5].map(hours => {
+      const n = { ...night, observingWindowEnd: at(hours) };
+      const q = calculateHeadlineNightQuality(w, n);
+      expect(q.score).toBe(conditions.score);
+      return q.rating.stars;
+    });
+    expect(new Set(scores).size).toBe(1);
+    const fragment = calculateWindowNightQuality(w, night, at(5), at(5.01));
+    expect(fragment.metrics.totalHours).toBeCloseTo(0.01);
+    expect(fragment.factors.dewRisk).toBe(0);
+  });
   it('preserves and weights dusk/dawn fragments without including daytime weather', () => {
     const times = Array.from({ length: 12 }, (_, i) => +at(i) / 1000);
     const raw = {

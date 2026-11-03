@@ -204,10 +204,7 @@ function buildBestWindowMetrics(
     )
       ? null
       : dewRiskHours,
-    totalHours: Math.max(
-      (weather.bestTime.end.getTime() - weather.bestTime.start.getTime()) / (1000 * 60 * 60),
-      0.5
-    ),
+    totalHours: (weather.bestTime.end.getTime() - weather.bestTime.start.getTime()) / 3_600_000,
     windSpeedKmh: avgWindSpeedKmh,
   };
 }
