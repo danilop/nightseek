@@ -1,26 +1,11 @@
 {
-  "fetchedAt": "2026-11-06T13:47:50.839Z",
-  "startDate": "2026-11-06",
-  "endDate": "2026-11-12",
+  "fetchedAt": "2026-11-07T12:31:03.452Z",
+  "startDate": "2026-11-07",
+  "endDate": "2026-11-13",
   "data": {
     "2026-11-09": [],
     "2026-11-08": [],
     "2026-11-07": [],
-    "2026-11-06": [
-      {
-        "name": "2001 KF54",
-        "neoId": "3076814",
-        "isPotentiallyHazardous": true,
-        "estimatedDiameterKm": {
-          "min": 0.2901048414,
-          "max": 0.648694146
-        },
-        "closeApproachDate": "2026-Nov-06 03:38",
-        "missDistanceLunarDistances": 18.8360429338,
-        "relativeVelocityKmh": 59129.6818513432,
-        "absoluteMagnitude": 19.81
-      }
-    ],
     "2026-11-12": [],
     "2026-11-11": [],
     "2026-11-10": [
@@ -50,6 +35,7 @@
         "relativeVelocityKmh": 26871.3829204531,
         "absoluteMagnitude": 24.3
       }
-    ]
+    ],
+    "2026-11-13": []
   }
 }
