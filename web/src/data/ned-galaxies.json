@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-11-07T12:31:19.223518+00:00",
+  "checkedAt": "2026-11-08T12:50:28.664689+00:00",
   "galaxies": [
     {
       "name": "M31",
@@ -22,7 +22,7 @@
       "diameterArcsec": 12250.4,
       "diameterBand": "RC3 D_0 (blue)",
       "diameterReference": "1991RC3.9.C...0000d",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M31"
     },
     {
@@ -46,7 +46,7 @@
       "diameterArcsec": 660.0,
       "diameterBand": "POSS1 103a-O",
       "diameterReference": "1973UGC...C...0000N",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M32"
     },
     {
@@ -70,7 +70,7 @@
       "diameterArcsec": 4447.9,
       "diameterBand": "RC3 D_0 (blue)",
       "diameterReference": "1991RC3.9.C...0000d",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M33"
     },
     {
@@ -94,7 +94,7 @@
       "diameterArcsec": null,
       "diameterBand": null,
       "diameterReference": null,
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M51"
     },
     {
@@ -118,7 +118,7 @@
       "diameterArcsec": 900.0,
       "diameterBand": "POSS1 103a-O",
       "diameterReference": "1973UGC...C...0000N",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M63"
     },
     {
@@ -142,7 +142,7 @@
       "diameterArcsec": 628.3,
       "diameterBand": "RC3 D_0 (blue)",
       "diameterReference": "1991RC3.9.C...0000d",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M64"
     },
     {
@@ -166,7 +166,7 @@
       "diameterArcsec": 586.3,
       "diameterBand": "RC3 D_25, R_25 (blue)",
       "diameterReference": "1991RC3.9.C...0000d",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M65"
     },
     {
@@ -190,7 +190,7 @@
       "diameterArcsec": 560.0,
       "diameterBand": "RC3 D_0 (blue)",
       "diameterReference": "1991RC3.9.C...0000d",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M66"
     },
     {
@@ -214,7 +214,7 @@
       "diameterArcsec": 1652.5,
       "diameterBand": "RC3 D_0 (blue)",
       "diameterReference": "1991RC3.9.C...0000d",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M81"
     },
     {
@@ -238,7 +238,7 @@
       "diameterArcsec": null,
       "diameterBand": "POSS1 103a-E",
       "diameterReference": "1971MNRAS.151..421M",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M82"
     },
     {
@@ -262,7 +262,7 @@
       "diameterArcsec": 2400.0,
       "diameterBand": "POSS1 103a-O",
       "diameterReference": "1962MCG...C01....0V",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M101"
     },
     {
@@ -286,7 +286,7 @@
       "diameterArcsec": 594.2,
       "diameterBand": "K_s (LGA/2MASS \"total\")",
       "diameterReference": "2003AJ....125..525J",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M104"
     },
     {
@@ -310,7 +310,7 @@
       "diameterArcsec": 1320.0,
       "diameterBand": "POSS1 103a-O",
       "diameterReference": "1973UGC...C...0000N",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M106"
     },
     {
@@ -334,7 +334,7 @@
       "diameterArcsec": 1312.7,
       "diameterBand": "RC3 D_25, R_25 (blue)",
       "diameterReference": "1991RC3.9.C...0000d",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M110"
     },
     {
@@ -358,7 +358,7 @@
       "diameterArcsec": 2371.37,
       "diameterBand": "ESO-LV \"Quick Blue\" IIa-O",
       "diameterReference": "1989spce.book.....L",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=NGC+253"
     },
     {
@@ -382,7 +382,7 @@
       "diameterArcsec": 867.3,
       "diameterBand": "RC3 D_0 (blue)",
       "diameterReference": "1991RC3.9.C...0000d",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=NGC+891"
     },
     {
@@ -406,7 +406,7 @@
       "diameterArcsec": 1680.0,
       "diameterBand": "POSS1 103a-O",
       "diameterReference": "1973UGC...C...0000N",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=NGC+2403"
     },
     {
@@ -430,7 +430,7 @@
       "diameterArcsec": 950.9,
       "diameterBand": "RC3 D_25, R_25 (blue)",
       "diameterReference": "1991RC3.9.C...0000d",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=NGC+4565"
     },
     {
@@ -454,7 +454,7 @@
       "diameterArcsec": 2041.74,
       "diameterBand": "ESO-LV \"Quick Blue\" IIa-O",
       "diameterReference": "1989spce.book.....L",
-      "fetchedAt": "2026-10-31T21:31:18.208416+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=NGC+5128"
     },
     {
@@ -478,7 +478,7 @@
       "diameterArcsec": 499.1,
       "diameterBand": "RC3 D_25, R_25 (blue)",
       "diameterReference": "1991RC3.9.C...0000d",
-      "fetchedAt": "2026-10-31T21:36:28.567962+00:00",
+      "fetchedAt": "2026-11-08T12:50:28.664689+00:00",
       "sourceUrl": "https://ned.ipac.caltech.edu/NED::API/OverviewOfObject?TARGET=M87"
     }
   ],
