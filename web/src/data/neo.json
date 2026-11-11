@@ -1,38 +1,11 @@
 {
-  "fetchedAt": "2026-11-10T14:24:35.025Z",
-  "startDate": "2026-11-10",
-  "endDate": "2026-11-16",
+  "fetchedAt": "2026-11-11T13:38:23.464Z",
+  "startDate": "2026-11-11",
+  "endDate": "2026-11-17",
   "data": {
+    "2026-11-17": [],
     "2026-11-12": [],
     "2026-11-11": [],
-    "2026-11-10": [
-      {
-        "name": "2015 VH65",
-        "neoId": "3733933",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0076657557,
-          "max": 0.0171411509
-        },
-        "closeApproachDate": "2026-Nov-10 00:24",
-        "missDistanceLunarDistances": 9.6895148754,
-        "relativeVelocityKmh": 28711.3571628241,
-        "absoluteMagnitude": 27.7
-      },
-      {
-        "name": "2012 YD7",
-        "neoId": "3621808",
-        "isPotentiallyHazardous": false,
-        "estimatedDiameterKm": {
-          "min": 0.0366906138,
-          "max": 0.0820427065
-        },
-        "closeApproachDate": "2026-Nov-10 20:05",
-        "missDistanceLunarDistances": 18.5162454114,
-        "relativeVelocityKmh": 26871.3829204531,
-        "absoluteMagnitude": 24.3
-      }
-    ],
     "2026-11-16": [],
     "2026-11-15": [],
     "2026-11-14": [],
