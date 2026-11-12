@@ -1,11 +1,25 @@
 {
-  "fetchedAt": "2026-11-11T13:38:23.464Z",
-  "startDate": "2026-11-11",
-  "endDate": "2026-11-17",
+  "fetchedAt": "2026-11-12T14:42:01.551Z",
+  "startDate": "2026-11-12",
+  "endDate": "2026-11-18",
   "data": {
+    "2026-11-18": [
+      {
+        "name": "2019 WT1",
+        "neoId": "3893405",
+        "isPotentiallyHazardous": false,
+        "estimatedDiameterKm": {
+          "min": 0.0116025908,
+          "max": 0.0259441818
+        },
+        "closeApproachDate": "2026-Nov-18 22:02",
+        "missDistanceLunarDistances": 19.6106747773,
+        "relativeVelocityKmh": 35085.6246647166,
+        "absoluteMagnitude": 26.8
+      }
+    ],
     "2026-11-17": [],
     "2026-11-12": [],
-    "2026-11-11": [],
     "2026-11-16": [],
     "2026-11-15": [],
     "2026-11-14": [],
