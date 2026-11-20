@@ -1,16 +1,16 @@
 {
-  "fetchedAt": "2026-11-19T15:18:47.162Z",
+  "fetchedAt": "2026-11-20T14:57:14.184Z",
   "hashes": {
-    "neo.json": "346751c687c7",
-    "comets.json": "28c2c567adba",
-    "donki.json": "90774bcda032",
+    "neo.json": "3859a92feb43",
+    "comets.json": "91e90e40812b",
+    "donki.json": "a1b530fe1684",
     "asteroids.json": "472d75092f66",
-    "ephemeris.json": "b0b808159c96"
+    "ephemeris.json": "cdd441ae0140"
   },
   "sources": {
-    "neo.json": "2026-11-19T15:18:39.061Z",
-    "comets.json": "2026-11-19T15:18:47.163Z",
-    "donki.json": "2026-11-19T15:18:40.086Z",
-    "ephemeris.json": "2026-11-19T15:18:47.157Z"
+    "neo.json": "2026-11-20T14:57:06.217Z",
+    "comets.json": "2026-11-20T14:57:14.185Z",
+    "donki.json": "2026-11-20T14:57:07.158Z",
+    "ephemeris.json": "2026-11-20T14:57:14.177Z"
   }
 }
